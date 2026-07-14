@@ -13,6 +13,7 @@ use App\Models\UnitChecklistPhoto;
 use App\Models\UnitChecklistSignature;
 use App\Support\IndexedRedirect;
 use App\Support\PermissionCatalog;
+use App\Support\SystemRoles;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -50,9 +51,13 @@ class ChecklistController extends Controller
             ->with([
                 'template:id,type,code,name',
                 'period:id,name,date,status',
-                'unit:id,correlative,plate_number,period_id',
+                'unit:id,correlative,plate_number,period_id,coordinator_id',
             ])
             ->whereHas('period', fn ($q) => $q->where('status', 'active'));
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $query->whereHas('unit', fn ($q) => $q->where('coordinator_id', Auth::id()));
+        }
 
         if ($search !== '') {
             $query->where(function ($builder) use ($search) {
@@ -77,6 +82,19 @@ class ChecklistController extends Controller
 
         $activePeriodIds = Period::query()->where('status', 'active')->pluck('id');
 
+        $activeUnitsQuery = Unit::query()
+            ->whereIn('period_id', $activePeriodIds)
+            ->with('period:id,name,status,date')
+            ->orderBy('plate_number');
+
+        $statsQuery = UnitChecklist::query()
+            ->whereHas('period', fn ($q) => $q->where('status', 'active'));
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $activeUnitsQuery->where('coordinator_id', Auth::id());
+            $statsQuery->whereHas('unit', fn ($q) => $q->where('coordinator_id', Auth::id()));
+        }
+
         return Inertia::render('checklists/index', [
             'checklists' => $checklists,
             'filters' => [
@@ -91,31 +109,20 @@ class ChecklistController extends Controller
                 ->where('is_active', true)
                 ->orderBy('type')
                 ->get(['id', 'type', 'code', 'name']),
-            'activeUnits' => Unit::query()
-                ->whereIn('period_id', $activePeriodIds)
-                ->with('period:id,name,status,date')
-                ->orderBy('plate_number')
-                ->get([
-                    'id',
-                    'period_id',
-                    'correlative',
-                    'plate_number',
-                    'driver_name',
-                    'provider',
-                    'category',
-                ]),
+            'activeUnits' => $activeUnitsQuery->get([
+                'id',
+                'period_id',
+                'correlative',
+                'plate_number',
+                'driver_name',
+                'provider',
+                'category',
+                'coordinator_id',
+            ]),
             'stats' => [
-                'total' => UnitChecklist::query()
-                    ->whereHas('period', fn ($q) => $q->where('status', 'active'))
-                    ->count(),
-                'draft' => UnitChecklist::query()
-                    ->where('status', 'draft')
-                    ->whereHas('period', fn ($q) => $q->where('status', 'active'))
-                    ->count(),
-                'completed' => UnitChecklist::query()
-                    ->where('status', 'completed')
-                    ->whereHas('period', fn ($q) => $q->where('status', 'active'))
-                    ->count(),
+                'total' => (clone $statsQuery)->count(),
+                'draft' => (clone $statsQuery)->where('status', 'draft')->count(),
+                'completed' => (clone $statsQuery)->where('status', 'completed')->count(),
                 'page' => $checklists->currentPage().'/'.max($checklists->lastPage(), 1),
                 'on_screen' => $checklists->count(),
             ],
@@ -126,6 +133,7 @@ class ChecklistController extends Controller
     {
         $data = $request->validated();
         $unit = Unit::query()->with('period')->findOrFail($data['unit_id']);
+        $this->ensureCanAccessUnit($unit);
 
         if ($unit->period?->status !== 'active') {
             return back()->with('toast', [
@@ -197,13 +205,15 @@ class ChecklistController extends Controller
     {
         $checklist->load([
             'period:id,name,date,status',
-            'unit:id,correlative,plate_number,driver_name,provider,category,period_id',
+            'unit:id,correlative,plate_number,driver_name,provider,category,period_id,coordinator_id',
             'template.items',
             'template.signatureRoles',
             'answers',
             'signatures',
             'photos',
         ]);
+
+        $this->ensureCanAccessChecklist($checklist);
 
         if ($checklist->period?->status !== 'active') {
             return redirect()
@@ -300,7 +310,8 @@ class ChecklistController extends Controller
 
     public function update(UpdateUnitChecklistRequest $request, UnitChecklist $checklist): RedirectResponse
     {
-        $checklist->loadMissing(['period', 'signatures', 'template.signatureRoles']);
+        $checklist->loadMissing(['period', 'unit', 'signatures', 'template.signatureRoles']);
+        $this->ensureCanAccessChecklist($checklist);
 
         if ($checklist->period?->status !== 'active') {
             return back()->with('toast', [
@@ -445,7 +456,8 @@ class ChecklistController extends Controller
 
     public function storePhoto(Request $request, UnitChecklist $checklist): RedirectResponse
     {
-        $checklist->loadMissing('period');
+        $checklist->loadMissing(['period', 'unit']);
+        $this->ensureCanAccessChecklist($checklist);
 
         if ($checklist->period?->status !== 'active') {
             return back()->with('toast', [
@@ -516,7 +528,8 @@ class ChecklistController extends Controller
             abort(404);
         }
 
-        $checklist->loadMissing('period');
+        $checklist->loadMissing(['period', 'unit']);
+        $this->ensureCanAccessChecklist($checklist);
 
         if ($checklist->period?->status !== 'active') {
             return back()->with('toast', [
@@ -543,6 +556,9 @@ class ChecklistController extends Controller
 
     public function pdf(UnitChecklist $checklist): Response|RedirectResponse
     {
+        $checklist->loadMissing('unit');
+        $this->ensureCanAccessChecklist($checklist);
+
         if (! $checklist->isSealed()) {
             return redirect()
                 ->route('checklists.index')
@@ -654,6 +670,9 @@ class ChecklistController extends Controller
 
     public function destroy(Request $request, UnitChecklist $checklist): RedirectResponse
     {
+        $checklist->loadMissing('unit');
+        $this->ensureCanAccessChecklist($checklist);
+
         if ($checklist->isSealed()) {
             return back()->with('toast', [
                 'type' => 'error',
@@ -673,5 +692,29 @@ class ChecklistController extends Controller
             'type' => 'success',
             'message' => 'Checklist eliminado correctamente.',
         ]);
+    }
+
+    private function ensureCanAccessUnit(Unit $unit): void
+    {
+        if (
+            SystemRoles::currentIsScopedCoordinator()
+            && (int) $unit->coordinator_id !== (int) Auth::id()
+        ) {
+            abort(403, 'No tienes acceso a esta unidad.');
+        }
+    }
+
+    private function ensureCanAccessChecklist(UnitChecklist $checklist): void
+    {
+        if (! SystemRoles::currentIsScopedCoordinator()) {
+            return;
+        }
+
+        $coordinatorId = $checklist->unit?->coordinator_id
+            ?? Unit::query()->whereKey($checklist->unit_id)->value('coordinator_id');
+
+        if ((int) $coordinatorId !== (int) Auth::id()) {
+            abort(403, 'No tienes acceso a esta inspección.');
+        }
     }
 }

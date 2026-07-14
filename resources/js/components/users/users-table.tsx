@@ -17,6 +17,9 @@ export type UserItem = {
     id: number;
     name: string;
     email: string;
+    document_type?: string | null;
+    document_number?: string | null;
+    phone?: string | null;
     roles_count: number;
     roles?: UserRoleRef[];
     created_at?: string | null;
@@ -247,7 +250,7 @@ export function UsersTable({
                 <TableSearchFilter
                     value={filters.search}
                     onChange={(search) => visit({ search, page: 1 })}
-                    placeholder="Buscar por nombre o correo..."
+                    placeholder="Buscar por nombre, correo, documento o celular..."
                 />
             </div>
 
@@ -289,6 +292,12 @@ export function UsersTable({
                                     )}
                                 </th>
                             ))}
+                            <th className="px-3 py-2 text-xs font-semibold">
+                                Documento
+                            </th>
+                            <th className="px-3 py-2 text-xs font-semibold">
+                                Celular
+                            </th>
                             <th
                                 className="w-24 px-3 py-2"
                                 aria-label="Acciones"
@@ -299,7 +308,7 @@ export function UsersTable({
                         {users.data.length === 0 ? (
                             <tr>
                                 <td
-                                    colSpan={5}
+                                    colSpan={7}
                                     className="px-3 py-10 text-center text-[#6b8ead]"
                                 >
                                     No se encontraron usuarios.
@@ -325,6 +334,14 @@ export function UsersTable({
                                     </td>
                                     <td className="px-3 py-1.5 text-center text-xs text-[#5a7390]">
                                         {formatDate(user.created_at)}
+                                    </td>
+                                    <td className="px-3 py-1.5 text-xs text-[#5a7390]">
+                                        {user.document_number
+                                            ? `${(user.document_type ?? 'dni').toUpperCase()} ${user.document_number}`
+                                            : '—'}
+                                    </td>
+                                    <td className="px-3 py-1.5 text-xs text-[#5a7390]">
+                                        {user.phone || '—'}
                                     </td>
                                     <td className="px-3 py-1.5">
                                         <UserActions
@@ -359,6 +376,12 @@ export function UsersTable({
                             </h3>
                             <p className="mb-2 break-all text-xs text-[#5a7390]">
                                 {user.email}
+                            </p>
+                            <p className="mb-2 text-xs text-[#5a7390]">
+                                {user.document_number
+                                    ? `${(user.document_type ?? 'dni').toUpperCase()} ${user.document_number}`
+                                    : 'Sin documento'}
+                                {user.phone ? ` · ${user.phone}` : ''}
                             </p>
                             <dl className="mb-3 grid grid-cols-2 gap-2 text-sm">
                                 <div>

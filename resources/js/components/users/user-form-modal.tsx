@@ -15,6 +15,9 @@ type Props = {
 const emptyValues = {
     name: '',
     email: '',
+    document_type: 'dni',
+    document_number: '',
+    phone: '',
     password: '',
     password_confirmation: '',
 };
@@ -31,6 +34,9 @@ export function UserFormModal({ open, user = null, onClose }: Props) {
         form.setData({
             name: user?.name ?? '',
             email: user?.email ?? '',
+            document_type: user?.document_type ?? 'dni',
+            document_number: user?.document_number ?? '',
+            phone: user?.phone ?? '',
             password: '',
             password_confirmation: '',
         });
@@ -39,9 +45,20 @@ export function UserFormModal({ open, user = null, onClose }: Props) {
     }, [open, user?.id]);
 
     const canSubmit = useMemo(() => {
+        const docOk =
+            form.data.document_type === 'dni'
+                ? form.data.document_number.replace(/\D/g, '').length === 8
+                : form.data.document_number.trim().length > 0;
+
+        const phoneOk = /^9\d{8}$/.test(
+            form.data.phone.replace(/\D/g, '').slice(0, 9),
+        );
+
         const hasBasics =
             form.data.name.trim().length > 0 &&
-            form.data.email.trim().length > 0;
+            form.data.email.trim().length > 0 &&
+            docOk &&
+            phoneOk;
 
         if (!hasBasics || form.processing) {
             return false;
@@ -117,6 +134,7 @@ export function UserFormModal({ open, user = null, onClose }: Props) {
                     ? 'Actualiza la información del usuario seleccionado.'
                     : 'Completa los datos para registrar un nuevo usuario.'
             }
+            className="sm:max-w-lg"
             footer={
                 <>
                     <Button
@@ -145,6 +163,9 @@ export function UserFormModal({ open, user = null, onClose }: Props) {
                     errors={{
                         name: form.errors.name,
                         email: form.errors.email,
+                        document_type: form.errors.document_type,
+                        document_number: form.errors.document_number,
+                        phone: form.errors.phone,
                         password: form.errors.password,
                         password_confirmation:
                             form.errors.password_confirmation,

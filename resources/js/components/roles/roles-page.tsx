@@ -47,7 +47,11 @@ export function RolesPage() {
     };
 
     const openEdit = (role: RoleItem) => {
-        if (!can('roles.update') || role.name.toLowerCase() === 'superadmin') {
+        if (
+            !can('roles.update') ||
+            role.is_locked ||
+            role.name.toLowerCase() === 'superadmin'
+        ) {
             return;
         }
 
@@ -61,7 +65,11 @@ export function RolesPage() {
     };
 
     const openDelete = (role: RoleItem) => {
-        if (!can('roles.delete') || role.name.toLowerCase() === 'superadmin') {
+        if (
+            !can('roles.delete') ||
+            role.is_locked ||
+            role.name.toLowerCase() === 'superadmin'
+        ) {
             return;
         }
 
@@ -75,7 +83,11 @@ export function RolesPage() {
     };
 
     const openPermissions = (role: RoleItem) => {
-        if (!can('roles.assign') || role.name.toLowerCase() === 'superadmin') {
+        if (
+            !can('roles.assign') ||
+            role.permissions_locked ||
+            role.name.toLowerCase() === 'superadmin'
+        ) {
             return;
         }
 

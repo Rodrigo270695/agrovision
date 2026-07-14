@@ -7,10 +7,13 @@ use App\Models\Period;
 use App\Models\Unit;
 use App\Support\IndexedRedirect;
 use App\Support\PermissionCatalog;
+use App\Support\SystemRoles;
+use App\Support\UnitDocumentTypes;
 use App\Support\UnitExcelImporter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -24,8 +27,17 @@ class UnitController extends Controller
 
         PermissionCatalog::syncToDatabase();
 
-        $units = $this->filteredUnitsQuery($filters)
-            ->with('period:id,name,status,date')
+        $baseQuery = $this->scopedUnitsQuery();
+
+        $units = $this->filteredUnitsQuery($filters, clone $baseQuery)
+            ->with([
+                'period:id,name,status,date',
+                'coordinatorUser:id,name,email',
+                'documents' => fn ($query) => $query
+                    ->latest()
+                    ->with('uploader:id,name'),
+            ])
+            ->withCount('documents')
             ->paginate($filters['per_page'])
             ->withQueryString();
 
@@ -41,12 +53,20 @@ class UnitController extends Controller
             'periodOptions' => Period::query()
                 ->orderByDesc('date')
                 ->get(['id', 'name', 'status', 'date']),
+            'coordinatorOptions' => $this->coordinatorOptions(),
+            'documentTypes' => collect(UnitDocumentTypes::labels())
+                ->map(fn (string $label, string $key) => [
+                    'value' => $key,
+                    'label' => $label,
+                ])
+                ->values()
+                ->all(),
             'stats' => [
-                'units' => Unit::query()->count(),
-                'providers' => Unit::query()->distinct()->count('provider'),
+                'units' => (clone $baseQuery)->count(),
+                'providers' => (clone $baseQuery)->distinct()->count('provider'),
                 'page' => $units->currentPage().'/'.max($units->lastPage(), 1),
                 'on_screen' => $units->count(),
-                'without_plate' => Unit::query()
+                'without_plate' => (clone $baseQuery)
                     ->where(function ($query) {
                         $query->whereNull('plate_number')
                             ->orWhere('plate_number', '');
@@ -58,7 +78,13 @@ class UnitController extends Controller
 
     public function store(UnitRequest $request): RedirectResponse
     {
-        Unit::create($request->validated());
+        $data = $request->validated();
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $data['coordinator_id'] = Auth::id();
+        }
+
+        Unit::create($data);
 
         return IndexedRedirect::toIndex($request, 'units.index', [
             'type' => 'success',
@@ -68,7 +94,15 @@ class UnitController extends Controller
 
     public function update(UnitRequest $request, Unit $unit): RedirectResponse
     {
-        $unit->update($request->validated());
+        $this->ensureCanAccessUnit($unit);
+
+        $data = $request->validated();
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $data['coordinator_id'] = Auth::id();
+        }
+
+        $unit->update($data);
 
         return IndexedRedirect::toIndex($request, 'units.index', [
             'type' => 'success',
@@ -78,6 +112,8 @@ class UnitController extends Controller
 
     public function destroy(Request $request, Unit $unit): RedirectResponse
     {
+        $this->ensureCanAccessUnit($unit);
+
         $unit->delete();
 
         return IndexedRedirect::toIndex($request, 'units.index', [
@@ -95,8 +131,8 @@ class UnitController extends Controller
     {
         $filters = $this->validatedFilters($request);
 
-        $units = $this->filteredUnitsQuery($filters)
-            ->with('period:id,name,date')
+        $units = $this->filteredUnitsQuery($filters, $this->scopedUnitsQuery())
+            ->with(['period:id,name,date', 'coordinatorUser:id,name'])
             ->get();
 
         $suffix = now()->format('Y-m-d_His');
@@ -175,12 +211,27 @@ class UnitController extends Controller
     }
 
     /**
-     * @param  array{search: string, period_id: int|null, sort: string, direction: string, per_page: int}  $filters
      * @return Builder<Unit>
      */
-    private function filteredUnitsQuery(array $filters): Builder
+    private function scopedUnitsQuery(): Builder
     {
         $query = Unit::query();
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $query->where('coordinator_id', Auth::id());
+        }
+
+        return $query;
+    }
+
+    /**
+     * @param  array{search: string, period_id: int|null, sort: string, direction: string, per_page: int}  $filters
+     * @param  Builder<Unit>|null  $base
+     * @return Builder<Unit>
+     */
+    private function filteredUnitsQuery(array $filters, ?Builder $base = null): Builder
+    {
+        $query = $base ?? $this->scopedUnitsQuery();
 
         if ($filters['period_id']) {
             $query->where('period_id', $filters['period_id']);
@@ -196,11 +247,44 @@ class UnitController extends Controller
                     ->orWhere('plate_number', 'ilike', "%{$search}%")
                     ->orWhere('driver_name', 'ilike', "%{$search}%")
                     ->orWhere('route', 'ilike', "%{$search}%")
-                    ->orWhere('coordinator', 'ilike', "%{$search}%")
-                    ->orWhere('email', 'ilike', "%{$search}%");
+                    ->orWhere('email', 'ilike', "%{$search}%")
+                    ->orWhereHas('coordinatorUser', function ($q) use ($search) {
+                        $q->where('name', 'ilike', "%{$search}%");
+                    });
             });
         }
 
         return $query->orderBy($filters['sort'], $filters['direction']);
+    }
+
+    private function ensureCanAccessUnit(Unit $unit): void
+    {
+        if (
+            SystemRoles::currentIsScopedCoordinator()
+            && (int) $unit->coordinator_id !== (int) Auth::id()
+        ) {
+            abort(403, 'No tienes acceso a esta unidad.');
+        }
+    }
+
+    /**
+     * @return list<array{id: int, name: string, email: string|null}>
+     */
+    private function coordinatorOptions(): array
+    {
+        $query = SystemRoles::coordinators();
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $query = $query->where('id', Auth::id())->values();
+        }
+
+        return $query
+            ->map(fn ($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ])
+            ->values()
+            ->all();
     }
 }

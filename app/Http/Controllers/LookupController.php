@@ -38,11 +38,11 @@ class LookupController extends Controller
     public function dni(Request $request, ApiPeruService $apiPeru): JsonResponse
     {
         $validated = $request->validate([
-            'dni' => ['required', 'string', 'min:6', 'max:20', 'regex:/^\d+$/'],
+            'dni' => ['required', 'string', 'size:8', 'regex:/^\d{8}$/'],
         ], [
             'dni.required' => 'Ingresa el DNI.',
-            'dni.regex' => 'El DNI solo debe contener números.',
-            'dni.min' => 'El DNI es demasiado corto.',
+            'dni.regex' => 'El DNI debe tener exactamente 8 dígitos.',
+            'dni.size' => 'El DNI debe tener exactamente 8 dígitos.',
         ]);
 
         try {

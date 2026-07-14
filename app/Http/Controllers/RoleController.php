@@ -6,6 +6,7 @@ use App\Http\Requests\RolePermissionsRequest;
 use App\Http\Requests\RoleRequest;
 use App\Support\IndexedRedirect;
 use App\Support\PermissionCatalog;
+use App\Support\SystemRoles;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -16,8 +17,6 @@ use Spatie\Permission\Models\Role;
 
 class RoleController extends Controller
 {
-    private const PROTECTED_ROLE = 'superadmin';
-
     public function index(Request $request): Response
     {
         $validated = $request->validate([
@@ -34,6 +33,9 @@ class RoleController extends Controller
 
         PermissionCatalog::syncToDatabase();
 
+        // Asegura que exista el rol de sistema coordinador.
+        Role::findOrCreate(SystemRoles::COORDINADOR, 'web');
+
         $rolesQuery = Role::query()
             ->with('permissions')
             ->withCount('permissions');
@@ -47,6 +49,17 @@ class RoleController extends Controller
         $roles = $rolesQuery
             ->paginate($perPage)
             ->withQueryString();
+
+        $roles->getCollection()->transform(function (Role $role) {
+            $role->setAttribute('is_system', SystemRoles::isSystem($role));
+            $role->setAttribute('is_locked', SystemRoles::isLocked($role));
+            $role->setAttribute(
+                'permissions_locked',
+                SystemRoles::permissionsLocked($role),
+            );
+
+            return $role;
+        });
 
         $permissionTypes = Permission::query()->count();
         $rolesWithoutPermissions = Role::query()
@@ -78,10 +91,10 @@ class RoleController extends Controller
     {
         $name = $request->validated('name');
 
-        if (strcasecmp($name, self::PROTECTED_ROLE) === 0) {
+        if (SystemRoles::isSystem($name)) {
             return back()->with('toast', [
                 'type' => 'error',
-                'message' => 'El rol superadmin está reservado y no se puede crear.',
+                'message' => 'Ese nombre de rol está reservado y no se puede crear.',
             ]);
         }
 
@@ -98,19 +111,19 @@ class RoleController extends Controller
 
     public function update(RoleRequest $request, Role $role): RedirectResponse
     {
-        if ($this->isProtected($role)) {
+        if (SystemRoles::isLocked($role)) {
             return back()->with('toast', [
                 'type' => 'error',
-                'message' => 'El rol superadmin no se puede modificar.',
+                'message' => 'Este rol del sistema no se puede renombrar.',
             ]);
         }
 
         $name = $request->validated('name');
 
-        if (strcasecmp($name, self::PROTECTED_ROLE) === 0) {
+        if (SystemRoles::isSystem($name)) {
             return back()->with('toast', [
                 'type' => 'error',
-                'message' => 'El nombre superadmin está reservado.',
+                'message' => 'Ese nombre de rol está reservado.',
             ]);
         }
 
@@ -126,10 +139,10 @@ class RoleController extends Controller
 
     public function syncPermissions(RolePermissionsRequest $request, Role $role): RedirectResponse
     {
-        if ($this->isProtected($role)) {
+        if (SystemRoles::permissionsLocked($role)) {
             return back()->with('toast', [
                 'type' => 'error',
-                'message' => 'El rol superadmin no se puede modificar.',
+                'message' => 'Los permisos del rol superadmin no se pueden modificar.',
             ]);
         }
 
@@ -143,10 +156,10 @@ class RoleController extends Controller
 
     public function destroy(Request $request, Role $role): RedirectResponse
     {
-        if ($this->isProtected($role)) {
+        if (SystemRoles::isLocked($role)) {
             return back()->with('toast', [
                 'type' => 'error',
-                'message' => 'El rol superadmin no se puede eliminar.',
+                'message' => 'Este rol del sistema no se puede eliminar.',
             ]);
         }
 
@@ -156,10 +169,5 @@ class RoleController extends Controller
             'type' => 'success',
             'message' => 'Rol eliminado correctamente.',
         ]);
-    }
-
-    private function isProtected(Role $role): bool
-    {
-        return strcasecmp($role->name, self::PROTECTED_ROLE) === 0;
     }
 }

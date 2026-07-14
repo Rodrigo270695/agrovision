@@ -20,6 +20,12 @@ export type PeriodOption = {
     date?: string;
 };
 
+export type CoordinatorOption = {
+    id: number;
+    name: string;
+    email?: string | null;
+};
+
 export type UnitFormValues = {
     period_id: string;
     correlative: string;
@@ -36,7 +42,7 @@ export type UnitFormValues = {
     ruc: string;
     driver_dni: string;
     category: string;
-    coordinator: string;
+    coordinator_id: string;
 };
 
 type Props = {
@@ -44,6 +50,7 @@ type Props = {
     errors: Partial<Record<keyof UnitFormValues, string>>;
     onChange: (field: keyof UnitFormValues, value: string) => void;
     periodOptions: PeriodOption[];
+    coordinatorOptions: CoordinatorOption[];
 };
 
 type RucInfo = {
@@ -115,12 +122,6 @@ const otherFields: Array<{
         label: 'Categoría',
         placeholder: 'Ej. B',
     },
-    {
-        key: 'coordinator',
-        label: 'Coordinador',
-        placeholder: 'Nombre del coordinador',
-        full: true,
-    },
 ];
 
 function getXsrfToken(): string {
@@ -162,6 +163,7 @@ export function UnitFormFields({
     errors,
     onChange,
     periodOptions,
+    coordinatorOptions,
 }: Props) {
     const [rucLoading, setRucLoading] = useState(false);
     const [dniLoading, setDniLoading] = useState(false);
@@ -175,12 +177,25 @@ export function UnitFormFields({
         }
     }, [values.period_id, periodOptions, onChange]);
 
+    useEffect(() => {
+        if (
+            values.coordinator_id === '' &&
+            coordinatorOptions.length === 1 &&
+            coordinatorOptions[0]
+        ) {
+            onChange('coordinator_id', String(coordinatorOptions[0].id));
+        }
+    }, [values.coordinator_id, coordinatorOptions, onChange]);
+
     const periodSelectValue =
         values.period_id !== ''
             ? values.period_id
             : periodOptions[0]
               ? String(periodOptions[0].id)
               : 'none';
+
+    const coordinatorSelectValue =
+        values.coordinator_id !== '' ? values.coordinator_id : 'none';
 
     const rucDigits = values.ruc.replace(/\D/g, '').slice(0, 11);
     const dniDigits = values.driver_dni.replace(/\D/g, '').slice(0, 20);
@@ -221,8 +236,8 @@ export function UnitFormFields({
     const lookupDni = async () => {
         setDniError(null);
 
-        if (dniDigits.length < 6) {
-            setDniError('Ingresa un DNI válido para consultar.');
+        if (dniDigits.length !== 8) {
+            setDniError('El DNI debe tener exactamente 8 dígitos.');
 
             return;
         }
@@ -373,14 +388,14 @@ export function UnitFormFields({
                                 setDniError(null);
                                 onChange(
                                     'driver_dni',
-                                    event.target.value.replace(/\D/g, '').slice(0, 20),
+                                    event.target.value.replace(/\D/g, '').slice(0, 8),
                                 );
                             }}
                             placeholder="Ej. 46909313"
-                            className="h-9 border-[#c5d5e6] bg-white pr-10 text-sm focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35"
+                            className="h-9 border-[#c5d5e6] bg-white pr-12 text-sm focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35"
                         />
                         <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[11px] font-medium text-[#6b8ead]">
-                            {dniDigits.length}
+                            {dniDigits.length}/8
                         </span>
                     </div>
                     <Button
@@ -460,6 +475,39 @@ export function UnitFormFields({
                     <InputError message={errors[field.key]} />
                 </div>
             ))}
+
+            <div className="grid gap-1.5 sm:col-span-2">
+                <Label className="text-xs text-[#1a2b4c]">Coordinador</Label>
+                <Select
+                    value={coordinatorSelectValue}
+                    onValueChange={(value) => {
+                        onChange(
+                            'coordinator_id',
+                            value === 'none' ? '' : value,
+                        );
+                    }}
+                    disabled={coordinatorOptions.length === 1}
+                >
+                    <SelectTrigger className="h-9 w-full cursor-pointer border-[#c5d5e6] bg-white text-sm text-[#1a2b4c] disabled:cursor-not-allowed">
+                        <SelectValue placeholder="Selecciona un coordinador" />
+                    </SelectTrigger>
+                    <SelectContent className="border-[#d7e3f0] bg-white">
+                        <SelectItem value="none" className="cursor-pointer">
+                            Sin coordinador
+                        </SelectItem>
+                        {coordinatorOptions.map((coordinator) => (
+                            <SelectItem
+                                key={coordinator.id}
+                                value={String(coordinator.id)}
+                                className="cursor-pointer"
+                            >
+                                {coordinator.name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <InputError message={errors.coordinator_id} />
+            </div>
         </div>
     );
 }

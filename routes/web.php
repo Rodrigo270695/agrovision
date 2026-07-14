@@ -1,10 +1,12 @@
 <?php
 
 use App\Http\Controllers\ChecklistController;
+use App\Http\Controllers\InductionController;
 use App\Http\Controllers\LookupController;
 use App\Http\Controllers\PeriodController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UnitController;
+use App\Http\Controllers\UnitDocumentController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -112,6 +114,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:units.delete')
         ->name('units.destroy');
 
+    Route::post('unidades/{unit}/documentos', [UnitDocumentController::class, 'store'])
+        ->middleware('permission:units.update')
+        ->name('units.documents.store');
+
+    Route::get('unidades/{unit}/documentos/{document}/descargar', [UnitDocumentController::class, 'download'])
+        ->middleware('permission:units.view')
+        ->name('units.documents.download');
+
+    Route::delete('unidades/{unit}/documentos/{document}', [UnitDocumentController::class, 'destroy'])
+        ->middleware('permission:units.update')
+        ->name('units.documents.destroy');
+
     Route::get('inspecciones', [ChecklistController::class, 'index'])
         ->middleware('permission:checklists.view')
         ->name('checklists.index');
@@ -143,6 +157,58 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('inspecciones/{checklist}', [ChecklistController::class, 'destroy'])
         ->middleware('permission:checklists.delete')
         ->name('checklists.destroy');
+
+    Route::get('inducciones', [InductionController::class, 'index'])
+        ->middleware('permission:inductions.view')
+        ->name('inductions.index');
+
+    Route::post('inducciones', [InductionController::class, 'store'])
+        ->middleware('permission:inductions.create')
+        ->name('inductions.store');
+
+    Route::get('inducciones/{induction}', [InductionController::class, 'show'])
+        ->middleware('permission:inductions.view')
+        ->name('inductions.show');
+
+    Route::put('inducciones/{induction}', [InductionController::class, 'update'])
+        ->middleware('permission:inductions.update')
+        ->name('inductions.update');
+
+    Route::patch('inducciones/{induction}/estado', [InductionController::class, 'updateStatus'])
+        ->middleware('permission:inductions.update')
+        ->name('inductions.status');
+
+    Route::delete('inducciones/{induction}', [InductionController::class, 'destroy'])
+        ->middleware('permission:inductions.delete')
+        ->name('inductions.destroy');
+
+    Route::post('inducciones/{induction}/asistentes', [InductionController::class, 'pullAttendees'])
+        ->middleware('permission:inductions.update')
+        ->name('inductions.attendees.pull');
+
+    Route::patch('inducciones/{induction}/asistentes/{attendee}', [InductionController::class, 'updateAttendee'])
+        ->middleware('permission:inductions.update')
+        ->name('inductions.attendees.update');
+
+    Route::patch('inducciones/{induction}/asistentes-estado', [InductionController::class, 'bulkUpdateAttendeeStatus'])
+        ->middleware('permission:inductions.update')
+        ->name('inductions.attendees.bulk-status');
+
+    Route::post('inducciones/{induction}/asistentes/{attendee}/firma', [InductionController::class, 'signAttendee'])
+        ->middleware('permission:inductions.update')
+        ->name('inductions.attendees.sign');
+
+    Route::post('inducciones/{induction}/firma-expositor', [InductionController::class, 'signSpeaker'])
+        ->middleware('permission:inductions.update')
+        ->name('inductions.speaker.sign');
+
+    Route::get('inducciones/{induction}/pdf', [InductionController::class, 'pdf'])
+        ->middleware('permission:inductions.view')
+        ->name('inductions.pdf');
+
+    Route::delete('inducciones/{induction}/asistentes/{attendee}', [InductionController::class, 'destroyAttendee'])
+        ->middleware('permission:inductions.update')
+        ->name('inductions.attendees.destroy');
 });
 
 require __DIR__.'/settings.php';

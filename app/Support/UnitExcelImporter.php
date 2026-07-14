@@ -6,9 +6,11 @@ use App\Models\Period;
 use App\Models\Unit;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -69,7 +71,14 @@ final class UnitExcelImporter
             ],
         ]);
 
-        // Ejemplo de fila (formato de fecha dd/mm/yyyy)
+        $coordinators = SystemRoles::coordinators();
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $coordinators = $coordinators->where('id', Auth::id())->values();
+        }
+
+        $firstCoordinatorName = $coordinators->first()?->name ?? '';
+
         $sheet->fromArray([
             'AGV2026-6955',
             '985555756',
@@ -84,7 +93,7 @@ final class UnitExcelImporter
             '20554556192',
             '46909313',
             'B',
-            'Yoel Coronado',
+            $firstCoordinatorName,
             'conductor@agrovision.com',
         ], null, 'A2');
 
@@ -99,6 +108,51 @@ final class UnitExcelImporter
         }
 
         $sheet->getRowDimension(1)->setRowHeight(22);
+
+        // Hoja de lista de coordinadores + validación de celda COORDINADOR (columna N).
+        $listSheet = $spreadsheet->createSheet();
+        $listSheet->setTitle('Coordinadores');
+        $listSheet->setCellValue('A1', 'NOMBRE COMPLETO');
+        $listSheet->getStyle('A1')->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '1A2B4C'],
+            ],
+        ]);
+
+        $row = 2;
+        foreach ($coordinators as $coordinator) {
+            $listSheet->setCellValue("A{$row}", $coordinator->name);
+            $row++;
+        }
+
+        if ($coordinators->isEmpty()) {
+            $listSheet->setCellValue('A2', '(Sin coordinadores registrados)');
+            $row = 3;
+        }
+
+        $listSheet->getColumnDimension('A')->setAutoSize(true);
+
+        $lastListRow = max(2, $row - 1);
+        $validation = $sheet->getCell('N2')->getDataValidation();
+        $validation->setType(DataValidation::TYPE_LIST);
+        $validation->setErrorStyle(DataValidation::STYLE_STOP);
+        $validation->setAllowBlank(true);
+        $validation->setShowInputMessage(true);
+        $validation->setShowErrorMessage(true);
+        $validation->setShowDropDown(true);
+        $validation->setErrorTitle('Coordinador inválido');
+        $validation->setError('Selecciona un coordinador de la lista.');
+        $validation->setPromptTitle('Coordinador');
+        $validation->setPrompt('Elige un nombre de la hoja Coordinadores.');
+        $validation->setFormula1("Coordinadores!\$A\$2:\$A\${$lastListRow}");
+        $validation->setSqref('N2:N1000');
+
+        $spreadsheet->setActiveSheetIndex(0);
 
         $writer = new Xlsx($spreadsheet);
 
@@ -182,7 +236,10 @@ final class UnitExcelImporter
             $sheet->setCellValueExplicit("M{$rowNumber}", (string) ($unit->ruc ?? ''), DataType::TYPE_STRING);
             $sheet->setCellValueExplicit("N{$rowNumber}", (string) ($unit->driver_dni ?? ''), DataType::TYPE_STRING);
             $sheet->setCellValue("O{$rowNumber}", (string) ($unit->category ?? ''));
-            $sheet->setCellValue("P{$rowNumber}", (string) ($unit->coordinator ?? ''));
+            $sheet->setCellValue(
+                "P{$rowNumber}",
+                (string) ($unit->coordinatorUser?->name ?? ''),
+            );
             $sheet->setCellValueExplicit("Q{$rowNumber}", (string) ($unit->email ?? ''), DataType::TYPE_STRING);
 
             $rowNumber++;
@@ -209,7 +266,8 @@ final class UnitExcelImporter
     public function import(UploadedFile $file, Period $period): array
     {
         $spreadsheet = IOFactory::load($file->getRealPath());
-        $sheet = $spreadsheet->getActiveSheet();
+        $sheet = $spreadsheet->getSheetByName('Unidades')
+            ?? $spreadsheet->getActiveSheet();
         $rows = $sheet->toArray(null, true, true, false);
 
         if ($rows === []) {
@@ -239,6 +297,7 @@ final class UnitExcelImporter
         $pending = [];
         $seenCorrelatives = [];
         $seenDriverPlates = [];
+        $coordinatorMap = SystemRoles::coordinatorNameMap();
 
         foreach ($rows as $index => $row) {
             $excelRow = $index + 2;
@@ -247,7 +306,7 @@ final class UnitExcelImporter
                 continue;
             }
 
-            $mapped = $this->mapRow($row, $excelRow);
+            $mapped = $this->mapRow($row, $excelRow, $coordinatorMap);
             $rowErrors = $mapped['errors'];
 
             if ($rowErrors === []) {
@@ -348,6 +407,13 @@ final class UnitExcelImporter
             ];
         }
 
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $authId = (int) Auth::id();
+            foreach ($pending as $excelRow => $data) {
+                $pending[$excelRow]['coordinator_id'] = $authId;
+            }
+        }
+
         $imported = 0;
 
         DB::transaction(function () use ($pending, $period, &$imported): void {
@@ -411,9 +477,10 @@ final class UnitExcelImporter
 
     /**
      * @param  array<int, mixed>  $row
+     * @param  array<string, int>  $coordinatorMap
      * @return array{data: array<string, mixed>, errors: list<string>}
      */
-    private function mapRow(array $row, int $excelRow): array
+    private function mapRow(array $row, int $excelRow, array $coordinatorMap = []): array
     {
         $correlative = $this->stringValue($row[0] ?? null);
         $phone = $this->stringValue($row[1] ?? null);
@@ -428,11 +495,12 @@ final class UnitExcelImporter
         $ruc = $this->stringValue($row[10] ?? null);
         $driverDni = $this->stringValue($row[11] ?? null);
         $category = $this->stringValue($row[12] ?? null);
-        $coordinator = $this->stringValue($row[13] ?? null);
+        $coordinatorName = $this->stringValue($row[13] ?? null);
         $email = $this->stringValue($row[14] ?? null);
 
         $errors = [];
         $serviceDate = null;
+        $coordinatorId = null;
 
         if ($correlative === null) {
             $errors[] = 'El campo CORRELATIVO* es obligatorio.';
@@ -456,6 +524,16 @@ final class UnitExcelImporter
             }
         }
 
+        if ($coordinatorName !== null) {
+            $key = mb_strtolower(trim($coordinatorName));
+
+            if (! isset($coordinatorMap[$key])) {
+                $errors[] = "El COORDINADOR \"{$coordinatorName}\" no existe. Usa un nombre de la hoja Coordinadores.";
+            } else {
+                $coordinatorId = $coordinatorMap[$key];
+            }
+        }
+
         if ($errors !== []) {
             return ['data' => [], 'errors' => $errors];
         }
@@ -475,7 +553,7 @@ final class UnitExcelImporter
             'ruc' => $ruc,
             'driver_dni' => $driverDni,
             'category' => $category,
-            'coordinator' => $coordinator,
+            'coordinator_id' => $coordinatorId,
         ];
 
         $validator = Validator::make($payload, [
@@ -493,7 +571,7 @@ final class UnitExcelImporter
             'ruc' => ['nullable', 'string', 'regex:/^\d{11}$/'],
             'driver_dni' => ['nullable', 'string', 'max:20', 'regex:/^\d+$/'],
             'category' => ['nullable', 'string', 'max:20'],
-            'coordinator' => ['nullable', 'string', 'max:255'],
+            'coordinator_id' => ['nullable', 'integer'],
         ], [
             'correlative.required' => 'El campo CORRELATIVO* es obligatorio.',
             'provider.required' => 'El campo PROVEEDOR* es obligatorio.',

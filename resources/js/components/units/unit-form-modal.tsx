@@ -2,6 +2,7 @@ import { useForm } from '@inertiajs/react';
 import { useEffect, useMemo, type FormEvent } from 'react';
 import {
     UnitFormFields,
+    type CoordinatorOption,
     type PeriodOption,
 } from '@/components/units/unit-form-fields';
 import type { UnitItem } from '@/components/units/units-table';
@@ -13,6 +14,7 @@ type Props = {
     open: boolean;
     unit?: UnitItem | null;
     periodOptions: PeriodOption[];
+    coordinatorOptions: CoordinatorOption[];
     onClose: () => void;
 };
 
@@ -32,7 +34,7 @@ const emptyValues = {
     ruc: '',
     driver_dni: '',
     category: '',
-    coordinator: '',
+    coordinator_id: '',
 };
 
 function toFormValues(unit?: UnitItem | null) {
@@ -58,7 +60,11 @@ function toFormValues(unit?: UnitItem | null) {
         ruc: unit.ruc ?? '',
         driver_dni: unit.driver_dni ?? '',
         category: unit.category ?? '',
-        coordinator: unit.coordinator ?? '',
+        coordinator_id: unit.coordinator_id
+            ? String(unit.coordinator_id)
+            : unit.coordinatorUser?.id
+              ? String(unit.coordinatorUser.id)
+              : '',
     };
 }
 
@@ -66,6 +72,7 @@ export function UnitFormModal({
     open,
     unit = null,
     periodOptions,
+    coordinatorOptions,
     onClose,
 }: Props) {
     const isEditing = Boolean(unit);
@@ -87,10 +94,14 @@ export function UnitFormModal({
                   : '';
         }
 
+        if (!values.coordinator_id && coordinatorOptions.length === 1) {
+            values.coordinator_id = String(coordinatorOptions[0].id);
+        }
+
         form.setData(values);
         form.clearErrors();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, unit?.id, periodOptions]);
+    }, [open, unit?.id, periodOptions, coordinatorOptions]);
 
     const canSubmit = useMemo(() => {
         return (
@@ -123,6 +134,10 @@ export function UnitFormModal({
         form.transform((data) => ({
             ...data,
             period_id: Number(data.period_id),
+            coordinator_id:
+                data.coordinator_id === ''
+                    ? null
+                    : Number(data.coordinator_id),
         }));
 
         if (isEditing && unit) {
@@ -180,6 +195,7 @@ export function UnitFormModal({
                     errors={form.errors}
                     onChange={(field, value) => form.setData(field, value)}
                     periodOptions={periodOptions}
+                    coordinatorOptions={coordinatorOptions}
                 />
             </form>
         </AppModal>

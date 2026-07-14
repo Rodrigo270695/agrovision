@@ -40,6 +40,11 @@ final class PermissionCatalog
             'checklists.create' => ['label' => 'Crear checklists', 'module' => 'Checklists'],
             'checklists.update' => ['label' => 'Editar checklists', 'module' => 'Checklists'],
             'checklists.delete' => ['label' => 'Eliminar checklists', 'module' => 'Checklists'],
+
+            'inductions.view' => ['label' => 'Ver inducciones', 'module' => 'Inducción'],
+            'inductions.create' => ['label' => 'Crear inducciones', 'module' => 'Inducción'],
+            'inductions.update' => ['label' => 'Editar inducciones', 'module' => 'Inducción'],
+            'inductions.delete' => ['label' => 'Eliminar inducciones', 'module' => 'Inducción'],
         ];
     }
 

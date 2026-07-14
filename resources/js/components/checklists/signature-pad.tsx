@@ -8,6 +8,9 @@ type Props = {
     disabled?: boolean;
     onChange: (dataUrl: string | null) => void;
     className?: string;
+    canvasClassName?: string;
+    placeholder?: string;
+    clearLabel?: string;
 };
 
 export function SignaturePad({
@@ -15,6 +18,9 @@ export function SignaturePad({
     disabled = false,
     onChange,
     className,
+    canvasClassName,
+    placeholder = 'Firma aquí con el dedo o el mouse',
+    clearLabel = 'Limpiar firma',
 }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const drawing = useRef(false);
@@ -112,6 +118,7 @@ export function SignaturePad({
                     className={cn(
                         'h-36 w-full touch-none sm:h-40',
                         disabled ? 'cursor-not-allowed opacity-70' : 'cursor-crosshair',
+                        canvasClassName,
                     )}
                     onPointerDown={(event) => {
                         if (disabled) {
@@ -165,8 +172,8 @@ export function SignaturePad({
                     }}
                 />
                 {!disabled && !valueUrl && !hasInk.current ? (
-                    <p className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-[#6b8ead]">
-                        Firma aquí con el dedo o el mouse
+                    <p className="pointer-events-none absolute inset-0 flex items-center justify-center px-3 text-center text-xs text-[#6b8ead]">
+                        {placeholder}
                     </p>
                 ) : null}
             </div>
@@ -179,7 +186,7 @@ export function SignaturePad({
                     className="h-8 cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
                 >
                     <Eraser className="size-3.5" />
-                    Limpiar firma
+                    {clearLabel}
                 </Button>
             ) : null}
         </div>

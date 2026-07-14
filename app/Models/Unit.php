@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -24,10 +25,12 @@ use Illuminate\Support\Carbon;
  * @property string|null $ruc
  * @property string|null $driver_dni
  * @property string|null $category
- * @property string|null $coordinator
+ * @property int|null $coordinator_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Period $period
+ * @property-read User|null $coordinatorUser
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, UnitDocument> $documents
  */
 class Unit extends Model
 {
@@ -50,7 +53,7 @@ class Unit extends Model
         'ruc',
         'driver_dni',
         'category',
-        'coordinator',
+        'coordinator_id',
     ];
 
     /**
@@ -63,8 +66,27 @@ class Unit extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::deleting(function (Unit $unit): void {
+            $unit->documents()->each(function (UnitDocument $document): void {
+                $document->delete();
+            });
+        });
+    }
+
     public function period(): BelongsTo
     {
         return $this->belongsTo(Period::class);
+    }
+
+    public function coordinatorUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'coordinator_id');
+    }
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(UnitDocument::class);
     }
 }

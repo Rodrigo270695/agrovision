@@ -28,5 +28,23 @@ class PermissionSeeder extends Seeder
 
         $superAdmin = Role::findOrCreate('superadmin', 'web');
         $superAdmin->syncPermissions($permissions);
+
+        $coordinador = Role::findOrCreate(\App\Support\SystemRoles::COORDINADOR, 'web');
+        $coordinadorPermissions = collect($permissions)
+            ->filter(fn (Permission $permission) => in_array($permission->name, [
+                'dashboard.view',
+                'units.view',
+                'units.create',
+                'units.update',
+                'checklists.view',
+                'checklists.create',
+                'checklists.update',
+                'inductions.view',
+                'inductions.create',
+                'inductions.update',
+                'periods.view',
+            ], true))
+            ->all();
+        $coordinador->syncPermissions($coordinadorPermissions);
     }
 }

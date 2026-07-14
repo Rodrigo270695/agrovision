@@ -37,7 +37,7 @@ class UnitFactory extends Factory
             'ruc' => '20554556192',
             'driver_dni' => (string) fake()->numerify('########'),
             'category' => fake()->randomElement(['A', 'B', 'C']),
-            'coordinator' => fake()->name(),
+            'coordinator_id' => null,
         ];
     }
 }

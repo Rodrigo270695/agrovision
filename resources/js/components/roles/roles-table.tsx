@@ -18,6 +18,9 @@ export type RoleItem = {
     permissions_count: number;
     permissions?: RolePermissionRef[];
     created_at?: string | null;
+    is_system?: boolean;
+    is_locked?: boolean;
+    permissions_locked?: boolean;
 };
 
 export type RolesPagination = {
@@ -99,12 +102,15 @@ function RoleActions({
     className?: string;
 }) {
     const { can } = useCan();
-    const isProtected = role.name.toLowerCase() === 'superadmin';
-    const canAssign = can('roles.assign');
-    const canUpdate = can('roles.update');
-    const canDelete = can('roles.delete');
+    const isLocked =
+        role.is_locked ?? role.name.toLowerCase() === 'superadmin';
+    const permissionsLocked =
+        role.permissions_locked ?? role.name.toLowerCase() === 'superadmin';
+    const canAssign = can('roles.assign') && !permissionsLocked;
+    const canUpdate = can('roles.update') && !isLocked;
+    const canDelete = can('roles.delete') && !isLocked;
 
-    if (isProtected) {
+    if (permissionsLocked && isLocked) {
         return (
             <span
                 className={cn(
@@ -135,6 +141,14 @@ function RoleActions({
                 >
                     <KeyRound className="size-3.5" />
                 </Button>
+            ) : null}
+            {isLocked ? (
+                <span
+                    className="rounded-md bg-[#eef1f5] px-1.5 py-0.5 text-[10px] font-medium text-[#64748b]"
+                    title="Nombre y eliminación bloqueados"
+                >
+                    Sistema
+                </span>
             ) : null}
             {canUpdate ? (
                 <Button

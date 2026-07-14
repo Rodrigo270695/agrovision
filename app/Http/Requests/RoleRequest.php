@@ -28,8 +28,8 @@ class RoleRequest extends FormRequest
                 'string',
                 'max:125',
                 function (string $attribute, mixed $value, \Closure $fail): void {
-                    if (strcasecmp((string) $value, 'superadmin') === 0) {
-                        $fail('El nombre superadmin está reservado y no se puede usar.');
+                    if (\App\Support\SystemRoles::isSystem((string) $value)) {
+                        $fail('Ese nombre de rol está reservado y no se puede usar.');
                     }
                 },
                 Rule::unique('roles', 'name')

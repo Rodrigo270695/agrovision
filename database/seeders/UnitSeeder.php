@@ -4,6 +4,8 @@ namespace Database\Seeders;
 
 use App\Models\Period;
 use App\Models\Unit;
+use App\Models\User;
+use App\Support\SystemRoles;
 use Illuminate\Database\Seeder;
 
 class UnitSeeder extends Seeder
@@ -22,6 +24,8 @@ class UnitSeeder extends Seeder
                 ],
             );
 
+        $coordinatorId = User::role(SystemRoles::COORDINADOR)->value('id');
+
         Unit::query()->updateOrCreate(
             ['correlative' => 'AGV2026-6955'],
             [
@@ -39,12 +43,13 @@ class UnitSeeder extends Seeder
                 'ruc' => '20554556192',
                 'driver_dni' => '46909313',
                 'category' => 'B',
-                'coordinator' => 'Yoel Coronado',
+                'coordinator_id' => $coordinatorId,
             ],
         );
 
         Unit::factory()->count(8)->create([
             'period_id' => $period->id,
+            'coordinator_id' => $coordinatorId,
         ]);
     }
 }

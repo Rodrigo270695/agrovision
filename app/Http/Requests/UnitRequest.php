@@ -43,7 +43,23 @@ class UnitRequest extends FormRequest
             'ruc' => ['nullable', 'string', 'max:11', 'regex:/^\d{11}$/'],
             'driver_dni' => ['nullable', 'string', 'max:20', 'regex:/^\d+$/'],
             'category' => ['nullable', 'string', 'max:20'],
-            'coordinator' => ['nullable', 'string', 'max:255'],
+            'coordinator_id' => [
+                'nullable',
+                'integer',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($value === null || $value === '') {
+                        return;
+                    }
+
+                    $exists = \App\Models\User::role(\App\Support\SystemRoles::COORDINADOR)
+                        ->whereKey((int) $value)
+                        ->exists();
+
+                    if (! $exists) {
+                        $fail('El coordinador seleccionado no es válido.');
+                    }
+                },
+            ],
         ];
     }
 
@@ -115,12 +131,14 @@ class UnitRequest extends FormRequest
             'ruc' => 'RUC',
             'driver_dni' => 'DNI del conductor',
             'category' => 'categoría',
-            'coordinator' => 'coordinador',
+            'coordinator_id' => 'coordinador',
         ];
     }
 
     protected function prepareForValidation(): void
     {
+        $coordinatorId = $this->input('coordinator_id');
+
         $this->merge([
             'correlative' => trim((string) $this->input('correlative', '')),
             'phone' => $this->nullableTrim('phone'),
@@ -135,7 +153,9 @@ class UnitRequest extends FormRequest
             'ruc' => $this->nullableTrim('ruc'),
             'driver_dni' => $this->nullableTrim('driver_dni'),
             'category' => $this->nullableTrim('category'),
-            'coordinator' => $this->nullableTrim('coordinator'),
+            'coordinator_id' => $coordinatorId === '' || $coordinatorId === null
+                ? null
+                : (int) $coordinatorId,
         ]);
 
         if (! $this->filled('service_date')) {

@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from 'lucide-react';
+import { FileStack, Pencil, Trash2 } from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { useCallback } from 'react';
 import {
@@ -7,6 +7,7 @@ import {
 } from '@/components/shared/period-filter-select';
 import { TablePagination } from '@/components/shared/table-pagination';
 import { TableSearchFilter } from '@/components/shared/table-search-filter';
+import type { UnitDocumentItem } from '@/components/units/unit-documents-modal';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/hooks/use-can';
 import { cn } from '@/lib/utils';
@@ -28,7 +29,14 @@ export type UnitItem = {
     ruc?: string | null;
     driver_dni?: string | null;
     category?: string | null;
-    coordinator?: string | null;
+    coordinator_id?: number | null;
+    coordinatorUser?: {
+        id: number;
+        name: string;
+        email?: string | null;
+    } | null;
+    documents?: UnitDocumentItem[];
+    documents_count?: number;
     created_at?: string | null;
     period?: {
         id: number;
@@ -69,6 +77,7 @@ type Props = {
     periodOptions: PeriodFilterOption[];
     onEdit: (unit: UnitItem) => void;
     onDelete: (unit: UnitItem) => void;
+    onDocuments: (unit: UnitItem) => void;
 };
 
 type SortKey = UnitsFilters['sort'];
@@ -130,23 +139,46 @@ function UnitActions({
     unit,
     onEdit,
     onDelete,
+    onDocuments,
     className,
 }: {
     unit: UnitItem;
     onEdit: (unit: UnitItem) => void;
     onDelete: (unit: UnitItem) => void;
+    onDocuments: (unit: UnitItem) => void;
     className?: string;
 }) {
     const { can } = useCan();
+    const canView = can('units.view');
     const canUpdate = can('units.update');
     const canDelete = can('units.delete');
 
-    if (!canUpdate && !canDelete) {
+    if (!canView && !canUpdate && !canDelete) {
         return null;
     }
 
+    const docsCount = unit.documents_count ?? unit.documents?.length ?? 0;
+
     return (
         <div className={cn('flex items-center gap-0.5', className)}>
+            {canView ? (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onDocuments(unit)}
+                    className="relative size-7 cursor-pointer text-[#2e5a9e] hover:bg-[#e8f1fa] hover:text-[#1a2b4c]"
+                    aria-label={`Documentos de ${unit.correlative}`}
+                    title="Documentos"
+                >
+                    <FileStack className="size-3.5" />
+                    {docsCount > 0 ? (
+                        <span className="absolute -top-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full bg-[#1a2b4c] text-[8px] font-bold text-white">
+                            {docsCount > 9 ? '9+' : docsCount}
+                        </span>
+                    ) : null}
+                </Button>
+            ) : null}
             {canUpdate ? (
                 <Button
                     type="button"
@@ -181,6 +213,7 @@ export function UnitsTable({
     periodOptions,
     onEdit,
     onDelete,
+    onDocuments,
 }: Props) {
     const visit = useCallback(
         (params: Partial<UnitsFilters> & { page?: number }) => {
@@ -225,7 +258,7 @@ export function UnitsTable({
     };
 
     const headers: Array<{
-        key: SortKey | 'period';
+        key: SortKey | 'period' | 'coordinator';
         label: string;
         className?: string;
         sortable?: boolean;
@@ -236,6 +269,7 @@ export function UnitsTable({
         { key: 'driver_name', label: 'Conductor', sortable: true },
         { key: 'vehicle_type', label: 'Vehículo', sortable: true },
         { key: 'provider', label: 'Proveedor', sortable: true },
+        { key: 'coordinator', label: 'Coordinador', sortable: false },
         {
             key: 'service_date',
             label: 'Fecha',
@@ -275,7 +309,8 @@ export function UnitsTable({
                                     )}
                                 >
                                     {header.sortable !== false &&
-                                    header.key !== 'period' ? (
+                                    header.key !== 'period' &&
+                                    header.key !== 'coordinator' ? (
                                         <button
                                             type="button"
                                             onClick={() =>
@@ -311,7 +346,7 @@ export function UnitsTable({
                         {units.data.length === 0 ? (
                             <tr>
                                 <td
-                                    colSpan={8}
+                                    colSpan={9}
                                     className="px-3 py-10 text-center text-[#6b8ead]"
                                 >
                                     No se encontraron unidades.
@@ -344,6 +379,9 @@ export function UnitsTable({
                                     <td className="max-w-[12rem] truncate px-3 py-1.5 text-[#5a7390]">
                                         {unit.provider}
                                     </td>
+                                    <td className="max-w-[12rem] truncate px-3 py-1.5 text-[#5a7390]">
+                                        {unit.coordinatorUser?.name || '—'}
+                                    </td>
                                     <td className="px-3 py-1.5 text-center text-[#5a7390]">
                                         {formatDate(unit.service_date)}
                                     </td>
@@ -352,6 +390,7 @@ export function UnitsTable({
                                             unit={unit}
                                             onEdit={onEdit}
                                             onDelete={onDelete}
+                                            onDocuments={onDocuments}
                                             className="justify-end"
                                         />
                                     </td>
@@ -390,6 +429,14 @@ export function UnitsTable({
                                         {unit.driver_name || '—'}
                                     </dd>
                                 </div>
+                                <div className="col-span-2">
+                                    <dt className="text-[11px] text-[#6b8ead]">
+                                        Coordinador
+                                    </dt>
+                                    <dd className="text-xs font-medium text-[#1a2b4c]">
+                                        {unit.coordinatorUser?.name || '—'}
+                                    </dd>
+                                </div>
                                 <div>
                                     <dt className="text-[11px] text-[#6b8ead]">
                                         Fecha
@@ -412,6 +459,7 @@ export function UnitsTable({
                                     unit={unit}
                                     onEdit={onEdit}
                                     onDelete={onDelete}
+                                    onDocuments={onDocuments}
                                 />
                             </div>
                         </article>

@@ -40,7 +40,9 @@ class UserController extends Controller
             $usersQuery->where(function ($query) use ($search) {
                 $query
                     ->where('name', 'ilike', "%{$search}%")
-                    ->orWhere('email', 'ilike', "%{$search}%");
+                    ->orWhere('email', 'ilike', "%{$search}%")
+                    ->orWhere('document_number', 'ilike', "%{$search}%")
+                    ->orWhere('phone', 'ilike', "%{$search}%");
             });
         }
 
@@ -83,6 +85,9 @@ class UserController extends Controller
         User::create([
             'name' => $data['name'],
             'email' => $data['email'],
+            'document_type' => $data['document_type'],
+            'document_number' => $data['document_number'],
+            'phone' => $data['phone'],
             'password' => $data['password'],
             'email_verified_at' => now(),
         ]);
@@ -107,6 +112,9 @@ class UserController extends Controller
         $payload = [
             'name' => $data['name'],
             'email' => $data['email'],
+            'document_type' => $data['document_type'],
+            'document_number' => $data['document_number'],
+            'phone' => $data['phone'],
         ];
 
         if (! empty($data['password'])) {
