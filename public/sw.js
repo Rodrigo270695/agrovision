@@ -1,11 +1,8 @@
-const CACHE_VERSION = 'agrovision-pwa-v2';
+const CACHE_VERSION = 'agrovision-pwa-v3';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const PRECACHE_URLS = [
-  '/',
-  '/login',
-  '/inspecciones',
   '/manifest.webmanifest',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
@@ -52,69 +49,49 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navegación: network first, fallback a shell
+  // No interceptar navegación ni peticiones Inertia/Laravel (evita opaqueredirect)
   if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
-          return response;
-        })
-        .catch(async () => {
-          const cached = await caches.match(request);
-          return (
-            cached ||
-            caches.match('/inspecciones') ||
-            caches.match('/login') ||
-            Response.error()
-          );
-        }),
-    );
     return;
   }
 
-  // Assets estáticos: cache first
   if (
+    request.headers.get('X-Inertia') ||
+    request.headers.get('X-Livewire') ||
+    request.headers.get('Purpose') === 'prefetch' ||
+    request.destination === 'document'
+  ) {
+    return;
+  }
+
+  // Solo cachear assets estáticos
+  const isStaticAsset =
     url.pathname.startsWith('/icons/') ||
     url.pathname.startsWith('/build/') ||
     url.pathname.endsWith('.png') ||
     url.pathname.endsWith('.svg') ||
     url.pathname.endsWith('.ico') ||
-    url.pathname.endsWith('.webmanifest')
-  ) {
-    event.respondWith(
-      caches.match(request).then((cached) => {
-        if (cached) {
-          return cached;
-        }
+    url.pathname.endsWith('.woff2') ||
+    url.pathname.endsWith('.woff') ||
+    url.pathname.endsWith('.webmanifest');
 
-        return fetch(request).then((response) => {
-          if (response && response.status === 200) {
-            const copy = response.clone();
-            caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        });
-      }),
-    );
+  if (!isStaticAsset) {
     return;
   }
 
-  // Resto: stale-while-revalidate
   event.respondWith(
     caches.match(request).then((cached) => {
-      const fetched = fetch(request)
-        .then((response) => {
-          if (response && response.status === 200) {
-            const copy = response.clone();
-            caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        })
-        .catch(() => cached);
+      if (cached) {
+        return cached;
+      }
 
-      return cached || fetched;
+      return fetch(request).then((response) => {
+        if (response && response.ok && response.type === 'basic') {
+          const copy = response.clone();
+          caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
+        }
+
+        return response;
+      });
     }),
   );
 });

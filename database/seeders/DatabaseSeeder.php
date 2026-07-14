@@ -15,7 +15,10 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            PermissionSeeder::class,
             UserSeeder::class,
+            PeriodSeeder::class,
+            UnitSeeder::class,
             ChecklistTemplateSeeder::class,
         ]);
     }

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Sora:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700&family=Sora:wght@400;500;600&display=swap');
 
 @import 'tailwindcss';
 
@@ -14,7 +14,7 @@
         'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
-    --font-display: 'Fraunces', ui-serif, Georgia, serif;
+    --font-display: 'Manrope', ui-sans-serif, system-ui, sans-serif;
     --font-login: 'Sora', ui-sans-serif, system-ui, sans-serif;
 
     --radius-lg: var(--radius);
@@ -147,24 +147,36 @@
 }
 
 @layer components {
+    .nav-collapsible-content {
+        overflow: hidden;
+    }
+
+    .nav-collapsible-content[data-state='open'] {
+        animation: nav-collapsible-down 280ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .nav-collapsible-content[data-state='closed'] {
+        animation: nav-collapsible-up 220ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
     .login-hero-media {
         background:
             radial-gradient(
-                ellipse 80% 60% at 20% 80%,
-                rgba(45, 90, 58, 0.55),
-                transparent 55%
+                ellipse 75% 55% at 18% 78%,
+                rgba(74, 144, 226, 0.28),
+                transparent 58%
             ),
             radial-gradient(
-                ellipse 70% 50% at 85% 20%,
-                rgba(36, 78, 110, 0.35),
-                transparent 50%
+                ellipse 65% 48% at 88% 18%,
+                rgba(46, 90, 158, 0.4),
+                transparent 52%
             ),
             linear-gradient(
-                145deg,
-                #0f2a1c 0%,
-                #1a3d28 38%,
-                #243f4a 72%,
-                #1b2f38 100%
+                148deg,
+                #0b1729 0%,
+                #1a2b4c 36%,
+                #243f6b 68%,
+                #142338 100%
             );
         animation: login-drift 18s ease-in-out infinite alternate;
     }
@@ -172,17 +184,17 @@
     .login-hero-veil {
         background:
             linear-gradient(
-                100deg,
-                rgba(10, 28, 18, 0.55) 0%,
-                rgba(10, 28, 18, 0.2) 45%,
-                rgba(15, 30, 24, 0.65) 100%
+                105deg,
+                rgba(8, 16, 32, 0.45) 0%,
+                rgba(14, 28, 52, 0.18) 48%,
+                rgba(10, 20, 38, 0.55) 100%
             ),
             repeating-linear-gradient(
                 -18deg,
                 transparent,
                 transparent 14px,
-                rgba(255, 255, 255, 0.015) 14px,
-                rgba(255, 255, 255, 0.015) 15px
+                rgba(255, 255, 255, 0.018) 14px,
+                rgba(255, 255, 255, 0.018) 15px
             );
     }
 
@@ -192,6 +204,30 @@
 
     .login-rise-in {
         animation: login-rise 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+}
+
+@keyframes nav-collapsible-down {
+    from {
+        height: 0;
+        opacity: 0.35;
+    }
+
+    to {
+        height: var(--radix-collapsible-content-height);
+        opacity: 1;
+    }
+}
+
+@keyframes nav-collapsible-up {
+    from {
+        height: var(--radix-collapsible-content-height);
+        opacity: 1;
+    }
+
+    to {
+        height: 0;
+        opacity: 0.35;
     }
 }
 

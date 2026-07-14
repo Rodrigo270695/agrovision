@@ -10,22 +10,22 @@ export default function Welcome() {
             <div className="flex min-h-screen flex-col items-center justify-center bg-[#f4f7f2] p-6 text-[#1c2a22]">
                 <h1 className="mb-2 text-3xl font-semibold">Agrovisión</h1>
                 <p className="mb-6 text-sm text-[#5a6b60]">
-                    Plataforma SST para agroexportación
+                    Plataforma para agroexportación
                 </p>
-                {auth.user ? (
-                    <Link
-                        href={dashboard()}
+                        {auth.user ? (
+                            <Link
+                                href={dashboard()}
                         className="rounded-xl bg-[#1f4d34] px-5 py-2.5 text-sm font-semibold text-white"
-                    >
+                            >
                         Ir al panel
-                    </Link>
-                ) : (
-                    <Link
-                        href={login()}
+                            </Link>
+                        ) : (
+                                <Link
+                                    href={login()}
                         className="rounded-xl bg-[#1f4d34] px-5 py-2.5 text-sm font-semibold text-white"
                     >
                         Iniciar sesión
-                    </Link>
+                                </Link>
                 )}
             </div>
         </>

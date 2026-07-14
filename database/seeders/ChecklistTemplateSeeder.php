@@ -3,187 +3,188 @@
 namespace Database\Seeders;
 
 use App\Models\ChecklistItem;
-use App\Models\ChecklistSignatureSlot;
+use App\Models\ChecklistSignatureRole;
 use App\Models\ChecklistTemplate;
-use App\Models\ChecklistTemplateVersion;
 use Illuminate\Database\Seeder;
 
 class ChecklistTemplateSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->seedTemplate(
-            code: 'PE-F-SST-057',
-            shortCode: 'TDP',
-            name: 'Check list SST — Unidades móviles propias, alquiladas y de terceros',
-            unitType: 'tdp',
-            documentTitle: 'CHECK LIST DE INSPECCIÓN – EXIGENCIAS DE SST PARA UNIDADES MÓVILES PROPIAS, ALQUILADAS Y DE TERCEROS (TDP)',
-            items: $this->tdpItems(),
-            signatures: [
-                ['role' => 'conductor', 'label' => 'Conductor de la unidad', 'sort_order' => 1],
-                ['role' => 'mecanico_mantenimiento', 'label' => 'Mecánico de mantenimiento', 'sort_order' => 2],
-                ['role' => 'jefe_transporte', 'label' => 'Jefe del área de transporte', 'sort_order' => 3],
-                ['role' => 'vb_sst', 'label' => 'V°B° SST', 'sort_order' => 4],
-            ],
-        );
-
-        $this->seedTemplate(
-            code: 'PE-F-SST-058',
-            shortCode: 'TDC',
-            name: 'Check list SST — Unidades camionetas de carga',
-            unitType: 'tdc',
-            documentTitle: 'CHECK LIST DE INSPECCIÓN – EXIGENCIAS DE SST PARA UNIDADES CAMIONETAS DE CARGA (TDC)',
-            items: $this->tdcItems(),
-            signatures: [
-                ['role' => 'conductor', 'label' => 'Conductor de la unidad', 'sort_order' => 1],
-                ['role' => 'responsable_area_usuaria', 'label' => 'Responsable del área usuaria', 'sort_order' => 2],
-                ['role' => 'gerencia_operaciones', 'label' => 'Gerencia de operaciones', 'sort_order' => 3],
-                ['role' => 'vb_sst', 'label' => 'V°B° SST', 'sort_order' => 4],
-            ],
-        );
+        $this->seedTdp();
+        $this->seedTdc();
     }
 
-    /**
-     * @param  list<array{item_code: string, item_number: string, label: string, is_group?: bool, requires_expiry?: bool, parent_code?: string|null}>  $items
-     * @param  list<array{role: string, label: string, sort_order: int}>  $signatures
-     */
-    private function seedTemplate(
-        string $code,
-        string $shortCode,
-        string $name,
-        string $unitType,
-        string $documentTitle,
-        array $items,
-        array $signatures,
-    ): void {
+    private function seedTdp(): void
+    {
         $template = ChecklistTemplate::query()->updateOrCreate(
-            ['code' => $code],
+            ['type' => 'tdp'],
             [
-                'short_code' => $shortCode,
-                'name' => $name,
-                'unit_type' => $unitType,
-                'description' => $documentTitle,
+                'code' => 'PE-F-SST-057',
+                'name' => 'Check List TDP – Unidades móviles propias, alquiladas y de terceros',
+                'version' => '1',
+                'notes_hint' => 'Tarjeta de propiedad: indicar en la inspección si hay más personas transportadas en el vehículo respecto al número de asientos que indica la tarjeta de propiedad, y/u otras observaciones.',
                 'is_active' => true,
             ],
         );
 
-        $version = ChecklistTemplateVersion::query()->updateOrCreate(
+        ChecklistItem::query()->where('template_id', $template->id)->delete();
+        ChecklistSignatureRole::query()->where('template_id', $template->id)->delete();
+
+        $sort = 0;
+        $items = [
+            ['1', 'Tarjeta de propiedad', false],
+            ['2', 'SOAT vigente – Fecha de vencimiento:', true],
+            ['3', 'SCTR vigente – Fecha de vencimiento:', true],
+            ['4', 'Revisión técnica vigente – Fecha de vencimiento:', true],
+            ['5', 'Estado de luces generales:', false, [
+                ['a', 'Luz corta'],
+                ['b', 'Luz larga'],
+                ['c', 'Intermitente derecho'],
+                ['d', 'Intermitente izquierdo'],
+                ['e', 'Luz de estacionamiento'],
+                ['f', 'Luz de retroceso'],
+            ]],
+            ['6', 'Claxon', false],
+            ['7', 'Alarma de retroceso', false],
+            ['8', 'Llantas con cocada mínima de 4 mm', false],
+            ['9', 'Llanta de repuesto', false],
+            ['10', 'Gata', false],
+            ['11', 'Estado de ruedas', false],
+            ['12', 'Plumillas operativas', false],
+            ['13', 'Botiquín', false],
+            ['14', 'Extintor – Fecha de vencimiento:', true],
+            ['15', 'Conos o triángulos de seguridad', false],
+            ['16', 'Tacos', false],
+            ['17', 'Espejos laterales operativos', false],
+            ['18', 'Cinturones de seguridad', false],
+            ['19', 'Salidas de emergencia', false],
+            ['20', 'Accesorios de salidas de emergencia (martillos)', false],
+            ['21', 'Ventanas de emergencia señalizadas', false],
+            ['22', 'Cuenta con estrobo / tiro o cable de desenganche', false],
+            ['23', 'Cintas retro reflectivas', false],
+            ['24', 'Pasos o pasadizos en buen estado', false],
+            ['25', 'Asiento con espaldar y pernos completos', false],
+            ['26', 'Estado de asientos', false],
+            ['27', 'Luna delantera libre de obstáculos que impidan la visualización del conductor', false],
+            ['28', 'Estado de los pedales', false],
+            ['29', 'Estado de las herramientas', false],
+            ['30', 'Productos químicos autorizados y rotulados', false],
+            ['31', 'Flayer de uso de cinturón de seguridad', false],
+            ['32', 'Flayer de números de emergencia', false],
+        ];
+
+        $this->seedItems($template->id, $items, $sort);
+
+        foreach ([
+            'Conductor de la unidad',
+            'Mecánico de mantenimiento',
+            'Jefe del área de transporte',
+            'V°B° SST',
+        ] as $index => $label) {
+            ChecklistSignatureRole::query()->create([
+                'template_id' => $template->id,
+                'label' => $label,
+                'sort_order' => $index + 1,
+            ]);
+        }
+    }
+
+    private function seedTdc(): void
+    {
+        $template = ChecklistTemplate::query()->updateOrCreate(
+            ['type' => 'tdc'],
             [
-                'checklist_template_id' => $template->id,
-                'version_number' => 1,
-            ],
-            [
-                'effective_from' => '2026-01-01',
-                'document_title' => $documentTitle,
-                'is_published' => true,
+                'code' => 'PE-F-SST-058',
+                'name' => 'Check List TDC – Unidades camionetas de carga',
+                'version' => '1',
+                'notes_hint' => 'Tarjeta de propiedad: indicar en la inspección si hay más personas transportadas en el vehículo respecto al número de asientos que indica la tarjeta de propiedad, y/u otras observaciones.',
+                'is_active' => true,
             ],
         );
 
-        $version->items()->delete();
-        $version->signatureSlots()->delete();
+        ChecklistItem::query()->where('template_id', $template->id)->delete();
+        ChecklistSignatureRole::query()->where('template_id', $template->id)->delete();
 
-        $created = [];
-        $sort = 1;
+        $sort = 0;
+        $items = [
+            ['1', 'Tarjeta de propiedad', false],
+            ['2', 'SOAT vigente – Fecha de vencimiento:', true],
+            ['3', 'SCTR vigente – Fecha de vencimiento:', true],
+            ['4', 'Revisión técnica vigente – Fecha de vencimiento:', true],
+            ['5', 'Estado de luces generales:', false, [
+                ['a', 'Luz corta'],
+                ['b', 'Luz larga'],
+                ['c', 'Intermitente derecho'],
+                ['d', 'Intermitente izquierdo'],
+                ['e', 'Luz de estacionamiento'],
+                ['f', 'Luz de retroceso'],
+            ]],
+            ['6', 'Claxon', false],
+            ['7', 'Alarma de retroceso', false],
+            ['8', 'Llantas con cocada mínima de 4 mm', false],
+            ['9', 'Llanta de repuesto', false],
+            ['10', 'Gata', false],
+            ['11', 'Estado de ruedas', false],
+            ['12', 'Plumillas operativas', false],
+            ['13', 'Botiquín', false],
+            ['14', 'Extintor – Fecha de vencimiento:', true],
+            ['15', 'Conos o triángulos de seguridad', false],
+            ['16', 'Tacos', false],
+            ['17', 'Espejos laterales operativos', false],
+            ['18', 'Cinturones de seguridad', false],
+            ['19', 'Cintas retro reflectivas', false],
+            ['20', 'Asiento con espaldar y pernos completos', false],
+            ['21', 'Estado de asientos', false],
+        ];
 
+        $this->seedItems($template->id, $items, $sort);
+
+        foreach ([
+            'Conductor de la unidad',
+            'Responsable del área usuaria',
+            'Gerencia de operaciones',
+            'V°B° SST',
+        ] as $index => $label) {
+            ChecklistSignatureRole::query()->create([
+                'template_id' => $template->id,
+                'label' => $label,
+                'sort_order' => $index + 1,
+            ]);
+        }
+    }
+
+    /**
+     * @param  list<array{0: string, 1: string, 2: bool, 3?: list<array{0: string, 1: string}>}>  $items
+     */
+    private function seedItems(int $templateId, array $items, int &$sort): void
+    {
         foreach ($items as $item) {
-            $parentId = null;
-            if (! empty($item['parent_code'])) {
-                $parentId = $created[$item['parent_code']] ?? null;
+            $sort++;
+            $parent = ChecklistItem::query()->create([
+                'template_id' => $templateId,
+                'parent_id' => null,
+                'item_number' => $item[0],
+                'label' => $item[1],
+                'sort_order' => $sort,
+                'has_expiry' => $item[2],
+            ]);
+
+            if (! isset($item[3])) {
+                continue;
             }
 
-            $model = ChecklistItem::query()->create([
-                'checklist_template_version_id' => $version->id,
-                'parent_item_id' => $parentId,
-                'item_code' => $item['item_code'],
-                'item_number' => $item['item_number'],
-                'sort_order' => $sort++,
-                'label' => $item['label'],
-                'is_group' => $item['is_group'] ?? false,
-                'is_required' => true,
-                'requires_expiry' => $item['requires_expiry'] ?? false,
-            ]);
-
-            $created[$item['item_code']] = $model->id;
+            foreach ($item[3] as $child) {
+                $sort++;
+                ChecklistItem::query()->create([
+                    'template_id' => $templateId,
+                    'parent_id' => $parent->id,
+                    'item_number' => $child[0],
+                    'label' => $child[1],
+                    'sort_order' => $sort,
+                    'has_expiry' => false,
+                ]);
+            }
         }
-
-        foreach ($signatures as $slot) {
-            ChecklistSignatureSlot::query()->create([
-                'checklist_template_version_id' => $version->id,
-                'role' => $slot['role'],
-                'label' => $slot['label'],
-                'sort_order' => $slot['sort_order'],
-                'is_required' => true,
-            ]);
-        }
-    }
-
-    /**
-     * @return list<array{item_code: string, item_number: string, label: string, is_group?: bool, requires_expiry?: bool, parent_code?: string|null}>
-     */
-    private function sharedBaseItems(string $prefix): array
-    {
-        return [
-            ['item_code' => "{$prefix}-01", 'item_number' => '1', 'label' => 'Tarjeta de propiedad'],
-            ['item_code' => "{$prefix}-02", 'item_number' => '2', 'label' => 'SOAT vigente', 'requires_expiry' => true],
-            ['item_code' => "{$prefix}-03", 'item_number' => '3', 'label' => 'SCTR vigente', 'requires_expiry' => true],
-            ['item_code' => "{$prefix}-04", 'item_number' => '4', 'label' => 'Revisión técnica vigente', 'requires_expiry' => true],
-            ['item_code' => "{$prefix}-05", 'item_number' => '5', 'label' => 'Estado de luces generales', 'is_group' => true],
-            ['item_code' => "{$prefix}-05A", 'item_number' => '5a', 'label' => 'Luz corta', 'parent_code' => "{$prefix}-05"],
-            ['item_code' => "{$prefix}-05B", 'item_number' => '5b', 'label' => 'Luz larga', 'parent_code' => "{$prefix}-05"],
-            ['item_code' => "{$prefix}-05C", 'item_number' => '5c', 'label' => 'Intermitente derecho', 'parent_code' => "{$prefix}-05"],
-            ['item_code' => "{$prefix}-05D", 'item_number' => '5d', 'label' => 'Intermitente izquierdo', 'parent_code' => "{$prefix}-05"],
-            ['item_code' => "{$prefix}-05E", 'item_number' => '5e', 'label' => 'Luz de estacionamiento', 'parent_code' => "{$prefix}-05"],
-            ['item_code' => "{$prefix}-05F", 'item_number' => '5f', 'label' => 'Luz de retroceso', 'parent_code' => "{$prefix}-05"],
-            ['item_code' => "{$prefix}-06", 'item_number' => '6', 'label' => 'Claxon'],
-            ['item_code' => "{$prefix}-07", 'item_number' => '7', 'label' => 'Alarma de retroceso'],
-            ['item_code' => "{$prefix}-08", 'item_number' => '8', 'label' => 'Llantas con cocada mínima de 4 mm'],
-            ['item_code' => "{$prefix}-09", 'item_number' => '9', 'label' => 'Llanta de repuesto'],
-            ['item_code' => "{$prefix}-10", 'item_number' => '10', 'label' => 'Gata'],
-            ['item_code' => "{$prefix}-11", 'item_number' => '11', 'label' => 'Estado de ruedas'],
-            ['item_code' => "{$prefix}-12", 'item_number' => '12', 'label' => 'Plumillas operativas'],
-            ['item_code' => "{$prefix}-13", 'item_number' => '13', 'label' => 'Botiquín'],
-            ['item_code' => "{$prefix}-14", 'item_number' => '14', 'label' => 'Extintor', 'requires_expiry' => true],
-            ['item_code' => "{$prefix}-15", 'item_number' => '15', 'label' => 'Conos o triángulos de seguridad'],
-            ['item_code' => "{$prefix}-16", 'item_number' => '16', 'label' => 'Tacos'],
-            ['item_code' => "{$prefix}-17", 'item_number' => '17', 'label' => 'Espejos laterales operativos'],
-            ['item_code' => "{$prefix}-18", 'item_number' => '18', 'label' => 'Cinturones de seguridad'],
-        ];
-    }
-
-    /**
-     * @return list<array{item_code: string, item_number: string, label: string, is_group?: bool, requires_expiry?: bool, parent_code?: string|null}>
-     */
-    private function tdpItems(): array
-    {
-        return [
-            ...$this->sharedBaseItems('TDP'),
-            ['item_code' => 'TDP-19', 'item_number' => '19', 'label' => 'Salidas de emergencia'],
-            ['item_code' => 'TDP-20', 'item_number' => '20', 'label' => 'Accesorios de salidas de emergencia (martillos)'],
-            ['item_code' => 'TDP-21', 'item_number' => '21', 'label' => 'Ventanas de emergencia señalizadas'],
-            ['item_code' => 'TDP-22', 'item_number' => '22', 'label' => 'Cuenta con estrobo / tiro o cable de desenganche'],
-            ['item_code' => 'TDP-23', 'item_number' => '23', 'label' => 'Cintas retro reflectivas'],
-            ['item_code' => 'TDP-24', 'item_number' => '24', 'label' => 'Pasos o pasadizos en buen estado'],
-            ['item_code' => 'TDP-25', 'item_number' => '25', 'label' => 'Asiento con espaldar y pernos completos'],
-            ['item_code' => 'TDP-26', 'item_number' => '26', 'label' => 'Estado de asientos'],
-            ['item_code' => 'TDP-27', 'item_number' => '27', 'label' => 'Luna delantera libre de obstáculos que impidan la visualización del conductor'],
-            ['item_code' => 'TDP-28', 'item_number' => '28', 'label' => 'Estado de los pedales'],
-            ['item_code' => 'TDP-29', 'item_number' => '29', 'label' => 'Estado de las herramientas'],
-            ['item_code' => 'TDP-30', 'item_number' => '30', 'label' => 'Productos químicos autorizados y rotulados'],
-            ['item_code' => 'TDP-31', 'item_number' => '31', 'label' => 'Flayer de uso de cinturón de seguridad'],
-            ['item_code' => 'TDP-32', 'item_number' => '32', 'label' => 'Flayer de números de emergencia'],
-        ];
-    }
-
-    /**
-     * @return list<array{item_code: string, item_number: string, label: string, is_group?: bool, requires_expiry?: bool, parent_code?: string|null}>
-     */
-    private function tdcItems(): array
-    {
-        return [
-            ...$this->sharedBaseItems('TDC'),
-            ['item_code' => 'TDC-19', 'item_number' => '19', 'label' => 'Cintas retro reflectivas'],
-            ['item_code' => 'TDC-20', 'item_number' => '20', 'label' => 'Asiento con espaldar y pernos completos'],
-            ['item_code' => 'TDC-21', 'item_number' => '21', 'label' => 'Estado de asientos'],
-        ];
     }
 }

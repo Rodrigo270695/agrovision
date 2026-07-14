@@ -2,31 +2,28 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property int $template_id
+ * @property int|null $parent_id
+ * @property string|null $item_number
+ * @property string $label
+ * @property int $sort_order
+ * @property bool $has_expiry
+ */
 class ChecklistItem extends Model
 {
-    use HasUuids;
-
-    protected $table = 'checklist_items';
-
-    /**
-     * @var list<string>
-     */
     protected $fillable = [
-        'checklist_template_version_id',
-        'parent_item_id',
-        'item_code',
+        'template_id',
+        'parent_id',
         'item_number',
-        'sort_order',
         'label',
-        'is_group',
-        'is_required',
-        'requires_expiry',
-        'help_text',
+        'sort_order',
+        'has_expiry',
     ];
 
     /**
@@ -35,34 +32,22 @@ class ChecklistItem extends Model
     protected function casts(): array
     {
         return [
-            'sort_order' => 'integer',
-            'is_group' => 'boolean',
-            'is_required' => 'boolean',
-            'requires_expiry' => 'boolean',
+            'has_expiry' => 'boolean',
         ];
     }
 
-    /**
-     * @return BelongsTo<ChecklistTemplateVersion, $this>
-     */
-    public function version(): BelongsTo
+    public function template(): BelongsTo
     {
-        return $this->belongsTo(ChecklistTemplateVersion::class, 'checklist_template_version_id');
+        return $this->belongsTo(ChecklistTemplate::class, 'template_id');
     }
 
-    /**
-     * @return BelongsTo<ChecklistItem, $this>
-     */
     public function parent(): BelongsTo
     {
-        return $this->belongsTo(ChecklistItem::class, 'parent_item_id');
+        return $this->belongsTo(self::class, 'parent_id');
     }
 
-    /**
-     * @return HasMany<ChecklistItem, $this>
-     */
     public function children(): HasMany
     {
-        return $this->hasMany(ChecklistItem::class, 'parent_item_id')->orderBy('sort_order');
+        return $this->hasMany(self::class, 'parent_id')->orderBy('sort_order');
     }
 }

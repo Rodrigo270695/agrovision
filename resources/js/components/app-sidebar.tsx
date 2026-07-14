@@ -1,5 +1,15 @@
 import { Link } from '@inertiajs/react';
-import { ClipboardCheck, LayoutGrid } from 'lucide-react';
+import { useMemo } from 'react';
+import {
+    Bus,
+    CalendarRange,
+    ClipboardCheck,
+    LayoutGrid,
+    Layers,
+    Shield,
+    Users,
+    UsersRound,
+} from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -13,6 +23,8 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { useCan } from '@/hooks/use-can';
+import { filterNavItems } from '@/lib/filter-nav-items';
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
@@ -21,17 +33,67 @@ const mainNavItems: NavItem[] = [
         title: 'Panel',
         href: dashboard(),
         icon: LayoutGrid,
+        permission: 'dashboard.view',
     },
     {
-        title: 'Checklists SST',
-        href: '/inspecciones',
-        icon: ClipboardCheck,
+        title: 'Plataforma',
+        icon: Layers,
+        items: [
+            {
+                title: 'Periodos',
+                href: '/periodos',
+                icon: CalendarRange,
+                permission: 'periods.view',
+            },
+            {
+                title: 'Unidades',
+                href: '/unidades',
+                icon: Bus,
+                permission: 'units.view',
+            },
+            {
+                title: 'Inspecciones',
+                href: '/inspecciones',
+                icon: ClipboardCheck,
+                permission: 'checklists.view',
+            },
+        ],
+    },
+    {
+        title: 'Usuario',
+        icon: UsersRound,
+        items: [
+            {
+                title: 'Usuarios',
+                href: '/usuarios',
+                icon: Users,
+                permission: 'users.view',
+            },
+            {
+                title: 'Roles',
+                href: '/roles',
+                icon: Shield,
+                permission: 'roles.view',
+            },
+        ],
     },
 ];
 
 const footerNavItems: NavItem[] = [];
 
 export function AppSidebar() {
+    const { can } = useCan();
+
+    const visibleNavItems = useMemo(
+        () => filterNavItems(mainNavItems, can),
+        [can],
+    );
+
+    const visibleFooterItems = useMemo(
+        () => filterNavItems(footerNavItems, can),
+        [can],
+    );
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -47,12 +109,12 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain items={visibleNavItems} />
             </SidebarContent>
 
             <SidebarFooter>
-                {footerNavItems.length > 0 ? (
-                    <NavFooter items={footerNavItems} className="mt-auto" />
+                {visibleFooterItems.length > 0 ? (
+                    <NavFooter items={visibleFooterItems} className="mt-auto" />
                 ) : null}
                 <NavUser />
             </SidebarFooter>

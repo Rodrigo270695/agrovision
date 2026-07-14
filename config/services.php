@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'apiperu' => [
+        'base_url' => env('APIPERU_BASE_URL', 'https://apiperu.dev/api'),
+        'token' => env('APIPERU_TOKEN'),
+    ],
+
 ];

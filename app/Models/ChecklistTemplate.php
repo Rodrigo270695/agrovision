@@ -2,25 +2,26 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property string $type
+ * @property string $code
+ * @property string $name
+ * @property string $version
+ * @property string|null $notes_hint
+ * @property bool $is_active
+ */
 class ChecklistTemplate extends Model
 {
-    use HasUuids;
-
-    protected $table = 'checklist_templates';
-
-    /**
-     * @var list<string>
-     */
     protected $fillable = [
+        'type',
         'code',
-        'short_code',
         'name',
-        'unit_type',
-        'description',
+        'version',
+        'notes_hint',
         'is_active',
     ];
 
@@ -34,19 +35,18 @@ class ChecklistTemplate extends Model
         ];
     }
 
-    /**
-     * @return HasMany<ChecklistTemplateVersion, $this>
-     */
-    public function versions(): HasMany
+    public function items(): HasMany
     {
-        return $this->hasMany(ChecklistTemplateVersion::class);
+        return $this->hasMany(ChecklistItem::class, 'template_id')->orderBy('sort_order');
     }
 
-    public function publishedVersion(): ?ChecklistTemplateVersion
+    public function signatureRoles(): HasMany
     {
-        return $this->versions()
-            ->where('is_published', true)
-            ->orderByDesc('version_number')
-            ->first();
+        return $this->hasMany(ChecklistSignatureRole::class, 'template_id')->orderBy('sort_order');
+    }
+
+    public function unitChecklists(): HasMany
+    {
+        return $this->hasMany(UnitChecklist::class, 'template_id');
     }
 }

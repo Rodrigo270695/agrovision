@@ -3,13 +3,13 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-        <meta name="theme-color" content="#1f4d34">
+        <meta name="theme-color" content="#1a2b4c">
         <meta name="application-name" content="Agrovisión">
         <meta name="mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
         <meta name="apple-mobile-web-app-title" content="Agrovisión">
-        <meta name="msapplication-TileColor" content="#1f4d34">
+        <meta name="msapplication-TileColor" content="#1a2b4c">
         <meta name="msapplication-TileImage" content="/icons/icon-144x144.png">
         <link rel="manifest" href="/manifest.webmanifest">
 

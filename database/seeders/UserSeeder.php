@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Spatie\Permission\Models\Role;
 
 class UserSeeder extends Seeder
 {
@@ -12,7 +13,14 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        User::query()->updateOrCreate(
+        $superAdmin = Role::query()->firstOrCreate(
+            [
+                'name' => 'superadmin',
+                'guard_name' => 'web',
+            ],
+        );
+
+        $user = User::query()->updateOrCreate(
             ['email' => 'admin@agrovision.com'],
             [
                 'name' => 'Administrador',
@@ -20,5 +28,7 @@ class UserSeeder extends Seeder
                 'email_verified_at' => now(),
             ],
         );
+
+        $user->syncRoles([$superAdmin]);
     }
 }

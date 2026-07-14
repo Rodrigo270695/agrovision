@@ -1,15 +1,15 @@
 {
   "id": "/",
-  "name": "Agrovisión SST",
+  "name": "Agrovisión",
   "short_name": "Agrovisión",
-  "description": "Checklists SST para unidades TDP y TDC en campo",
-  "start_url": "/inspecciones",
+  "description": "Plataforma Agrovisión",
+  "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
-  "theme_color": "#1f4d34",
+    "theme_color": "#1a2b4c",
   "lang": "es-PE",
   "dir": "ltr",
   "categories": ["business", "productivity"],
@@ -102,34 +102,10 @@
   ],
   "shortcuts": [
     {
-      "name": "Checklists SST",
-      "short_name": "Checklists",
-      "description": "Abrir inspecciones TDP y TDC",
-      "url": "/inspecciones",
-      "icons": [
-        {
-          "src": "/icons/icon-192x192.png",
-          "sizes": "192x192",
-          "type": "image/png"
-        }
-      ]
-    },
-    {
-      "name": "Nueva TDP",
-      "short_name": "TDP",
-      "url": "/inspecciones/tdp/nueva",
-      "icons": [
-        {
-          "src": "/icons/icon-192x192.png",
-          "sizes": "192x192",
-          "type": "image/png"
-        }
-      ]
-    },
-    {
-      "name": "Nueva TDC",
-      "short_name": "TDC",
-      "url": "/inspecciones/tdc/nueva",
+      "name": "Panel",
+      "short_name": "Panel",
+      "description": "Abrir panel principal",
+      "url": "/dashboard",
       "icons": [
         {
           "src": "/icons/icon-192x192.png",
