@@ -6,6 +6,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Spatie\Permission\Models\Role;
 
 return new class extends Migration
 {
@@ -23,6 +24,9 @@ return new class extends Migration
 
         // Migra texto libre "coordinator" → user por nombre (si coincide).
         if (Schema::hasColumn('units', 'coordinator')) {
+            // En entornos nuevos el rol puede no existir aún; no debe romper migrate.
+            Role::findOrCreate(SystemRoles::COORDINADOR, 'web');
+
             $coordinators = User::role(SystemRoles::COORDINADOR)
                 ->get(['id', 'name']);
 
