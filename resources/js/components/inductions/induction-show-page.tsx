@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { SignaturePad } from '@/components/checklists/signature-pad';
+import { FingerprintCameraCapture } from '@/components/inductions/fingerprint-camera-capture';
 import { AppModal } from '@/components/shared/app-modal';
 import { TableSearchFilter } from '@/components/shared/table-search-filter';
 import { Button } from '@/components/ui/button';
@@ -904,7 +905,7 @@ export function InductionShowPage() {
                 description={
                     signingSpeaker
                         ? 'Firma del expositor requerida para cerrar la inducción.'
-                        : 'Captura la firma y la huella del conductor para el registro oficial.'
+                        : 'Firma con el dedo y toma una foto directa de la huella (cámara macro/trasera).'
                 }
                 className="sm:max-w-lg"
                 bodyClassName="max-h-[70vh]"
@@ -953,17 +954,10 @@ export function InductionShowPage() {
                             <p className="text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
                                 Huella
                             </p>
-                            <p className="text-[11px] text-[#6b8ead]">
-                                Apoya el dedo en el recuadro (un toque basta).
-                            </p>
-                            <SignaturePad
+                            <FingerprintCameraCapture
                                 valueUrl={signing?.fingerprint_url}
                                 onChange={setFingerprintDataUrl}
-                                mode="stamp"
-                                className="mx-auto max-w-[10.5rem]"
-                                canvasClassName="h-44 sm:h-48"
-                                placeholder="Toca aquí con el dedo"
-                                clearLabel="Limpiar huella"
+                                disabled={savingSignature}
                             />
                         </div>
                     ) : null}

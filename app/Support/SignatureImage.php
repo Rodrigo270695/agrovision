@@ -8,7 +8,7 @@ use RuntimeException;
 final class SignatureImage
 {
     /**
-     * Guarda una firma en PNG desde data URL y retorna el path relativo en disk public.
+     * Guarda una firma/huella en imagen desde data URL y retorna el path relativo en disk public.
      */
     public static function storeFromDataUrl(string $dataUrl, string $directory): string
     {
@@ -22,8 +22,8 @@ final class SignatureImage
             throw new RuntimeException('No se pudo leer la firma.');
         }
 
-        if (strlen($binary) > 2_000_000) {
-            throw new RuntimeException('La firma es demasiado pesada.');
+        if (strlen($binary) > 4_000_000) {
+            throw new RuntimeException('La imagen es demasiado pesada.');
         }
 
         $extension = strtolower($matches[1]) === 'jpeg' ? 'jpg' : strtolower($matches[1]);
