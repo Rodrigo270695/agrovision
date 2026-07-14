@@ -76,6 +76,8 @@ type InductionDetail = {
     speaker_signed?: boolean;
     speaker_signature_url?: string | null;
     can_finalize?: boolean;
+    can_start?: boolean;
+    can_manage_attendance?: boolean;
 };
 
 type StatusOption = { value: string; label: string };
@@ -143,6 +145,22 @@ export function InductionShowPage() {
     const canUpdate = can('inductions.update');
     const locked =
         induction.status === 'closed' || induction.status === 'cancelled';
+    const canStart =
+        induction.status === 'scheduled' &&
+        (induction.can_start ??
+            (() => {
+                const at = new Date(induction.scheduled_at);
+
+                return (
+                    !Number.isNaN(at.getTime()) && Date.now() >= at.getTime()
+                );
+            })());
+    const canManageAttendance =
+        induction.can_manage_attendance ??
+        induction.status === 'in_progress';
+    const canFinalize =
+        induction.status === 'in_progress' &&
+        Boolean(induction.can_finalize);
 
     const [selected, setSelected] = useState<number[]>([]);
     const [pulling, setPulling] = useState(false);
@@ -224,7 +242,7 @@ export function InductionShowPage() {
     };
 
     const setAttendeeStatus = (attendee: Attendee, status: string) => {
-        if (!canUpdate || locked) {
+        if (!canUpdate || locked || !canManageAttendance) {
             return;
         }
 
@@ -240,7 +258,13 @@ export function InductionShowPage() {
     };
 
     const markAllAttended = () => {
-        if (!canUpdate || locked || bulkBusy || induction.attendees.length === 0) {
+        if (
+            !canUpdate ||
+            locked ||
+            !canManageAttendance ||
+            bulkBusy ||
+            induction.attendees.length === 0
+        ) {
             return;
         }
 
@@ -283,6 +307,10 @@ export function InductionShowPage() {
     };
 
     const openSign = (attendee: Attendee) => {
+        if (!canManageAttendance) {
+            return;
+        }
+
         setSigningSpeaker(false);
         setSigning(attendee);
         setSignatureDataUrl(null);
@@ -385,15 +413,20 @@ export function InductionShowPage() {
                         </div>
                         {!locked ? (
                             <p className="text-xs text-[#6b8ead]">
-                                Firman todos los asistentes y el expositor
-                                para poder finalizar y descargar los documentos.
+                                {induction.status === 'scheduled'
+                                    ? canStart
+                                        ? 'Ya puedes iniciar la inducción. Luego se habilitan asistencia, firmas y huellas.'
+                                        : 'El botón Iniciar aparece al llegar la fecha y hora programada. Edita la inducción si necesitas adelantar.'
+                                    : induction.status === 'in_progress'
+                                      ? 'Firman todos los asistentes y el expositor para poder finalizar y descargar los documentos.'
+                                      : null}
                             </p>
                         ) : null}
                     </div>
 
                     {canUpdate || induction.status === 'closed' ? (
                         <div className="flex flex-wrap gap-2">
-                            {canUpdate && induction.status === 'scheduled' ? (
+                            {canUpdate && canStart ? (
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -405,22 +438,24 @@ export function InductionShowPage() {
                                     Iniciar
                                 </Button>
                             ) : null}
-                            {canUpdate && !locked ? (
+                            {canUpdate && canFinalize ? (
                                 <Button
                                     type="button"
-                                    disabled={!induction.can_finalize}
                                     onClick={() =>
                                         patchInductionStatus('closed')
                                     }
-                                    className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c] disabled:opacity-50"
-                                    title={
-                                        induction.can_finalize
-                                            ? 'Finalizar inducción'
-                                            : 'Faltan firmas de asistentes o del expositor'
-                                    }
+                                    className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c]"
+                                    title="Finalizar inducción"
                                 >
                                     Finalizar
                                 </Button>
+                            ) : null}
+                            {canUpdate &&
+                            induction.status === 'in_progress' &&
+                            !induction.can_finalize ? (
+                                <p className="self-center text-xs text-[#6b8ead]">
+                                    Firma asistentes y expositor para finalizar.
+                                </p>
                             ) : null}
                             {induction.status === 'closed' ? (
                                 <Button
@@ -575,7 +610,9 @@ export function InductionShowPage() {
                             Asistentes ({counts.total})
                         </h2>
                         <p className="mt-0.5 text-xs text-[#6b8ead]">
-                            Firma cada asistente. Luego firma el expositor.
+                            {canManageAttendance
+                                ? 'Firma cada asistente. Luego firma el expositor.'
+                                : 'Puedes jalar conductores. Asistencia, firmas y huellas se habilitan al iniciar la inducción.'}
                         </p>
                     </div>
 
@@ -602,7 +639,7 @@ export function InductionShowPage() {
                                         Sin firma
                                     </span>
                                 )}
-                                {canUpdate && !locked ? (
+                                {canUpdate && canManageAttendance ? (
                                     <Button
                                         type="button"
                                         size="sm"
@@ -635,7 +672,7 @@ export function InductionShowPage() {
                         </p>
                     ) : (
                         <>
-                            {canUpdate && !locked ? (
+                            {canUpdate && canManageAttendance ? (
                                 <div className="flex items-center justify-between gap-2 border-b border-[#eef2f7] px-3 py-2">
                                     <button
                                         type="button"
@@ -657,6 +694,13 @@ export function InductionShowPage() {
                                         /{induction.attendees.length} asistieron
                                     </span>
                                 </div>
+                            ) : canUpdate &&
+                              !locked &&
+                              induction.status === 'scheduled' ? (
+                                <p className="border-b border-[#eef2f7] px-3 py-2 text-xs text-[#6b8ead]">
+                                    Inicia la inducción para marcar asistencia y
+                                    capturar firmas/huellas.
+                                </p>
                             ) : null}
                             <ul className="max-h-[32rem] divide-y divide-[#eef2f7] overflow-y-auto">
                             {induction.attendees.map((attendee) => (
@@ -691,7 +735,7 @@ export function InductionShowPage() {
                                                 </span>
                                             )}
 
-                                            {canUpdate && !locked ? (
+                                            {canUpdate && canManageAttendance ? (
                                                 <>
                                                     <Select
                                                         value={
@@ -787,6 +831,9 @@ export function InductionShowPage() {
                                                     >
                                                         <X className="size-3.5" />
                                                     </Button>
+                                                </>
+                                            ) : null}
+                                            {canUpdate && !locked ? (
                                                     <Button
                                                         type="button"
                                                         variant="ghost"
@@ -806,7 +853,6 @@ export function InductionShowPage() {
                                                     >
                                                         <UserMinus className="size-3.5" />
                                                     </Button>
-                                                </>
                                             ) : null}
                                         </div>
                                     </div>

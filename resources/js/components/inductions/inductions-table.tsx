@@ -145,6 +145,20 @@ function statusLabel(status: string, options: StatusOption[]): string {
     return options.find((item) => item.value === status)?.label ?? status;
 }
 
+function canStartBySchedule(scheduledAt?: string | null): boolean {
+    if (!scheduledAt) {
+        return false;
+    }
+
+    const at = new Date(scheduledAt);
+
+    if (Number.isNaN(at.getTime())) {
+        return false;
+    }
+
+    return Date.now() >= at.getTime();
+}
+
 function UnitActions({
     induction,
     statusOptions,
@@ -163,6 +177,9 @@ function UnitActions({
     const canDelete = can('inductions.delete');
     const locked =
         induction.status === 'closed' || induction.status === 'cancelled';
+    const canStart =
+        induction.status === 'scheduled' &&
+        canStartBySchedule(induction.scheduled_at);
 
     const patchStatus = (status: string) => {
         if (!canUpdate) {
@@ -218,29 +235,27 @@ function UnitActions({
                 </Button>
             ) : null}
 
-            {canUpdate && induction.status === 'scheduled' ? (
+            {canUpdate && canStart ? (
                 <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     onClick={() => patchStatus('in_progress')}
                     className="size-7 cursor-pointer text-amber-600 hover:bg-amber-50 hover:text-amber-800"
-                    title="Marcar en curso"
+                    title="Iniciar inducción"
                 >
                     <Play className="size-3.5" />
                 </Button>
             ) : null}
 
-            {canUpdate &&
-            (induction.status === 'scheduled' ||
-                induction.status === 'in_progress') ? (
+            {canUpdate && induction.status === 'in_progress' ? (
                 <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     onClick={() => patchStatus('closed')}
                     className="size-7 cursor-pointer text-emerald-600 hover:bg-emerald-50 hover:text-emerald-800"
-                    title="Cerrar inducción"
+                    title="Finalizar inducción"
                 >
                     <Lock className="size-3.5" />
                 </Button>

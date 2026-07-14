@@ -178,7 +178,30 @@ class InductionController extends Controller
 
         $next = $validated['status'];
 
+        if ($next === InductionStatuses::IN_PROGRESS) {
+            if ($induction->status !== InductionStatuses::SCHEDULED) {
+                return back()->with('toast', [
+                    'type' => 'error',
+                    'message' => 'Solo se puede iniciar una inducción que esté programada.',
+                ]);
+            }
+
+            if (! $induction->canStartNow()) {
+                return back()->with('toast', [
+                    'type' => 'error',
+                    'message' => 'Aún no llega la fecha y hora programada. Edita la inducción si necesitas iniciar antes.',
+                ]);
+            }
+        }
+
         if ($next === InductionStatuses::CLOSED) {
+            if ($induction->status !== InductionStatuses::IN_PROGRESS) {
+                return back()->with('toast', [
+                    'type' => 'error',
+                    'message' => 'Debes iniciar la inducción antes de finalizarla.',
+                ]);
+            }
+
             $induction->loadMissing('attendees');
 
             if ($induction->attendees->isEmpty()) {
@@ -221,9 +244,11 @@ class InductionController extends Controller
 
         return back()->with('toast', [
             'type' => 'success',
-            'message' => $next === InductionStatuses::CLOSED
-                ? 'Inducción finalizada. Ya puedes descargar el paquete de documentos (ZIP).'
-                : 'Estado actualizado: '.InductionStatuses::label($next).'.',
+            'message' => match ($next) {
+                InductionStatuses::CLOSED => 'Inducción finalizada. Ya puedes descargar el paquete de documentos (ZIP).',
+                InductionStatuses::IN_PROGRESS => 'Inducción iniciada. Ya puedes marcar asistencia y capturar firmas.',
+                default => 'Estado actualizado: '.InductionStatuses::label($next).'.',
+            },
         ]);
     }
 
@@ -287,6 +312,8 @@ class InductionController extends Controller
         $inductionPayload['speaker_signed'] = $induction->speakerIsSigned();
         $inductionPayload['speaker_signature_url'] = $induction->speakerSignatureUrl();
         $inductionPayload['can_finalize'] = $induction->canFinalize();
+        $inductionPayload['can_start'] = $induction->canStartNow();
+        $inductionPayload['can_manage_attendance'] = $induction->allowsAttendanceActions();
 
         return Inertia::render('inductions/show', [
             'induction' => $inductionPayload,
@@ -418,6 +445,13 @@ class InductionController extends Controller
             ]);
         }
 
+        if (! $induction->allowsAttendanceActions()) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Debes iniciar la inducción antes de marcar asistencia.',
+            ]);
+        }
+
         $validated = $request->validate([
             'status' => ['nullable', 'string', Rule::in(InductionAttendeeStatuses::keys())],
         ]);
@@ -449,6 +483,13 @@ class InductionController extends Controller
             return back()->with('toast', [
                 'type' => 'error',
                 'message' => 'La inducción está cerrada. No se puede cambiar la asistencia.',
+            ]);
+        }
+
+        if (! $induction->allowsAttendanceActions()) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Debes iniciar la inducción antes de marcar asistencia.',
             ]);
         }
 
@@ -487,6 +528,13 @@ class InductionController extends Controller
             return back()->with('toast', [
                 'type' => 'error',
                 'message' => 'La inducción está cerrada. No se puede firmar.',
+            ]);
+        }
+
+        if (! $induction->allowsAttendanceActions()) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Debes iniciar la inducción antes de capturar firmas y huellas.',
             ]);
         }
 
@@ -558,6 +606,13 @@ class InductionController extends Controller
             return back()->with('toast', [
                 'type' => 'error',
                 'message' => 'La inducción está cerrada. No se puede firmar.',
+            ]);
+        }
+
+        if (! $induction->allowsAttendanceActions()) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Debes iniciar la inducción antes de capturar la firma del expositor.',
             ]);
         }
 

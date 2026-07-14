@@ -167,9 +167,33 @@ class Induction extends Model
 
     public function canFinalize(): bool
     {
-        return $this->attendees()->count() > 0
+        return $this->status === InductionStatuses::IN_PROGRESS
+            && $this->attendees()->count() > 0
             && $this->allAttendeesSigned()
             && $this->speakerIsSigned()
             && ! $this->isLocked();
+    }
+
+    public function canStartNow(): bool
+    {
+        if ($this->status !== InductionStatuses::SCHEDULED) {
+            return false;
+        }
+
+        if (! $this->scheduled_at) {
+            return false;
+        }
+
+        return now()->greaterThanOrEqualTo($this->scheduled_at);
+    }
+
+    public function isInProgress(): bool
+    {
+        return $this->status === InductionStatuses::IN_PROGRESS;
+    }
+
+    public function allowsAttendanceActions(): bool
+    {
+        return $this->isInProgress();
     }
 }
