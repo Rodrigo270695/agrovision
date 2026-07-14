@@ -52,7 +52,20 @@ class InductionController extends Controller
         $query = (clone $baseQuery)->withCount([
             'attendees',
             'attendees as attended_count' => fn ($q) => $q->where('status', InductionAttendeeStatuses::ATTENDED),
-        ])->with(['period:id,name', 'creator:id,name']);
+        ])->with([
+            'period:id,name',
+            'creator:id,name',
+            'attendees' => fn ($q) => $q
+                ->orderBy('driver_name')
+                ->select([
+                    'id',
+                    'induction_id',
+                    'driver_name',
+                    'driver_dni',
+                    'plate_number',
+                    'status',
+                ]),
+        ]);
 
         if ($search !== '') {
             $query->where(function ($builder) use ($search) {

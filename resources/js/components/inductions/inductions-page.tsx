@@ -1,6 +1,7 @@
 import { usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { InductionDeleteModal } from '@/components/inductions/induction-delete-modal';
+import { InductionAttendeesModal } from '@/components/inductions/induction-attendees-modal';
 import { InductionFormModal } from '@/components/inductions/induction-form-modal';
 import type { InductionFormOptions } from '@/components/inductions/induction-form-fields';
 import type { PeriodOption } from '@/components/inductions/induction-form-fields';
@@ -39,6 +40,9 @@ export function InductionsPage() {
     const [editing, setEditing] = useState<InductionItem | null>(null);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleting, setDeleting] = useState<InductionItem | null>(null);
+    const [attendeesOpen, setAttendeesOpen] = useState(false);
+    const [viewingAttendees, setViewingAttendees] =
+        useState<InductionItem | null>(null);
 
     return (
         <div className="flex h-full flex-1 flex-col gap-4 p-4">
@@ -74,6 +78,10 @@ export function InductionsPage() {
                     setDeleting(item);
                     setDeleteOpen(true);
                 }}
+                onViewAttendees={(item) => {
+                    setViewingAttendees(item);
+                    setAttendeesOpen(true);
+                }}
             />
 
             {can('inductions.create') || can('inductions.update') ? (
@@ -106,6 +114,15 @@ export function InductionsPage() {
                     }}
                 />
             ) : null}
+
+            <InductionAttendeesModal
+                open={attendeesOpen}
+                induction={viewingAttendees}
+                onClose={() => {
+                    setAttendeesOpen(false);
+                    setViewingAttendees(null);
+                }}
+            />
         </div>
     );
 }

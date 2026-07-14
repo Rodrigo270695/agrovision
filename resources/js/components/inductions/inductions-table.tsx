@@ -22,6 +22,14 @@ import {
 import { useCan } from '@/hooks/use-can';
 import { cn } from '@/lib/utils';
 
+export type InductionAttendeePreview = {
+    id: number;
+    driver_name: string;
+    driver_dni?: string | null;
+    plate_number?: string | null;
+    status: string;
+};
+
 export type InductionItem = {
     id: number;
     acta_number?: string | null;
@@ -64,6 +72,7 @@ export type InductionItem = {
     closed_at?: string | null;
     attendees_count?: number;
     attended_count?: number;
+    attendees?: InductionAttendeePreview[];
     period?: { id: number; name: string } | null;
     creator?: { id: number; name: string } | null;
     created_at?: string | null;
@@ -95,6 +104,7 @@ type Props = {
     statusOptions: StatusOption[];
     onEdit: (induction: InductionItem) => void;
     onDelete: (induction: InductionItem) => void;
+    onViewAttendees: (induction: InductionItem) => void;
 };
 
 const statusTone: Record<string, string> = {
@@ -271,6 +281,7 @@ export function InductionsTable({
     statusOptions,
     onEdit,
     onDelete,
+    onViewAttendees,
 }: Props) {
     const visit = useCallback(
         (params: Partial<InductionsFilters> & { page?: number }) => {
@@ -403,9 +414,18 @@ export function InductionsTable({
                                             )}
                                         </span>
                                     </td>
-                                    <td className="px-3 py-1.5 text-center text-[#5a7390]">
-                                        {induction.attended_count ?? 0}/
-                                        {induction.attendees_count ?? 0}
+                                    <td className="px-3 py-1.5 text-center">
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                onViewAttendees(induction)
+                                            }
+                                            className="cursor-pointer rounded-md px-1.5 py-0.5 font-medium text-[#2e5a9e] underline-offset-2 hover:bg-[#e8f1fa] hover:underline"
+                                            title="Ver asistentes"
+                                        >
+                                            {induction.attended_count ?? 0}/
+                                            {induction.attendees_count ?? 0}
+                                        </button>
                                     </td>
                                     <td className="px-3 py-1.5 text-[#5a7390]">
                                         {induction.period?.name || '—'}
@@ -456,6 +476,16 @@ export function InductionsTable({
                                 >
                                     {statusLabel(induction.status, statusOptions)}
                                 </span>
+                                <button
+                                    type="button"
+                                    onClick={() => onViewAttendees(induction)}
+                                    className="cursor-pointer text-xs font-medium text-[#2e5a9e] hover:underline"
+                                >
+                                    Asistentes {induction.attended_count ?? 0}/
+                                    {induction.attendees_count ?? 0}
+                                </button>
+                            </div>
+                            <div className="mt-2 flex justify-end">
                                 <UnitActions
                                     induction={induction}
                                     statusOptions={statusOptions}

@@ -907,12 +907,16 @@ export function InductionShowPage() {
                             <p className="text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
                                 Huella
                             </p>
+                            <p className="text-[11px] text-[#6b8ead]">
+                                Apoya el dedo en el recuadro (un toque basta).
+                            </p>
                             <SignaturePad
                                 valueUrl={signing?.fingerprint_url}
                                 onChange={setFingerprintDataUrl}
+                                mode="stamp"
                                 className="mx-auto max-w-[10.5rem]"
                                 canvasClassName="h-44 sm:h-48"
-                                placeholder="Huella aquí con el dedo"
+                                placeholder="Toca aquí con el dedo"
                                 clearLabel="Limpiar huella"
                             />
                         </div>
