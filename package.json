@@ -3,8 +3,9 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "vite build",
-        "build:ssr": "vite build && vite build --ssr",
+        "wayfinder": "php artisan wayfinder:generate --with-form",
+        "build": "php artisan wayfinder:generate --with-form && vite build",
+        "build:ssr": "php artisan wayfinder:generate --with-form && vite build && vite build --ssr",
         "dev": "vite",
         "icons:pwa": "php scripts/generate-pwa-icons.php",
         "format": "prettier --write resources/",

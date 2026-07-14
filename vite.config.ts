@@ -24,8 +24,13 @@ export default defineConfig({
             },
         }),
         tailwindcss(),
-        wayfinder({
-            formVariants: true,
-        }),
+        // En `vite build` se genera vía script npm (error PHP visible).
+        // En `vite` (dev) el plugin regenera al vuelo.
+        {
+            ...wayfinder({
+                formVariants: true,
+            }),
+            apply: 'serve',
+        },
     ],
 });
