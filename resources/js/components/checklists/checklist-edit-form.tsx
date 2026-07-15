@@ -213,13 +213,12 @@ function StepPill({
 export function ChecklistEditForm({ checklist }: Props) {
     const sealed = checklist.is_sealed;
     const firstLocked =
-        sealed || checklist.first_result === 'approved';
+        sealed ||
+        checklist.first_result === 'approved' ||
+        checklist.first_result === 'rejected';
     const secondUnlocked = Boolean(checklist.can_start_second);
     const waitingCoordinator =
-        (checklist.first_result === 'approved' ||
-            checklist.first_result === 'rejected') &&
-        !secondUnlocked &&
-        !sealed;
+        firstLocked && !secondUnlocked && !sealed;
     const secondLocked =
         sealed || checklist.second_result === 'approved';
     const signaturesUnlocked = checklist.second_result === 'approved';
@@ -334,6 +333,8 @@ export function ChecklistEditForm({ checklist }: Props) {
     const activePass: 'first' | 'second' = secondUnlocked ? 'second' : 'first';
     const activeStats = activePass === 'first' ? firstStats : secondStats;
 
+    const PARETO_PASS_THRESHOLD = 85;
+
     const livePareto = useMemo(() => {
         const valueKey =
             activePass === 'first' ? 'first_value' : 'second_value';
@@ -350,12 +351,26 @@ export function ChecklistEditForm({ checklist }: Props) {
             }
         });
 
+        const scoredRounded = Math.round(scored * 100) / 100;
+        const catalogRounded = Math.round(catalog * 100) / 100;
+        const percent =
+            catalogRounded > 0
+                ? Math.round((scoredRounded / catalogRounded) * 10000) / 100
+                : 0;
+
         return {
-            scored: Math.round(scored * 100) / 100,
-            catalog: Math.round(catalog * 100) / 100,
+            scored: scoredRounded,
+            catalog: catalogRounded,
+            percent,
+            passes: percent >= PARETO_PASS_THRESHOLD,
             allYes: activeStats.yes === activeStats.total && activeStats.total > 0,
         };
     }, [activePass, activeStats.total, activeStats.yes, answers, checklist.items]);
+
+    const canApproveActivePass =
+        activeStats.allMarked &&
+        !activeStats.missingExpiry &&
+        livePareto.passes;
 
     const updateAnswer = (
         index: number,
@@ -446,7 +461,10 @@ export function ChecklistEditForm({ checklist }: Props) {
                         <StepPill
                             label="1ra"
                             active={!secondUnlocked}
-                            done={checklist.first_result === 'approved'}
+                            done={
+                                checklist.first_result === 'approved' ||
+                                checklist.first_result === 'rejected'
+                            }
                         />
                         <StepPill
                             label="2da"
@@ -498,25 +516,28 @@ export function ChecklistEditForm({ checklist }: Props) {
                             {checklist.coordinator_status === 'observed' ? (
                                 <>
                                     Consolidado en estado{' '}
-                                    <strong>Observado</strong>. Esperando plan
-                                    de acción y firma del coordinador. Cuando
-                                    responda quedará <strong>Revisado</strong> y
-                                    se habilita la 2da inspección.
+                                    <strong>Observado</strong>. La 1ra inspección
+                                    quedó registrada y no se puede modificar.
+                                    Esperando plan de acción y firma del
+                                    coordinador. Cuando responda quedará{' '}
+                                    <strong>Revisado</strong> y se habilita la
+                                    2da supervisión.
                                 </>
                             ) : checklist.first_result === 'rejected' ? (
                                 <>
-                                    1ra inspección <strong>desaprobada</strong>.
-                                    Genera el consolidado PDF y{' '}
-                                    <strong>envíalo al coordinador</strong> para
-                                    el plan de acción (estado Observado).
+                                    1ra inspección <strong>desaprobada</strong> y
+                                    bloqueada. Envía el consolidado PDF al
+                                    coordinador. La 2da supervisión queda en
+                                    espera hasta su plan de acción (estado
+                                    Revisado).
                                 </>
                             ) : (
                                 <>
-                                    1ra inspección aprobada. Genera el
-                                    consolidado PDF y <strong>envíalo al
-                                    coordinador</strong> (estado Observado). La
-                                    2da inspección se habilita al quedar
-                                    Revisado.
+                                    1ra inspección <strong>aprobada</strong> y
+                                    bloqueada. Envía el consolidado PDF al
+                                    coordinador. La 2da supervisión queda en
+                                    espera hasta su plan de acción (estado
+                                    Revisado).
                                 </>
                             )}
                         </div>
@@ -691,20 +712,25 @@ export function ChecklistEditForm({ checklist }: Props) {
                         <span
                             className={cn(
                                 'inline-flex w-fit rounded-full px-2.5 py-1 text-[11px] font-medium',
-                                livePareto.scored >= 100
+                                livePareto.passes
                                     ? 'bg-emerald-50 text-emerald-800'
-                                    : livePareto.scored > 0
-                                      ? 'bg-sky-50 text-sky-800'
+                                    : livePareto.percent > 0
+                                      ? 'bg-amber-50 text-amber-900'
                                       : 'bg-slate-100 text-slate-700',
                             )}
                         >
-                            Pareto {livePareto.scored.toFixed(2)}%
+                            Pareto {livePareto.percent.toFixed(2)}%
                             <span className="ml-1 font-normal opacity-80">
                                 / {livePareto.catalog.toFixed(2)}%
                             </span>
                         </span>
                         <p className="text-[11px] text-[#6b8ead]">
-                            Solo suman los ítems en SÍ · NO no puntúa
+                            Umbral {PARETO_PASS_THRESHOLD}% · Solo suman los SÍ
+                            {!livePareto.passes ? (
+                                <span className="ml-1 font-medium text-red-700">
+                                    · Desaprobado (&lt; {PARETO_PASS_THRESHOLD}%)
+                                </span>
+                            ) : null}
                         </p>
                     </div>
                 </div>
@@ -948,21 +974,25 @@ export function ChecklistEditForm({ checklist }: Props) {
                                 ? checklist.coordinator_status === 'observed'
                                     ? 'Consolidado Observado: el coordinador debe responder en Consolidados.'
                                     : 'Envía el consolidado al coordinador desde el modal PDF para continuar.'
-                                : !firstLocked && !firstStats.allYes
-                                  ? firstStats.missingExpiry
-                                      ? 'Completa los vencimientos / observaciones para poder aprobar la 1ra.'
-                                      : firstStats.no > 0
-                                        ? 'Hay ítems en NO: puedes guardar borrador o desaprobar la 1ra.'
-                                        : 'Marca todos los ítems en SÍ para habilitar «Aprobar 1ra».'
-                                  : secondUnlocked &&
-                                      !secondLocked &&
-                                      !secondStats.allYes
-                                    ? secondStats.missingExpiry
-                                        ? 'Completa los vencimientos / observaciones para aprobar la 2da.'
-                                        : 'Marca todos los ítems en SÍ para habilitar «Aprobar 2da».'
-                                    : signaturesUnlocked
-                                      ? 'Puedes firmar (opcional) y sellar la inspección.'
-                                      : 'Puedes guardar el progreso en cualquier momento.'}
+                                  : !firstLocked && !livePareto.passes
+                                    ? `Pareto ${livePareto.percent.toFixed(2)}% (< ${PARETO_PASS_THRESHOLD}%): desaprueba o corrige ítems en NO.`
+                                    : !firstLocked && !canApproveActivePass
+                                      ? firstStats.missingExpiry
+                                          ? 'Completa los vencimientos / observaciones para poder aprobar la 1ra.'
+                                          : !firstStats.allMarked
+                                            ? 'Marca todos los ítems en SÍ/NO para poder aprobar o desaprobar.'
+                                            : `Necesitas ≥ ${PARETO_PASS_THRESHOLD}% Pareto para aprobar la 1ra.`
+                                      : secondUnlocked &&
+                                          !secondLocked &&
+                                          !canApproveActivePass
+                                        ? secondStats.missingExpiry
+                                            ? 'Completa los vencimientos / observaciones para aprobar la 2da.'
+                                            : !secondStats.allMarked
+                                              ? 'Marca todos los ítems en SÍ/NO para aprobar la 2da.'
+                                              : `Necesitas ≥ ${PARETO_PASS_THRESHOLD}% Pareto para aprobar la 2da.`
+                                        : signaturesUnlocked
+                                          ? 'Puedes firmar (opcional) y sellar la inspección.'
+                                          : 'Puedes guardar el progreso en cualquier momento.'}
                         </p>
                         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                             <Button
@@ -979,7 +1009,7 @@ export function ChecklistEditForm({ checklist }: Props) {
                             {!firstLocked ? (
                                 <Button
                                     type="button"
-                                    disabled={processing || !firstStats.allYes}
+                                    disabled={processing || !canApproveActivePass}
                                     onClick={() =>
                                         save({
                                             status: 'draft',
@@ -992,11 +1022,12 @@ export function ChecklistEditForm({ checklist }: Props) {
                                 </Button>
                             ) : null}
 
-                            {!firstLocked && firstStats.no > 0 ? (
+                            {!firstLocked &&
+                            (firstStats.no > 0 || !livePareto.passes) ? (
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    disabled={processing}
+                                    disabled={processing || !firstStats.allMarked}
                                     onClick={() =>
                                         save({
                                             status: 'draft',
@@ -1012,7 +1043,7 @@ export function ChecklistEditForm({ checklist }: Props) {
                             {secondUnlocked && !secondLocked ? (
                                 <Button
                                     type="button"
-                                    disabled={processing || !secondStats.allYes}
+                                    disabled={processing || !canApproveActivePass}
                                     onClick={() =>
                                         save({
                                             status: 'draft',

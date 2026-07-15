@@ -4,7 +4,6 @@ namespace App\Support;
 
 use App\Models\Induction;
 use App\Models\InductionAttendee;
-use App\Support\PdfLogo;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -48,6 +47,10 @@ final class InductionDocumentPackage
             ? $toDataUri(Storage::disk('public')->path($induction->speaker_signature_path))
             : null;
 
+        $verificationPhotoSrc = $induction->verification_photo_path
+            ? $toDataUri(Storage::disk('public')->path($induction->verification_photo_path))
+            : null;
+
         $attendedSigned = $induction->attendees
             ->filter(fn (InductionAttendee $attendee) => $attendee->status === InductionAttendeeStatuses::ATTENDED
                 && $attendee->isSigned())
@@ -76,11 +79,18 @@ final class InductionDocumentPackage
             ];
         });
 
+        $reportPdf = Pdf::loadView('pdfs.induction-sst-report', [
+            'induction' => $induction,
+            'logoSrc' => $logoSrc,
+            'attendeesCount' => $attendedSigned->count(),
+        ])->setPaper('a4', 'portrait');
+
         $registerPdf = Pdf::loadView('pdfs.induction-register', [
             'induction' => $induction,
             'attendees' => $attendanceRows,
             'logoSrc' => $logoSrc,
             'speakerSignatureSrc' => $speakerSignatureSrc,
+            'verificationPhotoSrc' => $verificationPhotoSrc,
             'activityLabels' => InductionFormOptions::activities(),
             'modalityLabels' => InductionFormOptions::modalities(),
             'schoolLabels' => InductionFormOptions::schools(),
@@ -100,6 +110,11 @@ final class InductionDocumentPackage
         if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             throw new \RuntimeException('No se pudo crear el archivo ZIP.');
         }
+
+        $zip->addFromString(
+            '00_informe_sst_'.$acta.'.pdf',
+            $reportPdf->output()
+        );
 
         $zip->addFromString(
             '01_registro_induccion_'.$acta.'.pdf',

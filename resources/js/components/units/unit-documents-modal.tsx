@@ -1,7 +1,19 @@
-import { Download, FileText, Image as ImageIcon, Trash2, Upload } from 'lucide-react';
+import {
+    CheckCircle2,
+    Circle,
+    Download,
+    FileText,
+    Image as ImageIcon,
+    Trash2,
+    Upload,
+} from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import type { UnitItem } from '@/components/units/units-table';
+import {
+    DocumentsProgressBar,
+    type DocumentsProgress,
+} from '@/components/units/documents-progress-bar';
 import { AppModal } from '@/components/shared/app-modal';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -21,6 +33,7 @@ import { cn } from '@/lib/utils';
 export type UnitDocumentTypeOption = {
     value: string;
     label: string;
+    required?: boolean;
 };
 
 export type UnitDocumentItem = {
@@ -86,11 +99,37 @@ function isPdf(doc: UnitDocumentItem): boolean {
     );
 }
 
-function typeLabel(
-    type: string,
+function computeProgress(
+    documents: UnitDocumentItem[],
     documentTypes: UnitDocumentTypeOption[],
-): string {
-    return documentTypes.find((item) => item.value === type)?.label ?? type;
+): DocumentsProgress & {
+    types: Array<{ value: string; label: string; uploaded: boolean }>;
+} {
+    const checklist = documentTypes.some((item) => item.required === true)
+        ? documentTypes.filter((item) => item.required)
+        : documentTypes.filter((item) => item.value !== 'other');
+
+    const uploaded = new Set(
+        documents.map((doc) =>
+            doc.type === 'circulation_permit' ? 'sctr' : doc.type,
+        ),
+    );
+
+    const types = checklist.map((option) => ({
+        value: option.value,
+        label: option.label,
+        uploaded: uploaded.has(option.value),
+    }));
+
+    const done = types.filter((item) => item.uploaded).length;
+    const total = types.length || 6;
+
+    return {
+        done,
+        total,
+        percent: total > 0 ? Math.round((done / total) * 100) : 0,
+        types,
+    };
 }
 
 export function UnitDocumentsModal({
@@ -112,30 +151,50 @@ export function UnitDocumentsModal({
     const [error, setError] = useState<string | null>(null);
 
     const documents = unit?.documents ?? [];
+    const progress = useMemo(
+        () =>
+            unit?.documents_progress
+                ? {
+                      ...unit.documents_progress,
+                      types:
+                          unit.documents_progress.types ??
+                          computeProgress(documents, documentTypes).types,
+                  }
+                : computeProgress(documents, documentTypes),
+        [documents, documentTypes, unit?.documents_progress],
+    );
 
-    const grouped = useMemo(() => {
-        const map = new Map<string, UnitDocumentItem[]>();
+    const latestByType = useMemo(() => {
+        const map = new Map<string, UnitDocumentItem>();
 
         for (const doc of documents) {
-            const list = map.get(doc.type) ?? [];
-            list.push(doc);
-            map.set(doc.type, list);
+            const key =
+                doc.type === 'circulation_permit' ? 'sctr' : doc.type;
+            if (!map.has(key)) {
+                map.set(key, doc);
+            }
         }
 
-        return documentTypes
-            .map((option) => ({
-                ...option,
-                items: map.get(option.value) ?? [],
-            }))
-            .filter((group) => group.items.length > 0);
-    }, [documents, documentTypes]);
+        return map;
+    }, [documents]);
 
     useEffect(() => {
         if (!open) {
             return;
         }
 
-        setType(documentTypes[0]?.value ?? 'soat');
+        const uploaded = new Set(
+            (unit?.documents ?? []).map((doc) =>
+                doc.type === 'circulation_permit' ? 'sctr' : doc.type,
+            ),
+        );
+        const requiredTypes = documentTypes.filter((item) => item.required);
+        const firstMissing =
+            requiredTypes.find((item) => !uploaded.has(item.value))?.value ??
+            documentTypes[0]?.value ??
+            'soat';
+
+        setType(firstMissing);
         setTitle('');
         setExpiresAt('');
         setFile(null);
@@ -146,7 +205,7 @@ export function UnitDocumentsModal({
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
-    }, [open, unit?.id, documentTypes]);
+    }, [open, unit?.id, documentTypes, unit?.documents]);
 
     const handleClose = () => {
         if (uploading || deletingId !== null) {
@@ -228,7 +287,7 @@ export function UnitDocumentsModal({
             title="Documentos de la unidad"
             description={
                 unit
-                    ? `${unit.correlative}${unit.plate_number ? ` · ${unit.plate_number}` : ''} — licencia, SOAT, revisión técnica y más.`
+                    ? `${unit.correlative}${unit.plate_number ? ` · ${unit.plate_number}` : ''} — 6 documentos obligatorios (licencia, DNI, SOAT, revisión, propiedad, SCTR).`
                     : 'Sube y descarga documentos del vehículo y del conductor.'
             }
             className="sm:max-w-2xl"
@@ -245,6 +304,110 @@ export function UnitDocumentsModal({
             }
         >
             <div className="space-y-5">
+                <div className="rounded-xl border border-[#d7e3f0] bg-white p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold text-[#1a2b4c]">
+                            Avance de documentos
+                        </p>
+                        <span className="text-[11px] text-[#6b8ead]">
+                            {progress.done} de {progress.total} obligatorios
+                        </span>
+                    </div>
+                    <DocumentsProgressBar
+                        progress={progress}
+                        size="md"
+                        showLabel
+                    />
+
+                    <div className="mt-3 overflow-hidden rounded-lg border border-[#e2eaf3]">
+                        <table className="min-w-full text-left text-xs">
+                            <thead className="bg-[#f1f5f9] text-[#5a7390]">
+                                <tr>
+                                    <th className="px-2.5 py-2 font-semibold">
+                                        Documento
+                                    </th>
+                                    <th className="px-2.5 py-2 font-semibold">
+                                        Estado
+                                    </th>
+                                    <th className="px-2.5 py-2 text-right font-semibold">
+                                        Archivo
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {progress.types.map((item) => {
+                                    const latest = latestByType.get(item.value);
+
+                                    return (
+                                        <tr
+                                            key={item.value}
+                                            className="border-t border-[#eef2f7]"
+                                        >
+                                            <td className="px-2.5 py-2 font-medium text-[#1a2b4c]">
+                                                {item.label}
+                                            </td>
+                                            <td className="px-2.5 py-2">
+                                                {item.uploaded ? (
+                                                    <span className="inline-flex items-center gap-1 text-emerald-700">
+                                                        <CheckCircle2 className="size-3.5" />
+                                                        Subido
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 text-amber-700">
+                                                        <Circle className="size-3.5" />
+                                                        Pendiente
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-2.5 py-2 text-right text-[#5a7390]">
+                                                {latest ? (
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        <span className="max-w-[8rem] truncate">
+                                                            {latest.original_name}
+                                                        </span>
+                                                        <a
+                                                            href={`/unidades/${unit?.id}/documentos/${latest.id}/descargar`}
+                                                            className="inline-flex size-7 items-center justify-center rounded-md text-[#2e5a9e] hover:bg-[#e8f1fa]"
+                                                            title="Descargar"
+                                                        >
+                                                            <Download className="size-3.5" />
+                                                        </a>
+                                                        {canManage ? (
+                                                            <button
+                                                                type="button"
+                                                                disabled={
+                                                                    deletingId ===
+                                                                    latest.id
+                                                                }
+                                                                onClick={() =>
+                                                                    handleDelete(
+                                                                        latest,
+                                                                    )
+                                                                }
+                                                                className="inline-flex size-7 cursor-pointer items-center justify-center rounded-md text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                                                aria-label={`Eliminar ${latest.original_name}`}
+                                                            >
+                                                                {deletingId ===
+                                                                latest.id ? (
+                                                                    <Spinner />
+                                                                ) : (
+                                                                    <Trash2 className="size-3.5" />
+                                                                )}
+                                                            </button>
+                                                        ) : null}
+                                                    </div>
+                                                ) : (
+                                                    '—'
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 {canManage ? (
                     <form
                         onSubmit={handleUpload}
@@ -271,6 +434,11 @@ export function UnitDocumentsModal({
                                                 className="cursor-pointer"
                                             >
                                                 {option.label}
+                                                {option.required
+                                                    ? ''
+                                                    : option.value === 'other'
+                                                      ? ' (opcional)'
+                                                      : ''}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -352,131 +520,86 @@ export function UnitDocumentsModal({
                     </form>
                 ) : null}
 
-                <div className="space-y-3">
-                    <p className="text-xs font-semibold text-[#1a2b4c]">
-                        Documentos cargados ({documents.length})
-                    </p>
-
-                    {documents.length === 0 ? (
-                        <p className="rounded-xl border border-dashed border-[#d7e3f0] px-3 py-8 text-center text-sm text-[#6b8ead]">
-                            Aún no hay documentos para esta unidad.
+                {documents.some((doc) => doc.type === 'other') ? (
+                    <div className="space-y-2">
+                        <p className="text-xs font-semibold text-[#1a2b4c]">
+                            Otros documentos
                         </p>
-                    ) : (
-                        grouped.map((group) => (
-                            <section key={group.value} className="space-y-2">
-                                <h4 className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
-                                    {group.label}
-                                </h4>
-                                <ul className="space-y-2">
-                                    {group.items.map((document) => (
-                                        <li
-                                            key={document.id}
-                                            className="flex items-start gap-2 rounded-xl border border-[#e2eaf3] bg-white p-2.5"
+                        <ul className="space-y-2">
+                            {documents
+                                .filter((doc) => doc.type === 'other')
+                                .map((document) => (
+                                    <li
+                                        key={document.id}
+                                        className="flex items-start gap-2 rounded-xl border border-[#e2eaf3] bg-white p-2.5"
+                                    >
+                                        <div
+                                            className={cn(
+                                                'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg',
+                                                isPdf(document)
+                                                    ? 'bg-red-50 text-red-600'
+                                                    : 'bg-[#e8f1fa] text-[#2e5a9e]',
+                                            )}
                                         >
-                                            <div
-                                                className={cn(
-                                                    'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg',
-                                                    isPdf(document)
-                                                        ? 'bg-red-50 text-red-600'
-                                                        : 'bg-[#e8f1fa] text-[#2e5a9e]',
-                                                )}
+                                            {isPdf(document) ? (
+                                                <FileText className="size-4" />
+                                            ) : (
+                                                <ImageIcon className="size-4" />
+                                            )}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate text-sm font-medium text-[#1a2b4c]">
+                                                {document.title ||
+                                                    document.original_name}
+                                            </p>
+                                            <p className="text-[11px] text-[#6b8ead]">
+                                                {formatBytes(document.size)} ·{' '}
+                                                {formatDate(document.created_at)}
+                                            </p>
+                                        </div>
+                                        <div className="flex shrink-0 items-center gap-0.5">
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                asChild
+                                                className="size-8 cursor-pointer text-[#2e5a9e] hover:bg-[#e8f1fa]"
                                             >
-                                                {isPdf(document) ? (
-                                                    <FileText className="size-4" />
-                                                ) : (
-                                                    <ImageIcon className="size-4" />
-                                                )}
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <p className="truncate text-sm font-medium text-[#1a2b4c]">
-                                                    {document.title ||
-                                                        document.original_name}
-                                                </p>
-                                                <p className="text-[11px] text-[#6b8ead]">
-                                                    {formatBytes(document.size)} ·{' '}
-                                                    {formatDate(document.created_at)}
-                                                    {document.expires_at
-                                                        ? ` · Vence ${formatDate(document.expires_at)}`
-                                                        : ''}
-                                                    {document.uploader?.name
-                                                        ? ` · ${document.uploader.name}`
-                                                        : ''}
-                                                </p>
-                                                {document.title ? (
-                                                    <p className="truncate text-[11px] text-[#5a7390]">
-                                                        {document.original_name}
-                                                    </p>
-                                                ) : null}
-                                            </div>
-                                            <div className="flex shrink-0 items-center gap-0.5">
+                                                <a
+                                                    href={`/unidades/${unit?.id}/documentos/${document.id}/descargar`}
+                                                    title="Descargar"
+                                                >
+                                                    <Download className="size-3.5" />
+                                                </a>
+                                            </Button>
+                                            {canManage ? (
                                                 <Button
                                                     type="button"
                                                     variant="ghost"
                                                     size="icon"
-                                                    asChild
-                                                    className="size-8 cursor-pointer text-[#2e5a9e] hover:bg-[#e8f1fa]"
+                                                    disabled={
+                                                        deletingId ===
+                                                        document.id
+                                                    }
+                                                    onClick={() =>
+                                                        handleDelete(document)
+                                                    }
+                                                    className="size-8 cursor-pointer text-red-600 hover:bg-red-50"
                                                 >
-                                                    <a
-                                                        href={`/unidades/${unit?.id}/documentos/${document.id}/descargar`}
-                                                        title="Descargar"
-                                                        aria-label={`Descargar ${document.original_name}`}
-                                                    >
-                                                        <Download className="size-3.5" />
-                                                    </a>
+                                                    {deletingId ===
+                                                    document.id ? (
+                                                        <Spinner />
+                                                    ) : (
+                                                        <Trash2 className="size-3.5" />
+                                                    )}
                                                 </Button>
-                                                {canManage ? (
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        disabled={
-                                                            deletingId ===
-                                                            document.id
-                                                        }
-                                                        onClick={() =>
-                                                            handleDelete(document)
-                                                        }
-                                                        className="size-8 cursor-pointer text-red-600 hover:bg-red-50"
-                                                        aria-label={`Eliminar ${document.original_name}`}
-                                                    >
-                                                        {deletingId ===
-                                                        document.id ? (
-                                                            <Spinner />
-                                                        ) : (
-                                                            <Trash2 className="size-3.5" />
-                                                        )}
-                                                    </Button>
-                                                ) : null}
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </section>
-                        ))
-                    )}
-
-                    {documents.length > 0 && grouped.length === 0 ? (
-                        <ul className="space-y-2">
-                            {documents.map((document) => (
-                                <li
-                                    key={document.id}
-                                    className="flex items-center justify-between gap-2 rounded-xl border border-[#e2eaf3] p-2.5 text-sm"
-                                >
-                                    <span className="truncate text-[#1a2b4c]">
-                                        {typeLabel(document.type, documentTypes)}:{' '}
-                                        {document.original_name}
-                                    </span>
-                                    <a
-                                        href={`/unidades/${unit?.id}/documentos/${document.id}/descargar`}
-                                        className="text-[#2e5a9e] hover:underline"
-                                    >
-                                        Descargar
-                                    </a>
-                                </li>
-                            ))}
+                                            ) : null}
+                                        </div>
+                                    </li>
+                                ))}
                         </ul>
-                    ) : null}
-                </div>
+                    </div>
+                ) : null}
             </div>
         </AppModal>
     );

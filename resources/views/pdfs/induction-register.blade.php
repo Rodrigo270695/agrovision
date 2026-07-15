@@ -62,7 +62,7 @@
             <strong>Código:</strong> {{ $induction->document_code ?: '—' }}<br>
             <strong>Revisión:</strong> {{ $induction->document_revision ?: '—' }}<br>
             <strong>Fecha:</strong> {{ $fmtSessionDate }}<br>
-            <strong>Página:</strong> 1 de 2<br>
+            <strong>Página:</strong> 1 de 3<br>
             <strong>N° Acta:</strong> {{ $acta }}
         </td>
     </tr>
@@ -202,7 +202,7 @@
                 <strong>Código:</strong> {{ $induction->document_code ?: '—' }}<br>
                 <strong>Revisión:</strong> {{ $induction->document_revision ?: '—' }}<br>
                 <strong>Fecha:</strong> {{ $fmtSessionDate }}<br>
-                <strong>Página:</strong> 2 de 2<br>
+                <strong>Página:</strong> 2 de 3<br>
                 <strong>N° Acta:</strong> {{ $acta }}
             </td>
         </tr>
@@ -242,6 +242,51 @@
             @endforelse
         </tbody>
     </table>
+</div>
+
+{{-- HOJA 3: foto de verificación --}}
+<div class="page-break">
+    <table class="bordered hdr">
+        <tr>
+            <td style="width: 14%; text-align: center;">
+                @if ($logoSrc)
+                    <img class="logo" src="{{ $logoSrc }}" alt="Agrovision">
+                @else
+                    <strong>AGROVISION</strong>
+                @endif
+            </td>
+            <td style="width: 58%;" class="title">
+                Formato - Registro de Inducción, Capacitación,<br>
+                Entrenamiento y Simulacro
+            </td>
+            <td style="width: 28%;" class="meta">
+                <strong>Código:</strong> {{ $induction->document_code ?: '—' }}<br>
+                <strong>Revisión:</strong> {{ $induction->document_revision ?: '—' }}<br>
+                <strong>Fecha:</strong> {{ $fmtSessionDate }}<br>
+                <strong>Página:</strong> 3 de 3<br>
+                <strong>N° Acta:</strong> {{ $acta }}
+            </td>
+        </tr>
+    </table>
+
+    <div class="line-title">Foto de verificación</div>
+    <p class="muted" style="margin: 0 0 10px;">
+        Evidencia fotográfica de la capacitación / inducción realizada.
+    </p>
+
+    <div style="text-align: center; padding: 8px 0;">
+        @if (! empty($verificationPhotoSrc))
+            <img
+                src="{{ $verificationPhotoSrc }}"
+                alt="Foto de verificación"
+                style="max-width: 92%; max-height: 420px; border: 1px solid #999;"
+            >
+        @else
+            <div class="muted" style="padding: 40px; border: 1px dashed #999;">
+                Sin foto de verificación.
+            </div>
+        @endif
+    </div>
 </div>
 </body>
 </html>

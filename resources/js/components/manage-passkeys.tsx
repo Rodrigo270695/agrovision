@@ -14,12 +14,12 @@ export type Props = {
 const EmptyState = () => {
     return (
         <div className="p-8 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
-                <KeyRound className="h-7 w-7 text-muted-foreground" />
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#e8f1fa]">
+                <KeyRound className="h-7 w-7 text-[#2e5a9e]" />
             </div>
-            <p className="font-medium">No passkeys yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-                Add a passkey to sign in without a password
+            <p className="font-medium text-[#1a2b4c]">Aún no hay passkeys</p>
+            <p className="mt-1 text-sm text-[#5a7390]">
+                Agrega una passkey para iniciar sesión sin contraseña
             </p>
         </div>
     );
@@ -48,10 +48,10 @@ export default function ManagePasskeys(props: Props) {
             <Heading
                 variant="small"
                 title="Passkeys"
-                description="Manage your passkeys for passwordless sign-in"
+                description="Administra tus passkeys para iniciar sesión sin contraseña"
             />
 
-            <div className="overflow-hidden rounded-lg border border-border">
+            <div className="overflow-hidden rounded-lg border border-[#c5d5e6]">
                 {passkeys.length > 0 ? (
                     passkeys.map((passkey) => (
                         <PasskeyItem

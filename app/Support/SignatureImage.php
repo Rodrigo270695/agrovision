@@ -22,7 +22,7 @@ final class SignatureImage
             throw new RuntimeException('No se pudo leer la firma.');
         }
 
-        if (strlen($binary) > 4_000_000) {
+        if (strlen($binary) > 8_000_000) {
             throw new RuntimeException('La imagen es demasiado pesada.');
         }
 

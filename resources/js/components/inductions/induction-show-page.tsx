@@ -12,6 +12,7 @@ import {
 import { useMemo, useState } from 'react';
 import { SignaturePad } from '@/components/checklists/signature-pad';
 import { FingerprintCameraCapture } from '@/components/inductions/fingerprint-camera-capture';
+import { VerificationPhotoCapture } from '@/components/inductions/verification-photo-capture';
 import { AppModal } from '@/components/shared/app-modal';
 import { TableSearchFilter } from '@/components/shared/table-search-filter';
 import { Button } from '@/components/ui/button';
@@ -76,6 +77,8 @@ type InductionDetail = {
     all_signed?: boolean;
     speaker_signed?: boolean;
     speaker_signature_url?: string | null;
+    has_verification_photo?: boolean;
+    verification_photo_url?: string | null;
     can_finalize?: boolean;
     can_start?: boolean;
     can_manage_attendance?: boolean;
@@ -167,6 +170,8 @@ export function InductionShowPage() {
     const [pulling, setPulling] = useState(false);
     const [busyId, setBusyId] = useState<number | null>(null);
     const [bulkBusy, setBulkBusy] = useState(false);
+    const [savingVerificationPhoto, setSavingVerificationPhoto] =
+        useState(false);
     const [signing, setSigning] = useState<Attendee | null>(null);
     const [signingSpeaker, setSigningSpeaker] = useState(false);
     const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(
@@ -307,6 +312,34 @@ export function InductionShowPage() {
         );
     };
 
+    const saveVerificationPhoto = (dataUrl: string) => {
+        if (!canUpdate || savingVerificationPhoto || locked) {
+            return;
+        }
+
+        setSavingVerificationPhoto(true);
+        router.post(
+            `/inducciones/${induction.id}/foto-verificacion`,
+            { photo_data_url: dataUrl },
+            {
+                preserveScroll: true,
+                onFinish: () => setSavingVerificationPhoto(false),
+            },
+        );
+    };
+
+    const removeVerificationPhoto = () => {
+        if (!canUpdate || savingVerificationPhoto || locked) {
+            return;
+        }
+
+        setSavingVerificationPhoto(true);
+        router.delete(`/inducciones/${induction.id}/foto-verificacion`, {
+            preserveScroll: true,
+            onFinish: () => setSavingVerificationPhoto(false),
+        });
+    };
+
     const openSign = (attendee: Attendee) => {
         if (!canManageAttendance) {
             return;
@@ -419,7 +452,7 @@ export function InductionShowPage() {
                                         ? 'Ya puedes iniciar la inducción. Luego se habilitan asistencia, firmas y huellas.'
                                         : 'El botón Iniciar aparece al llegar la fecha y hora programada. Edita la inducción si necesitas adelantar.'
                                     : induction.status === 'in_progress'
-                                      ? 'Firman todos los asistentes y el expositor para poder finalizar y descargar los documentos.'
+                                      ? 'Firman asistentes y expositor, y sube la foto de verificación para poder finalizar.'
                                       : null}
                             </p>
                         ) : null}
@@ -455,7 +488,12 @@ export function InductionShowPage() {
                             induction.status === 'in_progress' &&
                             !induction.can_finalize ? (
                                 <p className="self-center text-xs text-[#6b8ead]">
-                                    Firma asistentes y expositor para finalizar.
+                                    {!induction.speaker_signed ||
+                                    !induction.all_signed
+                                        ? 'Firma asistentes y expositor.'
+                                        : !induction.has_verification_photo
+                                          ? 'Sube la foto de verificación para finalizar.'
+                                          : 'Completa los requisitos para finalizar.'}
                                 </p>
                             ) : null}
                             {induction.status === 'closed' ? (
@@ -885,6 +923,62 @@ export function InductionShowPage() {
                     )}
                 </section>
             </div>
+
+            {induction.status === 'in_progress' ||
+            induction.has_verification_photo ? (
+                <section className="overflow-hidden rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-5">
+                    <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <h2 className="text-sm font-semibold text-[#1a2b4c]">
+                                Foto de verificación
+                            </h2>
+                            <p className="mt-0.5 text-xs text-[#6b8ead]">
+                                Obligatoria antes de finalizar. Se adjunta al
+                                final del PDF de registro e identifica la
+                                sesión.
+                            </p>
+                        </div>
+                        {induction.has_verification_photo ? (
+                            <span className="inline-flex w-fit rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-800">
+                                Lista
+                            </span>
+                        ) : (
+                            <span className="inline-flex w-fit rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-800">
+                                Pendiente
+                            </span>
+                        )}
+                    </div>
+
+                    {locked ? (
+                        induction.verification_photo_url ? (
+                            <img
+                                src={induction.verification_photo_url}
+                                alt="Foto de verificación"
+                                className="max-h-72 w-full rounded-xl border border-[#e2eaf3] object-contain"
+                            />
+                        ) : (
+                            <p className="text-sm text-[#6b8ead]">
+                                Sin foto de verificación.
+                            </p>
+                        )
+                    ) : canUpdate && canManageAttendance ? (
+                        <VerificationPhotoCapture
+                            existingUrl={induction.verification_photo_url}
+                            saving={savingVerificationPhoto}
+                            onSave={saveVerificationPhoto}
+                            onRemove={
+                                induction.has_verification_photo
+                                    ? removeVerificationPhoto
+                                    : undefined
+                            }
+                        />
+                    ) : (
+                        <p className="text-sm text-[#6b8ead]">
+                            Inicia la inducción para cargar la foto.
+                        </p>
+                    )}
+                </section>
+            ) : null}
 
             <AppModal
                 open={Boolean(signing) || signingSpeaker}

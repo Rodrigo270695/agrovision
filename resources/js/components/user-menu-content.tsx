@@ -11,12 +11,6 @@ type Props = {
     user: User;
 };
 
-const itemClassName = cn(
-    'hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground',
-    'relative flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none',
-    '[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
-);
-
 export function UserMenuContent({ user }: Props) {
     const cleanup = useMobileNavigation();
 
@@ -34,24 +28,32 @@ export function UserMenuContent({ user }: Props) {
             </div>
             <div className="bg-border -mx-1 my-1 h-px" />
             <Link
-                className={itemClassName}
+                className={cn(
+                    'relative flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none',
+                    'text-[#2e5a9e] hover:bg-[#e8f1fa] hover:text-[#1a2b4c]',
+                    '[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+                )}
                 href={edit()}
                 prefetch
                 onClick={cleanup}
             >
-                <Settings className="mr-2" />
-                Settings
+                <Settings className="mr-2 text-[#2e5a9e]" />
+                Configuración
             </Link>
             <div className="bg-border -mx-1 my-1 h-px" />
             <Link
-                className={itemClassName}
+                className={cn(
+                    'relative flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none',
+                    'text-red-700 hover:bg-red-50 hover:text-red-800',
+                    '[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+                )}
                 href={logout()}
                 as="button"
                 onClick={handleLogout}
                 data-test="logout-button"
             >
                 <LogOut className="mr-2" />
-                Log out
+                Cerrar sesión
             </Link>
         </>
     );

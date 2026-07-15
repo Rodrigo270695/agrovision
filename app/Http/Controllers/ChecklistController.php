@@ -16,6 +16,7 @@ use App\Services\ParetoChecklistSync;
 use App\Services\PushNotificationService;
 use App\Support\IndexedRedirect;
 use App\Support\ParetoCheckTypes;
+use App\Support\ParetoPassThreshold;
 use App\Support\ParetoPieChart;
 use App\Support\PdfLogo;
 use App\Support\PermissionCatalog;
@@ -375,22 +376,26 @@ class ChecklistController extends Controller
 
         $data = $request->validated();
         $shouldSeal = (bool) ($data['seal'] ?? false);
+        $firstAlreadyDecided = $checklist->hasFirstInspectionDecision();
         $firstAlreadyApproved = $checklist->first_result === 'approved';
         $secondAlreadyApproved = $checklist->second_result === 'approved';
 
         try {
             $this->assertApprovalPayload($checklist, $data, $firstAlreadyApproved, $secondAlreadyApproved);
 
-            DB::transaction(function () use ($checklist, $data, $shouldSeal, $firstAlreadyApproved, $secondAlreadyApproved): void {
+            DB::transaction(function () use ($checklist, $data, $shouldSeal, $firstAlreadyDecided, $firstAlreadyApproved, $secondAlreadyApproved): void {
                 $incomingFirstResult = $data['first_result'] ?? null;
                 $incomingSecondResult = $data['second_result'] ?? null;
 
-                // La 1ra queda bloqueada al aprobarse; la 2da solo tras revisión del coordinador.
-                $firstResult = $firstAlreadyApproved
+                // 1ra bloqueada al aprobar o desaprobar; 2da solo tras Revisado del coordinador.
+                $firstResult = $firstAlreadyDecided
                     ? $checklist->first_result
                     : $incomingFirstResult;
                 $secondAllowed = $checklist->canStartSecondInspection()
-                    || ($firstResult === 'approved' && $checklist->isReviewedByCoordinator());
+                    || (
+                        in_array($firstResult, ['approved', 'rejected'], true)
+                        && $checklist->isReviewedByCoordinator()
+                    );
                 $secondResult = ! $secondAllowed
                     ? null
                     : ($secondAlreadyApproved
@@ -411,18 +416,18 @@ class ChecklistController extends Controller
                     'license_class' => $data['license_class'] ?? null,
                     'license_revalidation_on' => $data['license_revalidation_on'] ?? null,
                     'driver_name' => $data['driver_name'] ?? null,
-                    'first_inspected_on' => $firstAlreadyApproved
+                    'first_inspected_on' => $firstAlreadyDecided
                         ? $checklist->first_inspected_on
                         : ($data['first_inspected_on'] ?? null),
-                    'first_inspected_time' => $firstAlreadyApproved
+                    'first_inspected_time' => $firstAlreadyDecided
                         ? $checklist->first_inspected_time
                         : ($data['first_inspected_time'] ?? null),
-                    'second_inspected_on' => $firstResult !== 'approved'
+                    'second_inspected_on' => ! $secondAllowed
                         ? null
                         : ($secondAlreadyApproved
                             ? $checklist->second_inspected_on
                             : ($data['second_inspected_on'] ?? null)),
-                    'second_inspected_time' => $firstResult !== 'approved'
+                    'second_inspected_time' => ! $secondAllowed
                         ? null
                         : ($secondAlreadyApproved
                             ? $checklist->second_inspected_time
@@ -435,12 +440,16 @@ class ChecklistController extends Controller
                 ]);
 
                 foreach ($data['answers'] ?? [] as $answer) {
-                    $payload = [
-                        'observations' => $answer['observations'] ?? null,
-                    ];
+                    // En standby (1ra cerrada, esperando coordinador) no se tocan respuestas.
+                    if ($firstAlreadyDecided && ! $secondAllowed) {
+                        continue;
+                    }
 
-                    if (! $firstAlreadyApproved && array_key_exists('first_value', $answer)) {
+                    $payload = [];
+
+                    if (! $firstAlreadyDecided && array_key_exists('first_value', $answer)) {
                         $payload['first_value'] = $answer['first_value'] ?? null;
+                        $payload['observations'] = $answer['observations'] ?? null;
                     }
 
                     if (
@@ -449,6 +458,11 @@ class ChecklistController extends Controller
                         && array_key_exists('second_value', $answer)
                     ) {
                         $payload['second_value'] = $answer['second_value'] ?? null;
+                        $payload['observations'] = $answer['observations'] ?? null;
+                    }
+
+                    if ($payload === []) {
+                        continue;
                     }
 
                     UnitChecklistAnswer::query()
@@ -786,8 +800,11 @@ class ChecklistController extends Controller
         }
 
         if ($incomingSecond === 'approved' && ! $secondAlreadyApproved) {
-            if (($firstAlreadyApproved ? $checklist->first_result : $incomingFirst) !== 'approved') {
-                throw new \RuntimeException('Debes aprobar la 1ra inspección antes de la 2da.');
+            $firstReady = $checklist->hasFirstInspectionDecision()
+                || in_array($incomingFirst, ['approved', 'rejected'], true);
+
+            if (! $firstReady) {
+                throw new \RuntimeException('Debes cerrar la 1ra inspección (aprobar o desaprobar) antes de la 2da.');
             }
 
             if (! $checklist->isReviewedByCoordinator()) {
@@ -863,6 +880,9 @@ class ChecklistController extends Controller
             ->get()
             ->keyBy('id');
 
+        $scored = 0.0;
+        $catalog = 0.0;
+
         foreach ($expectedIds as $itemId) {
             $answer = $byItem->get($itemId);
             $item = $items->get($itemId);
@@ -871,6 +891,8 @@ class ChecklistController extends Controller
                 : "Ítem #{$itemId}";
 
             $value = $answer[$valueKey] ?? null;
+            $weight = (float) ($item?->weight ?? 0);
+            $catalog += $weight;
 
             if ($value === null || $value === '') {
                 throw new \RuntimeException(
@@ -878,10 +900,8 @@ class ChecklistController extends Controller
                 );
             }
 
-            if ($value !== 'yes') {
-                throw new \RuntimeException(
-                    "Para aprobar la {$passLabel} inspección todos los ítems deben estar en SÍ. Revisa: {$label}."
-                );
+            if ($value === 'yes') {
+                $scored += $weight;
             }
 
             $checkType = $item?->resolvedCheckType() ?? ParetoCheckTypes::OBSERVATION;
@@ -892,6 +912,16 @@ class ChecklistController extends Controller
                     "El ítem «{$label}» requiere vencimiento / observación antes de aprobar."
                 );
             }
+        }
+
+        $total = $catalog > 0 ? $catalog : 100.0;
+        $percent = $total > 0 ? round(($scored / $total) * 100, 2) : 0.0;
+
+        if (! ParetoPassThreshold::passes($percent)) {
+            $min = ParetoPassThreshold::MIN_PERCENT;
+            throw new \RuntimeException(
+                "Para aprobar la {$passLabel} inspección el Pareto debe ser ≥ {$min}% (actual: {$percent}%)."
+            );
         }
     }
 

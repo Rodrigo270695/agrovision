@@ -29,7 +29,7 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
             { pattern: /Windows/, name: 'Windows' },
         ].find(({ pattern }) => pattern.test(ua))?.name;
 
-        return [browser, os].filter(Boolean).join(' on ') || '';
+        return [browser, os].filter(Boolean).join(' en ') || '';
     });
 
     const [showForm, setShowForm] = useState(false);
@@ -58,16 +58,20 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
 
     if (!isSupported) {
         return (
-            <div className="text-sm text-muted-foreground">
-                Passkeys are not supported in this browser.
+            <div className="text-sm text-[#5a7390]">
+                Las passkeys no son compatibles con este navegador.
             </div>
         );
     }
 
     if (!showForm) {
         return (
-            <Button variant="outline" onClick={() => setShowForm(true)}>
-                Add passkey
+            <Button
+                variant="outline"
+                onClick={() => setShowForm(true)}
+                className="cursor-pointer border-[#2e5a9e] text-[#2e5a9e] hover:bg-[#e8f1fa] hover:text-[#1a2b4c]"
+            >
+                Agregar passkey
             </Button>
         );
     }
@@ -75,32 +79,41 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
     return (
         <form
             onSubmit={handleSubmit}
-            className="space-y-4 rounded-lg border border-border bg-muted/50 p-4"
+            className="space-y-4 rounded-lg border border-[#c5d5e6] bg-[#f4f8fc] p-4"
         >
             <div className="grid gap-2">
-                <Label htmlFor="passkey-name">Passkey name</Label>
+                <Label htmlFor="passkey-name">Nombre de la passkey</Label>
                 <Input
                     id="passkey-name"
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g., MacBook Pro, iPhone"
-                    className="mt-1 block w-full border-foreground/20"
+                    placeholder="Ej.: MacBook Pro, iPhone"
+                    className="mt-1 block w-full border-[#c5d5e6]"
                     autoFocus
                 />
-                <p className="text-xs text-muted-foreground">
-                    A name helps you identify this passkey later.
+                <p className="text-xs text-[#5a7390]">
+                    Un nombre te ayuda a identificar esta passkey después.
                 </p>
             </div>
 
             {error && <InputError message={error} />}
 
             <div className="flex gap-2">
-                <Button type="submit" disabled={isLoading || !name.trim()}>
-                    {isLoading ? 'Registering...' : 'Register passkey'}
+                <Button
+                    type="submit"
+                    disabled={isLoading || !name.trim()}
+                    className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c]"
+                >
+                    {isLoading ? 'Registrando...' : 'Registrar passkey'}
                 </Button>
-                <Button type="button" variant="ghost" onClick={handleCancel}>
-                    Cancel
+                <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={handleCancel}
+                    className="cursor-pointer"
+                >
+                    Cancelar
                 </Button>
             </div>
         </form>

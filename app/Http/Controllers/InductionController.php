@@ -224,6 +224,13 @@ class InductionController extends Controller
                     'message' => 'El expositor debe firmar antes de finalizar y cerrar la inducción.',
                 ]);
             }
+
+            if (! $induction->hasVerificationPhoto()) {
+                return back()->with('toast', [
+                    'type' => 'error',
+                    'message' => 'Debes subir la foto de verificación (cámara o galería) antes de finalizar.',
+                ]);
+            }
         }
 
         if (
@@ -311,6 +318,8 @@ class InductionController extends Controller
         $inductionPayload['all_signed'] = $induction->allAttendeesSigned();
         $inductionPayload['speaker_signed'] = $induction->speakerIsSigned();
         $inductionPayload['speaker_signature_url'] = $induction->speakerSignatureUrl();
+        $inductionPayload['has_verification_photo'] = $induction->hasVerificationPhoto();
+        $inductionPayload['verification_photo_url'] = $induction->verificationPhotoUrl();
         $inductionPayload['can_finalize'] = $induction->canFinalize();
         $inductionPayload['can_start'] = $induction->canStartNow();
         $inductionPayload['can_manage_attendance'] = $induction->allowsAttendanceActions();
@@ -642,6 +651,71 @@ class InductionController extends Controller
         ]);
     }
 
+    public function storeVerificationPhoto(Request $request, Induction $induction): RedirectResponse
+    {
+        $this->ensureCanAccess($induction);
+
+        if ($induction->isLocked()) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'La inducción está cerrada. No se puede cambiar la foto de verificación.',
+            ]);
+        }
+
+        if ($induction->status !== InductionStatuses::IN_PROGRESS) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Debes iniciar la inducción antes de subir la foto de verificación.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'photo_data_url' => ['required', 'string'],
+        ], [
+            'photo_data_url.required' => 'Debes tomar o subir la foto de verificación.',
+        ]);
+
+        $induction->deleteVerificationPhotoFile();
+
+        $path = SignatureImage::storeFromDataUrl(
+            $validated['photo_data_url'],
+            "inductions/{$induction->id}/verification",
+        );
+
+        $induction->update([
+            'verification_photo_path' => $path,
+            'verification_photo_at' => now(),
+        ]);
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => 'Foto de verificación guardada. Ya puedes finalizar si las firmas están listas.',
+        ]);
+    }
+
+    public function destroyVerificationPhoto(Induction $induction): RedirectResponse
+    {
+        $this->ensureCanAccess($induction);
+
+        if ($induction->isLocked()) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'La inducción está cerrada. No se puede quitar la foto.',
+            ]);
+        }
+
+        $induction->deleteVerificationPhotoFile();
+        $induction->update([
+            'verification_photo_path' => null,
+            'verification_photo_at' => null,
+        ]);
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => 'Foto de verificación eliminada.',
+        ]);
+    }
+
     public function pdf(Induction $induction): BinaryFileResponse|RedirectResponse
     {
         $this->ensureCanAccess($induction);
@@ -663,6 +737,15 @@ class InductionController extends Controller
                 ->with('toast', [
                     'type' => 'error',
                     'message' => 'Faltan firmas (asistentes o expositor) para generar los documentos.',
+                ]);
+        }
+
+        if (! $induction->hasVerificationPhoto()) {
+            return redirect()
+                ->route('inductions.show', $induction)
+                ->with('toast', [
+                    'type' => 'error',
+                    'message' => 'Falta la foto de verificación para generar los documentos.',
                 ]);
         }
 

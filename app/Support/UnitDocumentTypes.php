@@ -14,14 +14,29 @@ final class UnitDocumentTypes
 
     public const OWNERSHIP_CARD = 'ownership_card';
 
-    public const CIRCULATION_PERMIT = 'circulation_permit';
+    public const SCTR = 'sctr';
 
     public const OTHER = 'other';
 
     /**
+     * Tipos seleccionables al subir (incluye opcional «Otro»).
+     *
      * @return list<string>
      */
     public static function keys(): array
+    {
+        return [
+            ...self::requiredKeys(),
+            self::OTHER,
+        ];
+    }
+
+    /**
+     * Los 6 documentos obligatorios que cuentan para el avance.
+     *
+     * @return list<string>
+     */
+    public static function requiredKeys(): array
     {
         return [
             self::DRIVER_LICENSE,
@@ -29,8 +44,7 @@ final class UnitDocumentTypes
             self::SOAT,
             self::TECHNICAL_INSPECTION,
             self::OWNERSHIP_CARD,
-            self::CIRCULATION_PERMIT,
-            self::OTHER,
+            self::SCTR,
         ];
     }
 
@@ -45,7 +59,7 @@ final class UnitDocumentTypes
             self::SOAT => 'SOAT',
             self::TECHNICAL_INSPECTION => 'Revisión técnica',
             self::OWNERSHIP_CARD => 'Tarjeta de propiedad',
-            self::CIRCULATION_PERMIT => 'Permiso de circulación',
+            self::SCTR => 'SCTR',
             self::OTHER => 'Otro',
         ];
     }
@@ -53,5 +67,60 @@ final class UnitDocumentTypes
     public static function label(string $type): string
     {
         return self::labels()[$type] ?? $type;
+    }
+
+    /**
+     * @param  iterable<int, object|array<string, mixed>>  $documents
+     * @return array{
+     *     done: int,
+     *     total: int,
+     *     percent: int,
+     *     types: list<array{value: string, label: string, uploaded: bool}>
+     * }
+     */
+    public static function progress(iterable $documents): array
+    {
+        $uploaded = [];
+
+        foreach ($documents as $document) {
+            $type = is_array($document)
+                ? (string) ($document['type'] ?? '')
+                : (string) ($document->type ?? '');
+
+            if ($type !== '') {
+                $uploaded[$type] = true;
+            }
+        }
+
+        // Compatibilidad con registros antiguos
+        if (isset($uploaded['circulation_permit'])) {
+            $uploaded[self::SCTR] = true;
+        }
+
+        $required = self::requiredKeys();
+        $types = [];
+        $done = 0;
+
+        foreach ($required as $key) {
+            $isUploaded = isset($uploaded[$key]);
+            if ($isUploaded) {
+                $done++;
+            }
+
+            $types[] = [
+                'value' => $key,
+                'label' => self::label($key),
+                'uploaded' => $isUploaded,
+            ];
+        }
+
+        $total = count($required);
+
+        return [
+            'done' => $done,
+            'total' => $total,
+            'percent' => $total > 0 ? (int) round(($done / $total) * 100) : 0,
+            'types' => $types,
+        ];
     }
 }

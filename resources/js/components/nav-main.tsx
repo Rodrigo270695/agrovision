@@ -15,6 +15,7 @@ import {
     SidebarMenuSub,
     SidebarMenuSubButton,
     SidebarMenuSubItem,
+    useSidebar,
 } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { cn } from '@/lib/utils';
@@ -69,9 +70,16 @@ function NavIcon({
 
 function NavCollapsibleItem({ item }: { item: NavItem }) {
     const { isCurrentUrl } = useCurrentUrl();
+    const { isMobile, setOpenMobile } = useSidebar();
     const children = item.items ?? [];
     const active = itemIsActive(item, isCurrentUrl);
     const [open, setOpen] = useState(active);
+
+    const closeMobile = () => {
+        if (isMobile) {
+            setOpenMobile(false);
+        }
+    };
 
     useEffect(() => {
         if (active) {
@@ -130,6 +138,7 @@ function NavCollapsibleItem({ item }: { item: NavItem }) {
                                             href={child.href ?? '#'}
                                             prefetch
                                             className="cursor-pointer"
+                                            onClick={closeMobile}
                                         >
                                             {child.icon ? (
                                                 <NavIcon
@@ -153,6 +162,13 @@ function NavCollapsibleItem({ item }: { item: NavItem }) {
 
 export function NavMain({ items = [] }: { items: NavItem[] }) {
     const { isCurrentUrl } = useCurrentUrl();
+    const { isMobile, setOpenMobile } = useSidebar();
+
+    const closeMobile = () => {
+        if (isMobile) {
+            setOpenMobile(false);
+        }
+    };
 
     return (
         <SidebarGroup className="px-2 py-1">
@@ -183,6 +199,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                     href={item.href ?? '#'}
                                     prefetch
                                     className="cursor-pointer"
+                                    onClick={closeMobile}
                                 >
                                     {item.icon ? (
                                         <NavIcon

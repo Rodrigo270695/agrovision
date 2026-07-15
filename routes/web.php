@@ -246,6 +246,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:inductions.update')
         ->name('inductions.speaker.sign');
 
+    Route::post('inducciones/{induction}/foto-verificacion', [InductionController::class, 'storeVerificationPhoto'])
+        ->middleware('permission:inductions.update')
+        ->name('inductions.verification-photo');
+
+    Route::delete('inducciones/{induction}/foto-verificacion', [InductionController::class, 'destroyVerificationPhoto'])
+        ->middleware('permission:inductions.update')
+        ->name('inductions.verification-photo.destroy');
+
     Route::get('inducciones/{induction}/pdf', [InductionController::class, 'pdf'])
         ->middleware('permission:inductions.view')
         ->name('inductions.pdf');

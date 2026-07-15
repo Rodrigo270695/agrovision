@@ -7,6 +7,7 @@ import {
 } from '@/components/shared/period-filter-select';
 import { TablePagination } from '@/components/shared/table-pagination';
 import { TableSearchFilter } from '@/components/shared/table-search-filter';
+import { DocumentsProgressBar } from '@/components/units/documents-progress-bar';
 import type { UnitDocumentItem } from '@/components/units/unit-documents-modal';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/hooks/use-can';
@@ -37,6 +38,16 @@ export type UnitItem = {
     } | null;
     documents?: UnitDocumentItem[];
     documents_count?: number;
+    documents_progress?: {
+        done: number;
+        total: number;
+        percent: number;
+        types?: Array<{
+            value: string;
+            label: string;
+            uploaded: boolean;
+        }>;
+    };
     created_at?: string | null;
     period?: {
         id: number;
@@ -258,7 +269,7 @@ export function UnitsTable({
     };
 
     const headers: Array<{
-        key: SortKey | 'period' | 'coordinator';
+        key: SortKey | 'period' | 'coordinator' | 'documents';
         label: string;
         className?: string;
         sortable?: boolean;
@@ -270,6 +281,12 @@ export function UnitsTable({
         { key: 'vehicle_type', label: 'Vehículo', sortable: true },
         { key: 'provider', label: 'Proveedor', sortable: true },
         { key: 'coordinator', label: 'Coordinador', sortable: false },
+        {
+            key: 'documents',
+            label: 'Docs',
+            className: 'min-w-[8.5rem]',
+            sortable: false,
+        },
         {
             key: 'service_date',
             label: 'Fecha',
@@ -310,7 +327,8 @@ export function UnitsTable({
                                 >
                                     {header.sortable !== false &&
                                     header.key !== 'period' &&
-                                    header.key !== 'coordinator' ? (
+                                    header.key !== 'coordinator' &&
+                                    header.key !== 'documents' ? (
                                         <button
                                             type="button"
                                             onClick={() =>
@@ -346,7 +364,7 @@ export function UnitsTable({
                         {units.data.length === 0 ? (
                             <tr>
                                 <td
-                                    colSpan={9}
+                                    colSpan={10}
                                     className="px-3 py-10 text-center text-[#6b8ead]"
                                 >
                                     No se encontraron unidades.
@@ -381,6 +399,17 @@ export function UnitsTable({
                                     </td>
                                     <td className="max-w-[12rem] truncate px-3 py-1.5 text-[#5a7390]">
                                         {unit.coordinatorUser?.name || '—'}
+                                    </td>
+                                    <td className="px-3 py-1.5">
+                                        <DocumentsProgressBar
+                                            progress={
+                                                unit.documents_progress ?? {
+                                                    done: 0,
+                                                    total: 6,
+                                                    percent: 0,
+                                                }
+                                            }
+                                        />
                                     </td>
                                     <td className="px-3 py-1.5 text-center text-[#5a7390]">
                                         {formatDate(unit.service_date)}
@@ -435,6 +464,22 @@ export function UnitsTable({
                                     </dt>
                                     <dd className="text-xs font-medium text-[#1a2b4c]">
                                         {unit.coordinatorUser?.name || '—'}
+                                    </dd>
+                                </div>
+                                <div className="col-span-2">
+                                    <dt className="text-[11px] text-[#6b8ead]">
+                                        Documentos
+                                    </dt>
+                                    <dd className="mt-1">
+                                        <DocumentsProgressBar
+                                            progress={
+                                                unit.documents_progress ?? {
+                                                    done: 0,
+                                                    total: 6,
+                                                    percent: 0,
+                                                }
+                                            }
+                                        />
                                     </dd>
                                 </div>
                                 <div>

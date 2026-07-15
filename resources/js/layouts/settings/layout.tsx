@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { cn, toUrl } from '@/lib/utils';
-import { edit as editAppearance } from '@/routes/appearance';
 import { edit } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
 import type { NavItem } from '@/types';
@@ -19,11 +18,6 @@ const sidebarNavItems: NavItem[] = [
     {
         title: 'Seguridad',
         href: editSecurity(),
-        icon: null,
-    },
-    {
-        title: 'Apariencia',
-        href: editAppearance(),
         icon: null,
     },
 ];
@@ -44,24 +38,26 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                         className="flex flex-col space-y-1 space-x-0"
                         aria-label="Configuración"
                     >
-                        {sidebarNavItems.map((item, index) => (
-                            <Button
-                                key={`${toUrl(item.href)}-${index}`}
-                                size="sm"
-                                variant="ghost"
-                                asChild
-                                className={cn('w-full justify-start', {
-                                    'bg-muted': isCurrentOrParentUrl(item.href),
-                                })}
-                            >
-                                <Link href={item.href}>
-                                    {item.icon && (
-                                        <item.icon className="h-4 w-4" />
+                        {sidebarNavItems.map((item, index) => {
+                            const active = isCurrentOrParentUrl(item.href);
+
+                            return (
+                                <Button
+                                    key={`${toUrl(item.href)}-${index}`}
+                                    size="sm"
+                                    variant="ghost"
+                                    asChild
+                                    className={cn(
+                                        'w-full cursor-pointer justify-start rounded-lg',
+                                        active
+                                            ? 'bg-[#e8f1fa] font-semibold text-[#1a2b4c] hover:bg-[#dce9f6] hover:text-[#1a2b4c]'
+                                            : 'text-[#5a7390] hover:bg-[#f4f8fc] hover:text-[#1a2b4c]',
                                     )}
-                                    {item.title}
-                                </Link>
-                            </Button>
-                        ))}
+                                >
+                                    <Link href={item.href}>{item.title}</Link>
+                                </Button>
+                            );
+                        })}
                     </nav>
                 </aside>
 

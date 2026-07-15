@@ -171,7 +171,7 @@ class UnitChecklist extends Model
 
     public function canStartSecondInspection(): bool
     {
-        return $this->first_result === 'approved'
+        return $this->hasFirstInspectionDecision()
             && $this->isReviewedByCoordinator()
             && ! $this->isSealed();
     }

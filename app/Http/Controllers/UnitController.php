@@ -39,7 +39,15 @@ class UnitController extends Controller
             ])
             ->withCount('documents')
             ->paginate($filters['per_page'])
-            ->withQueryString();
+            ->withQueryString()
+            ->through(function (Unit $unit) {
+                $unit->setAttribute(
+                    'documents_progress',
+                    UnitDocumentTypes::progress($unit->documents),
+                );
+
+                return $unit;
+            });
 
         return Inertia::render('units/index', [
             'units' => $units,
@@ -58,6 +66,14 @@ class UnitController extends Controller
                 ->map(fn (string $label, string $key) => [
                     'value' => $key,
                     'label' => $label,
+                    'required' => in_array($key, UnitDocumentTypes::requiredKeys(), true),
+                ])
+                ->values()
+                ->all(),
+            'requiredDocumentTypes' => collect(UnitDocumentTypes::requiredKeys())
+                ->map(fn (string $key) => [
+                    'value' => $key,
+                    'label' => UnitDocumentTypes::label($key),
                 ])
                 ->values()
                 ->all(),

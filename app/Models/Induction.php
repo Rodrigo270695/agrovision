@@ -35,6 +35,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $speaker_institution
  * @property string|null $speaker_signature_path
  * @property Carbon|null $speaker_signed_at
+ * @property string|null $verification_photo_path
+ * @property Carbon|null $verification_photo_at
  * @property Carbon $scheduled_at
  * @property string|null $location
  * @property string|null $notes
@@ -79,6 +81,8 @@ class Induction extends Model
         'speaker_institution',
         'speaker_signature_path',
         'speaker_signed_at',
+        'verification_photo_path',
+        'verification_photo_at',
         'scheduled_at',
         'location',
         'notes',
@@ -101,6 +105,7 @@ class Induction extends Model
             'risst_date' => 'date',
             'risst_approval_date' => 'date',
             'speaker_signed_at' => 'datetime',
+            'verification_photo_at' => 'datetime',
             'corrective_action' => 'boolean',
             'categories' => 'array',
             'estimated_minutes' => 'integer',
@@ -110,9 +115,14 @@ class Induction extends Model
     protected static function booted(): void
     {
         static::deleting(function (Induction $induction): void {
+            $disk = \Illuminate\Support\Facades\Storage::disk('public');
+
             if ($induction->speaker_signature_path) {
-                \Illuminate\Support\Facades\Storage::disk('public')
-                    ->delete($induction->speaker_signature_path);
+                $disk->delete($induction->speaker_signature_path);
+            }
+
+            if ($induction->verification_photo_path) {
+                $disk->delete($induction->verification_photo_path);
             }
         });
     }
@@ -165,12 +175,35 @@ class Induction extends Model
         return '/storage/'.ltrim($this->speaker_signature_path, '/');
     }
 
+    public function hasVerificationPhoto(): bool
+    {
+        return filled($this->verification_photo_path);
+    }
+
+    public function verificationPhotoUrl(): ?string
+    {
+        if (! $this->verification_photo_path) {
+            return null;
+        }
+
+        return '/storage/'.ltrim($this->verification_photo_path, '/');
+    }
+
+    public function deleteVerificationPhotoFile(): void
+    {
+        if ($this->verification_photo_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')
+                ->delete($this->verification_photo_path);
+        }
+    }
+
     public function canFinalize(): bool
     {
         return $this->status === InductionStatuses::IN_PROGRESS
             && $this->attendees()->count() > 0
             && $this->allAttendeesSigned()
             && $this->speakerIsSigned()
+            && $this->hasVerificationPhoto()
             && ! $this->isLocked();
     }
 

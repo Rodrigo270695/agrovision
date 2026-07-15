@@ -160,6 +160,13 @@
             $statusClass = 'badge-ok';
         }
         $paretoChart = $paretoChart ?? ['percent' => 0, 'scored' => 0, 'remaining' => 0, 'total' => 0, 'svg' => ''];
+        $paretoPercent = (float) ($paretoChart['percent'] ?? 0);
+        $effectiveFirstResult = \App\Support\ParetoPassThreshold::resolveResult(
+            $paretoPercent,
+            $checklist->first_result,
+        );
+        $effectiveSecondResult = $checklist->second_result;
+        $passThreshold = \App\Support\ParetoPassThreshold::MIN_PERCENT;
     @endphp
 
     <table class="header">
@@ -200,7 +207,16 @@
                 <div class="pareto-legend">
                     <div><span class="dot" style="background:#15803d;"></span>Cumple (SÍ): {{ number_format($paretoChart['scored'], 2) }}%</div>
                     <div><span class="dot" style="background:#dbe4ef;"></span>No cumple / pendiente: {{ number_format($paretoChart['remaining'], 2) }}%</div>
-                    <div style="margin-top: 4px; color:#1a2b4c;"><strong>Resultado: {{ number_format($paretoChart['percent'], 2) }}%</strong> de {{ number_format($paretoChart['total'], 2) }}%</div>
+                    <div style="margin-top: 4px; color:#1a2b4c;">
+                        <strong>Resultado: {{ number_format($paretoPercent, 2) }}%</strong>
+                        de {{ number_format($paretoChart['total'], 2) }}%
+                        · Umbral {{ number_format($passThreshold, 0) }}%
+                        @if ($paretoPercent < $passThreshold)
+                            <span style="color:#b91c1c;">(Desaprobado)</span>
+                        @else
+                            <span style="color:#15803d;">(≥ {{ number_format($passThreshold, 0) }}%)</span>
+                        @endif
+                    </div>
                 </div>
             </td>
         </tr>
@@ -230,7 +246,7 @@
             </td>
             <td>
                 <span class="label">Resultado 1ra</span>
-                {{ $result($checklist->first_result) }}
+                {{ $result($effectiveFirstResult) }}
             </td>
             <td>
                 <span class="label">2da inspección</span>
@@ -238,7 +254,7 @@
             </td>
             <td>
                 <span class="label">Resultado 2da</span>
-                {{ $result($checklist->second_result) }}
+                {{ $result($effectiveSecondResult) }}
             </td>
         </tr>
     </table>

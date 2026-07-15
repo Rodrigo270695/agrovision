@@ -26,6 +26,7 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    useSidebar,
 } from '@/components/ui/sidebar';
 import { useCan } from '@/hooks/use-can';
 import { filterNavItems } from '@/lib/filter-nav-items';
@@ -111,6 +112,7 @@ const footerNavItems: NavItem[] = [];
 
 export function AppSidebar() {
     const { can } = useCan();
+    const { isMobile, setOpenMobile } = useSidebar();
 
     const visibleNavItems = useMemo(
         () => filterNavItems(mainNavItems, can),
@@ -122,13 +124,23 @@ export function AppSidebar() {
         [can],
     );
 
+    const closeMobile = () => {
+        if (isMobile) {
+            setOpenMobile(false);
+        }
+    };
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href={dashboard()} prefetch>
+                            <Link
+                                href={dashboard()}
+                                prefetch
+                                onClick={closeMobile}
+                            >
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>

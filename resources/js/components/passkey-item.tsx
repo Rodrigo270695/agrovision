@@ -26,30 +26,28 @@ export default function PasskeyItem({ passkey, onDelete }: Props) {
     };
 
     return (
-        <div className="flex items-center justify-between border-b p-4 last:border-b-0">
+        <div className="flex items-center justify-between border-b border-[#c5d5e6] p-4 last:border-b-0">
             <div className="flex items-center gap-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted">
-                    <KeyRound className="h-5 w-5 text-muted-foreground" />
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#e8f1fa]">
+                    <KeyRound className="h-5 w-5 text-[#2e5a9e]" />
                 </div>
                 <div className="space-y-1">
                     <div className="flex items-center gap-2.5">
-                        <p className="font-medium tracking-tight">
+                        <p className="font-medium tracking-tight text-[#1a2b4c]">
                             {passkey.name}
                         </p>
                         {passkey.authenticator && (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase ring-1 ring-border ring-inset">
+                            <span className="inline-flex items-center gap-1 rounded-md bg-[#eef4fb] px-2 py-0.5 text-[11px] font-medium tracking-wide text-[#5a7390] uppercase ring-1 ring-[#c5d5e6] ring-inset">
                                 {passkey.authenticator}
                             </span>
                         )}
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                        Added {passkey.created_at_diff}
+                    <p className="text-sm text-[#5a7390]">
+                        Agregada {passkey.created_at_diff}
                         {passkey.last_used_at_diff && (
                             <>
-                                <span className="mx-1 text-muted-foreground/50">
-                                    /
-                                </span>
-                                Last used {passkey.last_used_at_diff}
+                                <span className="mx-1 text-[#c5d5e6]">/</span>
+                                Último uso {passkey.last_used_at_diff}
                             </>
                         )}
                     </p>
@@ -61,29 +59,36 @@ export default function PasskeyItem({ passkey, onDelete }: Props) {
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        className="cursor-pointer text-red-700 hover:bg-red-50 hover:text-red-800"
                     >
                         <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Remove</span>
+                        <span className="sr-only">Eliminar</span>
                     </Button>
                 </DialogTrigger>
                 <DialogContent>
-                    <DialogTitle>Remove passkey</DialogTitle>
+                    <DialogTitle>Eliminar passkey</DialogTitle>
                     <DialogDescription>
-                        Are you sure you want to remove the "{passkey.name}"
-                        passkey? You will no longer be able to use it to sign
-                        in.
+                        ¿Seguro que quieres eliminar la passkey "{passkey.name}
+                        "? Ya no podrás usarla para iniciar sesión.
                     </DialogDescription>
                     <DialogFooter className="gap-2">
                         <DialogClose asChild>
-                            <Button variant="secondary">Cancel</Button>
+                            <Button
+                                variant="secondary"
+                                className="cursor-pointer"
+                            >
+                                Cancelar
+                            </Button>
                         </DialogClose>
                         <Button
                             variant="destructive"
                             onClick={handleDelete}
                             disabled={isDeleting}
+                            className="cursor-pointer"
                         >
-                            {isDeleting ? 'Removing...' : 'Remove passkey'}
+                            {isDeleting
+                                ? 'Eliminando...'
+                                : 'Eliminar passkey'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
