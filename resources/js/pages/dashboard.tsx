@@ -12,27 +12,62 @@ import { DashboardKpiCard, type DashboardKpi } from '@/components/dashboard/kpi-
 import { SemaforoCard, type SemaforoItem } from '@/components/dashboard/semaforo-card';
 import { dashboard } from '@/routes';
 
-type Props = {
-    generatedAt: string;
-    activePeriod: { id: number; name: string; date?: string | null } | null;
-    kpis: DashboardKpi[];
-    semaforos: SemaforoItem[];
-    charts: {
-        inspections: ChartPoint[];
-        documents_expiry: ChartPoint[];
-        vehicles: ChartPoint[];
-        providers: ChartPoint[];
-        units_trend: ChartPoint[];
-        inductions: ChartPoint[];
-    };
-    inductionsSummary: {
-        attended: number;
-        registered: number;
-    };
-    alerts: DashboardAlert[];
+type ChartsProps = {
+    inspections?: ChartPoint[];
+    documents_expiry?: ChartPoint[];
+    vehicles?: ChartPoint[];
+    providers?: ChartPoint[];
+    units_trend?: ChartPoint[];
+    inductions?: ChartPoint[];
 };
 
-function formatGeneratedAt(value: string): string {
+type Props = {
+    generatedAt?: string;
+    activePeriod?: { id: number; name: string; date?: string | null } | null;
+    kpis?: DashboardKpi[];
+    semaforos?: SemaforoItem[];
+    charts?: ChartsProps;
+    inductionsSummary?: {
+        attended?: number;
+        registered?: number;
+    };
+    alerts?: DashboardAlert[];
+};
+
+const emptyCharts: Required<ChartsProps> = {
+    inspections: [],
+    documents_expiry: [],
+    vehicles: [],
+    providers: [],
+    units_trend: [],
+    inductions: [],
+};
+
+const vehicleColors = [
+    '#1a2b4c',
+    '#2e5a9e',
+    '#4a90e2',
+    '#6fa88a',
+    '#d4a84b',
+    '#c07070',
+    '#7c6bb5',
+    '#64748b',
+];
+
+const providerColors = [
+    '#2e5a9e',
+    '#3d8b6e',
+    '#6d28d9',
+    '#c2410c',
+    '#0f766e',
+    '#475569',
+];
+
+function formatGeneratedAt(value?: string): string {
+    if (!value) {
+        return '—';
+    }
+
     const date = new Date(value);
 
     if (Number.isNaN(date.getTime())) {
@@ -50,13 +85,26 @@ function formatGeneratedAt(value: string): string {
 
 export default function Dashboard({
     generatedAt,
-    activePeriod,
-    kpis,
-    semaforos,
+    activePeriod = null,
+    kpis = [],
+    semaforos = [],
     charts,
     inductionsSummary,
-    alerts,
+    alerts = [],
 }: Props) {
+    const safeCharts: Required<ChartsProps> = {
+        inspections: charts?.inspections ?? emptyCharts.inspections,
+        documents_expiry:
+            charts?.documents_expiry ?? emptyCharts.documents_expiry,
+        vehicles: charts?.vehicles ?? emptyCharts.vehicles,
+        providers: charts?.providers ?? emptyCharts.providers,
+        units_trend: charts?.units_trend ?? emptyCharts.units_trend,
+        inductions: charts?.inductions ?? emptyCharts.inductions,
+    };
+
+    const attended = inductionsSummary?.attended ?? 0;
+    const registered = inductionsSummary?.registered ?? 0;
+
     return (
         <>
             <Head title="Panel operativo" />
@@ -138,12 +186,12 @@ export default function Dashboard({
                         <DashboardDonutChart
                             title="Estado de vencimientos"
                             subtitle="Documentos subidos (excluye DNI sin fecha)"
-                            data={charts.documents_expiry}
+                            data={safeCharts.documents_expiry}
                         />
                         <DashboardDonutChart
                             title="Inducciones SST"
-                            subtitle={`Asistentes: ${inductionsSummary.attended} · Registrados: ${inductionsSummary.registered}`}
-                            data={charts.inductions}
+                            subtitle={`Asistentes: ${attended} · Registrados: ${registered}`}
+                            data={safeCharts.inductions}
                         />
                     </section>
 
@@ -151,12 +199,12 @@ export default function Dashboard({
                         <DashboardBarChart
                             title="Inspecciones y consolidados"
                             subtitle="Distribución operativa de checklists"
-                            data={charts.inspections}
+                            data={safeCharts.inspections}
                         />
                         <DashboardBarChart
                             title="Unidades por mes"
                             subtitle="Tendencia últimos 6 meses (fecha de servicio)"
-                            data={charts.units_trend.map((item) => ({
+                            data={safeCharts.units_trend.map((item) => ({
                                 ...item,
                                 color: '#2e5a9e',
                             }))}
@@ -166,17 +214,19 @@ export default function Dashboard({
                     <section className="grid gap-3 xl:grid-cols-3">
                         <DashboardBarChart
                             title="Flota por tipo de vehículo"
-                            data={charts.vehicles.map((item, index) => ({
+                            data={safeCharts.vehicles.map((item, index) => ({
                                 ...item,
-                                color: ['#1a2b4c', '#2e5a9e', '#4a90e2', '#6fa88a', '#d4a84b', '#c07070', '#7c6bb5', '#64748b'][index % 8],
+                                color: vehicleColors[index % vehicleColors.length],
                             }))}
                             className="xl:col-span-1"
                         />
                         <DashboardBarChart
                             title="Top proveedores"
-                            data={charts.providers.map((item, index) => ({
+                            data={safeCharts.providers.map((item, index) => ({
                                 ...item,
-                                color: ['#2e5a9e', '#3d8b6e', '#6d28d9', '#c2410c', '#0f766e', '#475569'][index % 6],
+                                color: providerColors[
+                                    index % providerColors.length
+                                ],
                             }))}
                             className="xl:col-span-1"
                         />

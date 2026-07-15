@@ -9,12 +9,13 @@ export type ChartPoint = {
 type Props = {
     title: string;
     subtitle?: string;
-    data: ChartPoint[];
+    data?: ChartPoint[];
     className?: string;
 };
 
-export function DashboardBarChart({ title, subtitle, data, className }: Props) {
-    const max = Math.max(...data.map((item) => item.value), 1);
+export function DashboardBarChart({ title, subtitle, data = [], className }: Props) {
+    const points = Array.isArray(data) ? data : [];
+    const max = Math.max(...points.map((item) => item.value), 1);
 
     return (
         <div
@@ -30,18 +31,27 @@ export function DashboardBarChart({ title, subtitle, data, className }: Props) {
                 ) : null}
             </div>
 
-            {data.length === 0 || data.every((item) => item.value === 0) ? (
+            {points.length === 0 || points.every((item) => item.value === 0) ? (
                 <p className="py-10 text-center text-sm text-[#6b8ead]">
                     Sin datos para graficar
                 </p>
             ) : (
                 <div className="space-y-2.5">
-                    {data.map((item) => {
-                        const width = Math.max((item.value / max) * 100, item.value > 0 ? 4 : 0);
+                    {points.map((item) => {
+                        const width = Math.max(
+                            (item.value / max) * 100,
+                            item.value > 0 ? 4 : 0,
+                        );
 
                         return (
-                            <div key={item.label} className="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-2">
-                                <span className="truncate text-xs text-[#5a7390]" title={item.label}>
+                            <div
+                                key={item.label}
+                                className="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-2"
+                            >
+                                <span
+                                    className="truncate text-xs text-[#5a7390]"
+                                    title={item.label}
+                                >
                                     {item.label}
                                 </span>
                                 <div className="h-2.5 overflow-hidden rounded-full bg-[#eef3f8]">
@@ -49,7 +59,8 @@ export function DashboardBarChart({ title, subtitle, data, className }: Props) {
                                         className="h-full rounded-full transition-all"
                                         style={{
                                             width: `${width}%`,
-                                            backgroundColor: item.color ?? '#2e5a9e',
+                                            backgroundColor:
+                                                item.color ?? '#2e5a9e',
                                         }}
                                     />
                                 </div>

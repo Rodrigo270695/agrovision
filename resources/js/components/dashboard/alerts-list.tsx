@@ -20,10 +20,12 @@ const levelStyles: Record<string, string> = {
 };
 
 type Props = {
-    alerts: DashboardAlert[];
+    alerts?: DashboardAlert[];
 };
 
-export function DashboardAlertsList({ alerts }: Props) {
+export function DashboardAlertsList({ alerts = [] }: Props) {
+    const items = Array.isArray(alerts) ? alerts : [];
+
     return (
         <div className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-end justify-between gap-2">
@@ -43,13 +45,13 @@ export function DashboardAlertsList({ alerts }: Props) {
                 </Link>
             </div>
 
-            {alerts.length === 0 ? (
+            {items.length === 0 ? (
                 <p className="rounded-xl bg-[#f4faf6] px-3 py-6 text-center text-sm text-[#3d8b6e]">
                     Sin alertas de vencimiento en la flota.
                 </p>
             ) : (
                 <ul className="space-y-2">
-                    {alerts.map((alert) => (
+                    {items.map((alert) => (
                         <li
                             key={`${alert.unit_id}-${alert.type}-${alert.expires_at}`}
                             className={cn(

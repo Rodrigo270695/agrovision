@@ -135,7 +135,7 @@ class DashboardController extends Controller
             $month = $today->copy()->subMonths($i);
             $key = $month->format('Y-m');
             $trend[] = [
-                'label' => $month->locale('es')->translatedFormat('M Y'),
+                'label' => $month->format('M Y'),
                 'value' => (int) ($trendCounts[$key] ?? 0),
             ];
         }
@@ -388,9 +388,10 @@ class DashboardController extends Controller
                 continue;
             }
 
-            $days = (int) $today->copy()->startOfDay()->diffInDays(
-                $document->expires_at->copy()->startOfDay(),
-                false,
+            $expiresDay = $document->expires_at->copy()->startOfDay();
+            $baseDay = $today->copy()->startOfDay();
+            $days = (int) round(
+                ($expiresDay->getTimestamp() - $baseDay->getTimestamp()) / 86400,
             );
 
             if ($days < 0) {
@@ -519,9 +520,10 @@ class DashboardController extends Controller
             ->get();
 
         return $documents->map(function (UnitDocument $document) use ($today): array {
-            $days = (int) $today->copy()->startOfDay()->diffInDays(
-                $document->expires_at->copy()->startOfDay(),
-                false,
+            $expiresDay = $document->expires_at->copy()->startOfDay();
+            $baseDay = $today->copy()->startOfDay();
+            $days = (int) round(
+                ($expiresDay->getTimestamp() - $baseDay->getTimestamp()) / 86400,
             );
             $level = $days < 0 ? 'expired' : ($days <= 7 ? 'danger' : 'warning');
 

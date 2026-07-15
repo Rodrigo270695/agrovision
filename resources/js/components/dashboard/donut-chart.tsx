@@ -4,17 +4,18 @@ import type { ChartPoint } from '@/components/dashboard/bar-chart';
 type Props = {
     title: string;
     subtitle?: string;
-    data: ChartPoint[];
+    data?: ChartPoint[];
     className?: string;
 };
 
 export function DashboardDonutChart({
     title,
     subtitle,
-    data,
+    data = [],
     className,
 }: Props) {
-    const total = data.reduce((sum, item) => sum + item.value, 0);
+    const points = Array.isArray(data) ? data : [];
+    const total = points.reduce((sum, item) => sum + item.value, 0);
     const radius = 54;
     const circumference = 2 * Math.PI * radius;
     let offset = 0;
@@ -22,7 +23,7 @@ export function DashboardDonutChart({
     const arcs =
         total === 0
             ? []
-            : data
+            : points
                   .filter((item) => item.value > 0)
                   .map((item) => {
                       const length = (item.value / total) * circumference;
@@ -88,7 +89,7 @@ export function DashboardDonutChart({
                 </div>
 
                 <ul className="w-full space-y-2">
-                    {data.map((item) => (
+                    {points.map((item) => (
                         <li
                             key={item.label}
                             className="flex items-center justify-between gap-3 text-xs"
