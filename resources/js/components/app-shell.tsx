@@ -20,7 +20,7 @@ export function AppShell({ children, variant = 'sidebar' }: Props) {
     return (
         <SidebarProvider
             defaultOpen={isOpen}
-            className="h-svh max-h-svh min-h-0 overflow-hidden"
+            className="h-dvh max-h-dvh min-h-0 overflow-hidden"
         >
             {children}
         </SidebarProvider>

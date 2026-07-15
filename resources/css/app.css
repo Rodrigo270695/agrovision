@@ -143,12 +143,16 @@
 
     html,
     body {
-        @apply bg-background text-foreground h-full overflow-hidden;
+        height: 100%;
+        overflow: hidden;
+        @apply bg-background text-foreground;
     }
 
-    /* Root de Inertia: evita scroll del documento; el scroll vive en el layout */
+    /* Root de Inertia: el scroll vive dentro del layout, no en el documento */
     body > div {
-        @apply h-full min-h-0 overflow-hidden;
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
     }
 }
 

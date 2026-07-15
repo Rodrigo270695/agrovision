@@ -17,8 +17,9 @@ export function AppContent({
         return (
             <SidebarInset
                 className={cn(
-                    // Con inset (+ margen) no usar h-svh: fuerza scroll del documento
-                    'min-h-0 overflow-hidden md:h-[calc(100svh-(--spacing(4)))] md:max-h-[calc(100svh-(--spacing(4)))] max-md:h-svh max-md:max-h-svh',
+                    'min-h-0 flex-1 overflow-hidden',
+                    // Inset aplica m-2 (0.5rem * 2); la altura debe descontar ese margen
+                    'h-dvh max-h-dvh md:my-2 md:mr-2 md:h-[calc(100dvh-1rem)] md:max-h-[calc(100dvh-1rem)]',
                     className,
                 )}
                 {...props}
