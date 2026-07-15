@@ -20,13 +20,6 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { useCan } from '@/hooks/use-can';
 import { getDocumentExpiryInfo } from '@/lib/document-expiry';
@@ -439,42 +432,38 @@ export function UnitDocumentsModal({
 
                         <div className="grid gap-3 sm:grid-cols-2">
                             <div className="grid gap-1.5">
-                                <Label className="text-xs text-[#1a2b4c]">
+                                <Label
+                                    htmlFor="unit-doc-type"
+                                    className="text-xs text-[#1a2b4c]"
+                                >
                                     Tipo <span className="text-red-500">*</span>
                                 </Label>
-                                <Select
+                                <select
+                                    id="unit-doc-type"
                                     value={type}
-                                    onValueChange={(value) => {
+                                    onChange={(event) => {
+                                        const value = event.target.value;
                                         setType(value);
                                         if (value === 'driver_dni') {
                                             setExpiresAt('');
                                         }
                                     }}
+                                    className="flex h-9 w-full cursor-pointer rounded-md border border-[#c5d5e6] bg-white px-3 text-sm text-[#1a2b4c] shadow-none outline-none focus-visible:border-[#2e5a9e] focus-visible:ring-[3px] focus-visible:ring-[#4a90e2]/35"
                                 >
-                                    <SelectTrigger className="h-9 w-full cursor-pointer border-[#c5d5e6] bg-white text-sm">
-                                        <SelectValue placeholder="Tipo" />
-                                    </SelectTrigger>
-                                    <SelectContent
-                                        position="popper"
-                                        side="bottom"
-                                        className="z-[120] border-[#d7e3f0] bg-white"
-                                    >
-                                        {documentTypes.map((option) => (
-                                            <SelectItem
-                                                key={option.value}
-                                                value={option.value}
-                                                className="cursor-pointer"
-                                            >
-                                                {option.label}
-                                                {option.required
-                                                    ? ''
-                                                    : option.value === 'other'
-                                                      ? ' (opcional)'
-                                                      : ''}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    {documentTypes.map((option) => (
+                                        <option
+                                            key={option.value}
+                                            value={option.value}
+                                        >
+                                            {option.label}
+                                            {option.required
+                                                ? ''
+                                                : option.value === 'other'
+                                                  ? ' (opcional)'
+                                                  : ''}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
 
                             {type !== 'driver_dni' ? (
