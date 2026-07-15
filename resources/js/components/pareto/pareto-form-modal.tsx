@@ -74,8 +74,35 @@ export function ParetoFormModal({
         [parentOptions, form.data.template_type, item?.id],
     );
 
+    const canSubmit = useMemo(() => {
+        const weight = Number(form.data.weight);
+
+        return (
+            Boolean(form.data.template_type) &&
+            form.data.item_number.trim().length > 0 &&
+            form.data.label.trim().length > 0 &&
+            Boolean(form.data.check_type) &&
+            form.data.weight !== '' &&
+            !Number.isNaN(weight) &&
+            weight >= 0 &&
+            weight <= 100 &&
+            !form.processing
+        );
+    }, [
+        form.data.template_type,
+        form.data.item_number,
+        form.data.label,
+        form.data.check_type,
+        form.data.weight,
+        form.processing,
+    ]);
+
     const handleSubmit = (event: FormEvent) => {
         event.preventDefault();
+
+        if (!canSubmit) {
+            return;
+        }
 
         const payload = {
             template_type: form.data.template_type,
@@ -133,8 +160,8 @@ export function ParetoFormModal({
                     <Button
                         type="submit"
                         form="pareto-form"
-                        disabled={form.processing}
-                        className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c]"
+                        disabled={!canSubmit}
+                        className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {form.processing ? <Spinner /> : null}
                         {isEditing ? 'Guardar' : 'Crear'}
@@ -145,7 +172,9 @@ export function ParetoFormModal({
             <form id="pareto-form" className="space-y-4" onSubmit={handleSubmit}>
                 <div className="grid gap-3 sm:grid-cols-2">
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">Plantilla *</Label>
+                        <Label className="text-xs text-[#1a2b4c]">
+                            Plantilla <span className="text-red-500">*</span>
+                        </Label>
                         <Select
                             value={form.data.template_type}
                             onValueChange={(value) =>
@@ -170,7 +199,9 @@ export function ParetoFormModal({
                         <InputError message={form.errors.template_type} />
                     </div>
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">Número *</Label>
+                        <Label className="text-xs text-[#1a2b4c]">
+                            Número <span className="text-red-500">*</span>
+                        </Label>
                         <Input
                             value={form.data.item_number}
                             onChange={(e) =>
@@ -184,7 +215,9 @@ export function ParetoFormModal({
                 </div>
 
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">Exigencia *</Label>
+                    <Label className="text-xs text-[#1a2b4c]">
+                        Exigencia <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                         value={form.data.label}
                         onChange={(e) => form.setData('label', e.target.value)}
@@ -197,7 +230,7 @@ export function ParetoFormModal({
                 <div className="grid gap-3 sm:grid-cols-2">
                     <div className="grid gap-1.5">
                         <Label className="text-xs text-[#1a2b4c]">
-                            Tipo de check *
+                            Tipo de check <span className="text-red-500">*</span>
                         </Label>
                         <Select
                             value={form.data.check_type}
@@ -223,7 +256,9 @@ export function ParetoFormModal({
                         <InputError message={form.errors.check_type} />
                     </div>
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">Peso % *</Label>
+                        <Label className="text-xs text-[#1a2b4c]">
+                            Peso % <span className="text-red-500">*</span>
+                        </Label>
                         <Input
                             type="number"
                             min={0}

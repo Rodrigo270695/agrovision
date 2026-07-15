@@ -285,6 +285,7 @@ export function ChecklistEditForm({ checklist }: Props) {
             yes,
             no,
             missingExpiry,
+            allMarked: answers.length > 0 && marked === answers.length,
             allYes:
                 answers.length > 0 &&
                 yes === answers.length &&
@@ -312,12 +313,39 @@ export function ChecklistEditForm({ checklist }: Props) {
             yes,
             no,
             missingExpiry,
+            allMarked: answers.length > 0 && marked === answers.length,
             allYes:
                 answers.length > 0 &&
                 yes === answers.length &&
                 !missingExpiry,
         };
     }, [answers, checklist.items]);
+
+    const activePass: 'first' | 'second' = secondUnlocked ? 'second' : 'first';
+    const activeStats = activePass === 'first' ? firstStats : secondStats;
+
+    const livePareto = useMemo(() => {
+        const valueKey =
+            activePass === 'first' ? 'first_value' : 'second_value';
+
+        let scored = 0;
+        let catalog = 0;
+
+        checklist.items.forEach((item, index) => {
+            const weight = Number(item.weight ?? 0);
+            catalog += weight;
+
+            if (answers[index]?.[valueKey] === 'yes') {
+                scored += weight;
+            }
+        });
+
+        return {
+            scored: Math.round(scored * 100) / 100,
+            catalog: Math.round(catalog * 100) / 100,
+            allYes: activeStats.yes === activeStats.total && activeStats.total > 0,
+        };
+    }, [activePass, activeStats.total, activeStats.yes, answers, checklist.items]);
 
     const updateAnswer = (
         index: number,
@@ -377,8 +405,6 @@ export function ChecklistEditForm({ checklist }: Props) {
         event.preventDefault();
         save({ status: 'draft' });
     };
-
-    const activePass: 'first' | 'second' = secondUnlocked ? 'second' : 'first';
 
     return (
         <form
@@ -587,21 +613,26 @@ export function ChecklistEditForm({ checklist }: Props) {
                                 : '1ra bloqueada. Marca ahora la segunda inspección.'}
                         </p>
                     </div>
-                    {checklist.pareto ? (
+                    <div className="flex flex-col items-start gap-1 sm:items-end">
                         <span
                             className={cn(
                                 'inline-flex w-fit rounded-full px-2.5 py-1 text-[11px] font-medium',
-                                checklist.pareto.weight_ok
+                                livePareto.scored >= 100
                                     ? 'bg-emerald-50 text-emerald-800'
-                                    : 'bg-amber-50 text-amber-800',
+                                    : livePareto.scored > 0
+                                      ? 'bg-sky-50 text-sky-800'
+                                      : 'bg-slate-100 text-slate-700',
                             )}
                         >
-                            Pareto {checklist.pareto.weight_total}%
-                            {checklist.pareto.weight_ok
-                                ? ''
-                                : ' (debe ser 100%)'}
+                            Pareto {livePareto.scored.toFixed(2)}%
+                            <span className="ml-1 font-normal opacity-80">
+                                / {livePareto.catalog.toFixed(2)}%
+                            </span>
                         </span>
-                    ) : null}
+                        <p className="text-[11px] text-[#6b8ead]">
+                            Solo suman los ítems en SÍ · NO no puntúa
+                        </p>
+                    </div>
                 </div>
 
                 {!checklist.pareto?.weight_ok ? (
@@ -633,6 +664,7 @@ export function ChecklistEditForm({ checklist }: Props) {
                         const observationMissing =
                             isExpiry &&
                             (answer?.observations ?? '').trim() === '';
+                        const countsInPareto = value === 'yes';
 
                         return (
                             <article
@@ -644,6 +676,7 @@ export function ChecklistEditForm({ checklist }: Props) {
                                     observationMissing &&
                                         !sealed &&
                                         'border-amber-300',
+                                    value === 'no' && 'opacity-80',
                                 )}
                             >
                                 <div className="mb-2.5 flex items-start gap-2">
@@ -660,8 +693,23 @@ export function ChecklistEditForm({ checklist }: Props) {
                                             {item.label}
                                         </p>
                                         {item.weight != null ? (
-                                            <p className="mt-0.5 text-[11px] text-[#6b8ead]">
-                                                Peso {Number(item.weight).toFixed(2)}%
+                                            <p
+                                                className={cn(
+                                                    'mt-0.5 text-[11px]',
+                                                    countsInPareto
+                                                        ? 'font-medium text-emerald-700'
+                                                        : value === 'no'
+                                                          ? 'text-red-500 line-through'
+                                                          : 'text-[#6b8ead]',
+                                                )}
+                                            >
+                                                Peso{' '}
+                                                {Number(item.weight).toFixed(2)}%
+                                                {value === 'no'
+                                                    ? ' (no suma)'
+                                                    : countsInPareto
+                                                      ? ' (suma)'
+                                                      : ''}
                                             </p>
                                         ) : null}
                                     </div>
@@ -820,85 +868,102 @@ export function ChecklistEditForm({ checklist }: Props) {
 
             {!sealed ? (
                 <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#d7e3f0] bg-white/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
-                    <div className="mx-auto flex max-w-5xl flex-col gap-2 sm:flex-row sm:justify-end">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            disabled={processing}
-                            onClick={() => save({ status: 'draft' })}
-                            className="h-11 cursor-pointer border-[#c5d5e6] text-[#1a2b4c] sm:h-10"
-                        >
-                            {processing ? <Spinner /> : null}
-                            Guardar borrador
-                        </Button>
-
-                        {!firstLocked && firstStats.allYes ? (
-                            <Button
-                                type="button"
-                                disabled={processing}
-                                onClick={() =>
-                                    save({
-                                        status: 'draft',
-                                        first_result: 'approved',
-                                    })
-                                }
-                                className="h-11 cursor-pointer bg-emerald-700 text-white hover:bg-emerald-800 sm:h-10"
-                            >
-                                Aprobar 1ra inspección
-                            </Button>
-                        ) : null}
-
-                        {!firstLocked && firstStats.no > 0 ? (
+                    <div className="mx-auto flex max-w-5xl flex-col gap-2">
+                        <p className="text-center text-[11px] text-[#5a7390] sm:text-right">
+                            {!firstLocked && !firstStats.allYes
+                                ? firstStats.missingExpiry
+                                    ? 'Completa los vencimientos / observaciones para poder aprobar la 1ra.'
+                                    : firstStats.no > 0
+                                      ? 'Hay ítems en NO: puedes guardar borrador o desaprobar la 1ra.'
+                                      : 'Marca todos los ítems en SÍ para habilitar «Aprobar 1ra».'
+                                : secondUnlocked &&
+                                    !secondLocked &&
+                                    !secondStats.allYes
+                                  ? secondStats.missingExpiry
+                                      ? 'Completa los vencimientos / observaciones para aprobar la 2da.'
+                                      : 'Marca todos los ítems en SÍ para habilitar «Aprobar 2da».'
+                                  : signaturesUnlocked
+                                    ? 'Puedes firmar (opcional) y sellar la inspección.'
+                                    : 'Puedes guardar el progreso en cualquier momento.'}
+                        </p>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                             <Button
                                 type="button"
                                 variant="outline"
                                 disabled={processing}
-                                onClick={() =>
-                                    save({
-                                        status: 'draft',
-                                        first_result: 'rejected',
-                                    })
-                                }
-                                className="h-11 cursor-pointer border-red-200 text-red-700 sm:h-10"
+                                onClick={() => save({ status: 'draft' })}
+                                className="h-11 cursor-pointer border-[#c5d5e6] text-[#1a2b4c] sm:h-10"
                             >
-                                Desaprobar 1ra
+                                {processing ? <Spinner /> : null}
+                                Guardar borrador
                             </Button>
-                        ) : null}
 
-                        {secondUnlocked &&
-                        !secondLocked &&
-                        secondStats.allYes ? (
-                            <Button
-                                type="button"
-                                disabled={processing}
-                                onClick={() =>
-                                    save({
-                                        status: 'draft',
-                                        second_result: 'approved',
-                                    })
-                                }
-                                className="h-11 cursor-pointer bg-emerald-700 text-white hover:bg-emerald-800 sm:h-10"
-                            >
-                                Aprobar 2da inspección
-                            </Button>
-                        ) : null}
+                            {!firstLocked ? (
+                                <Button
+                                    type="button"
+                                    disabled={processing || !firstStats.allYes}
+                                    onClick={() =>
+                                        save({
+                                            status: 'draft',
+                                            first_result: 'approved',
+                                        })
+                                    }
+                                    className="h-11 cursor-pointer bg-emerald-700 text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10"
+                                >
+                                    Aprobar 1ra inspección
+                                </Button>
+                            ) : null}
 
-                        {signaturesUnlocked ? (
-                            <Button
-                                type="button"
-                                disabled={processing}
-                                onClick={() =>
-                                    save({
-                                        status: 'completed',
-                                        seal: true,
-                                    })
-                                }
-                                className="h-11 cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038] disabled:opacity-50 sm:h-10"
-                            >
-                                <ShieldCheck className="size-4" />
-                                Sellar inspección
-                            </Button>
-                        ) : null}
+                            {!firstLocked && firstStats.no > 0 ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={processing}
+                                    onClick={() =>
+                                        save({
+                                            status: 'draft',
+                                            first_result: 'rejected',
+                                        })
+                                    }
+                                    className="h-11 cursor-pointer border-red-200 text-red-700 sm:h-10"
+                                >
+                                    Desaprobar 1ra
+                                </Button>
+                            ) : null}
+
+                            {secondUnlocked && !secondLocked ? (
+                                <Button
+                                    type="button"
+                                    disabled={processing || !secondStats.allYes}
+                                    onClick={() =>
+                                        save({
+                                            status: 'draft',
+                                            second_result: 'approved',
+                                        })
+                                    }
+                                    className="h-11 cursor-pointer bg-emerald-700 text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10"
+                                >
+                                    Aprobar 2da inspección
+                                </Button>
+                            ) : null}
+
+                            {signaturesUnlocked ? (
+                                <Button
+                                    type="button"
+                                    disabled={processing}
+                                    onClick={() =>
+                                        save({
+                                            status: 'completed',
+                                            seal: true,
+                                        })
+                                    }
+                                    className="h-11 cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038] disabled:opacity-50 sm:h-10"
+                                >
+                                    <ShieldCheck className="size-4" />
+                                    Sellar inspección
+                                </Button>
+                            ) : null}
+                        </div>
                     </div>
                 </div>
             ) : null}
