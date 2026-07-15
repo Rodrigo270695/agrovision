@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * @property int $id
+ * @property int|null $package_id
  * @property int|null $unit_id
  * @property int|null $period_id
  * @property int|null $created_by
@@ -38,6 +39,7 @@ class AlcoholTest extends Model
     public const TOLERANCE = 0.0;
 
     protected $fillable = [
+        'package_id',
         'unit_id',
         'period_id',
         'created_by',
@@ -70,6 +72,11 @@ class AlcoholTest extends Model
             'coordinator_notified_at' => 'datetime',
             'coordinator_signed_at' => 'datetime',
         ];
+    }
+
+    public function package(): BelongsTo
+    {
+        return $this->belongsTo(AlcoholTestPackage::class, 'package_id');
     }
 
     public function unit(): BelongsTo

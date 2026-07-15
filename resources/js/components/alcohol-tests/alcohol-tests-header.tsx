@@ -1,21 +1,25 @@
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/hooks/use-can';
-import { cn } from '@/lib/utils';
 
 type Stats = {
     total: number;
+    tests: number;
     positive: number;
     pending: number;
-    acknowledged: number;
 };
 
 type Props = {
     stats: Stats;
     onCreate: () => void;
+    isCoordinatorView?: boolean;
 };
 
-export function AlcoholTestsHeader({ stats, onCreate }: Props) {
+export function AlcoholTestsHeader({
+    stats,
+    onCreate,
+    isCoordinatorView = false,
+}: Props) {
     const { can } = useCan();
 
     return (
@@ -27,38 +31,38 @@ export function AlcoholTestsHeader({ stats, onCreate }: Props) {
                             Alcohómetro
                         </h1>
                         <p className="mt-2 text-sm text-[#5a7390]">
-                            Control de ingreso con tolerancia 0. Positivos
-                            alertan al coordinador de la unidad y no se borran.
+                            {isCoordinatorView
+                                ? 'Solo ves operativos con tests de tus unidades. Si el inspector registra un positivo, te llega la alerta con cuántos conductores no pasaron.'
+                                : 'Crea un paquete (título + fecha) y dentro registra los tests. Tolerancia 0. Positivos alertan al coordinador de la unidad.'}
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <span className="rounded-full bg-[#eef4fb] px-2.5 py-1 text-xs font-medium text-[#1a2b4c]">
-                            Total {stats.total}
+                            Paquetes {stats.total}
+                        </span>
+                        <span className="rounded-full bg-[#eef4fb] px-2.5 py-1 text-xs font-medium text-[#1a2b4c]">
+                            {isCoordinatorView ? 'Tus tests' : 'Tests'}{' '}
+                            {stats.tests}
                         </span>
                         <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-800">
-                            Positivos {stats.positive}
+                            {isCoordinatorView
+                                ? `No pasaron ${stats.positive}`
+                                : `Positivos ${stats.positive}`}
                         </span>
                         <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">
                             Pendientes {stats.pending}
                         </span>
-                        <span
-                            className={cn(
-                                'rounded-full bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-800',
-                            )}
-                        >
-                            Firmados {stats.acknowledged}
-                        </span>
                     </div>
                 </div>
 
-                {can('alcoholtests.create') ? (
+                {!isCoordinatorView && can('alcoholtests.create') ? (
                     <Button
                         type="button"
                         onClick={onCreate}
                         className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
                     >
                         <Plus className="size-4" />
-                        Nuevo test
+                        Nuevo paquete
                     </Button>
                 ) : null}
             </div>

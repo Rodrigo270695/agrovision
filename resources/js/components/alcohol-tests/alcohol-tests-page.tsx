@@ -1,40 +1,41 @@
 import { usePage } from '@inertiajs/react';
 import { useState } from 'react';
-import { AlcoholTestFormModal } from '@/components/alcohol-tests/alcohol-test-form-modal';
+import { AlcoholPackageFormModal } from '@/components/alcohol-tests/alcohol-package-form-modal';
 import { AlcoholTestsHeader } from '@/components/alcohol-tests/alcohol-tests-header';
 import {
-    AlcoholTestsTable,
-    type AlcoholTestItem,
-    type AlcoholTestsFilters,
-    type AlcoholTestsPagination,
-    type UnitOption,
-} from '@/components/alcohol-tests/alcohol-tests-table';
+    AlcoholPackagesTable,
+    type AlcoholPackageItem,
+    type AlcoholPackagesFilters,
+    type AlcoholPackagesPagination,
+} from '@/components/alcohol-tests/alcohol-packages-table';
 import { useCan } from '@/hooks/use-can';
 
 type Stats = {
     total: number;
+    tests: number;
     positive: number;
     pending: number;
-    acknowledged: number;
 };
 
 type PageProps = {
-    items: AlcoholTestsPagination;
+    packages: AlcoholPackagesPagination;
     stats: Stats;
-    filters: AlcoholTestsFilters;
-    unitOptions: UnitOption[];
+    filters: AlcoholPackagesFilters;
+    isCoordinatorView?: boolean;
 };
 
 export function AlcoholTestsPage() {
-    const { items, stats, filters, unitOptions } = usePage()
+    const { packages, stats, filters, isCoordinatorView } = usePage()
         .props as unknown as PageProps;
     const { can } = useCan();
     const [formOpen, setFormOpen] = useState(false);
+    const coordinatorView = Boolean(isCoordinatorView);
 
     return (
         <div className="flex flex-col gap-4 p-4">
             <AlcoholTestsHeader
                 stats={stats}
+                isCoordinatorView={coordinatorView}
                 onCreate={() => {
                     if (can('alcoholtests.create')) {
                         setFormOpen(true);
@@ -42,12 +43,15 @@ export function AlcoholTestsPage() {
                 }}
             />
 
-            <AlcoholTestsTable items={items} filters={filters} />
+            <AlcoholPackagesTable
+                packages={packages}
+                filters={filters}
+                isCoordinatorView={coordinatorView}
+            />
 
             {can('alcoholtests.create') ? (
-                <AlcoholTestFormModal
+                <AlcoholPackageFormModal
                     open={formOpen}
-                    unitOptions={unitOptions ?? []}
                     onClose={() => setFormOpen(false)}
                 />
             ) : null}
@@ -55,4 +59,4 @@ export function AlcoholTestsPage() {
     );
 }
 
-export type { AlcoholTestItem };
+export type { AlcoholPackageItem };

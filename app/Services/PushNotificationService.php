@@ -79,17 +79,18 @@ class PushNotificationService
         AlcoholTest $test,
         ?User $except = null,
     ): void {
-        $test->loadMissing('unit');
-
-        $query = User::role(SystemRoles::COORDINADOR);
+        $test->loadMissing(['unit', 'package']);
 
         $coordinatorId = $test->coordinator_id ?? $test->unit?->coordinator_id;
 
-        if ($coordinatorId) {
-            $query->where('id', $coordinatorId);
+        // Solo al coordinador de esa unidad (nunca a todos).
+        if (! $coordinatorId || ! $test->package_id) {
+            return;
         }
 
-        $recipients = $query->get();
+        $recipients = User::role(SystemRoles::COORDINADOR)
+            ->where('id', $coordinatorId)
+            ->get();
 
         if ($except !== null) {
             $recipients = $recipients->reject(
@@ -97,12 +98,24 @@ class PushNotificationService
             );
         }
 
+        if ($recipients->isEmpty()) {
+            return;
+        }
+
         $level = number_format((float) $test->alcohol_level, 3, '.', '');
+        $packageTitle = $test->package?->title ?: 'Operativo alcohómetro';
+        $failedCount = AlcoholTest::query()
+            ->where('package_id', $test->package_id)
+            ->where('coordinator_id', $coordinatorId)
+            ->where('is_positive', true)
+            ->count();
+        $plate = $test->plate_number ?: 'S/P';
 
         $this->sendToUsers($recipients, [
-            'title' => 'Alcohómetro positivo',
-            'body' => "{$test->driver_name} ({$test->plate_number}): {$level}% — tolerancia 0. No permitir ingreso.",
-            'url' => "/alcoholimetro/{$test->id}",
+            'title' => 'Conductores que no pasaron alcohómetro',
+            'body' => "«{$packageTitle}»: {$test->driver_name} ({$plate}) dio {$level}% (tolerancia 0). "
+                ."En tus unidades: {$failedCount} conductor(es) no pasaron. Abre el paquete para revisar y firmar.",
+            'url' => "/alcoholimetro/{$test->package_id}?test={$test->id}",
             'tag' => "alcohol-positive-{$test->id}",
         ]);
     }

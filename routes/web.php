@@ -207,21 +207,36 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:alcoholtests.view')
         ->name('alcohol-tests.index');
 
-    Route::post('alcoholimetro', [AlcoholTestController::class, 'store'])
+    Route::post('alcoholimetro', [AlcoholTestController::class, 'storePackage'])
         ->middleware('permission:alcoholtests.create')
-        ->name('alcohol-tests.store');
+        ->name('alcohol-tests.packages.store');
 
-    Route::get('alcoholimetro/{alcoholTest}', [AlcoholTestController::class, 'show'])
+    Route::get('alcoholimetro/tests/{test}', [AlcoholTestController::class, 'showTest'])
         ->middleware('permission:alcoholtests.view')
-        ->name('alcohol-tests.show');
+        ->name('alcohol-tests.tests.show');
 
-    Route::post('alcoholimetro/{alcoholTest}/responder', [AlcoholTestController::class, 'respond'])
+    Route::post('alcoholimetro/tests/{test}/responder', [AlcoholTestController::class, 'respond'])
         ->middleware('permission:alcoholtests.respond')
         ->name('alcohol-tests.respond');
 
-    Route::get('alcoholimetro/{alcoholTest}/pdf', [AlcoholTestController::class, 'pdf'])
+    Route::get('alcoholimetro/tests/{test}/pdf', [AlcoholTestController::class, 'testPdf'])
         ->middleware('permission:alcoholtests.view')
-        ->name('alcohol-tests.pdf');
+        ->name('alcohol-tests.tests.pdf');
+
+    Route::get('alcoholimetro/{alcoholimetro}', [AlcoholTestController::class, 'show'])
+        ->middleware('permission:alcoholtests.view')
+        ->whereNumber('alcoholimetro')
+        ->name('alcohol-tests.show');
+
+    Route::post('alcoholimetro/{alcoholimetro}/tests', [AlcoholTestController::class, 'storeTest'])
+        ->middleware('permission:alcoholtests.create')
+        ->whereNumber('alcoholimetro')
+        ->name('alcohol-tests.tests.store');
+
+    Route::get('alcoholimetro/{alcoholimetro}/pdf', [AlcoholTestController::class, 'packagePdf'])
+        ->middleware('permission:alcoholtests.view')
+        ->whereNumber('alcoholimetro')
+        ->name('alcohol-tests.packages.pdf');
 
     Route::get('inducciones', [InductionController::class, 'index'])
         ->middleware('permission:inductions.view')
