@@ -26,7 +26,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('push/subscribe', [PushSubscriptionController::class, 'destroy'])
         ->name('push.unsubscribe');
 
-    Route::inertia('dashboard', 'dashboard')
+    Route::get('dashboard', \App\Http\Controllers\DashboardController::class)
         ->middleware('permission:dashboard.view')
         ->name('dashboard');
 
