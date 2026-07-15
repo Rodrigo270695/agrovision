@@ -1,9 +1,9 @@
-const CACHE_VERSION = 'agrovision-pwa-v6';
+const CACHE_VERSION = 'agrovision-pwa-v7';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // No precachear favicons/iconos: el SW los dejaba congelados (logo Laravel viejo).
-const PRECACHE_URLS = ['/manifest.webmanifest?v=6'];
+const PRECACHE_URLS = ['/manifest.webmanifest?v=7'];
 
 function isBrandAsset(pathname) {
   return (
@@ -50,8 +50,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(payload.title || 'Agrovision', {
       body: payload.body || '',
-      icon: '/icons/icon-192x192.png?v=6',
-      badge: '/icons/icon-192x192.png?v=6',
+      icon: '/icons/icon-192x192.png?v=7',
+      badge: '/icons/icon-192x192.png?v=7',
       tag: payload.tag || 'agrovision',
       data: {
         url: payload.url || '/',

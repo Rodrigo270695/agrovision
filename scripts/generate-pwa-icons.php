@@ -24,26 +24,96 @@ $srcH = imagesy($source);
 $sizes = [48, 72, 96, 128, 144, 152, 180, 192, 256, 384, 512];
 
 /**
- * Escala icon.png a un canvas cuadrado.
- * Fondo negro (coincide con el logo). maskable deja zona segura.
+ * Convierte el fondo negro del logo a transparente.
  */
-function makeIcon(GdImage $source, int $srcW, int $srcH, int $size, bool $maskable = false): GdImage
+function withoutBlackBackground(GdImage $source, int $srcW, int $srcH): GdImage
+{
+    $out = imagecreatetruecolor($srcW, $srcH);
+    imagealphablending($out, false);
+    imagesavealpha($out, true);
+
+    $transparent = imagecolorallocatealpha($out, 0, 0, 0, 127);
+    imagefilledrectangle($out, 0, 0, $srcW, $srcH, $transparent);
+
+    for ($y = 0; $y < $srcH; $y++) {
+        for ($x = 0; $x < $srcW; $x++) {
+            $rgba = imagecolorat($source, $x, $y);
+            $r = ($rgba >> 16) & 0xFF;
+            $g = ($rgba >> 8) & 0xFF;
+            $b = $rgba & 0xFF;
+            $a = ($rgba & 0x7F000000) >> 24;
+
+            // Negros / casi negros → transparente
+            if ($r < 28 && $g < 28 && $b < 28) {
+                imagesetpixel($out, $x, $y, $transparent);
+
+                continue;
+            }
+
+            $color = imagecolorallocatealpha($out, $r, $g, $b, $a);
+            imagesetpixel($out, $x, $y, $color);
+        }
+    }
+
+    return $out;
+}
+
+/**
+ * Aplica máscara circular: fuera del círculo queda transparente.
+ */
+function applyCircleMask(GdImage $canvas, int $size): void
+{
+    $cx = ($size - 1) / 2;
+    $cy = ($size - 1) / 2;
+    $radius = $size / 2;
+    $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
+
+    imagealphablending($canvas, false);
+
+    for ($y = 0; $y < $size; $y++) {
+        for ($x = 0; $x < $size; $x++) {
+            $dx = $x - $cx;
+            $dy = $y - $cy;
+            if (($dx * $dx) + ($dy * $dy) > ($radius * $radius)) {
+                imagesetpixel($canvas, $x, $y, $transparent);
+            }
+        }
+    }
+
+    imagealphablending($canvas, true);
+    imagesavealpha($canvas, true);
+}
+
+/**
+ * Icono circular: disco blanco + logo (sin fondo negro).
+ * maskable: lienzo blanco cuadrado con zona segura (Android recorta).
+ */
+function makeIcon(GdImage $logo, int $srcW, int $srcH, int $size, bool $maskable = false): GdImage
 {
     $canvas = imagecreatetruecolor($size, $size);
     imagealphablending($canvas, false);
     imagesavealpha($canvas, true);
 
-    $black = imagecolorallocate($canvas, 0, 0, 0);
-    imagefilledrectangle($canvas, 0, 0, $size, $size, $black);
-    imagealphablending($canvas, true);
+    $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
+    imagefilledrectangle($canvas, 0, 0, $size, $size, $transparent);
 
-    $paddingRatio = $maskable ? 0.18 : 0.04;
+    imagealphablending($canvas, true);
+    $white = imagecolorallocate($canvas, 255, 255, 255);
+
+    if ($maskable) {
+        imagefilledrectangle($canvas, 0, 0, $size, $size, $white);
+        $paddingRatio = 0.18;
+    } else {
+        imagefilledellipse($canvas, (int) ($size / 2), (int) ($size / 2), $size, $size, $white);
+        $paddingRatio = 0.10;
+    }
+
     $inner = (int) round($size * (1 - ($paddingRatio * 2)));
     $offset = (int) round(($size - $inner) / 2);
 
     imagecopyresampled(
         $canvas,
-        $source,
+        $logo,
         $offset,
         $offset,
         0,
@@ -53,6 +123,10 @@ function makeIcon(GdImage $source, int $srcW, int $srcH, int $size, bool $maskab
         $srcW,
         $srcH,
     );
+
+    if (! $maskable) {
+        applyCircleMask($canvas, $size);
+    }
 
     return $canvas;
 }
@@ -64,33 +138,32 @@ function savePng(GdImage $image, string $path): void
     echo "Created {$path}\n";
 }
 
+$logo = withoutBlackBackground($source, $srcW, $srcH);
+imagedestroy($source);
+
 foreach ($sizes as $size) {
     savePng(
-        makeIcon($source, $srcW, $srcH, $size, false),
+        makeIcon($logo, $srcW, $srcH, $size, false),
         "{$outDir}/icon-{$size}x{$size}.png",
     );
 }
 
 foreach ([192, 512] as $size) {
     savePng(
-        makeIcon($source, $srcW, $srcH, $size, true),
+        makeIcon($logo, $srcW, $srcH, $size, true),
         "{$outDir}/maskable-{$size}x{$size}.png",
     );
 }
 
-savePng(makeIcon($source, $srcW, $srcH, 180, false), "{$publicDir}/apple-touch-icon.png");
-savePng(makeIcon($source, $srcW, $srcH, 32, false), "{$publicDir}/favicon-32x32.png");
-savePng(makeIcon($source, $srcW, $srcH, 16, false), "{$publicDir}/favicon-16x16.png");
+savePng(makeIcon($logo, $srcW, $srcH, 180, false), "{$publicDir}/apple-touch-icon.png");
+savePng(makeIcon($logo, $srcW, $srcH, 32, false), "{$publicDir}/favicon-32x32.png");
+savePng(makeIcon($logo, $srcW, $srcH, 16, false), "{$publicDir}/favicon-16x16.png");
+savePng(makeIcon($logo, $srcW, $srcH, 512, false), "{$publicDir}/icon-round.png");
 
-// favicon.ico (BMP 32-bit sin compresión embebido; cabecera ICO estándar)
-$ico16 = makeIcon($source, $srcW, $srcH, 16, false);
-$ico32 = makeIcon($source, $srcW, $srcH, 32, false);
-file_put_contents("{$publicDir}/favicon.ico", buildIco([$ico16, $ico32]));
-imagedestroy($ico16);
-imagedestroy($ico32);
+// favicon.ico = PNG 32 circular (Chrome lo acepta)
+copy("{$publicDir}/favicon-32x32.png", "{$publicDir}/favicon.ico");
 echo "Created {$publicDir}/favicon.ico\n";
 
-// Eliminar SVG del Laravel si existía
 foreach (["{$publicDir}/favicon.svg", "{$outDir}/icon.svg"] as $legacySvg) {
     if (is_file($legacySvg)) {
         unlink($legacySvg);
@@ -98,83 +171,5 @@ foreach (["{$publicDir}/favicon.svg", "{$outDir}/icon.svg"] as $legacySvg) {
     }
 }
 
-imagedestroy($source);
+imagedestroy($logo);
 echo "Done.\n";
-
-/**
- * @param  list<GdImage>  $images
- */
-function buildIco(array $images): string
-{
-    $count = count($images);
-    $offset = 6 + ($count * 16);
-    $entries = '';
-    $blobs = '';
-
-    foreach ($images as $image) {
-        $w = imagesx($image);
-        $h = imagesy($image);
-        $bmp = gdToBmp32($image);
-        $size = strlen($bmp);
-
-        $entries .= pack(
-            'CCCCvvVV',
-            $w >= 256 ? 0 : $w,
-            $h >= 256 ? 0 : $h,
-            0,
-            0,
-            1,
-            32,
-            $size,
-            $offset,
-        );
-
-        $blobs .= $bmp;
-        $offset += $size;
-    }
-
-    return pack('vvv', 0, 1, $count).$entries.$blobs;
-}
-
-function gdToBmp32(GdImage $image): string
-{
-    $w = imagesx($image);
-    $h = imagesy($image);
-    $rowSize = $w * 4;
-    $pixelData = '';
-
-    for ($y = $h - 1; $y >= 0; $y--) {
-        for ($x = 0; $x < $w; $x++) {
-            $rgba = imagecolorat($image, $x, $y);
-            $a = ($rgba & 0x7F000000) >> 24;
-            $r = ($rgba >> 16) & 0xFF;
-            $g = ($rgba >> 8) & 0xFF;
-            $b = $rgba & 0xFF;
-            // GD alpha 0=opaco … 127=transparente → BMP 0=transparente … 255=opaco
-            $alpha = (int) round((127 - $a) / 127 * 255);
-            $pixelData .= chr($b).chr($g).chr($r).chr($alpha);
-        }
-    }
-
-    $headerSize = 40;
-    $dib = pack(
-        'VVVvvVVVVVV',
-        $headerSize,
-        $w,
-        $h * 2, // altura * 2 en ICO (XOR + AND)
-        1,
-        32,
-        0,
-        strlen($pixelData),
-        0,
-        0,
-        0,
-        0,
-    );
-
-    // Máscara AND vacía (bits alineados a 32)
-    $andRow = (int) (ceil($w / 32) * 4);
-    $andMask = str_repeat("\0", $andRow * $h);
-
-    return $dib.$pixelData.$andMask;
-}
