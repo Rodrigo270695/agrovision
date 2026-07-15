@@ -28,5 +28,6 @@ test('authenticated users can visit the dashboard', function () {
         ->has('kpis')
         ->has('semaforos')
         ->has('charts')
+        ->has('comparisons')
         ->has('alerts'));
 });

@@ -1,14 +1,10 @@
 import { cn } from '@/lib/utils';
+import type { SemaforoItem } from '@/components/dashboard/types';
 
-export type SemaforoItem = {
-    key: string;
-    label: string;
-    status: 'green' | 'amber' | 'red' | 'neutral' | string;
-    value: string;
-    detail: string;
-};
-
-const statusStyles: Record<string, { lamp: string; card: string; label: string }> = {
+const statusStyles: Record<
+    string,
+    { lamp: string; card: string; label: string }
+> = {
     green: {
         lamp: 'bg-[#6fa88a] shadow-[0_0_0_4px_rgba(111,168,138,0.2)]',
         card: 'border-[#c8e2d2] bg-[#f4faf6]',
@@ -39,12 +35,7 @@ export function SemaforoCard({ item }: Props) {
     const style = statusStyles[item.status] ?? statusStyles.neutral;
 
     return (
-        <div
-            className={cn(
-                'rounded-2xl border p-4 shadow-sm',
-                style.card,
-            )}
-        >
+        <div className={cn('rounded-2xl border p-4 shadow-sm', style.card)}>
             <div className="mb-3 flex items-center gap-3">
                 <span
                     className={cn('size-3.5 rounded-full', style.lamp)}

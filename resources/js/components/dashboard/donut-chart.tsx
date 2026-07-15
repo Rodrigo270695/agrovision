@@ -1,5 +1,5 @@
+import type { ChartPoint } from '@/components/dashboard/types';
 import { cn } from '@/lib/utils';
-import type { ChartPoint } from '@/components/dashboard/bar-chart';
 
 type Props = {
     title: string;

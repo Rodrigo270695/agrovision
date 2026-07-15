@@ -2,24 +2,19 @@ import { Link } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
 import {
     AlertTriangle,
+    ArrowDownRight,
+    ArrowUpRight,
     Bus,
     Building2,
     ClipboardCheck,
     FileStack,
     GraduationCap,
+    Minus,
     Percent,
     TriangleAlert,
 } from 'lucide-react';
+import type { DashboardKpi } from '@/components/dashboard/types';
 import { cn } from '@/lib/utils';
-
-export type DashboardKpi = {
-    key: string;
-    label: string;
-    value: string | number;
-    hint: string;
-    tone: string;
-    href?: string;
-};
 
 const toneStyles: Record<string, string> = {
     blue: 'from-[#e8f1fa] to-white text-[#1a2b4c] border-[#cfe0f0]',
@@ -49,6 +44,14 @@ type Props = {
 
 export function DashboardKpiCard({ kpi }: Props) {
     const Icon = icons[kpi.key] ?? Bus;
+    const delta = kpi.delta;
+    const DeltaIcon =
+        delta === null || delta === undefined || delta === 0
+            ? Minus
+            : delta > 0
+              ? ArrowUpRight
+              : ArrowDownRight;
+
     const content = (
         <div
             className={cn(
@@ -60,9 +63,17 @@ export function DashboardKpiCard({ kpi }: Props) {
                 <div className="rounded-xl bg-white/70 p-2 shadow-sm ring-1 ring-black/5">
                     <Icon className="size-4" />
                 </div>
-                {kpi.href ? (
-                    <span className="text-[10px] font-medium tracking-wide text-current/50 uppercase opacity-0 transition group-hover:opacity-100">
-                        Ver →
+                {typeof delta === 'number' ? (
+                    <span
+                        className={cn(
+                            'inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                            delta > 0 && 'bg-emerald-50 text-emerald-700',
+                            delta < 0 && 'bg-rose-50 text-rose-700',
+                            delta === 0 && 'bg-slate-100 text-slate-600',
+                        )}
+                    >
+                        <DeltaIcon className="size-3" />
+                        {delta > 0 ? `+${delta}` : delta}
                     </span>
                 ) : null}
             </div>
@@ -70,7 +81,9 @@ export function DashboardKpiCard({ kpi }: Props) {
                 {kpi.value}
             </p>
             <p className="mt-1 text-sm font-medium">{kpi.label}</p>
-            <p className="mt-0.5 text-xs text-current/60">{kpi.hint}</p>
+            <p className="mt-0.5 text-xs text-current/60">
+                {kpi.deltaLabel ?? kpi.hint}
+            </p>
         </div>
     );
 
@@ -82,5 +95,27 @@ export function DashboardKpiCard({ kpi }: Props) {
         <Link href={kpi.href} className="block cursor-pointer">
             {content}
         </Link>
+    );
+}
+
+type GridProps = {
+    items: DashboardKpi[];
+};
+
+export function DashboardKpiGrid({ items }: GridProps) {
+    if (items.length === 0) {
+        return (
+            <div className="rounded-2xl border border-dashed border-[#cfe0f0] bg-white/70 px-4 py-8 text-center text-sm text-[#6b8ead]">
+                Sin KPI para mostrar. Verifica permisos y datos operativos.
+            </div>
+        );
+    }
+
+    return (
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {items.map((kpi) => (
+                <DashboardKpiCard key={kpi.key} kpi={kpi} />
+            ))}
+        </section>
     );
 }

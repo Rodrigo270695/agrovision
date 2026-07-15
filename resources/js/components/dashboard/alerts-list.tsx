@@ -1,17 +1,7 @@
 import { Link } from '@inertiajs/react';
 import { AlertTriangle, Clock3 } from 'lucide-react';
+import type { DashboardAlert } from '@/components/dashboard/types';
 import { cn } from '@/lib/utils';
-
-export type DashboardAlert = {
-    unit_id: number;
-    correlative: string;
-    plate: string | null;
-    type: string;
-    type_label: string;
-    expires_at: string;
-    days_left: number;
-    level: string;
-};
 
 const levelStyles: Record<string, string> = {
     warning: 'border-[#e6dcc0] bg-[#fbf7ee] text-[#8a6d3b]',

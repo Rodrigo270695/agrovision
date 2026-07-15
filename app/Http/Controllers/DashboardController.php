@@ -31,6 +31,12 @@ class DashboardController extends Controller
             ->orderByDesc('date')
             ->first(['id', 'name', 'date', 'status']);
 
+        if (! $activePeriod) {
+            $activePeriod = Period::query()
+                ->orderByDesc('date')
+                ->first(['id', 'name', 'date', 'status']);
+        }
+
         $unitsTotal = (clone $unitsQuery)->count();
         $providers = (clone $unitsQuery)->distinct()->count('provider');
         $withoutPlate = (clone $unitsQuery)
@@ -41,8 +47,8 @@ class DashboardController extends Controller
 
         $documentCompliance = $this->documentCompliance($unitIds);
         $expiry = $this->documentExpiryBuckets($unitIds, $today);
+        $monthCompare = $this->monthComparisons($unitsQuery, $checklistsQuery = $this->scopedChecklistsQuery(), $today);
 
-        $checklistsQuery = $this->scopedChecklistsQuery();
         $inspections = [
             'total' => (clone $checklistsQuery)->count(),
             'draft' => (clone $checklistsQuery)->where('status', 'draft')->count(),
@@ -60,8 +66,12 @@ class DashboardController extends Controller
         ];
 
         $firstDecided = $inspections['first_approved'] + $inspections['first_rejected'];
+        $secondDecided = $inspections['second_approved'] + $inspections['second_rejected'];
         $inspectionPassRate = $firstDecided > 0
             ? (int) round(($inspections['first_approved'] / $firstDecided) * 100)
+            : null;
+        $secondPassRate = $secondDecided > 0
+            ? (int) round(($inspections['second_approved'] / $secondDecided) * 100)
             : null;
 
         $inductionsQuery = $this->scopedInductionsQuery();
@@ -188,14 +198,18 @@ class DashboardController extends Controller
                     'hint' => 'Flota en alcance',
                     'tone' => 'blue',
                     'href' => '/unidades',
+                    'delta' => $monthCompare['units_delta'],
+                    'deltaLabel' => 'vs mes anterior',
                 ],
                 [
                     'key' => 'docs',
                     'label' => 'Docs al día',
                     'value' => $documentCompliance['percent'].'%',
-                    'hint' => '6 obligatorios / unidad',
+                    'hint' => 'Promedio avance 6 docs',
                     'tone' => 'teal',
                     'href' => '/unidades',
+                    'delta' => null,
+                    'deltaLabel' => $documentCompliance['complete'].' unidades al 100%',
                 ],
                 [
                     'key' => 'inspections',
@@ -204,6 +218,8 @@ class DashboardController extends Controller
                     'hint' => "{$inspections['completed']} completadas",
                     'tone' => 'indigo',
                     'href' => '/inspecciones',
+                    'delta' => $monthCompare['inspections_delta'],
+                    'deltaLabel' => 'vs mes anterior',
                 ],
                 [
                     'key' => 'pass_rate',
@@ -212,6 +228,10 @@ class DashboardController extends Controller
                     'hint' => 'KPI SST inspección',
                     'tone' => 'green',
                     'href' => '/inspecciones',
+                    'delta' => $inspectionPassRate !== null && $secondPassRate !== null
+                        ? $inspectionPassRate - $secondPassRate
+                        : null,
+                    'deltaLabel' => 'vs 2da inspección',
                 ],
                 [
                     'key' => 'expiring',
@@ -220,6 +240,8 @@ class DashboardController extends Controller
                     'hint' => '≤7 días o vencidos',
                     'tone' => 'rose',
                     'href' => '/unidades',
+                    'delta' => null,
+                    'deltaLabel' => $expiry['warning'].' en alerta ≤20d',
                 ],
                 [
                     'key' => 'inductions',
@@ -228,6 +250,8 @@ class DashboardController extends Controller
                     'hint' => "{$inductions['in_progress']} en curso",
                     'tone' => 'amber',
                     'href' => '/inducciones',
+                    'delta' => null,
+                    'deltaLabel' => $inductions['attendees']['attended'].' asistentes',
                 ],
                 [
                     'key' => 'providers',
@@ -271,6 +295,34 @@ class DashboardController extends Controller
                     ['label' => 'En curso', 'value' => $inductions['in_progress'], 'color' => '#d4a84b'],
                     ['label' => 'Cerradas', 'value' => $inductions['closed'], 'color' => '#3d8b6e'],
                 ],
+                'docs_progress' => [
+                    ['label' => '0–49%', 'value' => $documentCompliance['buckets']['low'], 'color' => '#c07070'],
+                    ['label' => '50–99%', 'value' => $documentCompliance['buckets']['mid'], 'color' => '#d4a84b'],
+                    ['label' => '100%', 'value' => $documentCompliance['buckets']['full'], 'color' => '#3d8b6e'],
+                ],
+                'inspection_compare' => [
+                    [
+                        'label' => 'Aprobadas',
+                        'value' => $inspections['first_approved'],
+                        'secondary' => $inspections['second_approved'],
+                        'color' => '#3d8b6e',
+                    ],
+                    [
+                        'label' => 'Desaprobadas',
+                        'value' => $inspections['first_rejected'],
+                        'secondary' => $inspections['second_rejected'],
+                        'color' => '#c07070',
+                    ],
+                ],
+            ],
+            'comparisons' => [
+                'this_month_units' => $monthCompare['this_month_units'],
+                'prev_month_units' => $monthCompare['prev_month_units'],
+                'this_month_inspections' => $monthCompare['this_month_inspections'],
+                'prev_month_inspections' => $monthCompare['prev_month_inspections'],
+                'docs_avg_percent' => $documentCompliance['avg_percent'],
+                'first_pass_rate' => $inspectionPassRate,
+                'second_pass_rate' => $secondPassRate,
             ],
             'inductionsSummary' => [
                 'attended' => $inductions['attendees']['attended'],
@@ -326,7 +378,13 @@ class DashboardController extends Controller
 
     /**
      * @param  \Illuminate\Support\Collection<int, int>|iterable<int, int>  $unitIds
-     * @return array{units: int, complete: int, percent: int}
+     * @return array{
+     *     units: int,
+     *     complete: int,
+     *     percent: int,
+     *     avg_percent: int,
+     *     buckets: array{low: int, mid: int, full: int}
+     * }
      */
     private function documentCompliance(iterable $unitIds): array
     {
@@ -334,7 +392,13 @@ class DashboardController extends Controller
         $unitsCount = $ids->count();
 
         if ($unitsCount === 0) {
-            return ['units' => 0, 'complete' => 0, 'percent' => 0];
+            return [
+                'units' => 0,
+                'complete' => 0,
+                'percent' => 0,
+                'avg_percent' => 0,
+                'buckets' => ['low' => 0, 'mid' => 0, 'full' => 0],
+            ];
         }
 
         $documents = UnitDocument::query()
@@ -343,18 +407,88 @@ class DashboardController extends Controller
 
         $byUnit = $documents->groupBy('unit_id');
         $complete = 0;
+        $sumPercent = 0;
+        $buckets = ['low' => 0, 'mid' => 0, 'full' => 0];
 
         foreach ($ids as $unitId) {
             $progress = UnitDocumentTypes::progress($byUnit->get($unitId, collect()));
-            if ($progress['percent'] >= 100) {
+            $percent = $progress['percent'];
+            $sumPercent += $percent;
+
+            if ($percent >= 100) {
                 $complete++;
+                $buckets['full']++;
+            } elseif ($percent >= 50) {
+                $buckets['mid']++;
+            } else {
+                $buckets['low']++;
             }
         }
+
+        $avg = (int) round($sumPercent / $unitsCount);
 
         return [
             'units' => $unitsCount,
             'complete' => $complete,
-            'percent' => (int) round(($complete / $unitsCount) * 100),
+            'percent' => $avg,
+            'avg_percent' => $avg,
+            'buckets' => $buckets,
+        ];
+    }
+
+    /**
+     * @param  Builder<Unit>  $unitsQuery
+     * @param  Builder<UnitChecklist>  $checklistsQuery
+     * @return array{
+     *     this_month_units: int,
+     *     prev_month_units: int,
+     *     units_delta: int,
+     *     this_month_inspections: int,
+     *     prev_month_inspections: int,
+     *     inspections_delta: int
+     * }
+     */
+    private function monthComparisons(Builder $unitsQuery, Builder $checklistsQuery, Carbon $today): array
+    {
+        $thisStart = $today->copy()->startOfMonth();
+        $prevStart = $today->copy()->subMonthNoOverflow()->startOfMonth();
+        $prevEnd = $today->copy()->subMonthNoOverflow()->endOfMonth();
+
+        $thisMonthUnits = (clone $unitsQuery)
+            ->where(function (Builder $query) use ($thisStart): void {
+                $query->whereDate('service_date', '>=', $thisStart)
+                    ->orWhere(function (Builder $inner) use ($thisStart): void {
+                        $inner->whereNull('service_date')
+                            ->where('created_at', '>=', $thisStart);
+                    });
+            })
+            ->count();
+
+        $prevMonthUnits = (clone $unitsQuery)
+            ->where(function (Builder $query) use ($prevStart, $prevEnd): void {
+                $query->whereBetween('service_date', [$prevStart->toDateString(), $prevEnd->toDateString()])
+                    ->orWhere(function (Builder $inner) use ($prevStart, $prevEnd): void {
+                        $inner->whereNull('service_date')
+                            ->whereBetween('created_at', [$prevStart, $prevEnd]);
+                    });
+            })
+            ->count();
+
+        $thisMonthInspections = (clone $checklistsQuery)
+            ->where('created_at', '>=', $thisStart)
+            ->count();
+
+        $prevMonthInspections = (clone $checklistsQuery)
+            ->whereBetween('created_at', [$prevStart, $prevEnd])
+            ->count();
+
+        return [
+            'this_month_units' => $thisMonthUnits,
+            'prev_month_units' => $prevMonthUnits,
+            'units_delta' => $thisMonthUnits - $prevMonthUnits,
+            'this_month_inspections' => $thisMonthInspections,
+            'prev_month_inspections' => $prevMonthInspections,
+            'inspections_delta' => $thisMonthInspections - $prevMonthInspections,
         ];
     }
 
