@@ -594,17 +594,17 @@ class ChecklistController extends Controller
         ]);
     }
 
-    public function pdf(UnitChecklist $checklist): Response|RedirectResponse
+    public function pdf(Request $request, UnitChecklist $checklist): Response|RedirectResponse
     {
         $checklist->loadMissing('unit');
         $this->ensureCanAccessChecklist($checklist);
 
-        if (! $checklist->isSealed()) {
+        if ($checklist->first_result !== 'approved' && ! $checklist->isSealed()) {
             return redirect()
                 ->route('checklists.index')
                 ->with('toast', [
                     'type' => 'error',
-                    'message' => 'Solo se puede descargar el PDF de inspecciones selladas.',
+                    'message' => 'El PDF consolidado está disponible cuando la 1ra inspección está aprobada.',
                 ]);
         }
 
@@ -707,7 +707,12 @@ class ChecklistController extends Controller
             'logoSrc' => $logoSrc,
         ])->setPaper('a4', 'portrait');
 
-        return $pdf->download($filename);
+        if ($request->boolean('download')) {
+            return $pdf->download($filename);
+        }
+
+        // Vista previa en modal / otra pestaña (inline).
+        return $pdf->stream($filename);
     }
 
     public function destroy(Request $request, UnitChecklist $checklist): RedirectResponse

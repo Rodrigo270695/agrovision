@@ -478,7 +478,45 @@ export function ChecklistEditForm({ checklist }: Props) {
                                 rel="noopener noreferrer"
                             >
                                 <FileDown className="size-4" />
-                                Descargar PDF
+                                Ver PDF
+                            </a>
+                        </Button>
+                    </div>
+                ) : secondUnlocked ? (
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                            {signaturesUnlocked
+                                ? '1ra y 2da aprobadas. Puedes agregar firmas opcionales y sellar la inspección.'
+                                : (
+                                      <>
+                                          1ra inspección aprobada. Completa la{' '}
+                                          <strong>2da inspección</strong>.
+                                          <span className="mt-1 block font-medium">
+                                              Progreso 2da:{' '}
+                                              {secondStats.marked}/
+                                              {secondStats.total} ·{' '}
+                                              {secondStats.yes} SÍ ·{' '}
+                                              {secondStats.no} NO
+                                              {secondStats.missingExpiry
+                                                  ? ' · Faltan vencimientos'
+                                                  : ''}
+                                          </span>
+                                      </>
+                                  )}
+                        </div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            asChild
+                            className="h-10 shrink-0 cursor-pointer border-emerald-200 text-emerald-800"
+                        >
+                            <a
+                                href={`/inspecciones/${checklist.id}/pdf`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <FileDown className="size-4" />
+                                Ver consolidado PDF
                             </a>
                         </Button>
                     </div>
@@ -495,25 +533,7 @@ export function ChecklistEditForm({ checklist }: Props) {
                                 : ''}
                         </span>
                     </div>
-                ) : !signaturesUnlocked ? (
-                    <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                        1ra inspección aprobada. Completa la{' '}
-                        <strong>2da inspección</strong>.
-                        <span className="mt-1 block font-medium">
-                            Progreso 2da: {secondStats.marked}/{secondStats.total}{' '}
-                            · {secondStats.yes} SÍ · {secondStats.no} NO
-                            {secondStats.missingExpiry
-                                ? ' · Faltan vencimientos'
-                                : ''}
-                        </span>
-                    </div>
-                ) : (
-                    <div className="mt-3 rounded-xl border border-[#d7e3f0] bg-[#e8f1fa] px-3 py-2 text-xs text-[#1a2b4c]">
-                        1ra y 2da aprobadas. Puedes agregar{' '}
-                        <strong>firmas opcionales</strong> y sellar la
-                        inspección.
-                    </div>
-                )}
+                ) : null}
             </div>
 
             <div className="rounded-2xl border border-[#d7e3f0] bg-white p-3 shadow-sm sm:p-5">

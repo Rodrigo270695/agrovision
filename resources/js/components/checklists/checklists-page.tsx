@@ -6,6 +6,7 @@ import type {
     ChecklistTemplateOption,
 } from '@/components/checklists/checklist-create-modal';
 import { ChecklistDeleteModal } from '@/components/checklists/checklist-delete-modal';
+import { ChecklistPdfPreviewModal } from '@/components/checklists/checklist-pdf-preview-modal';
 import { ChecklistsHeader } from '@/components/checklists/checklists-header';
 import type { ChecklistsStatsData } from '@/components/checklists/checklists-stats';
 import {
@@ -32,6 +33,10 @@ export function ChecklistsPage() {
     const [createOpen, setCreateOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleting, setDeleting] = useState<ChecklistItemRow | null>(null);
+    const [pdfOpen, setPdfOpen] = useState(false);
+    const [pdfChecklist, setPdfChecklist] = useState<ChecklistItemRow | null>(
+        null,
+    );
 
     return (
         <div className="flex h-full flex-1 flex-col gap-4 p-4">
@@ -48,9 +53,17 @@ export function ChecklistsPage() {
                 checklists={checklists}
                 filters={filters}
                 onEdit={(item) => {
-                    if (can('checklists.update')) {
+                    if (can('checklists.update') || item.sealed_at) {
                         router.visit(`/inspecciones/${item.id}/editar`);
                     }
+                }}
+                onPreviewPdf={(item) => {
+                    if (!can('checklists.view')) {
+                        return;
+                    }
+
+                    setPdfChecklist(item);
+                    setPdfOpen(true);
                 }}
                 onDelete={(item) => {
                     if (!can('checklists.delete')) {
@@ -78,6 +91,17 @@ export function ChecklistsPage() {
                     onClose={() => {
                         setDeleteOpen(false);
                         setDeleting(null);
+                    }}
+                />
+            ) : null}
+
+            {can('checklists.view') ? (
+                <ChecklistPdfPreviewModal
+                    open={pdfOpen}
+                    checklist={pdfChecklist}
+                    onClose={() => {
+                        setPdfOpen(false);
+                        setPdfChecklist(null);
                     }}
                 />
             ) : null}

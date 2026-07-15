@@ -64,6 +64,7 @@ type Props = {
     filters: ChecklistsFilters;
     onEdit: (item: ChecklistItemRow) => void;
     onDelete: (item: ChecklistItemRow) => void;
+    onPreviewPdf: (item: ChecklistItemRow) => void;
 };
 
 type SortKey = ChecklistsFilters['sort'];
@@ -140,6 +141,7 @@ export function ChecklistsTable({
     filters,
     onEdit,
     onDelete,
+    onPreviewPdf,
 }: Props) {
     const { can } = useCan();
 
@@ -377,22 +379,19 @@ export function ChecklistsTable({
                                     </td>
                                     <td className="px-3 py-1.5">
                                         <div className="flex items-center justify-end gap-0.5">
-                                            {sealed && can('checklists.view') ? (
+                                            {item.first_result === 'approved' &&
+                                            can('checklists.view') ? (
                                                 <Button
                                                     type="button"
                                                     variant="ghost"
                                                     size="icon"
-                                                    asChild
+                                                    onClick={() =>
+                                                        onPreviewPdf(item)
+                                                    }
                                                     className="size-7 cursor-pointer text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                                                    aria-label={`Ver PDF ${item.plate_number}`}
                                                 >
-                                                    <a
-                                                        href={`/inspecciones/${item.id}/pdf`}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        aria-label={`Descargar PDF ${item.plate_number}`}
-                                                    >
-                                                        <FileDown className="size-3.5" />
-                                                    </a>
+                                                    <FileDown className="size-3.5" />
                                                 </Button>
                                             ) : null}
                                             {can('checklists.update') || sealed ? (
@@ -487,22 +486,17 @@ export function ChecklistsTable({
                                 />
                             </div>
                             <div className="mb-1 flex flex-wrap gap-1">
-                                {sealed && can('checklists.view') ? (
+                                {item.first_result === 'approved' &&
+                                can('checklists.view') ? (
                                     <Button
                                         type="button"
                                         variant="outline"
                                         size="sm"
-                                        asChild
+                                        onClick={() => onPreviewPdf(item)}
                                         className="cursor-pointer border-emerald-200 text-emerald-700"
                                     >
-                                        <a
-                                            href={`/inspecciones/${item.id}/pdf`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                        >
-                                            <FileDown className="size-3.5" />
-                                            PDF
-                                        </a>
+                                        <FileDown className="size-3.5" />
+                                        PDF
                                     </Button>
                                 ) : null}
                                 {can('checklists.update') || sealed ? (
