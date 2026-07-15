@@ -12,11 +12,9 @@ export default function AppSidebarLayout({
         <AppShell variant="sidebar">
             <AppSidebar />
             <AppContent variant="sidebar">
-                <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]">
-                    <AppSidebarHeader breadcrumbs={breadcrumbs} />
-                    <div className="min-h-0 overflow-y-auto overscroll-y-contain">
-                        {children}
-                    </div>
+                <AppSidebarHeader breadcrumbs={breadcrumbs} />
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]">
+                    {children}
                 </div>
             </AppContent>
         </AppShell>

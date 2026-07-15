@@ -17,8 +17,9 @@ export function AppContent({
         return (
             <SidebarInset
                 className={cn(
-                    'min-h-0 flex-1 overflow-hidden',
-                    // Inset aplica m-2 (0.5rem * 2); la altura debe descontar ese margen
+                    // Cadena de scroll: altura acotada + flex col + min-h-0
+                    'flex min-h-0 flex-1 flex-col overflow-hidden',
+                    // Inset aplica my-2 (0.5rem * 2); descontar ese margen
                     'h-dvh max-h-dvh md:my-2 md:mr-2 md:h-[calc(100dvh-1rem)] md:max-h-[calc(100dvh-1rem)]',
                     className,
                 )}

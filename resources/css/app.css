@@ -141,18 +141,19 @@
         @apply border-border;
     }
 
-    html,
-    body {
-        height: 100%;
-        overflow: hidden;
-        @apply bg-background text-foreground;
-    }
-
     /* Root de Inertia: el scroll vive dentro del layout, no en el documento */
+    html,
+    body,
     body > div {
         height: 100%;
+        max-height: 100dvh;
         min-height: 0;
         overflow: hidden;
+    }
+
+    html,
+    body {
+        @apply bg-background text-foreground;
     }
 }
 

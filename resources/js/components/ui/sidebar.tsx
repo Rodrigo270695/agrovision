@@ -302,7 +302,8 @@ function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
     <main
       data-slot="sidebar-inset"
       className={cn(
-        "bg-background relative flex h-full max-w-full min-h-0 flex-1 flex-col overflow-hidden",
+        // Sin h-full: la altura la define AppContent (h-dvh / calc) para no romper scroll
+        "bg-background relative flex max-w-full min-h-0 flex-1 flex-col overflow-hidden",
         "md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm",
         className
       )}
