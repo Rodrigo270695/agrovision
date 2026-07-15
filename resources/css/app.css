@@ -141,8 +141,14 @@
         @apply border-border;
     }
 
+    html,
     body {
-        @apply bg-background text-foreground;
+        @apply bg-background text-foreground h-full overflow-hidden;
+    }
+
+    /* Root de Inertia: evita scroll del documento; el scroll vive en el layout */
+    body > div {
+        @apply h-full min-h-0 overflow-hidden;
     }
 }
 
