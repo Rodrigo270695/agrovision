@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AlcoholTest;
+use App\Models\AlcoholTestPackage;
 use App\Models\PushSubscription;
 use App\Models\UnitChecklist;
 use App\Models\User;
@@ -75,19 +76,15 @@ class PushNotificationService
         ]);
     }
 
-    public function notifyCoordinatorAlcoholPositive(
-        AlcoholTest $test,
+    /**
+     * Notifica a un coordinador el envío del paquete con TODOS sus tests
+     * (positivos y negativos), destacando cuántos no pasaron.
+     */
+    public function notifyCoordinatorAlcoholPackageSent(
+        AlcoholTestPackage $package,
+        int $coordinatorId,
         ?User $except = null,
     ): void {
-        $test->loadMissing(['unit', 'package']);
-
-        $coordinatorId = $test->coordinator_id ?? $test->unit?->coordinator_id;
-
-        // Solo al coordinador de esa unidad (nunca a todos).
-        if (! $coordinatorId || ! $test->package_id) {
-            return;
-        }
-
         $recipients = User::role(SystemRoles::COORDINADOR)
             ->where('id', $coordinatorId)
             ->get();
@@ -102,22 +99,48 @@ class PushNotificationService
             return;
         }
 
-        $level = number_format((float) $test->alcohol_level, 3, '.', '');
-        $packageTitle = $test->package?->title ?: 'Operativo alcohómetro';
-        $failedCount = AlcoholTest::query()
-            ->where('package_id', $test->package_id)
+        $tests = AlcoholTest::query()
+            ->where('package_id', $package->id)
             ->where('coordinator_id', $coordinatorId)
-            ->where('is_positive', true)
-            ->count();
-        $plate = $test->plate_number ?: 'S/P';
+            ->get();
+
+        $total = $tests->count();
+        $failed = $tests->where('is_positive', true)->count();
+        $title = $package->title ?: 'Operativo alcohómetro';
+
+        $body = $failed > 0
+            ? "«{$title}»: te enviaron {$total} test(s) de tus unidades. "
+                ."{$failed} conductor(es) NO pasaron (alcohol > 0). Abre el paquete para revisar y firmar."
+            : "«{$title}»: te enviaron {$total} test(s) de tus unidades. Todos negativos (tolerancia 0). Revisa el detalle.";
 
         $this->sendToUsers($recipients, [
-            'title' => 'Conductores que no pasaron alcohómetro',
-            'body' => "«{$packageTitle}»: {$test->driver_name} ({$plate}) dio {$level}% (tolerancia 0). "
-                ."En tus unidades: {$failedCount} conductor(es) no pasaron. Abre el paquete para revisar y firmar.",
-            'url' => "/alcoholimetro/{$test->package_id}?test={$test->id}",
-            'tag' => "alcohol-positive-{$test->id}",
+            'title' => $failed > 0
+                ? "Alcohómetro: {$failed} no pasaron"
+                : 'Alcohómetro: operativo enviado',
+            'body' => $body,
+            'url' => "/alcoholimetro/{$package->id}",
+            'tag' => "alcohol-package-{$package->id}-coord-{$coordinatorId}",
         ]);
+    }
+
+    /**
+     * @deprecated Preferir notifyCoordinatorAlcoholPackageSent (envío del paquete completo).
+     */
+    public function notifyCoordinatorAlcoholPositive(
+        AlcoholTest $test,
+        ?User $except = null,
+    ): void {
+        $test->loadMissing('package');
+
+        if (! $test->package || ! $test->coordinator_id) {
+            return;
+        }
+
+        $this->notifyCoordinatorAlcoholPackageSent(
+            $test->package,
+            (int) $test->coordinator_id,
+            $except,
+        );
     }
 
     /**

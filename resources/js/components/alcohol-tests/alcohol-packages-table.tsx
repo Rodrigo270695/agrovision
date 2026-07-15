@@ -10,6 +10,8 @@ export type AlcoholPackageItem = {
     title: string;
     session_date?: string | null;
     notes?: string | null;
+    status?: string;
+    sent_to_coordinators_at?: string | null;
     tests_count: number;
     positive_count: number;
     pending_count: number;
@@ -92,6 +94,7 @@ export function AlcoholPackagesTable({
                         <tr>
                             <th className="px-3 py-2 font-semibold">Título</th>
                             <th className="px-3 py-2 font-semibold">Fecha</th>
+                            <th className="px-3 py-2 font-semibold">Estado</th>
                             <th className="px-3 py-2 text-center font-semibold">
                                 {isCoordinatorView ? 'Tus tests' : 'Tests'}
                             </th>
@@ -110,7 +113,7 @@ export function AlcoholPackagesTable({
                         {packages.data.length === 0 ? (
                             <tr>
                                 <td
-                                    colSpan={6}
+                                    colSpan={7}
                                     className="px-3 py-10 text-center text-[#6b8ead]"
                                 >
                                     Aún no hay paquetes
@@ -140,6 +143,25 @@ export function AlcoholPackagesTable({
                                     </td>
                                     <td className="px-3 py-2 text-[#5a7390]">
                                         {formatDate(item.session_date)}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                        <span
+                                            className={cn(
+                                                'inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium',
+                                                item.status === 'closed'
+                                                    ? 'bg-slate-100 text-slate-700'
+                                                    : 'bg-emerald-50 text-emerald-800',
+                                            )}
+                                        >
+                                            {item.status === 'closed'
+                                                ? 'Cerrado'
+                                                : 'Abierto'}
+                                        </span>
+                                        {item.sent_to_coordinators_at ? (
+                                            <div className="mt-0.5 text-[10px] text-sky-800">
+                                                Enviado
+                                            </div>
+                                        ) : null}
                                     </td>
                                     <td className="px-3 py-2 text-center text-[#1a2b4c]">
                                         {item.tests_count}
@@ -190,7 +212,13 @@ export function AlcoholPackagesTable({
                                 {item.title}
                             </h3>
                             <p className="mt-0.5 text-xs text-[#5a7390]">
-                                {formatDate(item.session_date)}
+                                {formatDate(item.session_date)} ·{' '}
+                                {item.status === 'closed'
+                                    ? 'Cerrado'
+                                    : 'Abierto'}
+                                {item.sent_to_coordinators_at
+                                    ? ' · Enviado'
+                                    : ''}
                             </p>
                             <dl className="mt-3 grid grid-cols-3 gap-2 text-center text-sm">
                                 <div>

@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Storage;
  * @property bool $is_positive
  * @property string|null $location
  * @property string|null $notes
+ * @property string|null $evidence_photo_path
  * @property string|null $coordinator_status
  * @property Carbon|null $coordinator_notified_at
  * @property string|null $coordinator_action_plan
@@ -52,6 +53,7 @@ class AlcoholTest extends Model
         'is_positive',
         'location',
         'notes',
+        'evidence_photo_path',
         'coordinator_status',
         'coordinator_notified_at',
         'coordinator_action_plan',
@@ -119,6 +121,15 @@ class AlcoholTest extends Model
         return '/storage/'.ltrim($this->coordinator_signature_path, '/');
     }
 
+    public function evidencePhotoUrl(): ?string
+    {
+        if (! $this->evidence_photo_path) {
+            return null;
+        }
+
+        return '/storage/'.ltrim($this->evidence_photo_path, '/');
+    }
+
     public static function isPositiveLevel(float|string $level): bool
     {
         return (float) $level > self::TOLERANCE;
@@ -138,6 +149,13 @@ class AlcoholTest extends Model
     {
         if ($this->coordinator_signature_path) {
             Storage::disk('public')->delete($this->coordinator_signature_path);
+        }
+    }
+
+    public function deleteEvidencePhoto(): void
+    {
+        if ($this->evidence_photo_path) {
+            Storage::disk('public')->delete($this->evidence_photo_path);
         }
     }
 }

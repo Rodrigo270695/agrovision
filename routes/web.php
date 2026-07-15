@@ -233,6 +233,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->whereNumber('alcoholimetro')
         ->name('alcohol-tests.tests.store');
 
+    Route::post('alcoholimetro/{alcoholimetro}/enviar-coordinadores', [AlcoholTestController::class, 'sendToCoordinators'])
+        ->middleware('permission:alcoholtests.create')
+        ->whereNumber('alcoholimetro')
+        ->name('alcohol-tests.packages.send');
+
+    Route::post('alcoholimetro/{alcoholimetro}/cerrar', [AlcoholTestController::class, 'closePackage'])
+        ->middleware('permission:alcoholtests.create')
+        ->whereNumber('alcoholimetro')
+        ->name('alcohol-tests.packages.close');
+
     Route::get('alcoholimetro/{alcoholimetro}/pdf', [AlcoholTestController::class, 'packagePdf'])
         ->middleware('permission:alcoholtests.view')
         ->whereNumber('alcoholimetro')

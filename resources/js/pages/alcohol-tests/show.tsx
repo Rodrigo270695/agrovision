@@ -1,5 +1,5 @@
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { ArrowLeft, FileDown, Plus } from 'lucide-react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { ArrowLeft, FileDown, Lock, Plus, Send } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { AlcoholTestFormModal } from '@/components/alcohol-tests/alcohol-test-form-modal';
 import type { UnitOption } from '@/components/alcohol-tests/alcohol-tests-table';
@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
-import { useCan } from '@/hooks/use-can';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 
@@ -18,6 +17,10 @@ type PackageInfo = {
     title: string;
     session_date?: string | null;
     notes?: string | null;
+    status?: string;
+    is_closed?: boolean;
+    sent_to_coordinators_at?: string | null;
+    closed_at?: string | null;
     creator?: { id: number; name: string } | null;
 };
 
@@ -31,6 +34,7 @@ type TestItem = {
     is_positive: boolean;
     location?: string | null;
     notes?: string | null;
+    evidence_photo_url?: string | null;
     coordinator_status?: string | null;
     coordinator_action_plan?: string | null;
     coordinator_signer_name?: string | null;
@@ -54,6 +58,9 @@ type PageProps = {
     unitOptions: UnitOption[];
     focusTestId?: number | null;
     isCoordinatorView?: boolean;
+    canAddTests?: boolean;
+    canSendToCoordinators?: boolean;
+    canClosePackage?: boolean;
     auth: {
         user: { id: number; name: string; email: string } | null;
     };
@@ -78,12 +85,24 @@ function formatDate(value?: string | null): string {
 }
 
 export default function AlcoholPackageShowPage() {
-    const { package: pkg, tests, stats, unitOptions, focusTestId, auth, isCoordinatorView } =
-        usePage().props as unknown as PageProps;
-    const { can } = useCan();
+    const {
+        package: pkg,
+        tests,
+        stats,
+        unitOptions,
+        focusTestId,
+        auth,
+        isCoordinatorView,
+        canAddTests,
+        canSendToCoordinators,
+        canClosePackage,
+    } = usePage().props as unknown as PageProps;
     const [testOpen, setTestOpen] = useState(false);
     const [responding, setResponding] = useState<TestItem | null>(null);
+    const [sending, setSending] = useState(false);
+    const [closing, setClosing] = useState(false);
     const coordinatorView = Boolean(isCoordinatorView);
+    const isClosed = Boolean(pkg.is_closed);
 
     const focusTest = useMemo(
         () =>
@@ -158,6 +177,27 @@ export default function AlcoholPackageShowPage() {
                                     ? ` · ${pkg.creator.name}`
                                     : ''}
                             </p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                                <span
+                                    className={cn(
+                                        'inline-flex rounded-full px-2.5 py-1 text-xs font-medium',
+                                        isClosed
+                                            ? 'bg-slate-100 text-slate-700'
+                                            : 'bg-emerald-50 text-emerald-800',
+                                    )}
+                                >
+                                    {isClosed ? 'Cerrado' : 'Abierto'}
+                                </span>
+                                {pkg.sent_to_coordinators_at ? (
+                                    <span className="inline-flex rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-900">
+                                        Enviado a coordinadores
+                                    </span>
+                                ) : !coordinatorView ? (
+                                    <span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-900">
+                                        Pendiente de envío
+                                    </span>
+                                ) : null}
+                            </div>
                             {pkg.notes ? (
                                 <p className="mt-2 text-xs text-[#6b8ead]">
                                     {pkg.notes}
@@ -215,7 +255,77 @@ export default function AlcoholPackageShowPage() {
                                     PDF del paquete
                                 </a>
                             </Button>
-                            {can('alcoholtests.create') && !coordinatorView ? (
+                            {canSendToCoordinators ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={sending || closing}
+                                    className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                                    onClick={() => {
+                                        if (
+                                            !confirm(
+                                                '¿Enviar el paquete a los coordinadores con TODOS los tests de sus unidades (positivos y negativos)?',
+                                            )
+                                        ) {
+                                            return;
+                                        }
+
+                                        setSending(true);
+                                        router.post(
+                                            `/alcoholimetro/${pkg.id}/enviar-coordinadores`,
+                                            {},
+                                            {
+                                                preserveScroll: true,
+                                                onFinish: () =>
+                                                    setSending(false),
+                                            },
+                                        );
+                                    }}
+                                >
+                                    {sending ? (
+                                        <Spinner />
+                                    ) : (
+                                        <Send className="size-4" />
+                                    )}
+                                    Enviar a coordinadores
+                                </Button>
+                            ) : null}
+                            {canClosePackage ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={sending || closing}
+                                    className="cursor-pointer border-slate-300 text-slate-700"
+                                    onClick={() => {
+                                        if (
+                                            !confirm(
+                                                '¿Cerrar el paquete? Ya no se podrá registrar tests ni firmar; solo PDFs.',
+                                            )
+                                        ) {
+                                            return;
+                                        }
+
+                                        setClosing(true);
+                                        router.post(
+                                            `/alcoholimetro/${pkg.id}/cerrar`,
+                                            {},
+                                            {
+                                                preserveScroll: true,
+                                                onFinish: () =>
+                                                    setClosing(false),
+                                            },
+                                        );
+                                    }}
+                                >
+                                    {closing ? (
+                                        <Spinner />
+                                    ) : (
+                                        <Lock className="size-4" />
+                                    )}
+                                    Cerrar paquete
+                                </Button>
+                            ) : null}
+                            {canAddTests ? (
                                 <Button
                                     type="button"
                                     onClick={() => setTestOpen(true)}
@@ -247,6 +357,9 @@ export default function AlcoholPackageShowPage() {
                                         Resultado
                                     </th>
                                     <th className="px-3 py-2 font-semibold">
+                                        Evidencia
+                                    </th>
+                                    <th className="px-3 py-2 font-semibold">
                                         Acta
                                     </th>
                                     <th className="w-36 px-3 py-2" />
@@ -256,7 +369,7 @@ export default function AlcoholPackageShowPage() {
                                 {tests.length === 0 ? (
                                     <tr>
                                         <td
-                                            colSpan={6}
+                                            colSpan={7}
                                             className="px-3 py-10 text-center text-[#6b8ead]"
                                         >
                                             Aún no hay tests
@@ -302,6 +415,30 @@ export default function AlcoholPackageShowPage() {
                                                         ? 'Positivo'
                                                         : 'Negativo'}
                                                 </span>
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                {item.evidence_photo_url ? (
+                                                    <a
+                                                        href={
+                                                            item.evidence_photo_url
+                                                        }
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-block"
+                                                    >
+                                                        <img
+                                                            src={
+                                                                item.evidence_photo_url
+                                                            }
+                                                            alt="Evidencia"
+                                                            className="h-10 w-10 rounded object-cover ring-1 ring-[#d7e3f0]"
+                                                        />
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-[#6b8ead]">
+                                                        —
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="px-3 py-2 text-[#5a7390]">
                                                 {!item.is_positive
@@ -504,7 +641,7 @@ export default function AlcoholPackageShowPage() {
                 ) : null}
             </div>
 
-            {can('alcoholtests.create') && !coordinatorView ? (
+            {canAddTests ? (
                 <AlcoholTestFormModal
                     open={testOpen}
                     packageId={pkg.id}

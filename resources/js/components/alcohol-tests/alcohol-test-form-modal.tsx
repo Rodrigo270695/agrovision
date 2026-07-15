@@ -1,7 +1,9 @@
 import { useForm } from '@inertiajs/react';
-import { useEffect, type FormEvent } from 'react';
+import { Camera, ImagePlus, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import type { UnitOption } from '@/components/alcohol-tests/alcohol-tests-table';
 import { AppModal } from '@/components/shared/app-modal';
+import { SearchableCombobox } from '@/components/shared/searchable-combobox';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +17,39 @@ type Props = {
     unitOptions: UnitOption[];
     onClose: () => void;
 };
+
+async function fileToCompressedDataUrl(file: File): Promise<string> {
+    const objectUrl = URL.createObjectURL(file);
+
+    try {
+        const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error('No se pudo leer la imagen.'));
+            img.src = objectUrl;
+        });
+
+        const maxSide = 1280;
+        const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+        const width = Math.max(1, Math.round(image.width * scale));
+        const height = Math.max(1, Math.round(image.height * scale));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+
+        if (!ctx) {
+            throw new Error('No se pudo preparar la imagen.');
+        }
+
+        ctx.drawImage(image, 0, 0, width, height);
+
+        return canvas.toDataURL('image/jpeg', 0.72);
+    } finally {
+        URL.revokeObjectURL(objectUrl);
+    }
+}
 
 export function AlcoholTestFormModal({
     open,
@@ -30,7 +65,12 @@ export function AlcoholTestFormModal({
         alcohol_level: '0',
         location: '',
         notes: '',
+        evidence_photo_data_url: '',
     });
+
+    const fileRef = useRef<HTMLInputElement>(null);
+    const [compressing, setCompressing] = useState(false);
+    const [photoError, setPhotoError] = useState<string | null>(null);
 
     useEffect(() => {
         if (!open) {
@@ -45,12 +85,38 @@ export function AlcoholTestFormModal({
             alcohol_level: '0',
             location: '',
             notes: '',
+            evidence_photo_data_url: '',
         });
         form.clearErrors();
+        setPhotoError(null);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, packageId]);
 
-    const applyUnit = (unitId: string) => {
+    const plateOptions = useMemo(
+        () =>
+            unitOptions.map((unit) => ({
+                value: String(unit.id),
+                label: unit.plate_number || unit.label,
+                description: unit.driver_name
+                    ? `${unit.driver_name}${unit.driver_dni ? ` · DNI ${unit.driver_dni}` : ''}`
+                    : unit.label,
+                keywords: [
+                    unit.plate_number ?? '',
+                    unit.driver_name ?? '',
+                    unit.driver_dni ?? '',
+                    unit.label,
+                ].join(' '),
+            })),
+        [unitOptions],
+    );
+
+    const applyUnit = (unitId: string | null) => {
+        if (!unitId) {
+            form.setData('unit_id', '');
+
+            return;
+        }
+
         const unit = unitOptions.find((item) => String(item.id) === unitId);
 
         if (!unit) {
@@ -72,8 +138,32 @@ export function AlcoholTestFormModal({
         });
     };
 
+    const setPhotoFromFile = async (file: File | null) => {
+        if (!file) {
+            return;
+        }
+
+        setPhotoError(null);
+        setCompressing(true);
+
+        try {
+            const dataUrl = await fileToCompressedDataUrl(file);
+            form.setData('evidence_photo_data_url', dataUrl);
+        } catch {
+            setPhotoError('No se pudo procesar la foto. Intenta otra imagen.');
+        } finally {
+            setCompressing(false);
+        }
+    };
+
     const handleSubmit = (event: FormEvent) => {
         event.preventDefault();
+
+        if (!form.data.evidence_photo_data_url) {
+            setPhotoError('La foto de evidencia es obligatoria.');
+
+            return;
+        }
 
         form.transform((data) => ({
             unit_id: Number(data.unit_id),
@@ -83,6 +173,7 @@ export function AlcoholTestFormModal({
             alcohol_level: Number(data.alcohol_level),
             location: data.location || null,
             notes: data.notes || null,
+            evidence_photo_data_url: data.evidence_photo_data_url,
         }));
 
         form.post(`/alcoholimetro/${packageId}/tests`, {
@@ -98,19 +189,19 @@ export function AlcoholTestFormModal({
         <AppModal
             open={open}
             onClose={() => {
-                if (!form.processing) {
+                if (!form.processing && !compressing) {
                     onClose();
                 }
             }}
             title="Registrar test"
-            description="Se asocia a este paquete. Tolerancia 0: si el nivel es mayor a 0 se alerta al coordinador de la unidad."
+            description="Se asocia a este paquete. Al finalizar el operativo, envía el paquete al coordinador con todos los resultados."
             className="sm:max-w-lg"
             footer={
                 <>
                     <Button
                         type="button"
                         variant="outline"
-                        disabled={form.processing}
+                        disabled={form.processing || compressing}
                         onClick={onClose}
                         className="cursor-pointer border-[#c5d5e6]"
                     >
@@ -119,7 +210,12 @@ export function AlcoholTestFormModal({
                     <Button
                         type="submit"
                         form="alcohol-test-form"
-                        disabled={form.processing || form.data.unit_id === ''}
+                        disabled={
+                            form.processing ||
+                            compressing ||
+                            form.data.unit_id === '' ||
+                            !form.data.evidence_photo_data_url
+                        }
                         className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
                     >
                         {form.processing ? <Spinner /> : null}
@@ -134,22 +230,21 @@ export function AlcoholTestFormModal({
                 className="grid gap-3"
             >
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">
+                    <Label
+                        htmlFor="alcohol-test-unit"
+                        className="text-xs text-[#1a2b4c]"
+                    >
                         Unidad <span className="text-red-500">*</span>
                     </Label>
-                    <select
-                        value={form.data.unit_id}
-                        onChange={(event) => applyUnit(event.target.value)}
-                        className="h-9 w-full cursor-pointer rounded-md border border-[#c5d5e6] bg-white px-3 text-sm text-[#1a2b4c]"
-                        required
-                    >
-                        <option value="">Seleccionar unidad…</option>
-                        {unitOptions.map((unit) => (
-                            <option key={unit.id} value={String(unit.id)}>
-                                {unit.label}
-                            </option>
-                        ))}
-                    </select>
+                    <SearchableCombobox
+                        id="alcohol-test-unit"
+                        value={form.data.unit_id || null}
+                        options={plateOptions}
+                        onChange={applyUnit}
+                        placeholder="Buscar por placa o conductor..."
+                        emptyMessage="Sin coincidencias"
+                        disabled={form.processing}
+                    />
                     <InputError message={form.errors.unit_id} />
                 </div>
 
@@ -220,14 +315,100 @@ export function AlcoholTestFormModal({
 
                 {willAlert ? (
                     <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
-                        Nivel &gt; 0 → POSITIVO. Alerta al coordinador. No
-                        permitir ingreso.
+                        Nivel &gt; 0 → POSITIVO. No permitir ingreso. Se incluirá
+                        al enviar el paquete al coordinador.
                     </p>
                 ) : (
                     <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
                         Nivel 0 → NEGATIVO.
                     </p>
                 )}
+
+                <div className="grid gap-1.5">
+                    <Label className="text-xs text-[#1a2b4c]">
+                        Foto evidencia del alcohómetro{' '}
+                        <span className="text-red-500">*</span>
+                    </Label>
+                    <input
+                        ref={fileRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(event) => {
+                            void setPhotoFromFile(
+                                event.target.files?.[0] ?? null,
+                            );
+                            event.target.value = '';
+                        }}
+                    />
+                    {form.data.evidence_photo_data_url ? (
+                        <div className="relative overflow-hidden rounded-xl border border-[#d7e3f0]">
+                            <img
+                                src={form.data.evidence_photo_data_url}
+                                alt="Evidencia"
+                                className="max-h-44 w-full object-cover"
+                            />
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="absolute top-2 right-2 cursor-pointer border-white/80 bg-white/90"
+                                onClick={() =>
+                                    form.setData('evidence_photo_data_url', '')
+                                }
+                                disabled={form.processing || compressing}
+                            >
+                                <Trash2 className="size-3.5" />
+                                Quitar
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="flex flex-wrap gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={form.processing || compressing}
+                                className="cursor-pointer border-[#c5d5e6]"
+                                onClick={() => fileRef.current?.click()}
+                            >
+                                {compressing ? (
+                                    <Spinner />
+                                ) : (
+                                    <Camera className="size-4" />
+                                )}
+                                Cámara / galería
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={form.processing || compressing}
+                                className="cursor-pointer border-[#c5d5e6]"
+                                onClick={() => {
+                                    if (fileRef.current) {
+                                        fileRef.current.removeAttribute(
+                                            'capture',
+                                        );
+                                        fileRef.current.click();
+                                        fileRef.current.setAttribute(
+                                            'capture',
+                                            'environment',
+                                        );
+                                    }
+                                }}
+                            >
+                                <ImagePlus className="size-4" />
+                                Archivo
+                            </Button>
+                        </div>
+                    )}
+                    {photoError ? (
+                        <p className="text-xs text-red-600">{photoError}</p>
+                    ) : null}
+                    <InputError
+                        message={form.errors.evidence_photo_data_url}
+                    />
+                </div>
 
                 <div className="grid gap-1.5">
                     <Label className="text-xs text-[#1a2b4c]">

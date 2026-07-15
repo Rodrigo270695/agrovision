@@ -32,8 +32,8 @@ export function AlcoholTestsHeader({
                         </h1>
                         <p className="mt-2 text-sm text-[#5a7390]">
                             {isCoordinatorView
-                                ? 'Solo ves operativos con tests de tus unidades. Si el inspector registra un positivo, te llega la alerta con cuántos conductores no pasaron.'
-                                : 'Crea un paquete (título + fecha) y dentro registra los tests. Tolerancia 0. Positivos alertan al coordinador de la unidad.'}
+                                ? 'Solo ves operativos ya enviados con tests de tus unidades (positivos y negativos). Se destaca cuántos no pasaron.'
+                                : 'Crea un paquete, registra tests con evidencia, envía a coordinadores y cierra cuando termines. Tolerancia 0.'}
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">

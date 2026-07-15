@@ -6,6 +6,7 @@ use App\Models\AlcoholTest;
 use App\Models\AlcoholTestPackage;
 use App\Models\Period;
 use App\Models\Unit;
+use App\Models\User;
 use App\Services\PushNotificationService;
 use App\Support\PermissionCatalog;
 use App\Support\SignatureImage;
@@ -70,6 +71,8 @@ class AlcoholTestController extends Controller
                 'title' => $package->title,
                 'session_date' => optional($package->session_date)?->toDateString(),
                 'notes' => $package->notes,
+                'status' => $package->status,
+                'sent_to_coordinators_at' => optional($package->sent_to_coordinators_at)?->toIso8601String(),
                 'tests_count' => (int) $package->tests_count,
                 'positive_count' => (int) $package->positive_count,
                 'pending_count' => (int) $package->pending_count,
@@ -109,6 +112,7 @@ class AlcoholTestController extends Controller
             'title' => trim($validated['title']),
             'session_date' => $validated['session_date'],
             'notes' => $validated['notes'] ?? null,
+            'status' => AlcoholTestPackage::STATUS_OPEN,
             'created_by' => Auth::id(),
             'period_id' => Period::query()
                 ->where('status', 'active')
@@ -150,17 +154,24 @@ class AlcoholTestController extends Controller
             ->where('coordinator_status', AlcoholTest::STATUS_PENDING)
             ->count();
 
+        $canCreate = Auth::user()?->can('alcoholtests.create') === true;
+        $packageOpen = $alcoholimetro->canModify();
+
         return Inertia::render('alcohol-tests/show', [
             'package' => [
                 'id' => $alcoholimetro->id,
                 'title' => $alcoholimetro->title,
                 'session_date' => optional($alcoholimetro->session_date)?->toDateString(),
                 'notes' => $alcoholimetro->notes,
+                'status' => $alcoholimetro->status,
+                'is_closed' => $alcoholimetro->isClosed(),
+                'sent_to_coordinators_at' => optional($alcoholimetro->sent_to_coordinators_at)?->toIso8601String(),
+                'closed_at' => optional($alcoholimetro->closed_at)?->toIso8601String(),
                 'creator' => $alcoholimetro->creator
                     ? ['id' => $alcoholimetro->creator->id, 'name' => $alcoholimetro->creator->name]
                     : null,
             ],
-            'tests' => $tests->map(fn (AlcoholTest $test) => $this->toTestItem($test))->values(),
+            'tests' => $tests->map(fn (AlcoholTest $test) => $this->toTestItem($test, $packageOpen))->values(),
             'stats' => [
                 'total' => $tests->count(),
                 'positive' => $positive,
@@ -172,15 +183,18 @@ class AlcoholTestController extends Controller
             'unitOptions' => $isCoordinator ? [] : $this->unitOptions(),
             'focusTestId' => $request->integer('test') ?: null,
             'isCoordinatorView' => $isCoordinator,
+            'canAddTests' => $canCreate && $packageOpen && ! $isCoordinator,
+            'canSendToCoordinators' => $canCreate && $packageOpen && $tests->isNotEmpty() && ! $isCoordinator,
+            'canClosePackage' => $canCreate && $packageOpen && ! $isCoordinator,
         ]);
     }
 
     public function storeTest(
         Request $request,
         AlcoholTestPackage $alcoholimetro,
-        PushNotificationService $push,
     ): RedirectResponse {
         $this->ensureCanAccessPackage($alcoholimetro);
+        $this->ensurePackageIsOpen($alcoholimetro);
 
         $validated = $request->validate([
             'unit_id' => ['required', 'integer', 'exists:units,id'],
@@ -191,10 +205,12 @@ class AlcoholTestController extends Controller
             'alcohol_level' => ['required', 'numeric', 'min:0', 'max:10'],
             'location' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'evidence_photo_data_url' => ['required', 'string'],
         ], [
-            'unit_id.required' => 'Selecciona la unidad (así se alerta a su coordinador si es positivo).',
+            'unit_id.required' => 'Selecciona la unidad.',
             'driver_name.required' => 'Indica el nombre del conductor.',
             'alcohol_level.required' => 'Indica el porcentaje de alcohol.',
+            'evidence_photo_data_url.required' => 'Adjunta la foto de evidencia del test.',
         ]);
 
         $unit = Unit::query()->findOrFail((int) $validated['unit_id']);
@@ -205,6 +221,17 @@ class AlcoholTestController extends Controller
         $testedAt = $validated['tested_at']
             ?? optional($alcoholimetro->session_date)?->setTimeFrom(now())
             ?? now();
+
+        try {
+            $photoPath = SignatureImage::storeFromDataUrl(
+                $validated['evidence_photo_data_url'],
+                'alcohol-tests/evidence',
+            );
+        } catch (\Throwable) {
+            return back()->withErrors([
+                'evidence_photo_data_url' => 'La foto de evidencia no es válida. Usa JPG, PNG o WebP.',
+            ]);
+        }
 
         $test = AlcoholTest::query()->create([
             'package_id' => $alcoholimetro->id,
@@ -220,27 +247,99 @@ class AlcoholTestController extends Controller
             'is_positive' => $positive,
             'location' => $validated['location'] ?? null,
             'notes' => $validated['notes'] ?? null,
+            'evidence_photo_path' => $photoPath,
             'coordinator_status' => $positive ? AlcoholTest::STATUS_PENDING : null,
         ]);
-
-        $notified = false;
-
-        if ($positive && $test->coordinator_id) {
-            $push->notifyCoordinatorAlcoholPositive($test);
-            $test->update(['coordinator_notified_at' => now()]);
-            $notified = true;
-        }
 
         return redirect()
             ->route('alcohol-tests.show', $alcoholimetro)
             ->with('toast', [
                 'type' => $positive ? 'warning' : 'success',
                 'message' => $positive
-                    ? ($notified
-                        ? 'Test positivo (tolerancia 0). Se alertó al coordinador de la unidad. No permitir ingreso.'
-                        : 'Test positivo (tolerancia 0), pero la unidad no tiene coordinador asignado: no se envió alerta.')
-                    : 'Test registrado en el paquete: negativo.',
+                    ? 'Test POSITIVO (tolerancia 0) registrado con evidencia. No permitir ingreso. Envía el paquete al coordinador cuando termines.'
+                    : 'Test registrado (negativo) con evidencia.',
             ]);
+    }
+
+    public function sendToCoordinators(
+        AlcoholTestPackage $alcoholimetro,
+        PushNotificationService $push,
+    ): RedirectResponse {
+        $this->ensureCanAccessPackage($alcoholimetro);
+        $this->ensurePackageIsOpen($alcoholimetro);
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            abort(403);
+        }
+
+        $tests = $alcoholimetro->tests()->get();
+
+        if ($tests->isEmpty()) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Registra al menos un test antes de enviar.',
+            ]);
+        }
+
+        $coordinatorIds = $tests
+            ->pluck('coordinator_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($coordinatorIds->isEmpty()) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Ningún test tiene coordinador asignado en la unidad.',
+            ]);
+        }
+
+        $except = Auth::user() instanceof User ? Auth::user() : null;
+
+        foreach ($coordinatorIds as $coordinatorId) {
+            $push->notifyCoordinatorAlcoholPackageSent(
+                $alcoholimetro,
+                (int) $coordinatorId,
+                $except,
+            );
+        }
+
+        AlcoholTest::query()
+            ->where('package_id', $alcoholimetro->id)
+            ->where('is_positive', true)
+            ->whereNull('coordinator_notified_at')
+            ->update(['coordinator_notified_at' => now()]);
+
+        $alcoholimetro->update([
+            'sent_to_coordinators_at' => now(),
+        ]);
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => 'Paquete enviado a '.$coordinatorIds->count()
+                .' coordinador(es) con todos los tests de sus unidades.',
+        ]);
+    }
+
+    public function closePackage(AlcoholTestPackage $alcoholimetro): RedirectResponse
+    {
+        $this->ensureCanAccessPackage($alcoholimetro);
+        $this->ensurePackageIsOpen($alcoholimetro);
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            abort(403);
+        }
+
+        $alcoholimetro->update([
+            'status' => AlcoholTestPackage::STATUS_CLOSED,
+            'closed_at' => now(),
+            'closed_by' => Auth::id(),
+        ]);
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => 'Paquete cerrado. Ya no se puede modificar; solo consulta y PDFs.',
+        ]);
     }
 
     public function showTest(AlcoholTest $test): Response|RedirectResponse
@@ -261,6 +360,14 @@ class AlcoholTestController extends Controller
     public function respond(Request $request, AlcoholTest $test): RedirectResponse
     {
         $this->ensureCanAccessTest($test);
+        $test->loadMissing('package');
+
+        if ($test->package && $test->package->isClosed()) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'El paquete está cerrado. Solo puedes consultar y descargar PDFs.',
+            ]);
+        }
 
         if (! $test->canCoordinatorRespond()) {
             return back()->with('toast', [
@@ -340,27 +447,40 @@ class AlcoholTestController extends Controller
 
         $test->load(['unit', 'period', 'coordinator', 'creator', 'package']);
 
-        $signatureSrc = null;
-        if ($test->coordinator_signature_path) {
-            $absolute = Storage::disk('public')->path($test->coordinator_signature_path);
-            if (is_file($absolute)) {
-                $mime = mime_content_type($absolute) ?: 'image/png';
-                $binary = file_get_contents($absolute);
-                if ($binary !== false) {
-                    $signatureSrc = 'data:'.$mime.';base64,'.base64_encode($binary);
-                }
-            }
-        }
+        $signatureSrc = $this->publicImageDataUri($test->coordinator_signature_path);
 
         $pdf = Pdf::loadView('pdfs.alcohol-test-acta', [
             'test' => $test,
             'logoSrc' => \App\Support\PdfLogo::dataUri(),
             'signatureSrc' => $signatureSrc,
+            'evidenceSrc' => $this->publicImageDataUri($test->evidence_photo_path),
         ])->setPaper('a4', 'portrait');
 
         $safeName = preg_replace('/\W+/', '_', $test->driver_name ?: 'conductor');
 
         return $pdf->download('acta_alcoholimetro_'.$test->id.'_'.$safeName.'.pdf');
+    }
+
+    private function publicImageDataUri(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        $absolute = Storage::disk('public')->path($path);
+
+        if (! is_file($absolute)) {
+            return null;
+        }
+
+        $mime = mime_content_type($absolute) ?: 'image/jpeg';
+        $binary = file_get_contents($absolute);
+
+        if ($binary === false) {
+            return null;
+        }
+
+        return 'data:'.$mime.';base64,'.base64_encode($binary);
     }
 
     /**
@@ -371,11 +491,13 @@ class AlcoholTestController extends Controller
         $query = AlcoholTestPackage::query();
 
         if (SystemRoles::currentIsScopedCoordinator()) {
-            // Solo paquetes donde ya hay tests (alerta) de sus unidades.
-            $query->whereHas(
-                'tests',
-                fn (Builder $q) => $q->where('coordinator_id', Auth::id()),
-            );
+            // Solo paquetes ya enviados donde hay tests de sus unidades.
+            $query
+                ->whereNotNull('sent_to_coordinators_at')
+                ->whereHas(
+                    'tests',
+                    fn (Builder $q) => $q->where('coordinator_id', Auth::id()),
+                );
         }
 
         return $query;
@@ -444,9 +566,10 @@ class AlcoholTestController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function toTestItem(AlcoholTest $test): array
+    private function toTestItem(AlcoholTest $test, bool $packageOpen = true): array
     {
-        $canRespond = $test->canCoordinatorRespond()
+        $canRespond = $packageOpen
+            && $test->canCoordinatorRespond()
             && Auth::user()?->can('alcoholtests.respond')
             && (
                 ! SystemRoles::currentIsScopedCoordinator()
@@ -464,6 +587,7 @@ class AlcoholTestController extends Controller
             'is_positive' => $test->is_positive,
             'location' => $test->location,
             'notes' => $test->notes,
+            'evidence_photo_url' => $test->evidencePhotoUrl(),
             'coordinator_status' => $test->coordinator_status,
             'coordinator_action_plan' => $test->coordinator_action_plan,
             'coordinator_signer_name' => $test->coordinator_signer_name,
@@ -476,17 +600,28 @@ class AlcoholTestController extends Controller
         ];
     }
 
+    private function ensurePackageIsOpen(AlcoholTestPackage $package): void
+    {
+        if ($package->isClosed()) {
+            abort(403, 'El paquete está cerrado. Solo se pueden consultar PDFs.');
+        }
+    }
+
     private function ensureCanAccessPackage(AlcoholTestPackage $package): void
     {
         if (! SystemRoles::currentIsScopedCoordinator()) {
             return;
         }
 
+        if (! $package->wasSentToCoordinators()) {
+            abort(403, 'Este paquete aún no fue enviado a coordinadores.');
+        }
+
         $owns = $package->tests()
             ->where('coordinator_id', Auth::id())
             ->exists();
 
-        if (! $owns && $package->tests()->exists()) {
+        if (! $owns) {
             abort(403, 'No tienes acceso a este paquete de alcohómetro.');
         }
     }

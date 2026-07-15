@@ -85,6 +85,13 @@
     @endif
 </div>
 
+@if (! empty($evidenceSrc))
+    <div class="box" style="margin-top: 16px; text-align: center;">
+        <strong>Foto de evidencia del test</strong><br><br>
+        <img src="{{ $evidenceSrc }}" alt="Evidencia" style="max-width: 320px; max-height: 240px;">
+    </div>
+@endif
+
 @if ($test->is_positive)
     <div class="box" style="margin-top: 16px;">
         <strong>Medidas del coordinador</strong>
