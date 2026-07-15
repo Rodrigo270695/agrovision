@@ -615,12 +615,12 @@ class ChecklistController extends Controller
         $checklist->loadMissing('unit');
         $this->ensureCanAccessChecklist($checklist);
 
-        if ($checklist->first_result !== 'approved' && ! $checklist->isSealed()) {
+        if (! $checklist->canPreviewConsolidatedPdf()) {
             return redirect()
                 ->route('checklists.index')
                 ->with('toast', [
                     'type' => 'error',
-                    'message' => 'El PDF consolidado está disponible cuando la 1ra inspección está aprobada.',
+                    'message' => 'El PDF consolidado está disponible cuando la 1ra inspección está aprobada o desaprobada.',
                 ]);
         }
 
@@ -812,17 +812,14 @@ class ChecklistController extends Controller
             ]);
         }
 
-        if ($checklist->first_result !== 'approved') {
+        if (! $checklist->canSendToCoordinator()) {
             return back()->with('toast', [
                 'type' => 'error',
-                'message' => 'Primero debes aprobar la 1ra inspección.',
-            ]);
-        }
-
-        if ($checklist->isReviewedByCoordinator()) {
-            return back()->with('toast', [
-                'type' => 'error',
-                'message' => 'Este consolidado ya fue revisado por el coordinador.',
+                'message' => $checklist->first_result === null
+                    ? 'Primero debes aprobar o desaprobar la 1ra inspección.'
+                    : ($checklist->isReviewedByCoordinator()
+                        ? 'Este consolidado ya fue revisado por el coordinador.'
+                        : 'No se puede enviar este consolidado al coordinador.'),
             ]);
         }
 

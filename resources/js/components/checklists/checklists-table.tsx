@@ -400,7 +400,9 @@ export function ChecklistsTable({
                                     </td>
                                     <td className="px-3 py-1.5">
                                         <div className="flex items-center justify-end gap-0.5">
-                                            {item.first_result === 'approved' &&
+                                            {(item.first_result === 'approved' ||
+                                                item.first_result ===
+                                                    'rejected') &&
                                             can('checklists.view') ? (
                                                 <Button
                                                     type="button"
@@ -520,7 +522,8 @@ export function ChecklistsTable({
                                 )}
                             </div>
                             <div className="mb-1 flex flex-wrap gap-1">
-                                {item.first_result === 'approved' &&
+                                {(item.first_result === 'approved' ||
+                                    item.first_result === 'rejected') &&
                                 can('checklists.view') ? (
                                     <Button
                                         type="button"

@@ -32,7 +32,8 @@ export function ChecklistPdfPreviewModal({ open, checklist, onClose }: Props) {
     const type = (checklist.template?.type ?? '').toUpperCase();
     const canSend =
         can('checklists.update') &&
-        checklist.first_result === 'approved' &&
+        (checklist.first_result === 'approved' ||
+            checklist.first_result === 'rejected') &&
         checklist.coordinator_status !== 'reviewed' &&
         !checklist.sealed_at;
     const alreadyObserved = checklist.coordinator_status === 'observed';

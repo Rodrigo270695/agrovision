@@ -1,13 +1,8 @@
 import { Link, router } from '@inertiajs/react';
 import { LogOut, Settings } from 'lucide-react';
-import {
-    DropdownMenuGroup,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
 import { UserInfo } from '@/components/user-info';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
+import { cn } from '@/lib/utils';
 import { logout } from '@/routes';
 import { edit } from '@/routes/profile';
 import type { User } from '@/types';
@@ -15,6 +10,12 @@ import type { User } from '@/types';
 type Props = {
     user: User;
 };
+
+const itemClassName = cn(
+    'hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground',
+    'relative flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none',
+    '[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+);
 
 export function UserMenuContent({ user }: Props) {
     const cleanup = useMobileNavigation();
@@ -26,38 +27,32 @@ export function UserMenuContent({ user }: Props) {
 
     return (
         <>
-            <DropdownMenuLabel className="p-0 font-normal">
-                <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+            <div className="px-1 py-1.5">
+                <div className="flex items-center gap-2 text-left text-sm">
                     <UserInfo user={user} showEmail={true} />
                 </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-                <DropdownMenuItem asChild>
-                    <Link
-                        className="block w-full cursor-pointer"
-                        href={edit()}
-                        prefetch
-                        onClick={cleanup}
-                    >
-                        <Settings className="mr-2" />
-                        Settings
-                    </Link>
-                </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-                <Link
-                    className="block w-full cursor-pointer"
-                    href={logout()}
-                    as="button"
-                    onClick={handleLogout}
-                    data-test="logout-button"
-                >
-                    <LogOut className="mr-2" />
-                    Log out
-                </Link>
-            </DropdownMenuItem>
+            </div>
+            <div className="bg-border -mx-1 my-1 h-px" />
+            <Link
+                className={itemClassName}
+                href={edit()}
+                prefetch
+                onClick={cleanup}
+            >
+                <Settings className="mr-2" />
+                Settings
+            </Link>
+            <div className="bg-border -mx-1 my-1 h-px" />
+            <Link
+                className={itemClassName}
+                href={logout()}
+                as="button"
+                onClick={handleLogout}
+                data-test="logout-button"
+            >
+                <LogOut className="mr-2" />
+                Log out
+            </Link>
         </>
     );
 }

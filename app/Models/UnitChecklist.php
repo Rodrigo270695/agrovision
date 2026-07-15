@@ -152,11 +152,21 @@ class UnitChecklist extends Model
         return $this->coordinator_status === self::COORDINATOR_REVIEWED;
     }
 
+    public function hasFirstInspectionDecision(): bool
+    {
+        return in_array($this->first_result, ['approved', 'rejected'], true);
+    }
+
     public function canSendToCoordinator(): bool
     {
-        return $this->first_result === 'approved'
+        return $this->hasFirstInspectionDecision()
             && ! $this->isSealed()
             && $this->coordinator_status !== self::COORDINATOR_REVIEWED;
+    }
+
+    public function canPreviewConsolidatedPdf(): bool
+    {
+        return $this->hasFirstInspectionDecision() || $this->isSealed();
     }
 
     public function canStartSecondInspection(): bool

@@ -216,7 +216,8 @@ export function ChecklistEditForm({ checklist }: Props) {
         sealed || checklist.first_result === 'approved';
     const secondUnlocked = Boolean(checklist.can_start_second);
     const waitingCoordinator =
-        checklist.first_result === 'approved' &&
+        (checklist.first_result === 'approved' ||
+            checklist.first_result === 'rejected') &&
         !secondUnlocked &&
         !sealed;
     const secondLocked =
@@ -501,6 +502,13 @@ export function ChecklistEditForm({ checklist }: Props) {
                                     de acción y firma del coordinador. Cuando
                                     responda quedará <strong>Revisado</strong> y
                                     se habilita la 2da inspección.
+                                </>
+                            ) : checklist.first_result === 'rejected' ? (
+                                <>
+                                    1ra inspección <strong>desaprobada</strong>.
+                                    Genera el consolidado PDF y{' '}
+                                    <strong>envíalo al coordinador</strong> para
+                                    el plan de acción (estado Observado).
                                 </>
                             ) : (
                                 <>
