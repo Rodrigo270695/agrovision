@@ -22,7 +22,13 @@ class UnitDocumentController extends Controller
         $validated = $request->validate([
             'type' => ['required', 'string', Rule::in(UnitDocumentTypes::keys())],
             'title' => ['nullable', 'string', 'max:255'],
-            'expires_at' => ['nullable', 'date'],
+            'expires_at' => [
+                Rule::requiredIf(
+                    $request->input('type') !== UnitDocumentTypes::DRIVER_DNI,
+                ),
+                'nullable',
+                'date',
+            ],
             'file' => [
                 'required',
                 'file',
@@ -35,8 +41,13 @@ class UnitDocumentController extends Controller
             'file.required' => 'Debes seleccionar un archivo.',
             'file.mimes' => 'El archivo debe ser imagen (JPG, PNG, WEBP) o PDF.',
             'file.max' => 'El archivo no puede superar los 10 MB.',
+            'expires_at.required' => 'La fecha de vencimiento es obligatoria.',
             'expires_at.date' => 'La fecha de vencimiento no es válida.',
         ]);
+
+        if ($validated['type'] === UnitDocumentTypes::DRIVER_DNI) {
+            $validated['expires_at'] = null;
+        }
 
         $file = $request->file('file');
         $type = $validated['type'];

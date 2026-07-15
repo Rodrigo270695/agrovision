@@ -223,6 +223,12 @@ export function UnitDocumentsModal({
             return;
         }
 
+        if (type !== 'driver_dni' && expiresAt === '') {
+            setError('La fecha de vencimiento es obligatoria.');
+
+            return;
+        }
+
         setError(null);
         setUploading(true);
 
@@ -234,7 +240,7 @@ export function UnitDocumentsModal({
             formData.append('title', title.trim());
         }
 
-        if (expiresAt !== '' && type !== 'driver_dni') {
+        if (type !== 'driver_dni') {
             formData.append('expires_at', expiresAt);
         }
 
@@ -472,11 +478,13 @@ export function UnitDocumentsModal({
                                         htmlFor="unit-doc-expires"
                                         className="text-xs text-[#1a2b4c]"
                                     >
-                                        Vence (opcional)
+                                        Fecha de vencimiento{' '}
+                                        <span className="text-red-500">*</span>
                                     </Label>
                                     <Input
                                         id="unit-doc-expires"
                                         type="date"
+                                        required
                                         value={expiresAt}
                                         onChange={(event) =>
                                             setExpiresAt(event.target.value)
