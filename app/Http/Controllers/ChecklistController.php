@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreUnitChecklistRequest;
 use App\Http\Requests\UpdateUnitChecklistRequest;
+use App\Models\ChecklistItem;
 use App\Models\ChecklistTemplate;
 use App\Models\Period;
 use App\Models\Unit;
@@ -11,7 +12,9 @@ use App\Models\UnitChecklist;
 use App\Models\UnitChecklistAnswer;
 use App\Models\UnitChecklistPhoto;
 use App\Models\UnitChecklistSignature;
+use App\Services\ParetoChecklistSync;
 use App\Support\IndexedRedirect;
+use App\Support\ParetoCheckTypes;
 use App\Support\PermissionCatalog;
 use App\Support\SystemRoles;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -157,41 +160,51 @@ class ChecklistController extends Controller
                 ]);
         }
 
-        $checklist = DB::transaction(function () use ($unit, $data) {
-            $template = ChecklistTemplate::query()
-                ->with(['items', 'signatureRoles'])
-                ->findOrFail($data['template_id']);
+        try {
+            $checklist = DB::transaction(function () use ($unit, $data) {
+                $template = ChecklistTemplate::query()
+                    ->with(['signatureRoles'])
+                    ->findOrFail($data['template_id']);
 
-            $checklist = UnitChecklist::query()->create([
-                'unit_id' => $unit->id,
-                'period_id' => $unit->period_id,
-                'template_id' => $template->id,
-                'created_by' => Auth::id(),
-                'plate_number' => $unit->plate_number ?: $unit->correlative,
-                'driver_name' => $unit->driver_name,
-                'provider' => $unit->provider,
-                'transport_company' => $unit->provider,
-                'license_class' => $unit->category,
-                'status' => 'draft',
+                $items = app(ParetoChecklistSync::class)
+                    ->syncForInspection($template->type);
+
+                $checklist = UnitChecklist::query()->create([
+                    'unit_id' => $unit->id,
+                    'period_id' => $unit->period_id,
+                    'template_id' => $template->id,
+                    'created_by' => Auth::id(),
+                    'plate_number' => $unit->plate_number ?: $unit->correlative,
+                    'driver_name' => $unit->driver_name,
+                    'provider' => $unit->provider,
+                    'transport_company' => $unit->provider,
+                    'license_class' => $unit->category,
+                    'status' => 'draft',
+                ]);
+
+                foreach ($items as $item) {
+                    UnitChecklistAnswer::query()->create([
+                        'unit_checklist_id' => $checklist->id,
+                        'checklist_item_id' => $item->id,
+                    ]);
+                }
+
+                foreach ($template->signatureRoles as $role) {
+                    UnitChecklistSignature::query()->create([
+                        'unit_checklist_id' => $checklist->id,
+                        'signature_role_id' => $role->id,
+                        'signer_name' => $role->sort_order === 1 ? $unit->driver_name : null,
+                    ]);
+                }
+
+                return $checklist;
+            });
+        } catch (\RuntimeException $exception) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => $exception->getMessage(),
             ]);
-
-            foreach ($template->items as $item) {
-                UnitChecklistAnswer::query()->create([
-                    'unit_checklist_id' => $checklist->id,
-                    'checklist_item_id' => $item->id,
-                ]);
-            }
-
-            foreach ($template->signatureRoles as $role) {
-                UnitChecklistSignature::query()->create([
-                    'unit_checklist_id' => $checklist->id,
-                    'signature_role_id' => $role->id,
-                    'signer_name' => $role->sort_order === 1 ? $unit->driver_name : null,
-                ]);
-            }
-
-            return $checklist;
-        });
+        }
 
         return redirect()
             ->route('checklists.edit', $checklist)
@@ -206,9 +219,8 @@ class ChecklistController extends Controller
         $checklist->load([
             'period:id,name,date,status',
             'unit:id,correlative,plate_number,driver_name,provider,category,period_id,coordinator_id',
-            'template.items',
             'template.signatureRoles',
-            'answers',
+            'answers.item',
             'signatures',
             'photos',
         ]);
@@ -224,24 +236,49 @@ class ChecklistController extends Controller
                 ]);
         }
 
-        $answersByItem = $checklist->answers->keyBy('checklist_item_id');
         $signaturesByRole = $checklist->signatures->keyBy('signature_role_id');
 
-        $items = $checklist->template->items->map(function ($item) use ($answersByItem) {
-            $answer = $answersByItem->get($item->id);
+        $paretoMeta = [
+            'weight_total' => 0.0,
+            'weight_ok' => true,
+        ];
 
-            return [
-                'id' => $item->id,
-                'parent_id' => $item->parent_id,
-                'item_number' => $item->item_number,
-                'label' => $item->label,
-                'sort_order' => $item->sort_order,
-                'has_expiry' => $item->has_expiry,
-                'first_value' => $answer?->first_value,
-                'second_value' => $answer?->second_value,
-                'observations' => $answer?->observations,
+        if ($checklist->template?->type) {
+            $weightTotal = app(ParetoChecklistSync::class)
+                ->activeWeightTotal($checklist->template->type);
+            $paretoMeta = [
+                'weight_total' => $weightTotal,
+                'weight_ok' => abs($weightTotal - 100) < 0.01,
             ];
-        })->values();
+        }
+
+        $items = $checklist->answers
+            ->filter(fn (UnitChecklistAnswer $answer) => $answer->item !== null)
+            ->sortBy(fn (UnitChecklistAnswer $answer) => [
+                $answer->item->sort_order,
+                $answer->item->id,
+            ])
+            ->values()
+            ->map(function (UnitChecklistAnswer $answer) {
+                /** @var ChecklistItem $item */
+                $item = $answer->item;
+                $checkType = $item->resolvedCheckType();
+
+                return [
+                    'id' => $item->id,
+                    'parent_id' => $item->parent_id,
+                    'item_number' => $item->item_number,
+                    'label' => $item->label,
+                    'sort_order' => $item->sort_order,
+                    'has_expiry' => $checkType === ParetoCheckTypes::EXPIRY,
+                    'check_type' => $checkType,
+                    'weight' => $item->weight !== null ? (float) $item->weight : null,
+                    'first_value' => $answer->first_value,
+                    'second_value' => $answer->second_value,
+                    'observations' => $answer->observations,
+                ];
+            })
+            ->values();
 
         $signatures = $checklist->template->signatureRoles->map(function ($role) use ($signaturesByRole) {
             $signature = $signaturesByRole->get($role->id);
@@ -294,6 +331,7 @@ class ChecklistController extends Controller
                     'notes_hint' => $checklist->template->notes_hint,
                 ],
                 'items' => $items,
+                'pareto' => $paretoMeta,
                 'signatures' => $signatures,
                 'photos' => $checklist->photos->map(fn (UnitChecklistPhoto $photo) => [
                     'id' => $photo->id,
@@ -333,6 +371,8 @@ class ChecklistController extends Controller
         $secondAlreadyApproved = $checklist->second_result === 'approved';
 
         try {
+            $this->assertApprovalPayload($checklist, $data, $firstAlreadyApproved, $secondAlreadyApproved);
+
             DB::transaction(function () use ($checklist, $data, $shouldSeal, $firstAlreadyApproved, $secondAlreadyApproved): void {
                 $incomingFirstResult = $data['first_result'] ?? null;
                 $incomingSecondResult = $data['second_result'] ?? null;
@@ -570,29 +610,31 @@ class ChecklistController extends Controller
 
         $checklist->load([
             'period:id,name,date,status',
-            'template.items',
             'template.signatureRoles',
-            'answers',
+            'answers.item',
             'signatures',
             'photos',
         ]);
 
-        $answersByItem = $checklist->answers->keyBy('checklist_item_id');
         $signaturesByRole = $checklist->signatures->keyBy('signature_role_id');
 
-        $rows = $checklist->template->items
-            ->sortBy('sort_order')
+        $rows = $checklist->answers
+            ->filter(fn (UnitChecklistAnswer $answer) => $answer->item !== null)
+            ->sortBy(fn (UnitChecklistAnswer $answer) => [
+                $answer->item->sort_order,
+                $answer->item->id,
+            ])
             ->values()
-            ->map(function ($item) use ($answersByItem) {
-                $answer = $answersByItem->get($item->id);
+            ->map(function (UnitChecklistAnswer $answer) {
+                $item = $answer->item;
 
                 return [
                     'item_number' => $item->item_number,
                     'label' => $item->label,
                     'is_child' => $item->parent_id !== null,
-                    'first_value' => $answer?->first_value,
-                    'second_value' => $answer?->second_value,
-                    'observations' => $answer?->observations,
+                    'first_value' => $answer->first_value,
+                    'second_value' => $answer->second_value,
+                    'observations' => $answer->observations,
                 ];
             });
 
@@ -692,6 +734,85 @@ class ChecklistController extends Controller
             'type' => 'success',
             'message' => 'Checklist eliminado correctamente.',
         ]);
+    }
+
+    /**
+     * Valida respuestas al aprobar 1ra/2da (completas, SÍ, observação en expiry).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function assertApprovalPayload(
+        UnitChecklist $checklist,
+        array $data,
+        bool $firstAlreadyApproved,
+        bool $secondAlreadyApproved,
+    ): void {
+        $incomingFirst = $data['first_result'] ?? null;
+        $incomingSecond = $data['second_result'] ?? null;
+        $answers = collect($data['answers'] ?? []);
+
+        if ($incomingFirst === 'approved' && ! $firstAlreadyApproved) {
+            $this->assertPassAnswersReady($checklist, $answers, 'first');
+        }
+
+        if ($incomingSecond === 'approved' && ! $secondAlreadyApproved) {
+            if (($firstAlreadyApproved ? $checklist->first_result : $incomingFirst) !== 'approved') {
+                throw new \RuntimeException('Debes aprobar la 1ra inspección antes de la 2da.');
+            }
+
+            $this->assertPassAnswersReady($checklist, $answers, 'second');
+        }
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $answers
+     */
+    private function assertPassAnswersReady(
+        UnitChecklist $checklist,
+        $answers,
+        string $pass,
+    ): void {
+        $valueKey = $pass === 'first' ? 'first_value' : 'second_value';
+        $passLabel = $pass === 'first' ? '1ra' : '2da';
+
+        $expectedIds = $checklist->answers()->pluck('checklist_item_id')->all();
+        $byItem = $answers->keyBy('checklist_item_id');
+
+        $items = ChecklistItem::query()
+            ->whereIn('id', $expectedIds)
+            ->get()
+            ->keyBy('id');
+
+        foreach ($expectedIds as $itemId) {
+            $answer = $byItem->get($itemId);
+            $item = $items->get($itemId);
+            $label = $item?->item_number
+                ? "{$item->item_number}. {$item->label}"
+                : "Ítem #{$itemId}";
+
+            $value = $answer[$valueKey] ?? null;
+
+            if ($value === null || $value === '') {
+                throw new \RuntimeException(
+                    "Para aprobar la {$passLabel} inspección debes marcar SÍ/NO en todos los ítems. Falta: {$label}."
+                );
+            }
+
+            if ($value !== 'yes') {
+                throw new \RuntimeException(
+                    "Para aprobar la {$passLabel} inspección todos los ítems deben estar en SÍ. Revisa: {$label}."
+                );
+            }
+
+            $checkType = $item?->resolvedCheckType() ?? ParetoCheckTypes::OBSERVATION;
+            $observation = trim((string) ($answer['observations'] ?? ''));
+
+            if ($checkType === ParetoCheckTypes::EXPIRY && $observation === '') {
+                throw new \RuntimeException(
+                    "El ítem «{$label}» requiere vencimiento / observación antes de aprobar."
+                );
+            }
+        }
     }
 
     private function ensureCanAccessUnit(Unit $unit): void

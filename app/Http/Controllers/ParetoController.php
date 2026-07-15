@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\ParetoRequest;
 use App\Models\Pareto;
+use App\Services\ParetoChecklistSync;
 use App\Support\IndexedRedirect;
 use App\Support\ParetoCheckTypes;
 use App\Support\PermissionCatalog;
@@ -96,6 +97,7 @@ class ParetoController extends Controller
         }
 
         Pareto::query()->create($data);
+        $this->syncChecklist($data['template_type']);
 
         return IndexedRedirect::toIndex($request, 'pareto.index', [
             'type' => 'success',
@@ -105,7 +107,9 @@ class ParetoController extends Controller
 
     public function update(ParetoRequest $request, Pareto $pareto): RedirectResponse
     {
-        $pareto->update($request->validated());
+        $data = $request->validated();
+        $pareto->update($data);
+        $this->syncChecklist($data['template_type'] ?? $pareto->template_type);
 
         return IndexedRedirect::toIndex($request, 'pareto.index', [
             'type' => 'success',
@@ -122,7 +126,9 @@ class ParetoController extends Controller
             ]);
         }
 
+        $templateType = $pareto->template_type;
         $pareto->delete();
+        $this->syncChecklist($templateType);
 
         return IndexedRedirect::toIndex($request, 'pareto.index', [
             'type' => 'success',
@@ -166,9 +172,20 @@ class ParetoController extends Controller
             $item->update(['weight' => $weight]);
         }
 
+        $this->syncChecklist($validated['template_type']);
+
         return back()->with('toast', [
             'type' => 'success',
             'message' => "Pesos redistribuidos equitativamente ({$count} ítems = 100%).",
         ]);
+    }
+
+    private function syncChecklist(string $templateType): void
+    {
+        try {
+            app(ParetoChecklistSync::class)->syncTemplate($templateType);
+        } catch (\Throwable) {
+            // La plantilla puede no existir aún; el sync estricto ocurre al crear inspecciones.
+        }
     }
 }

@@ -26,6 +26,8 @@ export type ChecklistFormItem = {
     label: string;
     sort_order: number;
     has_expiry: boolean;
+    check_type: 'observation' | 'expiry' | string;
+    weight: number | null;
     first_value: 'yes' | 'no' | null;
     second_value: 'yes' | 'no' | null;
     observations: string | null;
@@ -75,6 +77,10 @@ export type ChecklistFormData = {
         notes_hint: string | null;
     };
     items: ChecklistFormItem[];
+    pareto?: {
+        weight_total: number;
+        weight_ok: boolean;
+    };
     signatures: ChecklistFormSignature[];
     photos: ChecklistPhoto[];
 };
@@ -263,29 +269,55 @@ export function ChecklistEditForm({ checklist }: Props) {
         const marked = answers.filter((a) => a.first_value !== '').length;
         const yes = answers.filter((a) => a.first_value === 'yes').length;
         const no = answers.filter((a) => a.first_value === 'no').length;
+        const missingExpiry = checklist.items.some((item, index) => {
+            const isExpiry =
+                item.check_type === 'expiry' || item.has_expiry;
+            if (!isExpiry) {
+                return false;
+            }
+
+            return (answers[index]?.observations ?? '').trim() === '';
+        });
 
         return {
             total: answers.length,
             marked,
             yes,
             no,
-            allYes: answers.length > 0 && yes === answers.length,
+            missingExpiry,
+            allYes:
+                answers.length > 0 &&
+                yes === answers.length &&
+                !missingExpiry,
         };
-    }, [answers]);
+    }, [answers, checklist.items]);
 
     const secondStats = useMemo(() => {
         const marked = answers.filter((a) => a.second_value !== '').length;
         const yes = answers.filter((a) => a.second_value === 'yes').length;
         const no = answers.filter((a) => a.second_value === 'no').length;
+        const missingExpiry = checklist.items.some((item, index) => {
+            const isExpiry =
+                item.check_type === 'expiry' || item.has_expiry;
+            if (!isExpiry) {
+                return false;
+            }
+
+            return (answers[index]?.observations ?? '').trim() === '';
+        });
 
         return {
             total: answers.length,
             marked,
             yes,
             no,
-            allYes: answers.length > 0 && yes === answers.length,
+            missingExpiry,
+            allYes:
+                answers.length > 0 &&
+                yes === answers.length &&
+                !missingExpiry,
         };
-    }, [answers]);
+    }, [answers, checklist.items]);
 
     const updateAnswer = (
         index: number,
@@ -427,11 +459,14 @@ export function ChecklistEditForm({ checklist }: Props) {
                 ) : !secondUnlocked ? (
                     <div className="mt-3 rounded-xl border border-[#d7e3f0] bg-[#f8fafc] px-3 py-2 text-xs text-[#5a7390]">
                         Empieza por la <strong>1ra inspección</strong>. Cuando
-                        todos los ítems estén en SÍ, apruébala para habilitar la
-                        2da.
+                        todos los ítems estén en SÍ (y con vencimiento donde
+                        aplique), apruébala para habilitar la 2da.
                         <span className="mt-1 block font-medium text-[#1a2b4c]">
                             Progreso 1ra: {firstStats.marked}/{firstStats.total}{' '}
                             · {firstStats.yes} SÍ · {firstStats.no} NO
+                            {firstStats.missingExpiry
+                                ? ' · Faltan vencimientos'
+                                : ''}
                         </span>
                     </div>
                 ) : !signaturesUnlocked ? (
@@ -441,6 +476,9 @@ export function ChecklistEditForm({ checklist }: Props) {
                         <span className="mt-1 block font-medium">
                             Progreso 2da: {secondStats.marked}/{secondStats.total}{' '}
                             · {secondStats.yes} SÍ · {secondStats.no} NO
+                            {secondStats.missingExpiry
+                                ? ' · Faltan vencimientos'
+                                : ''}
                         </span>
                     </div>
                 ) : (
@@ -535,22 +573,56 @@ export function ChecklistEditForm({ checklist }: Props) {
             </div>
 
             <div className="rounded-2xl border border-[#d7e3f0] bg-white p-3 shadow-sm sm:p-5">
-                <div className="mb-3">
-                    <h2 className="text-sm font-semibold text-[#1a2b4c]">
-                        Exigencias —{' '}
-                        {activePass === 'first' ? '1ra inspección' : '2da inspección'}
-                    </h2>
-                    <p className="text-xs text-[#5a7390]">
-                        {activePass === 'first'
-                            ? 'Marca SÍ / NO de la primera inspección.'
-                            : '1ra bloqueada. Marca ahora la segunda inspección.'}
-                    </p>
+                <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h2 className="text-sm font-semibold text-[#1a2b4c]">
+                            Exigencias —{' '}
+                            {activePass === 'first'
+                                ? '1ra inspección'
+                                : '2da inspección'}
+                        </h2>
+                        <p className="text-xs text-[#5a7390]">
+                            {activePass === 'first'
+                                ? 'Marca SÍ / NO de la primera inspección (catálogo Pareto).'
+                                : '1ra bloqueada. Marca ahora la segunda inspección.'}
+                        </p>
+                    </div>
+                    {checklist.pareto ? (
+                        <span
+                            className={cn(
+                                'inline-flex w-fit rounded-full px-2.5 py-1 text-[11px] font-medium',
+                                checklist.pareto.weight_ok
+                                    ? 'bg-emerald-50 text-emerald-800'
+                                    : 'bg-amber-50 text-amber-800',
+                            )}
+                        >
+                            Pareto {checklist.pareto.weight_total}%
+                            {checklist.pareto.weight_ok
+                                ? ''
+                                : ' (debe ser 100%)'}
+                        </span>
+                    ) : null}
                 </div>
+
+                {!checklist.pareto?.weight_ok ? (
+                    <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                        Los pesos del catálogo Pareto no suman 100%. Ajusta en{' '}
+                        <Link
+                            href="/pareto"
+                            className="font-semibold underline underline-offset-2"
+                        >
+                            Plataforma → Pareto
+                        </Link>{' '}
+                        antes de crear nuevas inspecciones.
+                    </div>
+                ) : null}
 
                 <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
                     {checklist.items.map((item, index) => {
                         const answer = answers[index];
                         const isChild = item.parent_id !== null;
+                        const isExpiry =
+                            item.check_type === 'expiry' || item.has_expiry;
                         const value =
                             activePass === 'first'
                                 ? (answer?.first_value ?? '')
@@ -558,6 +630,9 @@ export function ChecklistEditForm({ checklist }: Props) {
                         const disabled =
                             sealed ||
                             (activePass === 'first' ? firstLocked : secondLocked);
+                        const observationMissing =
+                            isExpiry &&
+                            (answer?.observations ?? '').trim() === '';
 
                         return (
                             <article
@@ -566,20 +641,30 @@ export function ChecklistEditForm({ checklist }: Props) {
                                     'rounded-xl border border-[#e2eaf3] bg-white p-3',
                                     isChild &&
                                         'border-l-4 border-l-[#4a90e2] lg:ml-0',
+                                    observationMissing &&
+                                        !sealed &&
+                                        'border-amber-300',
                                 )}
                             >
                                 <div className="mb-2.5 flex items-start gap-2">
                                     <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-[#1a2b4c] text-xs font-semibold text-white">
                                         {item.item_number}
                                     </span>
-                                    <p
-                                        className={cn(
-                                            'pt-0.5 text-sm leading-snug text-[#1a2b4c]',
-                                            isChild && 'text-[#5a7390]',
-                                        )}
-                                    >
-                                        {item.label}
-                                    </p>
+                                    <div className="min-w-0 flex-1">
+                                        <p
+                                            className={cn(
+                                                'pt-0.5 text-sm leading-snug text-[#1a2b4c]',
+                                                isChild && 'text-[#5a7390]',
+                                            )}
+                                        >
+                                            {item.label}
+                                        </p>
+                                        {item.weight != null ? (
+                                            <p className="mt-0.5 text-[11px] text-[#6b8ead]">
+                                                Peso {Number(item.weight).toFixed(2)}%
+                                            </p>
+                                        ) : null}
+                                    </div>
                                 </div>
                                 <YesNoToggle
                                     value={value}
@@ -605,11 +690,16 @@ export function ChecklistEditForm({ checklist }: Props) {
                                         )
                                     }
                                     placeholder={
-                                        item.has_expiry
+                                        isExpiry
                                             ? 'Vencimiento / observación'
                                             : 'Observación'
                                     }
-                                    className="mt-2 h-9 border-[#c5d5e6] text-sm disabled:bg-[#f8fafc]"
+                                    className={cn(
+                                        'mt-2 h-9 border-[#c5d5e6] text-sm disabled:bg-[#f8fafc]',
+                                        observationMissing &&
+                                            !sealed &&
+                                            'border-amber-400',
+                                    )}
                                 />
                             </article>
                         );

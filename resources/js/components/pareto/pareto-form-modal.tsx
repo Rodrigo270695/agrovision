@@ -293,7 +293,7 @@ export function ParetoFormModal({
                         onCheckedChange={(checked) =>
                             form.setData('is_active', Boolean(checked))
                         }
-                        className="border-[#c5d5e6]"
+                        className="border-[#c5d5e6] data-[state=checked]:border-[#2e5a9e] data-[state=checked]:bg-[#2e5a9e] data-[state=checked]:text-white"
                     />
                     Activo (cuenta para el 100%)
                 </label>
