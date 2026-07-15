@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-$sourcePath = __DIR__.'/../public/apple-touch-icon.png';
-$svgPath = __DIR__.'/../public/favicon.svg';
+$sourcePath = __DIR__.'/../public/icon.png';
 $outDir = __DIR__.'/../public/icons';
+$publicDir = __DIR__.'/../public';
 
 if (! is_dir($outDir)) {
     mkdir($outDir, 0755, true);
@@ -13,7 +13,7 @@ if (! is_dir($outDir)) {
 $source = @imagecreatefrompng($sourcePath);
 
 if ($source === false) {
-    fwrite(STDERR, "No se pudo leer apple-touch-icon.png\n");
+    fwrite(STDERR, "No se pudo leer public/icon.png\n");
     exit(1);
 }
 
@@ -23,21 +23,21 @@ $srcH = imagesy($source);
 
 $sizes = [48, 72, 96, 128, 144, 152, 180, 192, 256, 384, 512];
 
+/**
+ * Escala icon.png a un canvas cuadrado.
+ * Fondo negro (coincide con el logo). maskable deja zona segura.
+ */
 function makeIcon(GdImage $source, int $srcW, int $srcH, int $size, bool $maskable = false): GdImage
 {
     $canvas = imagecreatetruecolor($size, $size);
     imagealphablending($canvas, false);
     imagesavealpha($canvas, true);
 
-    $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
-    imagefilledrectangle($canvas, 0, 0, $size, $size, $transparent);
+    $black = imagecolorallocate($canvas, 0, 0, 0);
+    imagefilledrectangle($canvas, 0, 0, $size, $size, $black);
     imagealphablending($canvas, true);
 
-    // Fondo blanco para que el logo rojo de Laravel se vea bien
-    $background = imagecolorallocate($canvas, 255, 255, 255);
-    imagefilledrectangle($canvas, 0, 0, $size, $size, $background);
-
-    $paddingRatio = $maskable ? 0.22 : 0.14;
+    $paddingRatio = $maskable ? 0.18 : 0.04;
     $inner = (int) round($size * (1 - ($paddingRatio * 2)));
     $offset = (int) round(($size - $inner) / 2);
 
@@ -57,38 +57,124 @@ function makeIcon(GdImage $source, int $srcW, int $srcH, int $size, bool $maskab
     return $canvas;
 }
 
-foreach ($sizes as $size) {
-    $icon = makeIcon($source, $srcW, $srcH, $size, false);
-    $path = "{$outDir}/icon-{$size}x{$size}.png";
-    imagepng($icon, $path, 6);
-    imagedestroy($icon);
+function savePng(GdImage $image, string $path): void
+{
+    imagepng($image, $path, 6);
+    imagedestroy($image);
     echo "Created {$path}\n";
+}
+
+foreach ($sizes as $size) {
+    savePng(
+        makeIcon($source, $srcW, $srcH, $size, false),
+        "{$outDir}/icon-{$size}x{$size}.png",
+    );
 }
 
 foreach ([192, 512] as $size) {
-    $icon = makeIcon($source, $srcW, $srcH, $size, true);
-    $path = "{$outDir}/maskable-{$size}x{$size}.png";
-    imagepng($icon, $path, 6);
-    imagedestroy($icon);
-    echo "Created {$path}\n";
+    savePng(
+        makeIcon($source, $srcW, $srcH, $size, true),
+        "{$outDir}/maskable-{$size}x{$size}.png",
+    );
 }
 
-// Standard Apple / favicon destinations
-$apple = makeIcon($source, $srcW, $srcH, 180, false);
-imagepng($apple, __DIR__.'/../public/apple-touch-icon.png', 6);
-imagedestroy($apple);
-echo "Updated public/apple-touch-icon.png\n";
+savePng(makeIcon($source, $srcW, $srcH, 180, false), "{$publicDir}/apple-touch-icon.png");
+savePng(makeIcon($source, $srcW, $srcH, 32, false), "{$publicDir}/favicon-32x32.png");
+savePng(makeIcon($source, $srcW, $srcH, 16, false), "{$publicDir}/favicon-16x16.png");
 
-$favicon32 = makeIcon($source, $srcW, $srcH, 32, false);
-imagepng($favicon32, __DIR__.'/../public/favicon-32x32.png', 6);
-imagedestroy($favicon32);
+// favicon.ico (BMP 32-bit sin compresión embebido; cabecera ICO estándar)
+$ico16 = makeIcon($source, $srcW, $srcH, 16, false);
+$ico32 = makeIcon($source, $srcW, $srcH, 32, false);
+file_put_contents("{$publicDir}/favicon.ico", buildIco([$ico16, $ico32]));
+imagedestroy($ico16);
+imagedestroy($ico32);
+echo "Created {$publicDir}/favicon.ico\n";
 
-$favicon16 = makeIcon($source, $srcW, $srcH, 16, false);
-imagepng($favicon16, __DIR__.'/../public/favicon-16x16.png', 6);
-imagedestroy($favicon16);
-
-copy($svgPath, "{$outDir}/icon.svg");
-echo "Copied icon.svg\n";
+// Eliminar SVG del Laravel si existía
+foreach (["{$publicDir}/favicon.svg", "{$outDir}/icon.svg"] as $legacySvg) {
+    if (is_file($legacySvg)) {
+        unlink($legacySvg);
+        echo "Removed {$legacySvg}\n";
+    }
+}
 
 imagedestroy($source);
 echo "Done.\n";
+
+/**
+ * @param  list<GdImage>  $images
+ */
+function buildIco(array $images): string
+{
+    $count = count($images);
+    $offset = 6 + ($count * 16);
+    $entries = '';
+    $blobs = '';
+
+    foreach ($images as $image) {
+        $w = imagesx($image);
+        $h = imagesy($image);
+        $bmp = gdToBmp32($image);
+        $size = strlen($bmp);
+
+        $entries .= pack(
+            'CCCCvvVV',
+            $w >= 256 ? 0 : $w,
+            $h >= 256 ? 0 : $h,
+            0,
+            0,
+            1,
+            32,
+            $size,
+            $offset,
+        );
+
+        $blobs .= $bmp;
+        $offset += $size;
+    }
+
+    return pack('vvv', 0, 1, $count).$entries.$blobs;
+}
+
+function gdToBmp32(GdImage $image): string
+{
+    $w = imagesx($image);
+    $h = imagesy($image);
+    $rowSize = $w * 4;
+    $pixelData = '';
+
+    for ($y = $h - 1; $y >= 0; $y--) {
+        for ($x = 0; $x < $w; $x++) {
+            $rgba = imagecolorat($image, $x, $y);
+            $a = ($rgba & 0x7F000000) >> 24;
+            $r = ($rgba >> 16) & 0xFF;
+            $g = ($rgba >> 8) & 0xFF;
+            $b = $rgba & 0xFF;
+            // GD alpha 0=opaco … 127=transparente → BMP 0=transparente … 255=opaco
+            $alpha = (int) round((127 - $a) / 127 * 255);
+            $pixelData .= chr($b).chr($g).chr($r).chr($alpha);
+        }
+    }
+
+    $headerSize = 40;
+    $dib = pack(
+        'VVVvvVVVVVV',
+        $headerSize,
+        $w,
+        $h * 2, // altura * 2 en ICO (XOR + AND)
+        1,
+        32,
+        0,
+        strlen($pixelData),
+        0,
+        0,
+        0,
+        0,
+    );
+
+    // Máscara AND vacía (bits alineados a 32)
+    $andRow = (int) (ceil($w / 32) * 4);
+    $andMask = str_repeat("\0", $andRow * $h);
+
+    return $dib.$pixelData.$andMask;
+}

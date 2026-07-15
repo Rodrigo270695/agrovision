@@ -1,14 +1,16 @@
-const CACHE_VERSION = 'agrovision-pwa-v4';
+const CACHE_VERSION = 'agrovision-pwa-v5';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const PRECACHE_URLS = [
   '/manifest.webmanifest',
+  '/icon.png',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
   '/icons/maskable-192x192.png',
   '/icons/maskable-512x512.png',
-  '/favicon.svg',
+  '/favicon.ico',
+  '/favicon-32x32.png',
   '/apple-touch-icon.png',
 ];
 

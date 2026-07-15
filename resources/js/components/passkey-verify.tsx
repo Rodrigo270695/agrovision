@@ -45,27 +45,27 @@ export default function PasskeyVerify({
                 <Button
                     type="button"
                     variant="outline"
-                    className="w-full"
+                    className="h-12 w-full cursor-pointer border-[#c5d5e6] text-[#1a2b4c] hover:bg-[#e8f1fa] hover:text-[#1a2b4c]"
                     onClick={verify}
                     disabled={isLoading}
                 >
                     {isLoading ? <Spinner /> : <KeyRound className="h-4 w-4" />}
                     {isLoading
-                        ? (loadingLabel ?? 'Authenticating...')
-                        : (label ?? 'Sign in with a passkey')}
+                        ? (loadingLabel ?? 'Autenticando...')
+                        : (label ?? 'Iniciar sesión con passkey')}
                 </Button>
                 {error && (
                     <InputError message={error} className="text-center" />
                 )}
             </div>
 
-            <div className="relative my-6">
+            <div className="relative my-2">
                 <div className="absolute inset-0 flex items-center">
-                    <Separator className="w-full" />
+                    <Separator className="w-full bg-[#d7e3f0]" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">
-                        {separator ?? 'Or continue with email'}
+                    <span className="bg-white px-2 tracking-[0.12em] text-[#6b8ead]">
+                        {separator ?? 'O continúa con correo'}
                     </span>
                 </div>
             </div>

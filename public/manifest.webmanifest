@@ -94,9 +94,9 @@
       "purpose": "maskable"
     },
     {
-      "src": "/icons/icon.svg",
+      "src": "/icon.png",
       "sizes": "any",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     }
   ],
