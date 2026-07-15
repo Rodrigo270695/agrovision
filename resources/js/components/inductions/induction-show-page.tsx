@@ -403,8 +403,8 @@ export function InductionShowPage() {
     };
 
     return (
-        <div className="flex h-full flex-1 flex-col gap-4 p-4">
-            <div className="rounded-2xl border border-[#d7e3f0] bg-white p-5 shadow-sm">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
+            <div className="shrink-0 rounded-2xl border border-[#d7e3f0] bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="space-y-2">
                         <Button
@@ -525,7 +525,7 @@ export function InductionShowPage() {
                 </div>
             </div>
 
-            <div className="grid gap-4 xl:grid-cols-2">
+            <div className="grid shrink-0 gap-4 xl:grid-cols-2">
                 <section className="overflow-hidden rounded-2xl border border-[#d7e3f0] bg-white shadow-sm">
                     <div className="border-b border-[#e2eaf3] px-4 py-3">
                         <h2 className="text-sm font-semibold text-[#1a2b4c]">
@@ -926,7 +926,7 @@ export function InductionShowPage() {
 
             {induction.status === 'in_progress' ||
             induction.has_verification_photo ? (
-                <section className="overflow-hidden rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-5">
+                <section className="shrink-0 rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-5">
                     <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                             <h2 className="text-sm font-semibold text-[#1a2b4c]">
@@ -961,9 +961,10 @@ export function InductionShowPage() {
                                 Sin foto de verificación.
                             </p>
                         )
-                    ) : canUpdate && canManageAttendance ? (
+                    ) : canUpdate ? (
                         <VerificationPhotoCapture
                             existingUrl={induction.verification_photo_url}
+                            disabled={!canManageAttendance}
                             saving={savingVerificationPhoto}
                             onSave={saveVerificationPhoto}
                             onRemove={
@@ -972,9 +973,16 @@ export function InductionShowPage() {
                                     : undefined
                             }
                         />
+                    ) : induction.verification_photo_url ? (
+                        <img
+                            src={induction.verification_photo_url}
+                            alt="Foto de verificación"
+                            className="max-h-72 w-full rounded-xl border border-[#e2eaf3] object-contain"
+                        />
                     ) : (
                         <p className="text-sm text-[#6b8ead]">
-                            Inicia la inducción para cargar la foto.
+                            No tienes permiso para subir la foto de
+                            verificación.
                         </p>
                     )}
                 </section>
