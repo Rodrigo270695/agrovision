@@ -10,17 +10,17 @@
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
         <meta name="apple-mobile-web-app-title" content="Agrovisión">
         <meta name="msapplication-TileColor" content="#1a2b4c">
-        <meta name="msapplication-TileImage" content="/icons/icon-144x144.png">
-        <link rel="manifest" href="/manifest.webmanifest">
+        <meta name="msapplication-TileImage" content="/icons/icon-144x144.png?v=6">
+        <link rel="manifest" href="/manifest.webmanifest?v=6">
 
-        <link rel="icon" href="/favicon.ico" sizes="any">
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-        <link rel="icon" type="image/png" href="/icon.png" sizes="any">
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-        <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png">
-        <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180.png">
-        <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192x192.png">
+        <link rel="icon" href="/favicon-32x32.png?v=6" type="image/png" sizes="32x32">
+        <link rel="icon" href="/favicon-16x16.png?v=6" type="image/png" sizes="16x16">
+        <link rel="icon" href="/icon.png?v=6" type="image/png" sizes="any">
+        <link rel="shortcut icon" href="/favicon.ico?v=6">
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=6">
+        <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png?v=6">
+        <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180.png?v=6">
+        <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192x192.png?v=6">
 
         <script>
             (function () {

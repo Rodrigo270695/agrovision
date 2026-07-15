@@ -13,6 +13,9 @@
     RewriteCond %{HTTP:x-xsrf-token} .
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
 
+    # Evitar caché agresiva de favicons / iconos PWA (logo viejo de Laravel)
+    SetEnvIf Request_URI "^/(icons/|favicon|apple-touch-icon|icon\.png|manifest\.webmanifest)" NO_CACHE_BRAND
+
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
@@ -22,4 +25,8 @@
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header set Cache-Control "no-cache, must-revalidate" env=NO_CACHE_BRAND
 </IfModule>

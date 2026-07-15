@@ -5,7 +5,7 @@ type Props = ImgHTMLAttributes<HTMLImageElement>;
 export default function AppLogoIcon({ className, alt = 'Agrovisión', ...props }: Props) {
     return (
         <img
-            src="/icon.png"
+            src="/icon.png?v=6"
             alt={alt}
             className={className}
             {...props}

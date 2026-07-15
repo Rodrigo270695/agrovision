@@ -1,18 +1,19 @@
-const CACHE_VERSION = 'agrovision-pwa-v5';
+const CACHE_VERSION = 'agrovision-pwa-v6';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
-const PRECACHE_URLS = [
-  '/manifest.webmanifest',
-  '/icon.png',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png',
-  '/icons/maskable-192x192.png',
-  '/icons/maskable-512x512.png',
-  '/favicon.ico',
-  '/favicon-32x32.png',
-  '/apple-touch-icon.png',
-];
+// No precachear favicons/iconos: el SW los dejaba congelados (logo Laravel viejo).
+const PRECACHE_URLS = ['/manifest.webmanifest?v=6'];
+
+function isBrandAsset(pathname) {
+  return (
+    pathname.startsWith('/icons/') ||
+    pathname === '/icon.png' ||
+    pathname.startsWith('/favicon') ||
+    pathname === '/apple-touch-icon.png' ||
+    pathname.endsWith('.webmanifest')
+  );
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -28,11 +29,7 @@ self.addEventListener('activate', (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(
-          keys
-            .filter((key) => !key.startsWith(CACHE_VERSION))
-            .map((key) => caches.delete(key)),
-        ),
+        Promise.all(keys.map((key) => caches.delete(key))),
       )
       .then(() => self.clients.claim()),
   );
@@ -53,8 +50,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(payload.title || 'Agrovision', {
       body: payload.body || '',
-      icon: '/icons/icon-192x192.png',
-      badge: '/icons/icon-192x192.png',
+      icon: '/icons/icon-192x192.png?v=6',
+      badge: '/icons/icon-192x192.png?v=6',
       tag: payload.tag || 'agrovision',
       data: {
         url: payload.url || '/',
@@ -106,7 +103,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // No interceptar navegación ni peticiones Inertia/Laravel (evita opaqueredirect)
   if (request.mode === 'navigate') {
     return;
   }
@@ -120,16 +116,18 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Solo cachear assets estáticos
+  // Favicon / PWA icons / manifest: siempre red (evita icono viejo en caché).
+  if (isBrandAsset(url.pathname)) {
+    event.respondWith(
+      fetch(request, { cache: 'reload' }).catch(() => fetch(request)),
+    );
+    return;
+  }
+
   const isStaticAsset =
-    url.pathname.startsWith('/icons/') ||
     url.pathname.startsWith('/build/') ||
-    url.pathname.endsWith('.png') ||
-    url.pathname.endsWith('.svg') ||
-    url.pathname.endsWith('.ico') ||
     url.pathname.endsWith('.woff2') ||
-    url.pathname.endsWith('.woff') ||
-    url.pathname.endsWith('.webmanifest');
+    url.pathname.endsWith('.woff');
 
   if (!isStaticAsset) {
     return;
