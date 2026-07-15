@@ -764,15 +764,6 @@ class InductionController extends Controller
                 ]);
         }
 
-        if (! $induction->hasVerificationPhoto()) {
-            return redirect()
-                ->route('inductions.show', $induction)
-                ->with('toast', [
-                    'type' => 'error',
-                    'message' => 'Falta la foto de verificación para generar los documentos.',
-                ]);
-        }
-
         $hasAttendedSigned = $induction->attendees
             ->contains(fn ($attendee) => $attendee->status === InductionAttendeeStatuses::ATTENDED
                 && $attendee->isSigned());
@@ -786,7 +777,18 @@ class InductionController extends Controller
                 ]);
         }
 
-        return InductionDocumentPackage::download($induction);
+        try {
+            return InductionDocumentPackage::download($induction);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()
+                ->route('inductions.show', $induction)
+                ->with('toast', [
+                    'type' => 'error',
+                    'message' => 'No se pudo generar el ZIP. Revisa firmas/fotos e inténtalo de nuevo.',
+                ]);
+        }
     }
 
     public function destroyAttendee(Induction $induction, InductionAttendee $attendee): RedirectResponse
