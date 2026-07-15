@@ -79,7 +79,7 @@ export function DashboardPage({ data }: Props) {
     };
 
     return (
-        <div className="relative isolate min-h-full overflow-hidden">
+        <div className="relative isolate">
             <div
                 aria-hidden
                 className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-linear-to-b from-[#e8f1fa] via-[#f4f8fc] to-transparent"

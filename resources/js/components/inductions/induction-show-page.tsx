@@ -313,19 +313,39 @@ export function InductionShowPage() {
     };
 
     const saveVerificationPhoto = (dataUrl: string) => {
-        if (!canUpdate || savingVerificationPhoto || locked) {
+        if (!canUpdate || savingVerificationPhoto || locked || !induction.id) {
             return;
         }
 
         setSavingVerificationPhoto(true);
-        router.post(
-            `/inducciones/${induction.id}/foto-verificacion`,
-            { photo_data_url: dataUrl },
-            {
-                preserveScroll: true,
-                onFinish: () => setSavingVerificationPhoto(false),
-            },
-        );
+
+        void (async () => {
+            try {
+                const response = await fetch(dataUrl);
+                const blob = await response.blob();
+                const formData = new FormData();
+                formData.append(
+                    'photo',
+                    blob,
+                    `verificacion-${induction.id}.jpg`,
+                );
+
+                router.post(
+                    `/inducciones/${induction.id}/foto-verificacion`,
+                    formData,
+                    {
+                        forceFormData: true,
+                        preserveScroll: true,
+                        onError: () => {
+                            setSavingVerificationPhoto(false);
+                        },
+                        onFinish: () => setSavingVerificationPhoto(false),
+                    },
+                );
+            } catch {
+                setSavingVerificationPhoto(false);
+            }
+        })();
     };
 
     const removeVerificationPhoto = () => {
@@ -403,7 +423,7 @@ export function InductionShowPage() {
     };
 
     return (
-        <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
+        <div className="flex flex-col gap-4 p-4">
             <div className="shrink-0 rounded-2xl border border-[#d7e3f0] bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="space-y-2">

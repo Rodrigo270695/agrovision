@@ -68,7 +68,7 @@ export default function ConsolidationsIndexPage() {
     return (
         <>
             <Head title="Consolidados" />
-            <div className="flex h-full flex-1 flex-col gap-4 p-4">
+            <div className="flex flex-col gap-4 p-4">
                 <div className="rounded-2xl border border-[#d7e3f0] bg-white p-5 shadow-sm sm:p-6">
                     <h1 className="font-display inline-block border-b-2 border-[#4a90e2] pb-1 text-2xl font-semibold text-[#1a2b4c]">
                         Consolidados

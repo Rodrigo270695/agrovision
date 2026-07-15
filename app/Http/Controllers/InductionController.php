@@ -669,18 +669,42 @@ class InductionController extends Controller
             ]);
         }
 
-        $validated = $request->validate([
-            'photo_data_url' => ['required', 'string'],
+        $request->validate([
+            'photo' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:10240'],
+            'photo_data_url' => ['nullable', 'string'],
         ], [
-            'photo_data_url.required' => 'Debes tomar o subir la foto de verificación.',
+            'photo.image' => 'El archivo debe ser una imagen.',
+            'photo.max' => 'La foto no puede superar los 10 MB.',
         ]);
 
-        $induction->deleteVerificationPhotoFile();
+        if (! $request->hasFile('photo') && ! filled($request->input('photo_data_url'))) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Debes tomar o subir la foto de verificación.',
+            ]);
+        }
 
-        $path = SignatureImage::storeFromDataUrl(
-            $validated['photo_data_url'],
-            "inductions/{$induction->id}/verification",
-        );
+        $directory = "inductions/{$induction->id}/verification";
+
+        try {
+            if ($request->hasFile('photo')) {
+                $path = $request->file('photo')->store($directory, 'public');
+            } else {
+                $path = SignatureImage::storeFromDataUrl(
+                    (string) $request->input('photo_data_url'),
+                    $directory,
+                );
+            }
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'No se pudo guardar la foto de verificación. Intenta con otra imagen.',
+            ]);
+        }
+
+        $induction->deleteVerificationPhotoFile();
 
         $induction->update([
             'verification_photo_path' => $path,

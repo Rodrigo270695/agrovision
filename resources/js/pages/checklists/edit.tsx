@@ -17,7 +17,7 @@ export default function ChecklistEditPage() {
             <Head
                 title={`Inspección ${checklist.template.type.toUpperCase()} · ${checklist.plate_number}`}
             />
-            <div className="flex h-full flex-1 flex-col gap-4 p-4">
+            <div className="flex flex-col gap-4 p-4">
                 <ChecklistEditForm checklist={checklist} />
             </div>
         </>

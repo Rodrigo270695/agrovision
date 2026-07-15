@@ -68,7 +68,7 @@ export function PeriodsPage() {
     };
 
     return (
-        <div className="flex h-full flex-1 flex-col gap-4 p-4">
+        <div className="flex flex-col gap-4 p-4">
             <PeriodsHeader stats={stats} onCreate={openCreate} />
             <PeriodsTable
                 periods={periods}

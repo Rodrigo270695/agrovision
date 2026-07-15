@@ -13,7 +13,11 @@ export default function AppSidebarLayout({
             <AppSidebar />
             <AppContent variant="sidebar">
                 <AppSidebarHeader breadcrumbs={breadcrumbs} />
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]">
+                {/* Contenedor de scroll de todas las vistas del app shell */}
+                <div
+                    data-slot="app-scroll"
+                    className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]"
+                >
                     {children}
                 </div>
             </AppContent>

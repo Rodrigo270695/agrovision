@@ -32,7 +32,7 @@ export function ParetoPage() {
     const [deleting, setDeleting] = useState<ParetoItem | null>(null);
 
     return (
-        <div className="flex h-full flex-1 flex-col gap-4 p-4">
+        <div className="flex flex-col gap-4 p-4">
             <ParetoHeader
                 stats={stats}
                 templateType={filters.template_type}

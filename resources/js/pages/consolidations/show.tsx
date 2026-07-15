@@ -63,7 +63,7 @@ export default function ConsolidationShowPage() {
             <Head
                 title={`Consolidado ${checklist.plate_number}`}
             />
-            <div className="flex h-full flex-1 flex-col gap-4 p-4">
+            <div className="flex flex-col gap-4 p-4">
                 <div className="mx-auto w-full max-w-5xl space-y-4">
                     <div className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-5">
                         <Link
