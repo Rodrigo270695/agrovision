@@ -17,14 +17,28 @@
         p { margin: 0 0 10px; text-align: justify; }
         .field { margin-top: 18px; }
         .line { display: inline-block; border-bottom: 1px solid #222; min-width: 240px; padding: 0 4px 2px; }
-        .sigs { width: 100%; margin-top: 36px; }
-        .sigs td { width: 50%; vertical-align: top; padding-top: 10px; }
-        .sig-img { max-height: 60px; max-width: 200px; }
+        .sigs {
+            width: 70%;
+            margin: 40px auto 0;
+            table-layout: fixed;
+        }
+        .sigs td {
+            width: 50%;
+            vertical-align: top;
+            text-align: center;
+            padding: 10px 16px 0;
+        }
+        .sig-img { max-height: 60px; max-width: 200px; display: inline-block; }
         .huella {
             width: 78px;
             height: 100px;
             border: 1px solid #222;
             display: inline-block;
+        }
+        .sig-line {
+            border-bottom: 1px solid #222;
+            width: 200px;
+            margin: 6px auto 0;
         }
         .muted { color: #555; font-size: 9px; }
     </style>
@@ -118,10 +132,10 @@
                 @if (! empty($signatureSrc))
                     <img class="sig-img" src="{{ $signatureSrc }}" alt="Firma">
                 @endif
-                <div style="border-bottom: 1px solid #222; width: 220px; margin-top: 4px;"></div>
+                <div class="sig-line"></div>
                 <div class="muted" style="margin-top: 4px;">{{ $attendee->driver_name }}</div>
             </td>
-            <td style="text-align: right;">
+            <td>
                 <strong>Huella:</strong><br><br>
                 @if (! empty($fingerprintSrc))
                     <img class="sig-img" style="max-height: 100px; max-width: 90px;" src="{{ $fingerprintSrc }}" alt="Huella">

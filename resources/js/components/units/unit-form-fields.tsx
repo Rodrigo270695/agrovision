@@ -477,35 +477,41 @@ export function UnitFormFields({
             ))}
 
             <div className="grid gap-1.5 sm:col-span-2">
-                <Label className="text-xs text-[#1a2b4c]">Coordinador</Label>
-                <Select
+                <Label
+                    htmlFor="unit-coordinator_id"
+                    className="text-xs text-[#1a2b4c]"
+                >
+                    Coordinador
+                </Label>
+                <select
+                    id="unit-coordinator_id"
+                    name="coordinator_id"
                     value={coordinatorSelectValue}
-                    onValueChange={(value) => {
+                    onChange={(event) => {
+                        const value = event.target.value;
                         onChange(
                             'coordinator_id',
                             value === 'none' ? '' : value,
                         );
                     }}
-                    disabled={coordinatorOptions.length === 1}
+                    className="h-9 w-full cursor-pointer rounded-md border border-[#c5d5e6] bg-white px-3 text-sm text-[#1a2b4c] outline-none focus:border-[#2e5a9e] focus:ring-[3px] focus:ring-[#4a90e2]/35"
                 >
-                    <SelectTrigger className="h-9 w-full cursor-pointer border-[#c5d5e6] bg-white text-sm text-[#1a2b4c] disabled:cursor-not-allowed">
-                        <SelectValue placeholder="Selecciona un coordinador" />
-                    </SelectTrigger>
-                    <SelectContent className="border-[#d7e3f0] bg-white">
-                        <SelectItem value="none" className="cursor-pointer">
-                            Sin coordinador
-                        </SelectItem>
-                        {coordinatorOptions.map((coordinator) => (
-                            <SelectItem
-                                key={coordinator.id}
-                                value={String(coordinator.id)}
-                                className="cursor-pointer"
-                            >
-                                {coordinator.name}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                    <option value="none">Sin coordinador</option>
+                    {coordinatorOptions.map((coordinator) => (
+                        <option
+                            key={coordinator.id}
+                            value={String(coordinator.id)}
+                        >
+                            {coordinator.name}
+                        </option>
+                    ))}
+                </select>
+                {coordinatorOptions.length === 0 ? (
+                    <p className="text-[11px] text-amber-700">
+                        No hay usuarios con rol coordinador. Créalos en Usuarios
+                        / Roles para poder asignarlos.
+                    </p>
+                ) : null}
                 <InputError message={errors.coordinator_id} />
             </div>
         </div>
