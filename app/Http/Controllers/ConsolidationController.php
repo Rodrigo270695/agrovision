@@ -119,9 +119,9 @@ class ConsolidationController extends Controller
                 'coordinator_action_plan' => $checklist->coordinator_action_plan,
                 'coordinator_signer_name' => $checklist->coordinator_signer_name,
                 'coordinator_signature_url' => $checklist->coordinatorSignatureUrl(),
-                'coordinator_signed_at' => optional($checklist->coordinator_signed_at)
+                'coordinator_signed_at' => $checklist->coordinator_signed_at
                     ?->timezone(config('app.timezone'))
-                    ->format('d/m/Y H:i'),
+                    ?->format('d/m/Y H:i'),
                 'coordinator_responded_at' => optional($checklist->coordinator_responded_at)?->toIso8601String(),
                 'period' => $checklist->period,
                 'template' => $checklist->template,
