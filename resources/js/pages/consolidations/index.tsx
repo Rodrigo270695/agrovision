@@ -124,15 +124,25 @@ export default function ConsolidationsIndexPage() {
                         </Select>
                     </div>
 
-                    <div className="overflow-x-auto">
+                    <div className="hidden overflow-x-auto md:block">
                         <table className="min-w-full text-left text-xs">
                             <thead className="bg-[#1a2b4c] text-white">
                                 <tr>
-                                    <th className="px-3 py-2 font-semibold">Placa</th>
-                                    <th className="px-3 py-2 font-semibold">Tipo</th>
-                                    <th className="px-3 py-2 font-semibold">Periodo</th>
-                                    <th className="px-3 py-2 font-semibold">Estado</th>
-                                    <th className="px-3 py-2 font-semibold">Enviado</th>
+                                    <th className="px-3 py-2 font-semibold">
+                                        Placa
+                                    </th>
+                                    <th className="px-3 py-2 font-semibold">
+                                        Tipo
+                                    </th>
+                                    <th className="px-3 py-2 font-semibold">
+                                        Periodo
+                                    </th>
+                                    <th className="px-3 py-2 font-semibold">
+                                        Estado
+                                    </th>
+                                    <th className="px-3 py-2 font-semibold">
+                                        Enviado
+                                    </th>
                                     <th className="w-28 px-3 py-2" />
                                 </tr>
                             </thead>
@@ -152,7 +162,8 @@ export default function ConsolidationsIndexPage() {
                                             key={item.id}
                                             className={cn(
                                                 'border-b border-[#eef2f7]',
-                                                index % 2 === 1 && 'bg-[#f8fafc]',
+                                                index % 2 === 1 &&
+                                                    'bg-[#f8fafc]',
                                             )}
                                         >
                                             <td className="px-3 py-2">
@@ -189,9 +200,13 @@ export default function ConsolidationsIndexPage() {
                                                 {item.sent_to_coordinator_at
                                                     ? new Date(
                                                           item.sent_to_coordinator_at,
-                                                      ).toLocaleString('es-PE', {
-                                                          timeZone: 'America/Lima',
-                                                      })
+                                                      ).toLocaleString(
+                                                          'es-PE',
+                                                          {
+                                                              timeZone:
+                                                                  'America/Lima',
+                                                          },
+                                                      )
                                                     : '—'}
                                             </td>
                                             <td className="px-3 py-2 text-right">
@@ -217,6 +232,103 @@ export default function ConsolidationsIndexPage() {
                                 )}
                             </tbody>
                         </table>
+                    </div>
+
+                    <div className="space-y-2.5 p-3 md:hidden">
+                        {items.data.length === 0 ? (
+                            <p className="py-8 text-center text-sm text-[#6b8ead]">
+                                No hay consolidados en este filtro.
+                            </p>
+                        ) : (
+                            items.data.map((item) => (
+                                <article
+                                    key={item.id}
+                                    className="rounded-xl border border-[#e2eaf3] bg-white p-3.5 shadow-sm"
+                                >
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="min-w-0">
+                                            <h3 className="text-sm font-semibold text-[#1a2b4c]">
+                                                {item.plate_number || 'Sin placa'}
+                                            </h3>
+                                            <p className="mt-0.5 text-xs text-[#5a7390]">
+                                                {item.driver_name ||
+                                                    'Sin conductor'}
+                                            </p>
+                                        </div>
+                                        <span
+                                            className={cn(
+                                                'shrink-0 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium',
+                                                item.coordinator_status ===
+                                                    'reviewed'
+                                                    ? 'bg-violet-50 text-violet-800'
+                                                    : 'bg-amber-50 text-amber-800',
+                                            )}
+                                        >
+                                            {item.coordinator_status ===
+                                            'reviewed'
+                                                ? 'Revisado'
+                                                : 'Observado'}
+                                        </span>
+                                    </div>
+
+                                    <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                                        <div>
+                                            <dt className="text-[11px] text-[#6b8ead]">
+                                                Tipo
+                                            </dt>
+                                            <dd className="text-xs font-medium uppercase text-[#1a2b4c]">
+                                                {item.template?.type ?? '—'}
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt className="text-[11px] text-[#6b8ead]">
+                                                Periodo
+                                            </dt>
+                                            <dd className="text-xs font-medium text-[#1a2b4c]">
+                                                {item.period?.name ?? '—'}
+                                            </dd>
+                                        </div>
+                                        <div className="col-span-2">
+                                            <dt className="text-[11px] text-[#6b8ead]">
+                                                Enviado
+                                            </dt>
+                                            <dd className="text-xs font-medium text-[#1a2b4c]">
+                                                {item.sent_to_coordinator_at
+                                                    ? new Date(
+                                                          item.sent_to_coordinator_at,
+                                                      ).toLocaleString(
+                                                          'es-PE',
+                                                          {
+                                                              timeZone:
+                                                                  'America/Lima',
+                                                          },
+                                                      )
+                                                    : '—'}
+                                            </dd>
+                                        </div>
+                                    </dl>
+
+                                    <div className="mt-3 flex justify-end border-t border-[#eef2f7] pt-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            asChild
+                                            className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                                        >
+                                            <Link
+                                                href={`/consolidados/${item.id}`}
+                                            >
+                                                {item.coordinator_status ===
+                                                'observed'
+                                                    ? 'Responder'
+                                                    : 'Ver'}
+                                            </Link>
+                                        </Button>
+                                    </div>
+                                </article>
+                            ))
+                        )}
                     </div>
 
                     <TablePagination
