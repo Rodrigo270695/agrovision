@@ -10,6 +10,7 @@ import {
 import { router } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import type { UnitItem } from '@/components/units/units-table';
+import { DocumentExpiryBadge } from '@/components/units/document-expiry-badge';
 import {
     DocumentsProgressBar,
     type DocumentsProgress,
@@ -28,6 +29,7 @@ import {
 } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { useCan } from '@/hooks/use-can';
+import { getDocumentExpiryInfo } from '@/lib/document-expiry';
 import { cn } from '@/lib/utils';
 
 export type UnitDocumentTypeOption = {
@@ -239,7 +241,7 @@ export function UnitDocumentsModal({
             formData.append('title', title.trim());
         }
 
-        if (expiresAt !== '') {
+        if (expiresAt !== '' && type !== 'driver_dni') {
             formData.append('expires_at', expiresAt);
         }
 
@@ -337,21 +339,39 @@ export function UnitDocumentsModal({
                             <tbody>
                                 {progress.types.map((item) => {
                                     const latest = latestByType.get(item.value);
+                                    const expiry = latest
+                                        ? getDocumentExpiryInfo(latest)
+                                        : null;
 
                                     return (
                                         <tr
                                             key={item.value}
-                                            className="border-t border-[#eef2f7]"
+                                            className={cn(
+                                                'border-t border-[#eef2f7]',
+                                                expiry?.level === 'warning' &&
+                                                    'bg-[#fbf8f1]',
+                                                (expiry?.level === 'danger' ||
+                                                    expiry?.level ===
+                                                        'expired') &&
+                                                    'bg-[#faf5f5]',
+                                            )}
                                         >
                                             <td className="px-2.5 py-2 font-medium text-[#1a2b4c]">
                                                 {item.label}
                                             </td>
                                             <td className="px-2.5 py-2">
                                                 {item.uploaded ? (
-                                                    <span className="inline-flex items-center gap-1 text-emerald-700">
-                                                        <CheckCircle2 className="size-3.5" />
-                                                        Subido
-                                                    </span>
+                                                    <div className="flex flex-col items-start gap-1">
+                                                        <span className="inline-flex items-center gap-1 text-emerald-700">
+                                                            <CheckCircle2 className="size-3.5" />
+                                                            Subido
+                                                        </span>
+                                                        {expiry ? (
+                                                            <DocumentExpiryBadge
+                                                                info={expiry}
+                                                            />
+                                                        ) : null}
+                                                    </div>
                                                 ) : (
                                                     <span className="inline-flex items-center gap-1 text-amber-700">
                                                         <Circle className="size-3.5" />
@@ -422,11 +442,23 @@ export function UnitDocumentsModal({
                                 <Label className="text-xs text-[#1a2b4c]">
                                     Tipo <span className="text-red-500">*</span>
                                 </Label>
-                                <Select value={type} onValueChange={setType}>
+                                <Select
+                                    value={type}
+                                    onValueChange={(value) => {
+                                        setType(value);
+                                        if (value === 'driver_dni') {
+                                            setExpiresAt('');
+                                        }
+                                    }}
+                                >
                                     <SelectTrigger className="h-9 w-full cursor-pointer border-[#c5d5e6] bg-white text-sm">
                                         <SelectValue placeholder="Tipo" />
                                     </SelectTrigger>
-                                    <SelectContent className="border-[#d7e3f0] bg-white">
+                                    <SelectContent
+                                        position="popper"
+                                        side="bottom"
+                                        className="z-[120] border-[#d7e3f0] bg-white"
+                                    >
                                         {documentTypes.map((option) => (
                                             <SelectItem
                                                 key={option.value}
@@ -445,23 +477,35 @@ export function UnitDocumentsModal({
                                 </Select>
                             </div>
 
-                            <div className="grid gap-1.5">
-                                <Label
-                                    htmlFor="unit-doc-expires"
-                                    className="text-xs text-[#1a2b4c]"
-                                >
-                                    Vence (opcional)
-                                </Label>
-                                <Input
-                                    id="unit-doc-expires"
-                                    type="date"
-                                    value={expiresAt}
-                                    onChange={(event) =>
-                                        setExpiresAt(event.target.value)
-                                    }
-                                    className="h-9 border-[#c5d5e6] bg-white text-sm"
-                                />
-                            </div>
+                            {type !== 'driver_dni' ? (
+                                <div className="grid gap-1.5">
+                                    <Label
+                                        htmlFor="unit-doc-expires"
+                                        className="text-xs text-[#1a2b4c]"
+                                    >
+                                        Vence (opcional)
+                                    </Label>
+                                    <Input
+                                        id="unit-doc-expires"
+                                        type="date"
+                                        value={expiresAt}
+                                        onChange={(event) =>
+                                            setExpiresAt(event.target.value)
+                                        }
+                                        className="h-9 border-[#c5d5e6] bg-white text-sm"
+                                    />
+                                </div>
+                            ) : (
+                                <div className="grid gap-1.5">
+                                    <Label className="text-xs text-[#1a2b4c]">
+                                        Vencimiento
+                                    </Label>
+                                    <p className="flex h-9 items-center text-xs text-[#6b8ead]">
+                                        El DNI no requiere fecha de
+                                        vencimiento.
+                                    </p>
+                                </div>
+                            )}
                         </div>
 
                         {type === 'other' ? (

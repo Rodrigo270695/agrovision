@@ -7,10 +7,15 @@ import {
 } from '@/components/shared/period-filter-select';
 import { TablePagination } from '@/components/shared/table-pagination';
 import { TableSearchFilter } from '@/components/shared/table-search-filter';
+import { DocumentExpiryBadge } from '@/components/units/document-expiry-badge';
 import { DocumentsProgressBar } from '@/components/units/documents-progress-bar';
 import type { UnitDocumentItem } from '@/components/units/unit-documents-modal';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/hooks/use-can';
+import {
+    getWorstDocumentExpiry,
+    unitExpiryRowClass,
+} from '@/lib/document-expiry';
 import { cn } from '@/lib/utils';
 
 export type UnitItem = {
@@ -371,12 +376,18 @@ export function UnitsTable({
                                 </td>
                             </tr>
                         ) : (
-                            units.data.map((unit, index) => (
+                            units.data.map((unit, index) => {
+                                const expiry = getWorstDocumentExpiry(
+                                    unit.documents ?? [],
+                                );
+
+                                return (
                                 <tr
                                     key={unit.id}
                                     className={cn(
                                         'border-b border-[#eef2f7] last:border-0',
                                         index % 2 === 1 && 'bg-[#f8fafc]',
+                                        unitExpiryRowClass(expiry.level),
                                     )}
                                 >
                                     <td className="px-3 py-1.5 font-medium text-[#1a2b4c]">
@@ -401,15 +412,21 @@ export function UnitsTable({
                                         {unit.coordinatorUser?.name || '—'}
                                     </td>
                                     <td className="px-3 py-1.5">
-                                        <DocumentsProgressBar
-                                            progress={
-                                                unit.documents_progress ?? {
-                                                    done: 0,
-                                                    total: 6,
-                                                    percent: 0,
+                                        <div className="flex flex-col gap-1">
+                                            <DocumentsProgressBar
+                                                progress={
+                                                    unit.documents_progress ?? {
+                                                        done: 0,
+                                                        total: 6,
+                                                        percent: 0,
+                                                    }
                                                 }
-                                            }
-                                        />
+                                            />
+                                            <DocumentExpiryBadge
+                                                info={expiry}
+                                                compact
+                                            />
+                                        </div>
                                     </td>
                                     <td className="px-3 py-1.5 text-center text-[#5a7390]">
                                         {formatDate(unit.service_date)}
@@ -424,7 +441,8 @@ export function UnitsTable({
                                         />
                                     </td>
                                 </tr>
-                            ))
+                                );
+                            })
                         )}
                     </tbody>
                 </table>
@@ -436,10 +454,22 @@ export function UnitsTable({
                         No se encontraron unidades.
                     </p>
                 ) : (
-                    units.data.map((unit) => (
+                    units.data.map((unit) => {
+                        const expiry = getWorstDocumentExpiry(
+                            unit.documents ?? [],
+                        );
+
+                        return (
                         <article
                             key={unit.id}
-                            className="rounded-xl border border-[#e2eaf3] bg-white p-3.5 shadow-sm"
+                            className={cn(
+                                'rounded-xl border border-[#e2eaf3] bg-white p-3.5 shadow-sm',
+                                unitExpiryRowClass(expiry.level),
+                                (expiry.level === 'warning' ||
+                                    expiry.level === 'danger' ||
+                                    expiry.level === 'expired') &&
+                                    'border-[#e8dcc8]',
+                            )}
                         >
                             <h3 className="mb-0.5 break-words text-sm font-semibold text-[#1a2b4c]">
                                 {unit.correlative}
@@ -470,7 +500,7 @@ export function UnitsTable({
                                     <dt className="text-[11px] text-[#6b8ead]">
                                         Documentos
                                     </dt>
-                                    <dd className="mt-1">
+                                    <dd className="mt-1 space-y-1">
                                         <DocumentsProgressBar
                                             progress={
                                                 unit.documents_progress ?? {
@@ -480,6 +510,7 @@ export function UnitsTable({
                                                 }
                                             }
                                         />
+                                        <DocumentExpiryBadge info={expiry} />
                                     </dd>
                                 </div>
                                 <div>
@@ -508,7 +539,8 @@ export function UnitsTable({
                                 />
                             </div>
                         </article>
-                    ))
+                        );
+                    })
                 )}
             </div>
 
