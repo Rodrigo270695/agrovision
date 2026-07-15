@@ -144,16 +144,23 @@ class ConsolidationController extends Controller
         }
 
         $data = $request->validate([
-            'coordinator_signer_name' => ['required', 'string', 'max:255'],
             'coordinator_action_plan' => ['required', 'string', 'max:5000'],
             'signature_data_url' => ['required', 'string'],
         ], [
-            'coordinator_signer_name.required' => 'Indica el nombre de quien recibe.',
             'coordinator_action_plan.required' => 'El plan de acción / descargo es obligatorio.',
             'signature_data_url.required' => 'Debes firmar el recibido.',
         ]);
 
-        DB::transaction(function () use ($checklist, $data) {
+        $signerName = trim((string) (Auth::user()?->name ?? ''));
+
+        if ($signerName === '') {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'No se pudo identificar al coordinador en sesión.',
+            ]);
+        }
+
+        DB::transaction(function () use ($checklist, $data, $signerName) {
             $checklist->deleteCoordinatorSignatureFile();
 
             $path = SignatureImage::storeFromDataUrl(
@@ -164,7 +171,7 @@ class ConsolidationController extends Controller
             $checklist->update([
                 'coordinator_status' => UnitChecklist::COORDINATOR_REVIEWED,
                 'coordinator_action_plan' => trim($data['coordinator_action_plan']),
-                'coordinator_signer_name' => trim($data['coordinator_signer_name']),
+                'coordinator_signer_name' => $signerName,
                 'coordinator_signature_path' => $path,
                 'coordinator_signed_at' => now(),
                 'coordinator_responded_at' => now(),

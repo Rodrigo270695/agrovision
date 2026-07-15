@@ -30,12 +30,18 @@ type ChecklistShow = {
 
 type PageProps = {
     checklist: ChecklistShow;
+    auth: {
+        user: { id: number; name: string; email: string } | null;
+    };
 };
 
 export default function ConsolidationShowPage() {
-    const { checklist } = usePage().props as unknown as PageProps;
+    const { checklist, auth } = usePage().props as unknown as PageProps;
     const form = useForm({
-        coordinator_signer_name: checklist.coordinator_signer_name ?? '',
+        coordinator_signer_name:
+            checklist.coordinator_signer_name?.trim() ||
+            auth.user?.name?.trim() ||
+            '',
         coordinator_action_plan: checklist.coordinator_action_plan ?? '',
         signature_data_url: '' as string,
     });
@@ -131,14 +137,13 @@ export default function ConsolidationShowPage() {
                                     </Label>
                                     <Input
                                         value={form.data.coordinator_signer_name}
-                                        onChange={(e) =>
-                                            form.setData(
-                                                'coordinator_signer_name',
-                                                e.target.value,
-                                            )
-                                        }
-                                        className="h-9 border-[#c5d5e6]"
+                                        readOnly
+                                        className="h-9 border-[#c5d5e6] bg-[#f8fafc] text-[#1a2b4c]"
                                     />
+                                    <p className="text-[11px] text-[#5a7390]">
+                                        Se completa automáticamente con el
+                                        coordinador en sesión.
+                                    </p>
                                     {form.errors.coordinator_signer_name ? (
                                         <p className="text-xs text-red-600">
                                             {form.errors.coordinator_signer_name}
