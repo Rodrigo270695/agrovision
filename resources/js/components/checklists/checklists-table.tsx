@@ -25,6 +25,7 @@ export type ChecklistItemRow = {
     sealed_at?: string | null;
     first_result?: 'approved' | 'rejected' | null;
     second_result?: 'approved' | 'rejected' | null;
+    coordinator_status?: 'observed' | 'reviewed' | null;
     created_at?: string | null;
     template?: {
         id: number;
@@ -342,29 +343,49 @@ export function ChecklistsTable({
                                                 'inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium',
                                                 sealed
                                                     ? 'bg-[#e8f1fa] text-[#2e5a9e]'
-                                                    : item.status === 'completed'
-                                                      ? 'bg-[#e8f7ef] text-[#15803d]'
-                                                      : 'bg-[#fff1e6] text-[#c2410c]',
+                                                    : item.coordinator_status ===
+                                                        'reviewed'
+                                                      ? 'bg-violet-50 text-violet-800'
+                                                      : item.coordinator_status ===
+                                                          'observed'
+                                                        ? 'bg-amber-50 text-amber-800'
+                                                        : item.status ===
+                                                            'completed'
+                                                          ? 'bg-[#e8f7ef] text-[#15803d]'
+                                                          : 'bg-[#fff1e6] text-[#c2410c]',
                                             )}
                                         >
                                             {sealed
                                                 ? 'Sellado'
-                                                : item.status === 'completed'
-                                                  ? 'Completado'
-                                                  : 'Borrador'}
+                                                : item.coordinator_status ===
+                                                    'reviewed'
+                                                  ? 'Revisado'
+                                                  : item.coordinator_status ===
+                                                      'observed'
+                                                    ? 'Observado'
+                                                    : item.status ===
+                                                        'completed'
+                                                      ? 'Completado'
+                                                      : 'Borrador'}
                                         </span>
                                     </td>
                                     <td className="px-3 py-1.5">
                                         <ResultChip value={item.first_result} />
                                     </td>
                                     <td className="px-3 py-1.5">
-                                        <ResultChip
-                                            value={
-                                                item.first_result === 'approved'
-                                                    ? item.second_result
-                                                    : null
-                                            }
-                                        />
+                                        {item.coordinator_status ===
+                                        'reviewed' ? (
+                                            <ResultChip
+                                                value={item.second_result}
+                                            />
+                                        ) : item.coordinator_status ===
+                                          'observed' ? (
+                                            <span className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                                                En revisión
+                                            </span>
+                                        ) : (
+                                            <ResultChip value={null} />
+                                        )}
                                     </td>
                                     <td className="px-3 py-1.5 text-[#5a7390]">
                                         {formatDate(item.created_at)}
@@ -463,27 +484,40 @@ export function ChecklistsTable({
                                         'inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium',
                                         sealed
                                             ? 'bg-[#e8f1fa] text-[#2e5a9e]'
-                                            : item.status === 'completed'
-                                              ? 'bg-[#e8f7ef] text-[#15803d]'
-                                              : 'bg-[#fff1e6] text-[#c2410c]',
+                                            : item.coordinator_status ===
+                                                'reviewed'
+                                              ? 'bg-violet-50 text-violet-800'
+                                              : item.coordinator_status ===
+                                                  'observed'
+                                                ? 'bg-amber-50 text-amber-800'
+                                                : item.status === 'completed'
+                                                  ? 'bg-[#e8f7ef] text-[#15803d]'
+                                                  : 'bg-[#fff1e6] text-[#c2410c]',
                                     )}
                                 >
                                     {sealed
                                         ? 'Sellado'
-                                        : item.status === 'completed'
-                                          ? 'Completado'
-                                          : 'Borrador'}
+                                        : item.coordinator_status === 'reviewed'
+                                          ? 'Revisado'
+                                          : item.coordinator_status ===
+                                              'observed'
+                                            ? 'Observado'
+                                            : item.status === 'completed'
+                                              ? 'Completado'
+                                              : 'Borrador'}
                                 </span>
                             </div>
                             <div className="mb-3 flex flex-wrap gap-2">
                                 <ResultChip value={item.first_result} />
-                                <ResultChip
-                                    value={
-                                        item.first_result === 'approved'
-                                            ? item.second_result
-                                            : null
-                                    }
-                                />
+                                {item.coordinator_status === 'reviewed' ? (
+                                    <ResultChip value={item.second_result} />
+                                ) : item.coordinator_status === 'observed' ? (
+                                    <span className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                                        En revisión
+                                    </span>
+                                ) : (
+                                    <ResultChip value={null} />
+                                )}
                             </div>
                             <div className="mb-1 flex flex-wrap gap-1">
                                 {item.first_result === 'approved' &&

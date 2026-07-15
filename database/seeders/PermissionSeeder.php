@@ -39,6 +39,8 @@ class PermissionSeeder extends Seeder
                 'checklists.view',
                 'checklists.create',
                 'checklists.update',
+                'consolidations.view',
+                'consolidations.respond',
                 'inductions.view',
                 'inductions.create',
                 'inductions.update',
@@ -48,5 +50,20 @@ class PermissionSeeder extends Seeder
             ], true))
             ->all();
         $coordinador->syncPermissions($coordinadorPermissions);
+
+        $inspector = Role::findOrCreate(\App\Support\SystemRoles::INSPECTOR, 'web');
+        $inspectorPermissions = collect($permissions)
+            ->filter(fn (Permission $permission) => in_array($permission->name, [
+                'dashboard.view',
+                'units.view',
+                'checklists.view',
+                'checklists.create',
+                'checklists.update',
+                'consolidations.view',
+                'periods.view',
+                'pareto.view',
+            ], true))
+            ->all();
+        $inspector->syncPermissions($inspectorPermissions);
     }
 }

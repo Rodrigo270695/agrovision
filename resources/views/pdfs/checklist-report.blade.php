@@ -101,6 +101,27 @@
             border-top: 1px solid #e2eaf3;
             padding-top: 6px;
         }
+        .badge-obs { background: #fff7ed; color: #c2410c; }
+        .badge-rev { background: #ede9fe; color: #6d28d9; }
+        .pareto-box {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            border: 1px solid #d7e3f0;
+        }
+        .pareto-box td {
+            padding: 8px 10px;
+            vertical-align: middle;
+        }
+        .pareto-legend { font-size: 9px; color: #5a7390; line-height: 1.5; }
+        .dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+        .logo { height: 48px; max-width: 120px; }
     </style>
 </head>
 <body>
@@ -123,13 +144,29 @@
 
             return $text;
         };
+        $statusLabel = 'Borrador';
+        $statusClass = 'badge-seal';
+        if ($checklist->sealed_at) {
+            $statusLabel = 'SELLADO';
+            $statusClass = 'badge-seal';
+        } elseif ($checklist->coordinator_status === 'reviewed') {
+            $statusLabel = 'REVISADO';
+            $statusClass = 'badge-rev';
+        } elseif ($checklist->coordinator_status === 'observed') {
+            $statusLabel = 'OBSERVADO';
+            $statusClass = 'badge-obs';
+        } elseif ($checklist->first_result === 'approved') {
+            $statusLabel = '1RA APROBADA';
+            $statusClass = 'badge-ok';
+        }
+        $paretoChart = $paretoChart ?? ['percent' => 0, 'scored' => 0, 'remaining' => 0, 'total' => 0, 'svg' => ''];
     @endphp
 
     <table class="header">
         <tr>
-            <td style="width: 70px;">
+            <td style="width: 90px;">
                 @if (! empty($logoSrc))
-                    <img class="logo" src="{{ $logoSrc }}" alt="Logo">
+                    <img class="logo" src="{{ $logoSrc }}" alt="Agrovision">
                 @endif
             </td>
             <td>
@@ -138,7 +175,7 @@
                     {{ $checklist->template->code ?? '' }} · {{ $checklist->template->name ?? '' }}
                 </div>
                 <div style="margin-top: 4px;">
-                    <span class="badge badge-seal">SELLADO</span>
+                    <span class="badge {{ $statusClass }}">{{ $statusLabel }}</span>
                     @if ($checklist->sealed_at)
                         <span class="muted">
                             {{ $checklist->sealed_at->timezone(config('app.timezone'))->format('d/m/Y H:i') }}
@@ -149,6 +186,22 @@
             <td style="text-align: right; width: 160px;">
                 <div style="font-size: 16px; font-weight: bold;">{{ $checklist->plate_number }}</div>
                 <div class="muted">{{ $checklist->period?->name ?? 'Periodo' }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <table class="pareto-box">
+        <tr>
+            <td style="width: 130px; text-align: center;">
+                {!! $paretoChart['svg'] !!}
+            </td>
+            <td>
+                <div style="font-size: 12px; font-weight: bold; margin-bottom: 4px;">Pareto (1ra inspección)</div>
+                <div class="pareto-legend">
+                    <div><span class="dot" style="background:#15803d;"></span>Cumple (SÍ): {{ number_format($paretoChart['scored'], 2) }}%</div>
+                    <div><span class="dot" style="background:#dbe4ef;"></span>No cumple / pendiente: {{ number_format($paretoChart['remaining'], 2) }}%</div>
+                    <div style="margin-top: 4px; color:#1a2b4c;"><strong>Resultado: {{ number_format($paretoChart['percent'], 2) }}%</strong> de {{ number_format($paretoChart['total'], 2) }}%</div>
+                </div>
             </td>
         </tr>
     </table>
@@ -264,6 +317,39 @@
                 </tr>
             @endforeach
         </table>
+    @endif
+
+    @if ($checklist->coordinator_status)
+        <h2>Respuesta del coordinador</h2>
+        <table class="meta">
+            <tr>
+                <td>
+                    <span class="label">Estado</span>
+                    {{ $checklist->coordinator_status === 'reviewed' ? 'Revisado' : 'Observado' }}
+                </td>
+                <td>
+                    <span class="label">Enviado</span>
+                    {{ $checklist->sent_to_coordinator_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?: '—' }}
+                </td>
+                <td>
+                    <span class="label">Recibido por</span>
+                    {{ $checklist->coordinator_signer_name ?: '—' }}
+                </td>
+                <td>
+                    <span class="label">Respondido</span>
+                    {{ $checklist->coordinator_responded_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?: '—' }}
+                </td>
+            </tr>
+        </table>
+        @if ($checklist->coordinator_action_plan)
+            <p style="margin-top: 6px;"><strong>Plan de acción / descargo:</strong><br>{{ $checklist->coordinator_action_plan }}</p>
+        @endif
+        @if (! empty($coordinatorSignatureSrc))
+            <div style="margin-top: 6px;">
+                <div class="muted" style="margin-bottom: 3px;">Firma de recibido</div>
+                <img class="sig-img" src="{{ $coordinatorSignatureSrc }}" alt="Firma coordinador">
+            </div>
+        @endif
     @endif
 
     <h2>Firmas / responsables</h2>

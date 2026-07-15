@@ -1,10 +1,12 @@
 <?php
 
 use App\Http\Controllers\ChecklistController;
+use App\Http\Controllers\ConsolidationController;
 use App\Http\Controllers\InductionController;
 use App\Http\Controllers\LookupController;
 use App\Http\Controllers\ParetoController;
 use App\Http\Controllers\PeriodController;
+use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UnitDocumentController;
@@ -19,6 +21,11 @@ Route::get('/', function () {
 })->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::post('push/subscribe', [PushSubscriptionController::class, 'store'])
+        ->name('push.subscribe');
+    Route::delete('push/subscribe', [PushSubscriptionController::class, 'destroy'])
+        ->name('push.unsubscribe');
+
     Route::inertia('dashboard', 'dashboard')
         ->middleware('permission:dashboard.view')
         ->name('dashboard');
@@ -175,9 +182,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:checklists.view')
         ->name('checklists.pdf');
 
+    Route::post('inspecciones/{checklist}/enviar-coordinador', [ChecklistController::class, 'sendToCoordinator'])
+        ->middleware('permission:checklists.update')
+        ->name('checklists.send-to-coordinator');
+
     Route::delete('inspecciones/{checklist}', [ChecklistController::class, 'destroy'])
         ->middleware('permission:checklists.delete')
         ->name('checklists.destroy');
+
+    Route::get('consolidados', [ConsolidationController::class, 'index'])
+        ->middleware('permission:consolidations.view')
+        ->name('consolidations.index');
+
+    Route::get('consolidados/{checklist}', [ConsolidationController::class, 'show'])
+        ->middleware('permission:consolidations.view')
+        ->name('consolidations.show');
+
+    Route::post('consolidados/{checklist}/responder', [ConsolidationController::class, 'respond'])
+        ->middleware('permission:consolidations.respond')
+        ->name('consolidations.respond');
 
     Route::get('inducciones', [InductionController::class, 'index'])
         ->middleware('permission:inductions.view')

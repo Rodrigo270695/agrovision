@@ -13,8 +13,11 @@ use App\Models\UnitChecklistAnswer;
 use App\Models\UnitChecklistPhoto;
 use App\Models\UnitChecklistSignature;
 use App\Services\ParetoChecklistSync;
+use App\Services\PushNotificationService;
 use App\Support\IndexedRedirect;
 use App\Support\ParetoCheckTypes;
+use App\Support\ParetoPieChart;
+use App\Support\PdfLogo;
 use App\Support\PermissionCatalog;
 use App\Support\SystemRoles;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -320,6 +323,11 @@ class ChecklistController extends Controller
                 'first_result' => $checklist->first_result,
                 'second_result' => $checklist->second_result,
                 'additional_observations' => $checklist->additional_observations,
+                'coordinator_status' => $checklist->coordinator_status,
+                'sent_to_coordinator_at' => optional($checklist->sent_to_coordinator_at)?->toIso8601String(),
+                'coordinator_action_plan' => $checklist->coordinator_action_plan,
+                'can_send_to_coordinator' => $checklist->canSendToCoordinator(),
+                'can_start_second' => $checklist->canStartSecondInspection(),
                 'period' => $checklist->period,
                 'unit' => $checklist->unit,
                 'template' => [
@@ -377,15 +385,23 @@ class ChecklistController extends Controller
                 $incomingFirstResult = $data['first_result'] ?? null;
                 $incomingSecondResult = $data['second_result'] ?? null;
 
-                // La 1ra queda bloqueada al aprobarse; la 2da solo existe tras aprobar la 1ra.
+                // La 1ra queda bloqueada al aprobarse; la 2da solo tras revisión del coordinador.
                 $firstResult = $firstAlreadyApproved
                     ? $checklist->first_result
                     : $incomingFirstResult;
-                $secondResult = ! $firstAlreadyApproved && $firstResult !== 'approved'
+                $secondAllowed = $checklist->canStartSecondInspection()
+                    || ($firstResult === 'approved' && $checklist->isReviewedByCoordinator());
+                $secondResult = ! $secondAllowed
                     ? null
                     : ($secondAlreadyApproved
                         ? $checklist->second_result
-                        : ($firstResult === 'approved' ? $incomingSecondResult : null));
+                        : $incomingSecondResult);
+
+                if (($incomingSecondResult ?? null) && ! $secondAllowed) {
+                    throw new \RuntimeException(
+                        'La 2da inspección solo se habilita cuando el coordinador responde el consolidado (estado Revisado).'
+                    );
+                }
 
                 $checklist->update([
                     'location' => $data['location'] ?? null,
@@ -428,7 +444,7 @@ class ChecklistController extends Controller
                     }
 
                     if (
-                        $firstResult === 'approved'
+                        $secondAllowed
                         && ! $secondAlreadyApproved
                         && array_key_exists('second_value', $answer)
                     ) {
@@ -530,10 +546,10 @@ class ChecklistController extends Controller
         $file = $request->file('photo');
         $pass = $validated['inspection_pass'];
 
-        if ($pass === 'second' && $checklist->first_result !== 'approved') {
+        if ($pass === 'second' && ! $checklist->canStartSecondInspection()) {
             return back()->with('toast', [
                 'type' => 'error',
-                'message' => 'Primero debes aprobar la 1ra inspección para subir fotos de la 2da.',
+                'message' => 'La 2da inspección (y sus fotos) se habilitan cuando el consolidado está Revisado por el coordinador.',
             ]);
         }
 
@@ -618,6 +634,9 @@ class ChecklistController extends Controller
 
         $signaturesByRole = $checklist->signatures->keyBy('signature_role_id');
 
+        $scored = 0.0;
+        $catalog = 0.0;
+
         $rows = $checklist->answers
             ->filter(fn (UnitChecklistAnswer $answer) => $answer->item !== null)
             ->sortBy(fn (UnitChecklistAnswer $answer) => [
@@ -625,8 +644,14 @@ class ChecklistController extends Controller
                 $answer->item->id,
             ])
             ->values()
-            ->map(function (UnitChecklistAnswer $answer) {
+            ->map(function (UnitChecklistAnswer $answer) use (&$scored, &$catalog) {
                 $item = $answer->item;
+                $weight = (float) ($item->weight ?? 0);
+                $catalog += $weight;
+
+                if ($answer->first_value === 'yes') {
+                    $scored += $weight;
+                }
 
                 return [
                     'item_number' => $item->item_number,
@@ -635,6 +660,7 @@ class ChecklistController extends Controller
                     'first_value' => $answer->first_value,
                     'second_value' => $answer->second_value,
                     'observations' => $answer->observations,
+                    'weight' => $weight,
                 ];
             });
 
@@ -687,13 +713,11 @@ class ChecklistController extends Controller
             ];
         });
 
-        $logoCandidates = [
-            public_path('logo.png'),
-            public_path('agro.png'),
-            public_path('icon.png'),
-        ];
-        $logoPath = collect($logoCandidates)->first(fn (string $path) => is_file($path));
-        $logoSrc = $toDataUri($logoPath);
+        $paretoChart = ParetoPieChart::build($scored, $catalog > 0 ? $catalog : 100);
+
+        $coordinatorSignatureSrc = $checklist->coordinator_signature_path
+            ? $toDataUri(Storage::disk('public')->path($checklist->coordinator_signature_path))
+            : null;
 
         $type = strtoupper((string) ($checklist->template->type ?? 'INS'));
         $plate = preg_replace('/[^A-Za-z0-9\-_]/', '', (string) $checklist->plate_number) ?: 'placa';
@@ -704,14 +728,15 @@ class ChecklistController extends Controller
             'rows' => $rows,
             'signatures' => $signatures,
             'photos' => $photos,
-            'logoSrc' => $logoSrc,
+            'logoSrc' => PdfLogo::dataUri(),
+            'paretoChart' => $paretoChart,
+            'coordinatorSignatureSrc' => $coordinatorSignatureSrc,
         ])->setPaper('a4', 'portrait');
 
         if ($request->boolean('download')) {
             return $pdf->download($filename);
         }
 
-        // Vista previa en modal / otra pestaña (inline).
         return $pdf->stream($filename);
     }
 
@@ -765,8 +790,61 @@ class ChecklistController extends Controller
                 throw new \RuntimeException('Debes aprobar la 1ra inspección antes de la 2da.');
             }
 
+            if (! $checklist->isReviewedByCoordinator()) {
+                throw new \RuntimeException(
+                    'Debes esperar la respuesta del coordinador (estado Revisado) antes de la 2da inspección.'
+                );
+            }
+
             $this->assertPassAnswersReady($checklist, $answers, 'second');
         }
+    }
+
+    public function sendToCoordinator(Request $request, UnitChecklist $checklist): RedirectResponse
+    {
+        $checklist->loadMissing(['period', 'unit']);
+        $this->ensureCanAccessChecklist($checklist);
+
+        if ($checklist->period?->status !== 'active') {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'No se puede enviar un checklist de un periodo inactivo.',
+            ]);
+        }
+
+        if ($checklist->first_result !== 'approved') {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Primero debes aprobar la 1ra inspección.',
+            ]);
+        }
+
+        if ($checklist->isReviewedByCoordinator()) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Este consolidado ya fue revisado por el coordinador.',
+            ]);
+        }
+
+        if (! $checklist->unit?->coordinator_id) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'La unidad no tiene coordinador asignado.',
+            ]);
+        }
+
+        $checklist->update([
+            'coordinator_status' => UnitChecklist::COORDINATOR_OBSERVED,
+            'sent_to_coordinator_at' => now(),
+        ]);
+
+        app(PushNotificationService::class)
+            ->notifyCoordinatorsConsolidationObserved($checklist->fresh(['unit']), Auth::user());
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => 'Consolidado enviado al coordinador. Estado: Observado.',
+        ]);
     }
 
     /**

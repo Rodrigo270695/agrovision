@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * @property int $id
@@ -30,6 +31,13 @@ use Illuminate\Support\Carbon;
  * @property string|null $second_result
  * @property string|null $additional_observations
  * @property string|null $status
+ * @property string|null $coordinator_status
+ * @property Carbon|null $sent_to_coordinator_at
+ * @property string|null $coordinator_action_plan
+ * @property string|null $coordinator_signature_path
+ * @property string|null $coordinator_signer_name
+ * @property Carbon|null $coordinator_signed_at
+ * @property Carbon|null $coordinator_responded_at
  * @property \Illuminate\Support\Carbon|null $sealed_at
  * @property-read Unit $unit
  * @property-read Period $period
@@ -37,6 +45,10 @@ use Illuminate\Support\Carbon;
  */
 class UnitChecklist extends Model
 {
+    public const COORDINATOR_OBSERVED = 'observed';
+
+    public const COORDINATOR_REVIEWED = 'reviewed';
+
     protected $fillable = [
         'unit_id',
         'period_id',
@@ -59,6 +71,13 @@ class UnitChecklist extends Model
         'second_result',
         'additional_observations',
         'status',
+        'coordinator_status',
+        'sent_to_coordinator_at',
+        'coordinator_action_plan',
+        'coordinator_signature_path',
+        'coordinator_signer_name',
+        'coordinator_signed_at',
+        'coordinator_responded_at',
         'sealed_at',
     ];
 
@@ -72,6 +91,9 @@ class UnitChecklist extends Model
             'second_inspected_on' => 'date',
             'license_revalidation_on' => 'date',
             'sealed_at' => 'datetime',
+            'sent_to_coordinator_at' => 'datetime',
+            'coordinator_signed_at' => 'datetime',
+            'coordinator_responded_at' => 'datetime',
         ];
     }
 
@@ -118,5 +140,45 @@ class UnitChecklist extends Model
     public function isSealed(): bool
     {
         return $this->sealed_at !== null;
+    }
+
+    public function isObserved(): bool
+    {
+        return $this->coordinator_status === self::COORDINATOR_OBSERVED;
+    }
+
+    public function isReviewedByCoordinator(): bool
+    {
+        return $this->coordinator_status === self::COORDINATOR_REVIEWED;
+    }
+
+    public function canSendToCoordinator(): bool
+    {
+        return $this->first_result === 'approved'
+            && ! $this->isSealed()
+            && $this->coordinator_status !== self::COORDINATOR_REVIEWED;
+    }
+
+    public function canStartSecondInspection(): bool
+    {
+        return $this->first_result === 'approved'
+            && $this->isReviewedByCoordinator()
+            && ! $this->isSealed();
+    }
+
+    public function coordinatorSignatureUrl(): ?string
+    {
+        if (! $this->coordinator_signature_path) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($this->coordinator_signature_path);
+    }
+
+    public function deleteCoordinatorSignatureFile(): void
+    {
+        if ($this->coordinator_signature_path) {
+            Storage::disk('public')->delete($this->coordinator_signature_path);
+        }
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\SystemRoles;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -55,6 +56,15 @@ class HandleInertiaRequests extends Middleware
                 'toast' => fn () => $request->session()->get('toast'),
                 'unit_import' => fn () => $request->session()->get('unit_import'),
             ],
+            'push' => function () use ($user) {
+                $publicKey = config('webpush.vapid.public_key');
+                $canUse = $user && SystemRoles::currentCanUsePush();
+
+                return [
+                    'enabled' => $canUse && filled($publicKey),
+                    'vapidPublicKey' => $canUse && filled($publicKey) ? $publicKey : null,
+                ];
+            },
         ];
     }
 }

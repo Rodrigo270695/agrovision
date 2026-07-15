@@ -62,6 +62,11 @@ export type ChecklistFormData = {
     first_result: 'approved' | 'rejected' | null;
     second_result: 'approved' | 'rejected' | null;
     additional_observations: string | null;
+    coordinator_status?: 'observed' | 'reviewed' | null;
+    sent_to_coordinator_at?: string | null;
+    coordinator_action_plan?: string | null;
+    can_send_to_coordinator?: boolean;
+    can_start_second?: boolean;
     period?: {
         id: number;
         name: string;
@@ -209,7 +214,11 @@ export function ChecklistEditForm({ checklist }: Props) {
     const sealed = checklist.is_sealed;
     const firstLocked =
         sealed || checklist.first_result === 'approved';
-    const secondUnlocked = checklist.first_result === 'approved';
+    const secondUnlocked = Boolean(checklist.can_start_second);
+    const waitingCoordinator =
+        checklist.first_result === 'approved' &&
+        !secondUnlocked &&
+        !sealed;
     const secondLocked =
         sealed || checklist.second_result === 'approved';
     const signaturesUnlocked = checklist.second_result === 'approved';
@@ -482,6 +491,43 @@ export function ChecklistEditForm({ checklist }: Props) {
                             </a>
                         </Button>
                     </div>
+                ) : waitingCoordinator ? (
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                            {checklist.coordinator_status === 'observed' ? (
+                                <>
+                                    Consolidado en estado{' '}
+                                    <strong>Observado</strong>. Esperando plan
+                                    de acción y firma del coordinador. Cuando
+                                    responda quedará <strong>Revisado</strong> y
+                                    se habilita la 2da inspección.
+                                </>
+                            ) : (
+                                <>
+                                    1ra inspección aprobada. Genera el
+                                    consolidado PDF y <strong>envíalo al
+                                    coordinador</strong> (estado Observado). La
+                                    2da inspección se habilita al quedar
+                                    Revisado.
+                                </>
+                            )}
+                        </div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            asChild
+                            className="h-10 shrink-0 cursor-pointer border-emerald-200 text-emerald-800"
+                        >
+                            <a
+                                href={`/inspecciones/${checklist.id}/pdf`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <FileDown className="size-4" />
+                                Ver consolidado PDF
+                            </a>
+                        </Button>
+                    </div>
                 ) : secondUnlocked ? (
                     <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
@@ -489,8 +535,8 @@ export function ChecklistEditForm({ checklist }: Props) {
                                 ? '1ra y 2da aprobadas. Puedes agregar firmas opcionales y sellar la inspección.'
                                 : (
                                       <>
-                                          1ra inspección aprobada. Completa la{' '}
-                                          <strong>2da inspección</strong>.
+                                          Consolidado <strong>Revisado</strong>.
+                                          Completa la <strong>2da inspección</strong>.
                                           <span className="mt-1 block font-medium">
                                               Progreso 2da:{' '}
                                               {secondStats.marked}/
@@ -890,21 +936,25 @@ export function ChecklistEditForm({ checklist }: Props) {
                 <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#d7e3f0] bg-white/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
                     <div className="mx-auto flex max-w-5xl flex-col gap-2">
                         <p className="text-center text-[11px] text-[#5a7390] sm:text-right">
-                            {!firstLocked && !firstStats.allYes
-                                ? firstStats.missingExpiry
-                                    ? 'Completa los vencimientos / observaciones para poder aprobar la 1ra.'
-                                    : firstStats.no > 0
-                                      ? 'Hay ítems en NO: puedes guardar borrador o desaprobar la 1ra.'
-                                      : 'Marca todos los ítems en SÍ para habilitar «Aprobar 1ra».'
-                                : secondUnlocked &&
-                                    !secondLocked &&
-                                    !secondStats.allYes
-                                  ? secondStats.missingExpiry
-                                      ? 'Completa los vencimientos / observaciones para aprobar la 2da.'
-                                      : 'Marca todos los ítems en SÍ para habilitar «Aprobar 2da».'
-                                  : signaturesUnlocked
-                                    ? 'Puedes firmar (opcional) y sellar la inspección.'
-                                    : 'Puedes guardar el progreso en cualquier momento.'}
+                            {waitingCoordinator
+                                ? checklist.coordinator_status === 'observed'
+                                    ? 'Consolidado Observado: el coordinador debe responder en Consolidados.'
+                                    : 'Envía el consolidado al coordinador desde el modal PDF para continuar.'
+                                : !firstLocked && !firstStats.allYes
+                                  ? firstStats.missingExpiry
+                                      ? 'Completa los vencimientos / observaciones para poder aprobar la 1ra.'
+                                      : firstStats.no > 0
+                                        ? 'Hay ítems en NO: puedes guardar borrador o desaprobar la 1ra.'
+                                        : 'Marca todos los ítems en SÍ para habilitar «Aprobar 1ra».'
+                                  : secondUnlocked &&
+                                      !secondLocked &&
+                                      !secondStats.allYes
+                                    ? secondStats.missingExpiry
+                                        ? 'Completa los vencimientos / observaciones para aprobar la 2da.'
+                                        : 'Marca todos los ítems en SÍ para habilitar «Aprobar 2da».'
+                                    : signaturesUnlocked
+                                      ? 'Puedes firmar (opcional) y sellar la inspección.'
+                                      : 'Puedes guardar el progreso en cualquier momento.'}
                         </p>
                         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                             <Button

@@ -16,6 +16,8 @@ final class SystemRoles
 
     public const COORDINADOR = 'coordinador';
 
+    public const INSPECTOR = 'inspector';
+
     /**
      * @return list<string>
      */
@@ -24,6 +26,7 @@ final class SystemRoles
         return [
             self::SUPERADMIN,
             self::COORDINADOR,
+            self::INSPECTOR,
         ];
     }
 
@@ -53,8 +56,37 @@ final class SystemRoles
         return match (mb_strtolower(trim($name))) {
             self::SUPERADMIN => 'Superadmin',
             self::COORDINADOR => 'Coordinador',
+            self::INSPECTOR => 'Inspector',
             default => $name,
         };
+    }
+
+    /**
+     * Roles que deben recibir/activar notificaciones push.
+     *
+     * @return list<string>
+     */
+    public static function pushRoles(): array
+    {
+        return [
+            self::COORDINADOR,
+            self::INSPECTOR,
+        ];
+    }
+
+    public static function currentCanUsePush(): bool
+    {
+        $user = Auth::user();
+
+        if (! $user) {
+            return false;
+        }
+
+        if ($user->hasRole(self::SUPERADMIN)) {
+            return true;
+        }
+
+        return $user->hasAnyRole(self::pushRoles());
     }
 
     /**

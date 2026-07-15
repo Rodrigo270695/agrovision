@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Induction;
 use App\Models\InductionAttendee;
+use App\Support\PdfLogo;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -41,9 +42,7 @@ final class InductionDocumentPackage
             return 'data:'.$mime.';base64,'.base64_encode($binary);
         };
 
-        $logoSrc = $toDataUri(public_path('logo.png'))
-            ?? $toDataUri(public_path('agro.png'))
-            ?? $toDataUri(public_path('icon.png'));
+        $logoSrc = PdfLogo::dataUri();
 
         $speakerSignatureSrc = $induction->speaker_signature_path
             ? $toDataUri(Storage::disk('public')->path($induction->speaker_signature_path))

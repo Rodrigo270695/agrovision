@@ -39,3 +39,7 @@ createInertiaApp({
 
 // This will set light / dark mode on load...
 initializeTheme();
+
+void import('@/lib/register-service-worker').then(({ registerAppServiceWorker }) => {
+    void registerAppServiceWorker();
+});

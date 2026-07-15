@@ -41,6 +41,9 @@ final class PermissionCatalog
             'checklists.update' => ['label' => 'Editar checklists', 'module' => 'Checklists'],
             'checklists.delete' => ['label' => 'Eliminar checklists', 'module' => 'Checklists'],
 
+            'consolidations.view' => ['label' => 'Ver consolidados', 'module' => 'Consolidados'],
+            'consolidations.respond' => ['label' => 'Responder consolidados', 'module' => 'Consolidados'],
+
             'pareto.view' => ['label' => 'Ver Pareto', 'module' => 'Pareto'],
             'pareto.create' => ['label' => 'Crear Pareto', 'module' => 'Pareto'],
             'pareto.update' => ['label' => 'Editar Pareto', 'module' => 'Pareto'],
