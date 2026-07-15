@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import {
     Bus,
     CalendarRange,
+    ChartPie,
     ClipboardCheck,
     GraduationCap,
     LayoutGrid,
@@ -41,6 +42,12 @@ const mainNavItems: NavItem[] = [
         title: 'Plataforma',
         icon: Layers,
         items: [
+            {
+                title: 'Pareto',
+                href: '/pareto',
+                icon: ChartPie,
+                permission: 'pareto.view',
+            },
             {
                 title: 'Periodos',
                 href: '/periodos',

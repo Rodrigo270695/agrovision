@@ -3,6 +3,7 @@
 use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\InductionController;
 use App\Http\Controllers\LookupController;
+use App\Http\Controllers\ParetoController;
 use App\Http\Controllers\PeriodController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UnitController;
@@ -61,6 +62,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('roles/{role}', [RoleController::class, 'destroy'])
         ->middleware('permission:roles.delete')
         ->name('roles.destroy');
+
+    Route::get('pareto', [ParetoController::class, 'index'])
+        ->middleware('permission:pareto.view')
+        ->name('pareto.index');
+
+    Route::post('pareto', [ParetoController::class, 'store'])
+        ->middleware('permission:pareto.create')
+        ->name('pareto.store');
+
+    Route::put('pareto/{pareto}', [ParetoController::class, 'update'])
+        ->middleware('permission:pareto.update')
+        ->name('pareto.update');
+
+    Route::delete('pareto/{pareto}', [ParetoController::class, 'destroy'])
+        ->middleware('permission:pareto.delete')
+        ->name('pareto.destroy');
+
+    Route::post('pareto/redistribuir', [ParetoController::class, 'redistribute'])
+        ->middleware('permission:pareto.update')
+        ->name('pareto.redistribute');
 
     Route::get('periodos', [PeriodController::class, 'index'])
         ->middleware('permission:periods.view')

@@ -43,6 +43,8 @@ class PermissionSeeder extends Seeder
                 'inductions.create',
                 'inductions.update',
                 'periods.view',
+                'pareto.view',
+                'pareto.update',
             ], true))
             ->all();
         $coordinador->syncPermissions($coordinadorPermissions);

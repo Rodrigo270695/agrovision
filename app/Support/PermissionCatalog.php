@@ -41,6 +41,11 @@ final class PermissionCatalog
             'checklists.update' => ['label' => 'Editar checklists', 'module' => 'Checklists'],
             'checklists.delete' => ['label' => 'Eliminar checklists', 'module' => 'Checklists'],
 
+            'pareto.view' => ['label' => 'Ver Pareto', 'module' => 'Pareto'],
+            'pareto.create' => ['label' => 'Crear Pareto', 'module' => 'Pareto'],
+            'pareto.update' => ['label' => 'Editar Pareto', 'module' => 'Pareto'],
+            'pareto.delete' => ['label' => 'Eliminar Pareto', 'module' => 'Pareto'],
+
             'inductions.view' => ['label' => 'Ver inducciones', 'module' => 'Inducción'],
             'inductions.create' => ['label' => 'Crear inducciones', 'module' => 'Inducción'],
             'inductions.update' => ['label' => 'Editar inducciones', 'module' => 'Inducción'],

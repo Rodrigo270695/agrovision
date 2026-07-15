@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             PeriodSeeder::class,
             UnitSeeder::class,
             ChecklistTemplateSeeder::class,
+            ParetoSeeder::class,
         ]);
     }
 }
