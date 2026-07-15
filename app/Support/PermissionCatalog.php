@@ -53,6 +53,10 @@ final class PermissionCatalog
             'inductions.create' => ['label' => 'Crear inducciones', 'module' => 'Inducción'],
             'inductions.update' => ['label' => 'Editar inducciones', 'module' => 'Inducción'],
             'inductions.delete' => ['label' => 'Eliminar inducciones', 'module' => 'Inducción'],
+
+            'alcoholtests.view' => ['label' => 'Ver alcohómetro', 'module' => 'Alcohómetro'],
+            'alcoholtests.create' => ['label' => 'Registrar tests de alcohómetro', 'module' => 'Alcohómetro'],
+            'alcoholtests.respond' => ['label' => 'Firmar actas de alcohómetro', 'module' => 'Alcohómetro'],
         ];
     }
 

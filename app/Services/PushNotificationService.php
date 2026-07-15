@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AlcoholTest;
 use App\Models\PushSubscription;
 use App\Models\UnitChecklist;
 use App\Models\User;
@@ -71,6 +72,38 @@ class PushNotificationService
             'body' => "Placa {$checklist->plate_number}: el coordinador respondió. Ya puedes continuar con la 2da inspección.",
             'url' => "/inspecciones/{$checklist->id}/editar",
             'tag' => "consolidation-reviewed-{$checklist->id}",
+        ]);
+    }
+
+    public function notifyCoordinatorAlcoholPositive(
+        AlcoholTest $test,
+        ?User $except = null,
+    ): void {
+        $test->loadMissing('unit');
+
+        $query = User::role(SystemRoles::COORDINADOR);
+
+        $coordinatorId = $test->coordinator_id ?? $test->unit?->coordinator_id;
+
+        if ($coordinatorId) {
+            $query->where('id', $coordinatorId);
+        }
+
+        $recipients = $query->get();
+
+        if ($except !== null) {
+            $recipients = $recipients->reject(
+                fn (User $user): bool => $user->id === $except->id,
+            );
+        }
+
+        $level = number_format((float) $test->alcohol_level, 3, '.', '');
+
+        $this->sendToUsers($recipients, [
+            'title' => 'Alcohómetro positivo',
+            'body' => "{$test->driver_name} ({$test->plate_number}): {$level}% — tolerancia 0. No permitir ingreso.",
+            'url' => "/alcoholimetro/{$test->id}",
+            'tag' => "alcohol-positive-{$test->id}",
         ]);
     }
 

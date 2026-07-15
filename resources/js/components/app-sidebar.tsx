@@ -13,6 +13,7 @@ import {
     Shield,
     Users,
     UsersRound,
+    Wine,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -74,9 +75,14 @@ const mainNavItems: NavItem[] = [
                 icon: FileStack,
                 permission: 'consolidations.view',
             },
+            {
+                title: 'Alcohómetro',
+                href: '/alcoholimetro',
+                icon: Wine,
+                permission: 'alcoholtests.view',
+            },
         ],
-    },
-    {
+    },    {
         title: 'Inducción',
         icon: GraduationCap,
         items: [

@@ -47,6 +47,8 @@ class PermissionSeeder extends Seeder
                 'periods.view',
                 'pareto.view',
                 'pareto.update',
+                'alcoholtests.view',
+                'alcoholtests.respond',
             ], true))
             ->all();
         $coordinador->syncPermissions($coordinadorPermissions);
@@ -62,6 +64,8 @@ class PermissionSeeder extends Seeder
                 'consolidations.view',
                 'periods.view',
                 'pareto.view',
+                'alcoholtests.view',
+                'alcoholtests.create',
             ], true))
             ->all();
         $inspector->syncPermissions($inspectorPermissions);

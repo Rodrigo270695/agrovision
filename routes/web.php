@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AlcoholTestController;
 use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\ConsolidationController;
 use App\Http\Controllers\InductionController;
@@ -201,6 +202,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('consolidados/{checklist}/responder', [ConsolidationController::class, 'respond'])
         ->middleware('permission:consolidations.respond')
         ->name('consolidations.respond');
+
+    Route::get('alcoholimetro', [AlcoholTestController::class, 'index'])
+        ->middleware('permission:alcoholtests.view')
+        ->name('alcohol-tests.index');
+
+    Route::post('alcoholimetro', [AlcoholTestController::class, 'store'])
+        ->middleware('permission:alcoholtests.create')
+        ->name('alcohol-tests.store');
+
+    Route::get('alcoholimetro/{alcoholTest}', [AlcoholTestController::class, 'show'])
+        ->middleware('permission:alcoholtests.view')
+        ->name('alcohol-tests.show');
+
+    Route::post('alcoholimetro/{alcoholTest}/responder', [AlcoholTestController::class, 'respond'])
+        ->middleware('permission:alcoholtests.respond')
+        ->name('alcohol-tests.respond');
+
+    Route::get('alcoholimetro/{alcoholTest}/pdf', [AlcoholTestController::class, 'pdf'])
+        ->middleware('permission:alcoholtests.view')
+        ->name('alcohol-tests.pdf');
 
     Route::get('inducciones', [InductionController::class, 'index'])
         ->middleware('permission:inductions.view')
