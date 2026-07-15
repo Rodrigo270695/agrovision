@@ -44,6 +44,24 @@ export function AlcoholPackageFormModal({ open, onClose }: Props) {
     const handleSubmit = (event: FormEvent) => {
         event.preventDefault();
 
+        form.clearErrors();
+
+        let hasLocalError = false;
+
+        if (!form.data.title.trim()) {
+            form.setError('title', 'Indica un título para el paquete.');
+            hasLocalError = true;
+        }
+
+        if (!form.data.session_date) {
+            form.setError('session_date', 'Indica la fecha del operativo.');
+            hasLocalError = true;
+        }
+
+        if (hasLocalError) {
+            return;
+        }
+
         form.post('/alcoholimetro', {
             preserveScroll: true,
             onSuccess: () => onClose(),

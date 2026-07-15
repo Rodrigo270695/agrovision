@@ -111,6 +111,8 @@ export function AlcoholTestFormModal({
     );
 
     const applyUnit = (unitId: string | null) => {
+        form.clearErrors('unit_id');
+
         if (!unitId) {
             form.setData('unit_id', '');
 
@@ -148,6 +150,7 @@ export function AlcoholTestFormModal({
 
         try {
             const dataUrl = await fileToCompressedDataUrl(file);
+            form.clearErrors('evidence_photo_data_url');
             form.setData('evidence_photo_data_url', dataUrl);
         } catch {
             setPhotoError('No se pudo procesar la foto. Intenta otra imagen.');
@@ -159,9 +162,42 @@ export function AlcoholTestFormModal({
     const handleSubmit = (event: FormEvent) => {
         event.preventDefault();
 
-        if (!form.data.evidence_photo_data_url) {
-            setPhotoError('La foto de evidencia es obligatoria.');
+        form.clearErrors();
+        setPhotoError(null);
 
+        let hasLocalError = false;
+
+        if (!form.data.unit_id) {
+            form.setError('unit_id', 'Selecciona la unidad.');
+            hasLocalError = true;
+        }
+
+        if (!form.data.driver_name.trim()) {
+            form.setError('driver_name', 'Indica el nombre del conductor.');
+            hasLocalError = true;
+        }
+
+        if (
+            form.data.alcohol_level === '' ||
+            !Number.isFinite(Number(form.data.alcohol_level))
+        ) {
+            form.setError(
+                'alcohol_level',
+                'Indica el porcentaje de alcohol.',
+            );
+            hasLocalError = true;
+        }
+
+        if (!form.data.evidence_photo_data_url) {
+            form.setError(
+                'evidence_photo_data_url',
+                'La foto de evidencia es obligatoria.',
+            );
+            setPhotoError('La foto de evidencia es obligatoria.');
+            hasLocalError = true;
+        }
+
+        if (hasLocalError) {
             return;
         }
 
@@ -210,12 +246,7 @@ export function AlcoholTestFormModal({
                     <Button
                         type="submit"
                         form="alcohol-test-form"
-                        disabled={
-                            form.processing ||
-                            compressing ||
-                            form.data.unit_id === '' ||
-                            !form.data.evidence_photo_data_url
-                        }
+                        disabled={form.processing || compressing}
                         className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
                     >
                         {form.processing ? <Spinner /> : null}
@@ -255,12 +286,13 @@ export function AlcoholTestFormModal({
                         </Label>
                         <Input
                             value={form.data.driver_name}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                                form.clearErrors('driver_name');
                                 form.setData(
                                     'driver_name',
                                     e.target.value.toUpperCase(),
-                                )
-                            }
+                                );
+                            }}
                             className="h-9 border-[#c5d5e6]"
                         />
                         <InputError message={form.errors.driver_name} />
@@ -304,9 +336,10 @@ export function AlcoholTestFormModal({
                             min="0"
                             max="10"
                             value={form.data.alcohol_level}
-                            onChange={(e) =>
-                                form.setData('alcohol_level', e.target.value)
-                            }
+                            onChange={(e) => {
+                                form.clearErrors('alcohol_level');
+                                form.setData('alcohol_level', e.target.value);
+                            }}
                             className="h-9 border-[#c5d5e6]"
                         />
                         <InputError message={form.errors.alcohol_level} />

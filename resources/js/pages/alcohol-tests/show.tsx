@@ -1,14 +1,11 @@
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ArrowLeft, FileDown, Lock, Plus, Send } from 'lucide-react';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AlcoholTestFormModal } from '@/components/alcohol-tests/alcohol-test-form-modal';
+import { AlcoholTestRespondModal } from '@/components/alcohol-tests/alcohol-test-respond-modal';
 import type { UnitOption } from '@/components/alcohol-tests/alcohol-tests-table';
-import { SignaturePad } from '@/components/checklists/signature-pad';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 
@@ -117,42 +114,6 @@ export default function AlcoholPackageShowPage() {
             setResponding(focusTest);
         }
     }, [focusTest]);
-
-    const form = useForm({
-        coordinator_signer_name: auth.user?.name?.trim() || '',
-        coordinator_action_plan: '',
-        signature_data_url: '' as string,
-    });
-
-    useEffect(() => {
-        if (!responding) {
-            return;
-        }
-
-        form.setData({
-            coordinator_signer_name:
-                responding.coordinator_signer_name?.trim() ||
-                auth.user?.name?.trim() ||
-                '',
-            coordinator_action_plan: responding.coordinator_action_plan ?? '',
-            signature_data_url: '',
-        });
-        form.clearErrors();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [responding?.id]);
-
-    const handleRespond = (event: FormEvent) => {
-        event.preventDefault();
-
-        if (!responding || form.processing) {
-            return;
-        }
-
-        form.post(`/alcoholimetro/tests/${responding.id}/responder`, {
-            preserveScroll: true,
-            onSuccess: () => setResponding(null),
-        });
-    };
 
     return (
         <>
@@ -561,85 +522,14 @@ export default function AlcoholPackageShowPage() {
                         )}
                     </div>
                 </div>
-
-                {responding ? (
-                    <form
-                        onSubmit={handleRespond}
-                        className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-5"
-                    >
-                        <h2 className="text-sm font-semibold text-[#1a2b4c]">
-                            Firmar acta · {responding.driver_name}
-                        </h2>
-                        <p className="mt-1 text-xs text-[#5a7390]">
-                            Nivel {responding.alcohol_level.toFixed(3)}% —
-                            tolerancia 0. Confirma medidas y firma.
-                        </p>
-                        <div className="mt-4 grid gap-3">
-                            <div className="grid gap-1.5">
-                                <Label className="text-xs text-[#1a2b4c]">
-                                    Quien firma
-                                </Label>
-                                <Input
-                                    value={form.data.coordinator_signer_name}
-                                    readOnly
-                                    className="h-9 border-[#c5d5e6] bg-[#f8fafc]"
-                                />
-                            </div>
-                            <div className="grid gap-1.5">
-                                <Label className="text-xs text-[#1a2b4c]">
-                                    Medidas / plan de acción *
-                                </Label>
-                                <Textarea
-                                    value={form.data.coordinator_action_plan}
-                                    onChange={(e) =>
-                                        form.setData(
-                                            'coordinator_action_plan',
-                                            e.target.value,
-                                        )
-                                    }
-                                    rows={4}
-                                    className="border-[#c5d5e6]"
-                                    placeholder="No se permite el ingreso. Conductor retirado..."
-                                />
-                            </div>
-                            <div className="grid gap-1.5">
-                                <Label className="text-xs text-[#1a2b4c]">
-                                    Firma *
-                                </Label>
-                                <SignaturePad
-                                    valueUrl={
-                                        form.data.signature_data_url || null
-                                    }
-                                    onChange={(dataUrl) =>
-                                        form.setData(
-                                            'signature_data_url',
-                                            dataUrl ?? '',
-                                        )
-                                    }
-                                />
-                            </div>
-                        </div>
-                        <div className="mt-4 flex justify-end gap-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setResponding(null)}
-                                className="cursor-pointer border-[#c5d5e6]"
-                            >
-                                Cancelar
-                            </Button>
-                            <Button
-                                type="submit"
-                                disabled={form.processing}
-                                className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
-                            >
-                                {form.processing ? <Spinner /> : null}
-                                Firmar acta
-                            </Button>
-                        </div>
-                    </form>
-                ) : null}
             </div>
+
+            <AlcoholTestRespondModal
+                open={Boolean(responding)}
+                test={responding}
+                defaultSignerName={auth.user?.name?.trim() || ''}
+                onClose={() => setResponding(null)}
+            />
 
             {canAddTests ? (
                 <AlcoholTestFormModal
