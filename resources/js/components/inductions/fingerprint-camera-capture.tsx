@@ -39,51 +39,112 @@ async function pickBestCameraId(): Promise<string | undefined> {
     return ranked[0]?.deviceId;
 }
 
-function toBlackAndWhite(
+const MIN_SHARPNESS = 48;
+
+function ovalSourceRect(
+    videoWidth: number,
+    videoHeight: number,
+): { sx: number; sy: number; sw: number; sh: number } {
+    const boxRatio = 4 / 5;
+    const videoRatio = videoWidth / videoHeight;
+    let visibleX = 0;
+    let visibleY = 0;
+    let visibleW = videoWidth;
+    let visibleH = videoHeight;
+
+    if (videoRatio > boxRatio) {
+        visibleW = videoHeight * boxRatio;
+        visibleX = (videoWidth - visibleW) / 2;
+    } else {
+        visibleH = videoWidth / boxRatio;
+        visibleY = (videoHeight - visibleH) / 2;
+    }
+
+    const sw = visibleW * 0.48;
+    const sh = visibleH * 0.58;
+
+    return {
+        sx: visibleX + (visibleW - sw) / 2,
+        sy: visibleY + (visibleH - sh) / 2,
+        sw,
+        sh,
+    };
+}
+
+function sharpnessScore(image: ImageData): number {
+    const { data, width, height } = image;
+    const grayAt = (x: number, y: number) => {
+        const index = (y * width + x) * 4;
+
+        return 0.299 * data[index] + 0.587 * data[index + 1] + 0.114 * data[index + 2];
+    };
+
+    let sum = 0;
+    let sumSq = 0;
+    let count = 0;
+
+    for (let y = 1; y < height - 1; y += 2) {
+        for (let x = 1; x < width - 1; x += 2) {
+            const lap =
+                grayAt(x - 1, y) +
+                grayAt(x + 1, y) +
+                grayAt(x, y - 1) +
+                grayAt(x, y + 1) -
+                4 * grayAt(x, y);
+            sum += lap;
+            sumSq += lap * lap;
+            count += 1;
+        }
+    }
+
+    if (count === 0) {
+        return 0;
+    }
+
+    const mean = sum / count;
+
+    return sumSq / count - mean * mean;
+}
+
+function toFingerprintImage(
     source: CanvasImageSource,
     sourceWidth: number,
     sourceHeight: number,
-): string {
-    const size = 420;
+): { dataUrl: string; sharpness: number } {
+    const crop = ovalSourceRect(sourceWidth, sourceHeight);
     const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = Math.round(size * 1.25);
-    const ctx = canvas.getContext('2d');
+    canvas.width = 360;
+    canvas.height = 460;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
     if (!ctx) {
         throw new Error('No se pudo procesar la imagen.');
     }
 
-    // Recorte centrado (zona del dedo)
-    const targetRatio = canvas.width / canvas.height;
-    const sourceRatio = sourceWidth / sourceHeight;
-    let sx = 0;
-    let sy = 0;
-    let sw = sourceWidth;
-    let sh = sourceHeight;
-
-    if (sourceRatio > targetRatio) {
-        sw = sourceHeight * targetRatio;
-        sx = (sourceWidth - sw) / 2;
-    } else {
-        sh = sourceWidth / targetRatio;
-        sy = (sourceHeight - sh) / 2;
-    }
-
-    ctx.drawImage(source, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(
+        source,
+        crop.sx,
+        crop.sy,
+        crop.sw,
+        crop.sh,
+        0,
+        0,
+        canvas.width,
+        canvas.height,
+    );
 
     const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const sharpness = sharpnessScore(image);
     const data = image.data;
 
     for (let i = 0; i < data.length; i += 4) {
         const gray =
             0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        // Contraste alto para resaltar pliegues
         const contrasted = Math.min(
             255,
-            Math.max(0, (gray - 110) * 1.55 + 128),
+            Math.max(0, (gray - 105) * 1.7 + 128),
         );
-        const bw = contrasted > 145 ? 245 : contrasted < 90 ? 25 : contrasted;
+        const bw = contrasted > 150 ? 248 : contrasted < 88 ? 18 : contrasted;
         data[i] = bw;
         data[i + 1] = bw;
         data[i + 2] = bw;
@@ -91,7 +152,10 @@ function toBlackAndWhite(
 
     ctx.putImageData(image, 0, 0);
 
-    return canvas.toDataURL('image/png');
+    return {
+        dataUrl: canvas.toDataURL('image/png'),
+        sharpness,
+    };
 }
 
 export function FingerprintCameraCapture({
@@ -107,11 +171,13 @@ export function FingerprintCameraCapture({
     const [active, setActive] = useState(false);
     const [preview, setPreview] = useState<string | null>(valueUrl ?? null);
     const [facingUser, setFacingUser] = useState(false);
+    const [torchOn, setTorchOn] = useState(false);
 
     const stopStream = () => {
         streamRef.current?.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
         setActive(false);
+        setTorchOn(false);
     };
 
     useEffect(() => {
@@ -201,6 +267,23 @@ export function FingerprintCameraCapture({
                         // Algunos navegadores no aplican focus/zoom; seguir igual.
                     }
                 }
+
+                const caps = capabilities as MediaTrackCapabilities & {
+                    torch?: boolean;
+                };
+
+                if (caps.torch && !preferUser) {
+                    try {
+                        await track.applyConstraints({
+                            advanced: [
+                                { torch: true } as MediaTrackConstraintSet,
+                            ],
+                        });
+                        setTorchOn(true);
+                    } catch {
+                        setTorchOn(false);
+                    }
+                }
             }
 
             if (videoRef.current) {
@@ -228,13 +311,23 @@ export function FingerprintCameraCapture({
         }
 
         try {
-            const dataUrl = toBlackAndWhite(
+            const shot = toFingerprintImage(
                 video,
                 video.videoWidth,
                 video.videoHeight,
             );
-            setPreview(dataUrl);
-            onChange(dataUrl);
+
+            if (shot.sharpness < MIN_SHARPNESS) {
+                setError(
+                    'Salió movida o el dedo está lejos. Acércalo al óvalo y vuelve a capturar.',
+                );
+
+                return;
+            }
+
+            setPreview(shot.dataUrl);
+            onChange(shot.dataUrl);
+            setError(null);
             stopStream();
         } catch {
             setError('No se pudo procesar la huella. Intenta de nuevo.');
@@ -279,7 +372,7 @@ export function FingerprintCameraCapture({
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center">
                         <Camera className="size-7 text-[#94a3b8]" />
                         <p className="text-[11px] text-[#cbd5e1]">
-                            Foto directa al dedo (cámara macro/trasera)
+                            Una foto del dedo, de cerca
                         </p>
                     </div>
                 ) : null}
@@ -290,10 +383,12 @@ export function FingerprintCameraCapture({
             ) : (
                 <p className="text-center text-[11px] text-[#6b8ead]">
                     {active
-                        ? 'Centra el dedo en el óvalo y captura.'
+                        ? torchOn
+                            ? 'Flash encendido. Acerca el dedo al óvalo hasta ver los surcos y toma la foto.'
+                            : 'Acerca el dedo al óvalo hasta ver los surcos y toma la foto.'
                         : preview
-                          ? 'Huella lista. Puedes volver a tomar si quieres.'
-                          : 'Se prioriza cámara macro/trasera si el celular la tiene.'}
+                          ? 'Huella lista. Si no se ven los surcos, vuelve a tomarla.'
+                          : 'Se abre la cámara trasera. Es una sola foto, no un video.'}
                 </p>
             )}
 

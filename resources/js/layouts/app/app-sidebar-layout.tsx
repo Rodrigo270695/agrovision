@@ -1,15 +1,28 @@
+import { usePage } from '@inertiajs/react';
+import { useEffect } from 'react';
 import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import { OfflineBanner } from '@/components/offline/offline-banner';
 import { TenantImpersonationBanner } from '@/components/tenant-impersonation-banner';
+import { preloadTenantPages } from '@/lib/offline/preload';
 import type { AppLayoutProps } from '@/types';
 
 export default function AppSidebarLayout({
     children,
     breadcrumbs = [],
 }: AppLayoutProps) {
+    const page = usePage();
+
+    useEffect(() => {
+        if (page.props.central) {
+            return;
+        }
+
+        preloadTenantPages(page.version);
+    }, [page.props.central, page.version]);
+
     return (
         <AppShell variant="sidebar">
             <AppSidebar />

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'agrovision-pwa-v8';
+const CACHE_VERSION = 'agrovision-pwa-v9';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const PAGES_CACHE = `${CACHE_VERSION}-pages`;
@@ -15,19 +15,36 @@ function isBrandAsset(pathname) {
   );
 }
 
-function isInspectionPage(pathname) {
+function isSkippablePage(pathname) {
   return (
-    pathname === '/inspecciones' ||
-    /^\/inspecciones\/\d+\/editar$/.test(pathname)
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/logout') ||
+    pathname.startsWith('/register') ||
+    pathname.startsWith('/forgot-password') ||
+    pathname.startsWith('/reset-password') ||
+    pathname.startsWith('/two-factor') ||
+    pathname.startsWith('/impersonate') ||
+    pathname.startsWith('/sanctum') ||
+    pathname.startsWith('/livewire') ||
+    pathname.startsWith('/build/') ||
+    pathname === '/sw.js' ||
+    pathname.endsWith('/pdf')
   );
 }
 
-function isAppDocument(pathname) {
-  return (
-    pathname === '/' ||
-    pathname === '/dashboard' ||
-    isInspectionPage(pathname)
+function isAppPage(pathname) {
+  return pathname.startsWith('/') && !isSkippablePage(pathname) && !isBrandAsset(pathname);
+}
+
+function pageCacheKey(request) {
+  const url = new URL(request.url);
+  const key = new URL(url.origin + url.pathname + url.search);
+  key.searchParams.set(
+    '__sw',
+    request.headers.get('X-Inertia') ? 'inertia' : 'document',
   );
+
+  return new Request(key.toString(), { method: 'GET' });
 }
 
 function isInspectionPhoto(pathname) {
@@ -44,7 +61,7 @@ function isStaticAsset(pathname) {
 
 function offlineDocument() {
   return new Response(
-    `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sin conexión</title></head><body style="font-family:system-ui,sans-serif;padding:2rem;color:#1a2b4c"><h1 style="font-size:1.25rem">Sin conexión</h1><p>Abre Agrovisión con internet al menos una vez para usar inspecciones sin red.</p></body></html>`,
+    `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sin conexión</title></head><body style="font-family:system-ui,sans-serif;padding:2rem;color:#1a2b4c"><h1 style="font-size:1.25rem">Sin conexión</h1><p>Abre la app con internet para cargar las pantallas. Después podrás verlas sin red.</p></body></html>`,
     {
       status: 503,
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
@@ -61,14 +78,16 @@ async function cachePut(cacheName, request, response) {
   await cache.put(request, response.clone());
 }
 
-async function networkFirst(request, cacheName) {
+async function networkFirstPage(request, cacheName) {
+  const key = pageCacheKey(request);
+
   try {
     const response = await fetch(request);
-    await cachePut(cacheName, request, response);
+    await cachePut(cacheName, key, response);
 
     return response;
   } catch (error) {
-    const cached = await caches.match(request);
+    const cached = await caches.match(key);
 
     if (cached) {
       return cached;
@@ -194,18 +213,9 @@ self.addEventListener('fetch', (event) => {
   const isDocument =
     request.mode === 'navigate' || request.destination === 'document';
 
-  if (
-    (isDocument || isInertia) &&
-    isAppDocument(url.pathname)
-  ) {
+  if ((isDocument || isInertia) && isAppPage(url.pathname)) {
     event.respondWith(
-      networkFirst(request, PAGES_CACHE).catch(() => {
-        if (isDocument) {
-          return offlineDocument();
-        }
-
-        return caches.match(request).then((cached) => cached || offlineDocument());
-      }),
+      networkFirstPage(request, PAGES_CACHE).catch(() => offlineDocument()),
     );
     return;
   }
