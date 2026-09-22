@@ -1,4 +1,5 @@
 import { getCsrfToken } from '@/lib/csrf';
+import { flushMutations, installOfflineRouter } from '@/lib/offline/mutations';
 import { editSnapshotKey, offlineDb, type OutboxItem } from '@/lib/offline/db';
 import { isLocalChecklistId } from '@/lib/offline/ids';
 import { refreshPendingCount } from '@/lib/offline/store';
@@ -252,6 +253,15 @@ export async function flushOutbox(): Promise<void> {
                 break;
             }
         }
+        try {
+            await flushMutations();
+        } catch (error) {
+            setOfflineError(
+                error instanceof Error
+                    ? error.message
+                    : 'No se pudieron enviar los cambios.',
+            );
+        }
     } finally {
         flushing = false;
         setOfflineSyncing(false);
@@ -267,6 +277,7 @@ export function startOfflineSync(): void {
     }
 
     started = true;
+    installOfflineRouter();
 
     const onOnline = () => {
         void flushOutbox();

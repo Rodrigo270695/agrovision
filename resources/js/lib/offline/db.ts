@@ -86,12 +86,23 @@ export type OfflinePhoto = {
     accuracy: number | null;
 };
 
+export type QueuedMutation = {
+    id: string;
+    method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+    url: string;
+    body: Record<string, unknown>;
+    createdAt: number;
+    attempts: number;
+    lastError?: string;
+};
+
 type OfflineDatabase = Dexie & {
     indexSnapshots: Table<InspectionIndexSnapshot, string>;
     editSnapshots: Table<InspectionEditSnapshot, string>;
     outbox: Table<OutboxItem, string>;
     photos: Table<OfflinePhoto, string>;
     idMap: Table<OfflineIdMap, string>;
+    mutations: Table<QueuedMutation, string>;
 };
 
 let instance: OfflineDatabase | null = null;
@@ -115,6 +126,7 @@ export async function offlineDb(): Promise<OfflineDatabase | null> {
                     outbox!: Table<OutboxItem, string>;
                     photos!: Table<OfflinePhoto, string>;
                     idMap!: Table<OfflineIdMap, string>;
+                    mutations!: Table<QueuedMutation, string>;
 
                     constructor() {
                         super('agrovision-offline');
@@ -125,6 +137,10 @@ export async function offlineDb(): Promise<OfflineDatabase | null> {
                             outbox: 'id, kind, checklistId, createdAt',
                             photos: 'id, checklistId, inspectionPass',
                             idMap: 'localId, serverId',
+                        });
+
+                        this.version(2).stores({
+                            mutations: 'id, createdAt, url',
                         });
                     }
                 }

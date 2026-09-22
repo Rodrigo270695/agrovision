@@ -29,7 +29,7 @@ export async function refreshPendingCount(): Promise<number> {
         return 0;
     }
 
-    const pending = await db.outbox.count();
+    const pending = (await db.outbox.count()) + (await db.mutations.count());
     setOfflinePending(pending);
 
     return pending;

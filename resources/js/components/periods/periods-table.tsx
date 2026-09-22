@@ -11,11 +11,14 @@ import {
     type SortState,
 } from '@/components/data-page';
 import { RowActionsMenu } from '@/components/shared/row-actions-menu';
+import { toast } from 'sonner';
 import { useCan } from '@/hooks/use-can';
+import { isBrowserOnline } from '@/lib/offline/ids';
 import { asPaginated } from '@/lib/paginated';
 
 export type PeriodItem = {
-    id: number;
+    id: number | string;
+    pending_sync?: boolean;
     name: string;
     date: string;
     status: 'active' | 'inactive' | string;
@@ -110,6 +113,12 @@ function PeriodActions({
 export function PeriodsTable({ periods, filters, onEdit, onDelete }: Props) {
     const visit = useCallback(
         (params: Partial<PeriodsFilters> & { page?: number }) => {
+            if (!isBrowserOnline()) {
+                toast.info('Sin conexión. Los filtros se habilitan al reconectar.');
+
+                return;
+            }
+
             router.get(
                 '/periodos',
                 {
@@ -160,7 +169,9 @@ export function PeriodsTable({ periods, filters, onEdit, onDelete }: Props) {
                 header: 'Estado',
                 sortable: true,
                 cell: (period) =>
-                    period.status === 'active' ? (
+                    period.pending_sync ? (
+                        <StatBadge label="En dispositivo" value="" variant="warning" />
+                    ) : period.status === 'active' ? (
                         <StatBadge label="Activo" value="" variant="success" />
                     ) : (
                         <StatBadge label="Inactivo" value="" variant="muted" />
