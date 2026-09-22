@@ -46,7 +46,7 @@ export default function Dashboard() {
 
     return (
         <>
-            <Head title="Panel operativo" />
+            <Head title="Panel" />
             <DashboardPage data={data} />
         </>
     );

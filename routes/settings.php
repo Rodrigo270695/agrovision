@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\Settings\BrandingController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
+use App\Http\Middleware\EnsureTenantContext;
 use Illuminate\Auth\Middleware\RequirePassword;
 use Illuminate\Support\Facades\Route;
 
@@ -24,6 +26,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('user-password.update');
 
     Route::redirect('settings/appearance', '/settings/profile')->name('appearance.edit');
+
+    Route::middleware(EnsureTenantContext::class)->group(function () {
+        Route::get('settings/empresa', [BrandingController::class, 'edit'])->name('empresa.edit');
+        Route::post('settings/empresa', [BrandingController::class, 'update'])->name('empresa.update');
+    });
 });
 
 Route::get('.well-known/passkey-endpoints', function () {

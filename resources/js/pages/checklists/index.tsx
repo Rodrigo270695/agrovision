@@ -13,13 +13,8 @@ export default function ChecklistsIndex() {
 
 ChecklistsIndex.layout = {
     breadcrumbs: [
-        {
-            title: 'Panel',
-            href: dashboard(),
-        },
-        {
-            title: 'Inspecciones',
-            href: '/inspecciones',
-        },
+        { title: 'Panel', href: dashboard() },
+        { title: 'Plataforma', href: '/inspecciones' },
+        { title: 'Inspecciones', href: '/inspecciones' },
     ],
 };

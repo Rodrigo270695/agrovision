@@ -1,5 +1,6 @@
 <?php
 
+use Carbon\Carbon;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -38,7 +39,7 @@ return new class extends Migration
         $rows = DB::table('inductions')->get(['id', 'title', 'scheduled_at', 'location', 'notes']);
 
         foreach ($rows as $row) {
-            $scheduled = $row->scheduled_at ? \Carbon\Carbon::parse($row->scheduled_at) : null;
+            $scheduled = $row->scheduled_at ? Carbon::parse($row->scheduled_at) : null;
 
             DB::table('inductions')->where('id', $row->id)->update([
                 'acta_number' => str_pad((string) $row->id, 6, '0', STR_PAD_LEFT),

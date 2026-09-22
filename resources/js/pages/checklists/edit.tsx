@@ -1,8 +1,10 @@
 import { Head, usePage } from '@inertiajs/react';
+import { useEffect } from 'react';
 import {
     ChecklistEditForm,
     type ChecklistFormData,
 } from '@/components/checklists/checklist-edit-form';
+import { saveEditSnapshot } from '@/lib/offline/store';
 import { dashboard } from '@/routes';
 
 type PageProps = {
@@ -11,6 +13,10 @@ type PageProps = {
 
 export default function ChecklistEditPage() {
     const { checklist } = usePage().props as unknown as PageProps;
+
+    useEffect(() => {
+        void saveEditSnapshot(checklist);
+    }, [checklist]);
 
     return (
         <>

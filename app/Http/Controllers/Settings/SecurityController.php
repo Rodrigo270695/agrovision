@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\PasswordUpdateRequest;
 use App\Http\Requests\Settings\TwoFactorAuthenticationRequest;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -20,8 +21,8 @@ class SecurityController extends Controller
     {
         $props = [
             'canManageTwoFactor' => Features::canManageTwoFactorAuthentication(),
-            'canManagePasskeys' => Features::canManagePasskeys(),
-            'passkeys' => Features::canManagePasskeys()
+            'canManagePasskeys' => Features::canManagePasskeys() && Schema::hasTable('passkeys'),
+            'passkeys' => Features::canManagePasskeys() && Schema::hasTable('passkeys')
                 ? $request->user()
                     ->passkeys()
                     ->select(['id', 'name', 'credential', 'created_at', 'last_used_at'])

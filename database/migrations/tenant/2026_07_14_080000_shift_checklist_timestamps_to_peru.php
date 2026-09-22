@@ -12,6 +12,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::getConnection()->getDriverName() !== 'pgsql') {
+            return;
+        }
+
         if (Schema::hasTable('unit_checklist_photos') && Schema::hasColumn('unit_checklist_photos', 'captured_at')) {
             DB::statement("UPDATE unit_checklist_photos SET captured_at = captured_at - INTERVAL '5 hours' WHERE captured_at IS NOT NULL");
         }

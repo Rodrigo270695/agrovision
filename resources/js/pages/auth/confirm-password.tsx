@@ -1,4 +1,4 @@
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import {
     index as confirmOptions,
@@ -10,10 +10,12 @@ import PasswordInput from '@/components/password-input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { TenantBrandMark } from '@/components/tenant-brand-mark';
 import { cn } from '@/lib/utils';
 import { store } from '@/routes/password/confirm';
 
 export default function ConfirmPassword() {
+    const tenant = usePage().props.tenant;
     const [ready, setReady] = useState(false);
 
     useEffect(() => {
@@ -110,10 +112,11 @@ export default function ConfirmPassword() {
                                 <p className="mb-2 text-[10px] font-semibold tracking-[0.2em] text-[#6b8ead] uppercase">
                                     Cliente
                                 </p>
-                                <img
-                                    src="/agro-mark.png"
-                                    alt="Agrovision"
-                                    className="mx-auto h-12 w-auto max-w-full object-contain sm:h-14"
+                                <TenantBrandMark
+                                    name={tenant?.name ?? 'Cliente'}
+                                    logo={tenant?.login_logo ?? tenant?.logo}
+                                    className="mx-auto size-14 text-lg sm:size-16"
+                                    imageClassName="mx-auto h-12 w-auto max-w-full sm:h-14"
                                 />
                             </div>
                         </div>

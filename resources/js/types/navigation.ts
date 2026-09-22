@@ -14,4 +14,6 @@ export type NavItem = {
     items?: NavItem[];
     /** Permiso requerido para mostrar el ítem. Si falta, siempre se muestra. */
     permission?: string;
+    /** Módulo SaaS requerido. Si falta, no se filtra por módulo. */
+    module?: string;
 };

@@ -32,7 +32,7 @@ export function AlcoholTestsPage() {
     const coordinatorView = Boolean(isCoordinatorView);
 
     return (
-        <div className="flex flex-col gap-4 p-4">
+        <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
             <AlcoholTestsHeader
                 stats={stats}
                 isCoordinatorView={coordinatorView}

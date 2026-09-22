@@ -4,14 +4,18 @@ import {
     AlertTriangle,
     ArrowDownRight,
     ArrowUpRight,
-    Bus,
     Building2,
+    Bus,
+    CheckCircle2,
     ClipboardCheck,
     FileStack,
+    Globe,
     GraduationCap,
     Minus,
+    PauseCircle,
     Percent,
     TriangleAlert,
+    Users,
 } from 'lucide-react';
 import type { DashboardKpi } from '@/components/dashboard/types';
 import { cn } from '@/lib/utils';
@@ -36,6 +40,11 @@ const icons: Record<string, LucideIcon> = {
     inductions: GraduationCap,
     providers: Building2,
     without_plate: TriangleAlert,
+    tenants: Building2,
+    active: CheckCircle2,
+    suspended: PauseCircle,
+    domains: Globe,
+    users: Users,
 };
 
 type Props = {

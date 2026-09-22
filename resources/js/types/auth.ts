@@ -14,6 +14,20 @@ export type Auth = {
     user: User;
     roles?: string[];
     permissions?: string[];
+    is_support?: boolean;
+};
+
+export type TenantBranding = {
+    id: string;
+    status?: string;
+    name: string;
+    legal_name?: string | null;
+    logo: string | null;
+    sidebar_logo: string | null;
+    login_logo: string | null;
+    primary_color: string;
+    modules: Record<string, boolean>;
+    impersonating?: boolean;
 };
 
 /* @chisel-passkeys */

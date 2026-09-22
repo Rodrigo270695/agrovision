@@ -1,6 +1,7 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
 import {
+    Building2,
     Bus,
     CalendarRange,
     ChartPie,
@@ -40,6 +41,7 @@ const mainNavItems: NavItem[] = [
         href: dashboard(),
         icon: LayoutGrid,
         permission: 'dashboard.view',
+        module: 'dashboard',
     },
     {
         title: 'Plataforma',
@@ -50,39 +52,46 @@ const mainNavItems: NavItem[] = [
                 href: '/pareto',
                 icon: ChartPie,
                 permission: 'pareto.view',
+                module: 'pareto',
             },
             {
                 title: 'Periodos',
                 href: '/periodos',
                 icon: CalendarRange,
                 permission: 'periods.view',
+                module: 'periods',
             },
             {
                 title: 'Unidades',
                 href: '/unidades',
                 icon: Bus,
                 permission: 'units.view',
+                module: 'units',
             },
             {
                 title: 'Inspecciones',
                 href: '/inspecciones',
                 icon: ClipboardCheck,
                 permission: 'checklists.view',
+                module: 'checklists',
             },
             {
                 title: 'Consolidados',
                 href: '/consolidados',
                 icon: FileStack,
                 permission: 'consolidations.view',
+                module: 'consolidations',
             },
             {
                 title: 'Alcohómetro',
                 href: '/alcoholimetro',
                 icon: Wine,
                 permission: 'alcoholtests.view',
+                module: 'alcoholtests',
             },
         ],
-    },    {
+    },
+    {
         title: 'Inducción',
         icon: GraduationCap,
         items: [
@@ -91,6 +100,7 @@ const mainNavItems: NavItem[] = [
                 href: '/inducciones',
                 icon: Settings2,
                 permission: 'inductions.view',
+                module: 'inductions',
             },
         ],
     },
@@ -103,12 +113,14 @@ const mainNavItems: NavItem[] = [
                 href: '/usuarios',
                 icon: Users,
                 permission: 'users.view',
+                module: 'users',
             },
             {
                 title: 'Roles',
                 href: '/roles',
                 icon: Shield,
                 permission: 'roles.view',
+                module: 'roles',
             },
         ],
     },
@@ -116,13 +128,34 @@ const mainNavItems: NavItem[] = [
 
 const footerNavItems: NavItem[] = [];
 
+const centralNavItems: NavItem[] = [
+    {
+        title: 'Panel',
+        href: '/plataforma',
+        icon: LayoutGrid,
+    },
+    {
+        title: 'Empresas',
+        href: '/plataforma/empresas',
+        icon: Building2,
+    },
+];
+
 export function AppSidebar() {
     const { can } = useCan();
     const { isMobile, setOpenMobile } = useSidebar();
+    const page = usePage();
+    const isCentral = Boolean(page.props.central);
+    const modules = page.props.tenant?.modules ?? {};
 
     const visibleNavItems = useMemo(
-        () => filterNavItems(mainNavItems, can),
-        [can],
+        () =>
+            isCentral
+                ? centralNavItems
+                : filterNavItems(mainNavItems, can, (module) =>
+                      module ? modules[module] !== false : true,
+                  ),
+        [can, isCentral, modules],
     );
 
     const visibleFooterItems = useMemo(
@@ -138,12 +171,16 @@ export function AppSidebar() {
 
     return (
         <Sidebar collapsible="icon" variant="inset">
-            <SidebarHeader>
+            <SidebarHeader className="border-b border-[#d7e3f0] px-2 py-3">
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
+                        <SidebarMenuButton
+                            size="lg"
+                            asChild
+                            className="h-10 hover:bg-transparent"
+                        >
                             <Link
-                                href={dashboard()}
+                                href={isCentral ? '/plataforma' : dashboard()}
                                 prefetch
                                 onClick={closeMobile}
                             >
@@ -154,11 +191,14 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarHeader>
 
-            <SidebarContent>
-                <NavMain items={visibleNavItems} />
+            <SidebarContent className="pt-2">
+                <NavMain
+                    items={visibleNavItems}
+                    groupLabel={isCentral ? 'Grupo Indelsi' : 'Operaciones'}
+                />
             </SidebarContent>
 
-            <SidebarFooter>
+            <SidebarFooter className="border-t border-[#d7e3f0] px-2 py-2">
                 {visibleFooterItems.length > 0 ? (
                     <NavFooter items={visibleFooterItems} className="mt-auto" />
                 ) : null}

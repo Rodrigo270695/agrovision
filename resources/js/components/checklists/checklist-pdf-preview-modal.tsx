@@ -13,7 +13,7 @@ type Props = {
     onClose: () => void;
 };
 
-function pdfUrl(id: number, download = false): string {
+function pdfUrl(id: number | string, download = false): string {
     const base = `/inspecciones/${id}/pdf`;
 
     return download ? `${base}?download=1` : base;

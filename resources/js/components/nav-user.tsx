@@ -55,8 +55,8 @@ export function NavUser() {
                 <SidebarMenuButton
                     size="lg"
                     className={cn(
-                        'group text-sidebar-accent-foreground',
-                        open && 'bg-sidebar-accent',
+                        'h-10 rounded-lg text-[#3d5166] hover:bg-[#e8f1fa]',
+                        open && 'bg-[#e8f1fa]',
                     )}
                     data-test="sidebar-menu-button"
                     aria-expanded={open}

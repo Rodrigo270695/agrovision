@@ -4,9 +4,12 @@ namespace Tests;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Laravel\Fortify\Features;
+use Tests\Concerns\InteractsWithTenancy;
 
 abstract class TestCase extends BaseTestCase
 {
+    use InteractsWithTenancy;
+
     protected function skipUnlessFortifyHas(string $feature, ?string $message = null): void
     {
         if (! Features::enabled($feature)) {

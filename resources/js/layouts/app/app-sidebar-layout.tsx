@@ -2,6 +2,8 @@ import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
+import { OfflineBanner } from '@/components/offline/offline-banner';
+import { TenantImpersonationBanner } from '@/components/tenant-impersonation-banner';
 import type { AppLayoutProps } from '@/types';
 
 export default function AppSidebarLayout({
@@ -12,6 +14,8 @@ export default function AppSidebarLayout({
         <AppShell variant="sidebar">
             <AppSidebar />
             <AppContent variant="sidebar">
+                <TenantImpersonationBanner />
+                <OfflineBanner />
                 <AppSidebarHeader breadcrumbs={breadcrumbs} />
                 {/* Contenedor de scroll de todas las vistas del app shell */}
                 <div

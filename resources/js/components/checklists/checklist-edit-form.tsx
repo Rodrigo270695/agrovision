@@ -7,6 +7,7 @@ import {
     ShieldCheck,
 } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
+import { toast } from 'sonner';
 import {
     ChecklistPhotosSection,
     type ChecklistPhoto,
@@ -17,6 +18,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
+import { isBrowserOnline, isLocalChecklistId } from '@/lib/offline/ids';
+import { applyUpdateToChecklist, queueUpdate, saveEditSnapshot } from '@/lib/offline/store';
 import { cn } from '@/lib/utils';
 
 export type ChecklistFormItem = {
@@ -42,7 +45,7 @@ export type ChecklistFormSignature = {
 };
 
 export type ChecklistFormData = {
-    id: number;
+    id: number | string;
     status: 'draft' | 'completed';
     is_sealed: boolean;
     sealed_at: string | null;
@@ -92,6 +95,7 @@ export type ChecklistFormData = {
 
 type Props = {
     checklist: ChecklistFormData;
+    onBack?: () => void;
 };
 
 type AnswerState = {
@@ -210,7 +214,7 @@ function StepPill({
     );
 }
 
-export function ChecklistEditForm({ checklist }: Props) {
+export function ChecklistEditForm({ checklist, onBack }: Props) {
     const sealed = checklist.is_sealed;
     const firstLocked =
         sealed ||
@@ -419,8 +423,35 @@ export function ChecklistEditForm({ checklist }: Props) {
             return;
         }
 
+        if (extra.seal && (!isBrowserOnline() || isLocalChecklistId(checklist.id))) {
+            toast.error('Necesitas conexión para sellar la inspección.');
+
+            return;
+        }
+
+        const payload = buildPayload(extra);
+
+        if (!isBrowserOnline() || isLocalChecklistId(checklist.id)) {
+            setProcessing(true);
+            void (async () => {
+                try {
+                    await queueUpdate(checklist.id, payload);
+                    await saveEditSnapshot(applyUpdateToChecklist(checklist, payload));
+                    toast.success(
+                        'Guardado en el dispositivo. Se enviará al reconectar.',
+                    );
+                } catch {
+                    toast.error('No se pudo guardar en el dispositivo.');
+                } finally {
+                    setProcessing(false);
+                }
+            })();
+
+            return;
+        }
+
         setProcessing(true);
-        router.put(`/inspecciones/${checklist.id}`, buildPayload(extra), {
+        router.put(`/inspecciones/${checklist.id}`, payload, {
             preserveScroll: true,
             onFinish: () => setProcessing(false),
         });
@@ -439,6 +470,14 @@ export function ChecklistEditForm({ checklist }: Props) {
             <div className="rounded-2xl border border-[#d7e3f0] bg-white p-3 shadow-sm sm:p-5">
                 <Link
                     href="/inspecciones"
+                    onClick={(event) => {
+                        if (!onBack) {
+                            return;
+                        }
+
+                        event.preventDefault();
+                        onBack();
+                    }}
                     className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-[#2e5a9e] hover:underline"
                 >
                     <ArrowLeft className="size-3.5" />

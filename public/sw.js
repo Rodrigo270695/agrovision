@@ -1,9 +1,9 @@
-const CACHE_VERSION = 'agrovision-pwa-v7';
+const CACHE_VERSION = 'agrovision-pwa-v8';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
+const PAGES_CACHE = `${CACHE_VERSION}-pages`;
 
-// No precachear favicons/iconos: el SW los dejaba congelados (logo Laravel viejo).
-const PRECACHE_URLS = ['/manifest.webmanifest?v=7'];
+const PRECACHE_URLS = ['/manifest.webmanifest?v=8'];
 
 function isBrandAsset(pathname) {
   return (
@@ -13,6 +13,82 @@ function isBrandAsset(pathname) {
     pathname === '/apple-touch-icon.png' ||
     pathname.endsWith('.webmanifest')
   );
+}
+
+function isInspectionPage(pathname) {
+  return (
+    pathname === '/inspecciones' ||
+    /^\/inspecciones\/\d+\/editar$/.test(pathname)
+  );
+}
+
+function isAppDocument(pathname) {
+  return (
+    pathname === '/' ||
+    pathname === '/dashboard' ||
+    isInspectionPage(pathname)
+  );
+}
+
+function isInspectionPhoto(pathname) {
+  return pathname.startsWith('/storage/checklists/');
+}
+
+function isStaticAsset(pathname) {
+  return (
+    pathname.startsWith('/build/') ||
+    pathname.endsWith('.woff2') ||
+    pathname.endsWith('.woff')
+  );
+}
+
+function offlineDocument() {
+  return new Response(
+    `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sin conexión</title></head><body style="font-family:system-ui,sans-serif;padding:2rem;color:#1a2b4c"><h1 style="font-size:1.25rem">Sin conexión</h1><p>Abre Agrovisión con internet al menos una vez para usar inspecciones sin red.</p></body></html>`,
+    {
+      status: 503,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    },
+  );
+}
+
+async function cachePut(cacheName, request, response) {
+  if (!response || !response.ok || response.type !== 'basic') {
+    return;
+  }
+
+  const cache = await caches.open(cacheName);
+  await cache.put(request, response.clone());
+}
+
+async function networkFirst(request, cacheName) {
+  try {
+    const response = await fetch(request);
+    await cachePut(cacheName, request, response);
+
+    return response;
+  } catch (error) {
+    const cached = await caches.match(request);
+
+    if (cached) {
+      return cached;
+    }
+
+    throw error;
+  }
+}
+
+async function cacheFirst(request, cacheName) {
+  const cached = await caches.match(request);
+
+  if (cached) {
+    return cached;
+  }
+
+  const response = await fetch(request);
+  await cachePut(cacheName, request, response);
+
+  return response;
 }
 
 self.addEventListener('install', (event) => {
@@ -29,7 +105,11 @@ self.addEventListener('activate', (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.map((key) => caches.delete(key))),
+        Promise.all(
+          keys
+            .filter((key) => !key.startsWith(CACHE_VERSION))
+            .map((key) => caches.delete(key)),
+        ),
       )
       .then(() => self.clients.claim()),
   );
@@ -50,8 +130,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(payload.title || 'Agrovision', {
       body: payload.body || '',
-      icon: '/icons/icon-192x192.png?v=7',
-      badge: '/icons/icon-192x192.png?v=7',
+      icon: '/icons/icon-192x192.png?v=8',
+      badge: '/icons/icon-192x192.png?v=8',
       tag: payload.tag || 'agrovision',
       data: {
         url: payload.url || '/',
@@ -103,20 +183,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (request.mode === 'navigate') {
-    return;
-  }
-
-  if (
-    request.headers.get('X-Inertia') ||
-    request.headers.get('X-Livewire') ||
-    request.headers.get('Purpose') === 'prefetch' ||
-    request.destination === 'document'
-  ) {
-    return;
-  }
-
-  // Favicon / PWA icons / manifest: siempre red (evita icono viejo en caché).
   if (isBrandAsset(url.pathname)) {
     event.respondWith(
       fetch(request, { cache: 'reload' }).catch(() => fetch(request)),
@@ -124,29 +190,38 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  const isStaticAsset =
-    url.pathname.startsWith('/build/') ||
-    url.pathname.endsWith('.woff2') ||
-    url.pathname.endsWith('.woff');
+  const isInertia = Boolean(request.headers.get('X-Inertia'));
+  const isDocument =
+    request.mode === 'navigate' || request.destination === 'document';
 
-  if (!isStaticAsset) {
+  if (
+    (isDocument || isInertia) &&
+    isAppDocument(url.pathname)
+  ) {
+    event.respondWith(
+      networkFirst(request, PAGES_CACHE).catch(() => {
+        if (isDocument) {
+          return offlineDocument();
+        }
+
+        return caches.match(request).then((cached) => cached || offlineDocument());
+      }),
+    );
     return;
   }
 
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) {
-        return cached;
-      }
+  if (isDocument || isInertia || request.headers.get('X-Livewire') || request.headers.get('Purpose') === 'prefetch') {
+    return;
+  }
 
-      return fetch(request).then((response) => {
-        if (response && response.ok && response.type === 'basic') {
-          const copy = response.clone();
-          caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
-        }
+  if (isInspectionPhoto(url.pathname)) {
+    event.respondWith(cacheFirst(request, RUNTIME_CACHE));
+    return;
+  }
 
-        return response;
-      });
-    }),
-  );
+  if (!isStaticAsset(url.pathname)) {
+    return;
+  }
+
+  event.respondWith(cacheFirst(request, RUNTIME_CACHE));
 });

@@ -81,11 +81,9 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                                     Menú de navegación
                                 </SheetTitle>
                                 <SheetHeader className="flex justify-start text-left">
-                                    <img
-                                        src="/agro-logo-sidebar.png"
-                                        alt="Agrovision"
-                                        className="h-8 w-auto object-contain"
-                                    />
+                                    <div className="flex items-center">
+                                        <AppLogo />
+                                    </div>
                                 </SheetHeader>
                                 <div className="flex h-full flex-1 flex-col space-y-4 p-4">
                                     <div className="flex h-full flex-col justify-between text-sm">

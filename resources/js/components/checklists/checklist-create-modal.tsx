@@ -1,5 +1,6 @@
 import { useForm } from '@inertiajs/react';
-import { useEffect, useMemo, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { toast } from 'sonner';
 import { AppModal } from '@/components/shared/app-modal';
 import { SearchableCombobox } from '@/components/shared/searchable-combobox';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,14 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
+import type { ChecklistFormData } from '@/components/checklists/checklist-edit-form';
+import type { OfflineCatalogTemplate } from '@/lib/offline/db';
+import { isBrowserOnline } from '@/lib/offline/ids';
+import {
+    buildLocalDraft,
+    queueCreate,
+    saveEditSnapshot,
+} from '@/lib/offline/store';
 
 export type ChecklistTemplateOption = {
     id: number;
@@ -39,19 +48,25 @@ type Props = {
     open: boolean;
     templates: ChecklistTemplateOption[];
     activeUnits: ActiveUnitOption[];
+    catalog?: OfflineCatalogTemplate[];
     onClose: () => void;
+    onCreatedOffline?: (draft: ChecklistFormData) => void;
 };
 
 export function ChecklistCreateModal({
     open,
     templates,
     activeUnits,
+    catalog = [],
     onClose,
+    onCreatedOffline,
 }: Props) {
     const form = useForm({
         unit_id: '',
         template_id: '',
     });
+    const [offlineSaving, setOfflineSaving] = useState(false);
+    const submitting = form.processing || offlineSaving;
 
     useEffect(() => {
         if (!open) {
@@ -94,7 +109,7 @@ export function ChecklistCreateModal({
     );
 
     const handleClose = () => {
-        if (form.processing) {
+        if (submitting) {
             return;
         }
 
@@ -106,19 +121,76 @@ export function ChecklistCreateModal({
     const handleSubmit = (event: FormEvent) => {
         event.preventDefault();
 
-        form.post('/inspecciones', {
-            preserveScroll: true,
-            onSuccess: () => {
+        if (isBrowserOnline()) {
+            form.post('/inspecciones', {
+                preserveScroll: true,
+                onSuccess: () => {
+                    form.reset();
+                    onClose();
+                },
+            });
+
+            return;
+        }
+
+        const unit = activeUnits.find(
+            (item) => String(item.id) === form.data.unit_id,
+        );
+        const template = templates.find(
+            (item) => String(item.id) === form.data.template_id,
+        );
+        const templateCatalog = catalog.find(
+            (item) => String(item.id) === form.data.template_id,
+        );
+
+        if (!unit || !template || !templateCatalog) {
+            toast.error(
+                'Abre inspecciones con conexión para descargar las plantillas.',
+            );
+
+            return;
+        }
+
+        if (templateCatalog.items.length === 0) {
+            toast.error(
+                'Esta plantilla no tiene ítems en el dispositivo. Conéctate para actualizarla.',
+            );
+
+            return;
+        }
+
+        setOfflineSaving(true);
+        void (async () => {
+            try {
+                const draft = buildLocalDraft({
+                    unit,
+                    template,
+                    catalog: templateCatalog,
+                });
+                await saveEditSnapshot(draft);
+                await queueCreate({
+                    unit_id: unit.id,
+                    template_id: template.id,
+                    checklistId: String(draft.id),
+                });
                 form.reset();
                 onClose();
-            },
-        });
+                onCreatedOffline?.(draft);
+                toast.success(
+                    'Inspección creada en el dispositivo. Se enviará al reconectar.',
+                );
+            } catch {
+                toast.error('No se pudo crear la inspección offline.');
+            } finally {
+                setOfflineSaving(false);
+            }
+        })();
     };
 
     const canSubmit =
         form.data.unit_id !== '' &&
         form.data.template_id !== '' &&
-        !form.processing;
+        !submitting;
 
     return (
         <AppModal
@@ -133,7 +205,7 @@ export function ChecklistCreateModal({
                         type="button"
                         variant="outline"
                         onClick={handleClose}
-                        disabled={form.processing}
+                        disabled={submitting}
                         className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c] hover:bg-white"
                     >
                         Cancelar
@@ -144,7 +216,7 @@ export function ChecklistCreateModal({
                         disabled={!canSubmit}
                         className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038] disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                        {form.processing ? <Spinner /> : null}
+                        {submitting ? <Spinner /> : null}
                         Crear e inspeccionar
                     </Button>
                 </>
@@ -220,7 +292,7 @@ export function ChecklistCreateModal({
                                 ? 'No hay unidades en periodo activo'
                                 : 'Sin coincidencias'
                         }
-                        disabled={form.processing}
+                        disabled={submitting}
                     />
                     {form.errors.unit_id ? (
                         <p className="text-xs text-red-600">

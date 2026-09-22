@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Laravel\Fortify\Contracts\LoginResponse;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,7 +20,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->instance(LoginResponse::class, new class implements LoginResponse
+        {
+            public function toResponse($request)
+            {
+                if (! tenancy()->initialized) {
+                    return redirect()->intended(route('central.dashboard'));
+                }
+
+                return redirect()->intended(route('dashboard'));
+            }
+        });
     }
 
     /**
@@ -33,6 +44,14 @@ class AppServiceProvider extends ServiceProvider
         Route::bind('photo', fn (string $value) => UnitChecklistPhoto::query()->findOrFail($value));
 
         Gate::before(function ($user, $ability) {
+            if (! tenancy()->initialized) {
+                return null;
+            }
+
+            if (($user->is_support ?? false) === true) {
+                return true;
+            }
+
             return method_exists($user, 'hasRole') && $user->hasRole('superadmin')
                 ? true
                 : null;

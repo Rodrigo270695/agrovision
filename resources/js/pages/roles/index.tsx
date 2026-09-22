@@ -14,6 +14,7 @@ export default function RolesIndex() {
 RolesIndex.layout = {
     breadcrumbs: [
         { title: 'Panel', href: dashboard() },
+        { title: 'Usuario', href: '/roles' },
         { title: 'Roles', href: '/roles' },
     ],
 };

@@ -11,7 +11,7 @@
         <meta name="apple-mobile-web-app-title" content="Agrovisión">
         <meta name="msapplication-TileColor" content="#1a2b4c">
         <meta name="msapplication-TileImage" content="/icons/icon-144x144.png?v=7">
-        <link rel="manifest" href="/manifest.webmanifest?v=7">
+        <link rel="manifest" href="/manifest.webmanifest?v=8">
 
         <link rel="icon" href="/favicon-32x32.png?v=7" type="image/png" sizes="32x32">
         <link rel="icon" href="/favicon-16x16.png?v=7" type="image/png" sizes="16x16">

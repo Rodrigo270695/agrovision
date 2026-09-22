@@ -14,6 +14,7 @@ createInertiaApp({
         switch (true) {
             case name === 'welcome':
             case name === 'auth/login':
+            case name === 'central/login':
                 return null;
             case name.startsWith('auth/'):
                 return AuthLayout;
@@ -42,4 +43,8 @@ initializeTheme();
 
 void import('@/lib/register-service-worker').then(({ registerAppServiceWorker }) => {
     void registerAppServiceWorker();
+});
+
+void import('@/lib/offline/sync').then(({ startOfflineSync }) => {
+    startOfflineSync();
 });

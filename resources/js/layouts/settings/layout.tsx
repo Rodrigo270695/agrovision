@@ -1,15 +1,16 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import type { PropsWithChildren } from 'react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { cn, toUrl } from '@/lib/utils';
+import { edit as editEmpresa } from '@/routes/empresa';
 import { edit } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
 import type { NavItem } from '@/types';
 
-const sidebarNavItems: NavItem[] = [
+const accountNavItems: NavItem[] = [
     {
         title: 'Perfil',
         href: edit(),
@@ -23,13 +24,28 @@ const sidebarNavItems: NavItem[] = [
 ];
 
 export default function SettingsLayout({ children }: PropsWithChildren) {
+    const { central } = usePage().props;
     const { isCurrentOrParentUrl } = useCurrentUrl();
+    const sidebarNavItems = central
+        ? accountNavItems
+        : [
+              ...accountNavItems,
+              {
+                  title: 'Empresa',
+                  href: editEmpresa(),
+                  icon: null,
+              } satisfies NavItem,
+          ];
 
     return (
         <div className="px-4 py-6">
             <Heading
                 title="Configuración"
-                description="Administra tu perfil y preferencias de cuenta"
+                description={
+                    central
+                        ? 'Administra tu perfil y preferencias de cuenta'
+                        : 'Administra tu perfil, seguridad y datos de la empresa'
+                }
             />
 
             <div className="flex flex-col lg:flex-row lg:space-x-12">

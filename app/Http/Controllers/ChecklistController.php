@@ -102,6 +102,14 @@ class ChecklistController extends Controller
             $statsQuery->whereHas('unit', fn ($q) => $q->where('coordinator_id', Auth::id()));
         }
 
+        $templates = ChecklistTemplate::query()
+            ->where('is_active', true)
+            ->with(['items', 'signatureRoles'])
+            ->orderBy('type')
+            ->get();
+
+        $paretoSync = app(ParetoChecklistSync::class);
+
         return Inertia::render('checklists/index', [
             'checklists' => $checklists,
             'filters' => [
@@ -112,10 +120,12 @@ class ChecklistController extends Controller
                 'direction' => $direction,
                 'per_page' => $perPage,
             ],
-            'templates' => ChecklistTemplate::query()
-                ->where('is_active', true)
-                ->orderBy('type')
-                ->get(['id', 'type', 'code', 'name']),
+            'templates' => $templates->map(fn (ChecklistTemplate $template) => [
+                'id' => $template->id,
+                'type' => $template->type,
+                'code' => $template->code,
+                'name' => $template->name,
+            ])->values(),
             'activeUnits' => $activeUnitsQuery->get([
                 'id',
                 'period_id',
@@ -126,6 +136,43 @@ class ChecklistController extends Controller
                 'category',
                 'coordinator_id',
             ]),
+            'offlineCatalog' => $templates->map(function (ChecklistTemplate $template) use ($paretoSync) {
+                $weightTotal = $paretoSync->activeWeightTotal($template->type);
+
+                return [
+                    'id' => $template->id,
+                    'type' => $template->type,
+                    'code' => $template->code,
+                    'name' => $template->name,
+                    'version' => $template->version,
+                    'notes_hint' => $template->notes_hint,
+                    'items' => $template->items
+                        ->sortBy(fn (ChecklistItem $item) => [$item->sort_order, $item->id])
+                        ->values()
+                        ->map(fn (ChecklistItem $item) => [
+                            'id' => $item->id,
+                            'parent_id' => $item->parent_id,
+                            'item_number' => $item->item_number,
+                            'label' => $item->label,
+                            'sort_order' => $item->sort_order,
+                            'has_expiry' => $item->resolvedCheckType() === ParetoCheckTypes::EXPIRY,
+                            'check_type' => $item->resolvedCheckType(),
+                            'weight' => $item->weight !== null ? (float) $item->weight : null,
+                        ]),
+                    'signatureRoles' => $template->signatureRoles
+                        ->sortBy('sort_order')
+                        ->values()
+                        ->map(fn ($role) => [
+                            'id' => $role->id,
+                            'label' => $role->label,
+                            'sort_order' => $role->sort_order,
+                        ]),
+                    'pareto' => [
+                        'weight_total' => $weightTotal,
+                        'weight_ok' => abs($weightTotal - 100) < 0.01,
+                    ],
+                ];
+            })->values(),
             'stats' => [
                 'total' => (clone $statsQuery)->count(),
                 'draft' => (clone $statsQuery)->where('status', 'draft')->count(),

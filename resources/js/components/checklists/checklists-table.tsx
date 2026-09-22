@@ -1,23 +1,26 @@
-import {
-    Bus,
-    CircleCheck,
-    ClipboardCheck,
-    FileDown,
-    FileText,
-    Pencil,
-    Trash2,
-} from 'lucide-react';
+import { ClipboardCheck, FileDown, Pencil, Trash2 } from 'lucide-react';
 import { router } from '@inertiajs/react';
-import { useCallback } from 'react';
-import { ElegantFilterSelect } from '@/components/shared/elegant-filter-select';
-import { TablePagination } from '@/components/shared/table-pagination';
-import { TableSearchFilter } from '@/components/shared/table-search-filter';
-import { Button } from '@/components/ui/button';
+import { useCallback, useMemo } from 'react';
+import { toast } from 'sonner';
+import { isBrowserOnline } from '@/lib/offline/ids';
+import {
+    DataPagination,
+    DataTable,
+    DataToolbar,
+    EmptyState,
+    FilterChips,
+    StatBadge,
+    type DataTableColumn,
+    type FilterChip,
+    type SortState,
+} from '@/components/data-page';
+import { RowActionsMenu } from '@/components/shared/row-actions-menu';
 import { useCan } from '@/hooks/use-can';
-import { cn } from '@/lib/utils';
+import { asPaginated } from '@/lib/paginated';
 
 export type ChecklistItemRow = {
-    id: number;
+    id: number | string;
+    pending_sync?: boolean;
     plate_number: string;
     driver_name?: string | null;
     provider?: string | null;
@@ -69,6 +72,8 @@ type Props = {
 };
 
 type SortKey = ChecklistsFilters['sort'];
+type TypeFilter = 'all' | 'tdp' | 'tdc';
+type StatusFilter = 'all' | 'draft' | 'completed';
 
 function formatDate(value?: string | null): string {
     if (!value) {
@@ -103,38 +108,40 @@ function resultLabel(value?: string | null): string {
 }
 
 function ResultChip({ value }: { value?: string | null }) {
-    return (
-        <span
-            className={cn(
-                'inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium',
-                value === 'approved'
-                    ? 'bg-[#e8f7ef] text-[#15803d]'
-                    : value === 'rejected'
-                      ? 'bg-red-50 text-red-700'
-                      : 'bg-[#eef1f5] text-[#64748b]',
-            )}
-        >
-            {resultLabel(value)}
-        </span>
-    );
+    const variant =
+        value === 'approved'
+            ? 'success'
+            : value === 'rejected'
+              ? 'danger'
+              : 'muted';
+
+    return <StatBadge label={resultLabel(value)} value="" variant={variant} />;
 }
 
-function SortIcon({
-    active,
-    direction,
-}: {
-    active: boolean;
-    direction: 'asc' | 'desc';
-}) {
-    if (!active) {
-        return <span className="ml-1 opacity-60">↕</span>;
+function statusBadge(item: ChecklistItemRow) {
+    const sealed = Boolean(item.sealed_at);
+
+    if (item.pending_sync) {
+        return <StatBadge label="En dispositivo" value="" variant="warning" />;
     }
 
-    return (
-        <span className="ml-1" aria-hidden>
-            {direction === 'asc' ? '↑' : '↓'}
-        </span>
-    );
+    if (sealed) {
+        return <StatBadge label="Sellado" value="" variant="info" />;
+    }
+
+    if (item.coordinator_status === 'reviewed') {
+        return <StatBadge label="Revisado" value="" variant="primary" />;
+    }
+
+    if (item.coordinator_status === 'observed') {
+        return <StatBadge label="Observado" value="" variant="warning" />;
+    }
+
+    if (item.status === 'completed') {
+        return <StatBadge label="Completado" value="" variant="success" />;
+    }
+
+    return <StatBadge label="Borrador" value="" variant="warning" />;
 }
 
 export function ChecklistsTable({
@@ -148,6 +155,14 @@ export function ChecklistsTable({
 
     const visit = useCallback(
         (params: Partial<ChecklistsFilters> & { page?: number }) => {
+            if (!isBrowserOnline()) {
+                toast.info(
+                    'Sin conexión. Los filtros se habilitan al reconectar.',
+                );
+
+                return;
+            }
+
             const nextType = Object.prototype.hasOwnProperty.call(
                 params,
                 'template_type',
@@ -178,407 +193,242 @@ export function ChecklistsTable({
         [filters],
     );
 
-    const toggleSort = (column: SortKey) => {
-        if (filters.sort === column) {
-            visit({
-                direction: filters.direction === 'asc' ? 'desc' : 'asc',
-            });
+    const sort: SortState | null = filters.sort
+        ? { key: filters.sort, direction: filters.direction }
+        : null;
 
-            return;
-        }
-
-        visit({ sort: column, direction: 'asc' });
-    };
-
-    const headers: Array<{ key: SortKey | 'second_result'; label: string; sortable?: boolean }> = [
-        { key: 'plate_number', label: 'Placa', sortable: true },
-        { key: 'status', label: 'Estado', sortable: true },
-        { key: 'first_result', label: '1ra insp.', sortable: true },
-        { key: 'second_result', label: '2da insp.', sortable: false },
-        { key: 'created_at', label: 'Creado', sortable: true },
+    const typeOptions: readonly FilterChip<TypeFilter>[] = [
+        { value: 'all', label: 'Todos los tipos', tone: 'default' },
+        { value: 'tdp', label: 'TDP', tone: 'info' },
+        { value: 'tdc', label: 'TDC', tone: 'primary' },
     ];
 
-    return (
-        <div className="overflow-hidden rounded-2xl border border-[#d7e3f0] bg-white shadow-sm">
-            <div className="flex flex-col gap-3 border-b border-[#e2eaf3] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
-                <TableSearchFilter
-                    value={filters.search}
-                    onChange={(search) => visit({ search, page: 1 })}
-                    placeholder="Buscar placa, conductor..."
-                    className="max-w-none sm:max-w-sm"
-                />
-                <div className="flex flex-col gap-2 sm:flex-row">
-                    <ElegantFilterSelect
-                        value={filters.template_type ?? null}
-                        onChange={(value) =>
-                            visit({
-                                template_type: value as 'tdp' | 'tdc' | null,
-                                page: 1,
-                            })
-                        }
-                        triggerIcon={Bus}
-                        allLabel="Todos los tipos"
-                        allDescription="TDP y TDC"
-                        placeholder="Todos los tipos"
-                        className="sm:w-[200px]"
-                        options={[
-                            {
-                                value: 'tdp',
-                                label: 'TDP',
-                                description: 'Unidades móviles / personal',
-                                icon: ClipboardCheck,
-                                iconClassName:
-                                    'bg-[#e8f1fa] text-[#2e5a9e]',
-                            },
-                            {
-                                value: 'tdc',
-                                label: 'TDC',
-                                description: 'Camionetas de carga',
-                                icon: Bus,
-                                iconClassName:
-                                    'bg-[#efe8fb] text-[#6d28d9]',
-                            },
-                        ]}
-                    />
-                    <ElegantFilterSelect
-                        value={filters.status ?? null}
-                        onChange={(value) =>
-                            visit({
-                                status: value as 'draft' | 'completed' | null,
-                                page: 1,
-                            })
-                        }
-                        triggerIcon={FileText}
-                        allLabel="Todos los estados"
-                        allDescription="Borrador y completados"
-                        placeholder="Todos los estados"
-                        className="sm:w-[210px]"
-                        options={[
-                            {
-                                value: 'draft',
-                                label: 'Borrador',
-                                description: 'Inspección en progreso',
-                                icon: FileText,
-                                iconClassName:
-                                    'bg-[#fff1e6] text-[#c2410c]',
-                            },
-                            {
-                                value: 'completed',
-                                label: 'Completado',
-                                description: 'Inspección finalizada',
-                                icon: CircleCheck,
-                                iconClassName:
-                                    'bg-[#e8f7ef] text-[#15803d]',
-                            },
-                        ]}
-                    />
-                </div>
-            </div>
+    const statusOptions: readonly FilterChip<StatusFilter>[] = [
+        { value: 'all', label: 'Todos los estados', tone: 'default' },
+        { value: 'draft', label: 'Borrador', tone: 'warning' },
+        { value: 'completed', label: 'Completado', tone: 'success' },
+    ];
 
-            <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[860px] text-left text-sm">
-                    <thead className="bg-[#1a2b4c] text-xs uppercase tracking-wide text-white">
-                        <tr>
-                            {headers.map((header) => (
-                                <th key={header.key} className="px-3 py-2.5">
-                                    {header.sortable ? (
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                toggleSort(header.key as SortKey)
-                                            }
-                                            className="inline-flex cursor-pointer items-center font-semibold"
-                                        >
-                                            {header.label}
-                                            <SortIcon
-                                                active={
-                                                    filters.sort === header.key
-                                                }
-                                                direction={filters.direction}
-                                            />
-                                        </button>
-                                    ) : (
-                                        <span className="font-semibold">
-                                            {header.label}
-                                        </span>
-                                    )}
-                                </th>
-                            ))}
-                            <th className="px-3 py-2.5">Tipo</th>
-                            <th className="px-3 py-2.5">Periodo</th>
-                            <th className="px-3 py-2.5 text-right">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {checklists.data.length === 0 ? (
-                            <tr>
-                                <td
-                                    colSpan={8}
-                                    className="px-3 py-10 text-center text-[#6b8ead]"
-                                >
-                                    No hay inspecciones del periodo activo.
-                                </td>
-                            </tr>
-                        ) : (
-                            checklists.data.map((item, index) => {
-                                const sealed = Boolean(item.sealed_at);
+    const columns = useMemo<DataTableColumn<ChecklistItemRow>[]>(
+        () => [
+            {
+                key: 'plate_number',
+                header: 'Placa',
+                sortable: true,
+                cell: (item) => (
+                    <div className="flex min-w-0 flex-col leading-tight">
+                        <span className="truncate text-sm font-semibold text-foreground">
+                            {item.plate_number}
+                        </span>
+                        <span className="truncate text-xs text-muted-foreground">
+                            {item.driver_name || 'Sin conductor'}
+                        </span>
+                    </div>
+                ),
+            },
+            {
+                key: 'status',
+                header: 'Estado',
+                sortable: true,
+                cell: (item) => statusBadge(item),
+            },
+            {
+                key: 'first_result',
+                header: '1ra insp.',
+                sortable: true,
+                cell: (item) => <ResultChip value={item.first_result} />,
+            },
+            {
+                key: 'second_result',
+                header: '2da insp.',
+                cell: (item) =>
+                    item.coordinator_status === 'reviewed' ? (
+                        <ResultChip value={item.second_result} />
+                    ) : item.coordinator_status === 'observed' ? (
+                        <StatBadge
+                            label="En revisión"
+                            value=""
+                            variant="warning"
+                        />
+                    ) : (
+                        <ResultChip value={null} />
+                    ),
+            },
+            {
+                key: 'created_at',
+                header: 'Creado',
+                sortable: true,
+                cell: (item) => (
+                    <span className="text-xs text-muted-foreground">
+                        {formatDate(item.created_at)}
+                    </span>
+                ),
+            },
+            {
+                key: 'type',
+                header: 'Tipo',
+                cell: (item) => (
+                    <span className="text-xs font-semibold uppercase text-[#2e5a9e]">
+                        {item.template?.type ?? '—'}
+                    </span>
+                ),
+            },
+            {
+                key: 'period',
+                header: 'Periodo',
+                cell: (item) => (
+                    <span className="text-xs text-muted-foreground">
+                        {item.period?.name || '—'}
+                    </span>
+                ),
+            },
+            {
+                key: 'acciones',
+                header: <span className="md:sr-only">Acciones</span>,
+                align: 'right',
+                showInMobile: true,
+                className: 'w-12',
+                cell: (item) => {
+                    const sealed = Boolean(item.sealed_at);
+                    const canPdf =
+                        typeof item.id === 'number' &&
+                        (item.first_result === 'approved' ||
+                            item.first_result === 'rejected') &&
+                        can('checklists.view');
 
-                                return (
-                                <tr
-                                    key={item.id}
-                                    className={cn(
-                                        'border-b border-[#eef2f7] last:border-0',
-                                        index % 2 === 1 && 'bg-[#f8fafc]',
-                                    )}
-                                >
-                                    <td className="px-3 py-1.5 font-medium text-[#1a2b4c]">
-                                        {item.plate_number}
-                                        <p className="text-xs font-normal text-[#5a7390]">
-                                            {item.driver_name || 'Sin conductor'}
-                                        </p>
-                                    </td>
-                                    <td className="px-3 py-1.5">
-                                        <span
-                                            className={cn(
-                                                'inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium',
-                                                sealed
-                                                    ? 'bg-[#e8f1fa] text-[#2e5a9e]'
-                                                    : item.coordinator_status ===
-                                                        'reviewed'
-                                                      ? 'bg-violet-50 text-violet-800'
-                                                      : item.coordinator_status ===
-                                                          'observed'
-                                                        ? 'bg-amber-50 text-amber-800'
-                                                        : item.status ===
-                                                            'completed'
-                                                          ? 'bg-[#e8f7ef] text-[#15803d]'
-                                                          : 'bg-[#fff1e6] text-[#c2410c]',
-                                            )}
-                                        >
-                                            {sealed
-                                                ? 'Sellado'
-                                                : item.coordinator_status ===
-                                                    'reviewed'
-                                                  ? 'Revisado'
-                                                  : item.coordinator_status ===
-                                                      'observed'
-                                                    ? 'Observado'
-                                                    : item.status ===
-                                                        'completed'
-                                                      ? 'Completado'
-                                                      : 'Borrador'}
-                                        </span>
-                                    </td>
-                                    <td className="px-3 py-1.5">
-                                        <ResultChip value={item.first_result} />
-                                    </td>
-                                    <td className="px-3 py-1.5">
-                                        {item.coordinator_status ===
-                                        'reviewed' ? (
-                                            <ResultChip
-                                                value={item.second_result}
-                                            />
-                                        ) : item.coordinator_status ===
-                                          'observed' ? (
-                                            <span className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
-                                                En revisión
-                                            </span>
-                                        ) : (
-                                            <ResultChip value={null} />
-                                        )}
-                                    </td>
-                                    <td className="px-3 py-1.5 text-[#5a7390]">
-                                        {formatDate(item.created_at)}
-                                    </td>
-                                    <td className="px-3 py-1.5">
-                                        <span className="inline-flex rounded-md bg-[#e8f1fa] px-2 py-0.5 text-[11px] font-semibold uppercase text-[#2e5a9e]">
-                                            {item.template?.type ?? '—'}
-                                        </span>
-                                    </td>
-                                    <td className="px-3 py-1.5 text-[#5a7390]">
-                                        {item.period?.name || '—'}
-                                    </td>
-                                    <td className="px-3 py-1.5">
-                                        <div className="flex items-center justify-end gap-0.5">
-                                            {(item.first_result === 'approved' ||
-                                                item.first_result ===
-                                                    'rejected') &&
-                                            can('checklists.view') ? (
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() =>
-                                                        onPreviewPdf(item)
-                                                    }
-                                                    className="size-7 cursor-pointer text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
-                                                    aria-label={`Ver PDF ${item.plate_number}`}
-                                                >
-                                                    <FileDown className="size-3.5" />
-                                                </Button>
-                                            ) : null}
-                                            {can('checklists.update') || sealed ? (
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => onEdit(item)}
-                                                    className="size-7 cursor-pointer text-[#2e5a9e] hover:bg-[#e8f1fa] hover:text-[#1a2b4c]"
-                                                    aria-label={
-                                                        sealed
-                                                            ? `Ver ${item.plate_number}`
-                                                            : `Editar ${item.plate_number}`
-                                                    }
-                                                >
-                                                    <Pencil className="size-3.5" />
-                                                </Button>
-                                            ) : null}
-                                            {can('checklists.delete') && !sealed ? (
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() =>
-                                                        onDelete(item)
-                                                    }
-                                                    className="size-7 cursor-pointer text-red-600 hover:bg-red-50 hover:text-red-700"
-                                                    aria-label={`Eliminar ${item.plate_number}`}
-                                                >
-                                                    <Trash2 className="size-3.5" />
-                                                </Button>
-                                            ) : null}
-                                        </div>
-                                    </td>
-                                </tr>
-                                );
-                            })
-                        )}
-                    </tbody>
-                </table>
-            </div>
-
-            <div className="space-y-2.5 p-3 md:hidden">
-                {checklists.data.length === 0 ? (
-                    <p className="py-8 text-center text-sm text-[#6b8ead]">
-                        No hay inspecciones del periodo activo.
-                    </p>
-                ) : (
-                    checklists.data.map((item) => {
-                        const sealed = Boolean(item.sealed_at);
-
-                        return (
-                        <article
-                            key={item.id}
-                            className="rounded-xl border border-[#e2eaf3] bg-white p-3.5 shadow-sm"
-                        >
-                            <div className="mb-2 flex items-start justify-between gap-2">
-                                <div>
-                                    <h3 className="text-sm font-semibold text-[#1a2b4c]">
-                                        {item.plate_number}
-                                    </h3>
-                                    <p className="text-xs text-[#5a7390]">
-                                        {(item.template?.type ?? '—').toUpperCase()}{' '}
-                                        · {item.period?.name || 'Sin periodo'}
-                                    </p>
-                                </div>
-                                <span
-                                    className={cn(
-                                        'inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium',
-                                        sealed
-                                            ? 'bg-[#e8f1fa] text-[#2e5a9e]'
-                                            : item.coordinator_status ===
-                                                'reviewed'
-                                              ? 'bg-violet-50 text-violet-800'
-                                              : item.coordinator_status ===
-                                                  'observed'
-                                                ? 'bg-amber-50 text-amber-800'
-                                                : item.status === 'completed'
-                                                  ? 'bg-[#e8f7ef] text-[#15803d]'
-                                                  : 'bg-[#fff1e6] text-[#c2410c]',
-                                    )}
-                                >
-                                    {sealed
-                                        ? 'Sellado'
-                                        : item.coordinator_status === 'reviewed'
-                                          ? 'Revisado'
-                                          : item.coordinator_status ===
-                                              'observed'
-                                            ? 'Observado'
-                                            : item.status === 'completed'
-                                              ? 'Completado'
-                                              : 'Borrador'}
-                                </span>
-                            </div>
-                            <div className="mb-3 flex flex-wrap gap-2">
-                                <ResultChip value={item.first_result} />
-                                {item.coordinator_status === 'reviewed' ? (
-                                    <ResultChip value={item.second_result} />
-                                ) : item.coordinator_status === 'observed' ? (
-                                    <span className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
-                                        En revisión
-                                    </span>
-                                ) : (
-                                    <ResultChip value={null} />
+                    return (
+                        <div className="flex justify-end">
+                            <RowActionsMenu
+                                label={`Acciones de ${item.plate_number}`}
+                                items={[
+                                    canPdf
+                                        ? {
+                                              key: 'pdf',
+                                              label: 'Ver PDF',
+                                              icon: FileDown,
+                                              onSelect: () =>
+                                                  onPreviewPdf(item),
+                                          }
+                                        : null,
+                                    can('checklists.update') || sealed
+                                        ? {
+                                              key: 'open',
+                                              label: sealed ? 'Ver' : 'Editar',
+                                              icon: Pencil,
+                                              onSelect: () => onEdit(item),
+                                          }
+                                        : null,
+                                    can('checklists.delete') && !sealed
+                                        ? {
+                                              key: 'delete',
+                                              label: 'Eliminar',
+                                              icon: Trash2,
+                                              tone: 'danger' as const,
+                                              separatorBefore: true,
+                                              onSelect: () => onDelete(item),
+                                          }
+                                        : null,
+                                ].filter(
+                                    (action): action is NonNullable<typeof action> =>
+                                        Boolean(action),
                                 )}
-                            </div>
-                            <div className="mb-1 flex flex-wrap gap-1">
-                                {(item.first_result === 'approved' ||
-                                    item.first_result === 'rejected') &&
-                                can('checklists.view') ? (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => onPreviewPdf(item)}
-                                        className="cursor-pointer border-emerald-200 text-emerald-700"
-                                    >
-                                        <FileDown className="size-3.5" />
-                                        PDF
-                                    </Button>
-                                ) : null}
-                                {can('checklists.update') || sealed ? (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => onEdit(item)}
-                                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
-                                    >
-                                        <Pencil className="size-3.5" />
-                                        {sealed ? 'Ver' : 'Abrir'}
-                                    </Button>
-                                ) : null}
-                                {can('checklists.delete') && !sealed ? (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => onDelete(item)}
-                                        className="cursor-pointer border-red-200 text-red-600"
-                                    >
-                                        <Trash2 className="size-3.5" />
-                                        Eliminar
-                                    </Button>
-                                ) : null}
-                            </div>
-                        </article>
-                        );
-                    })
-                )}
-            </div>
+                            />
+                        </div>
+                    );
+                },
+            },
+        ],
+        [can, onDelete, onEdit, onPreviewPdf],
+    );
 
-            <TablePagination
-                meta={{
-                    from: checklists.from,
-                    to: checklists.to,
-                    total: checklists.total,
-                    current_page: checklists.current_page,
-                    last_page: checklists.last_page,
-                    per_page: checklists.per_page,
-                }}
-                onPageChange={(page) => visit({ page })}
-                onPerPageChange={(per_page) => visit({ per_page, page: 1 })}
-            />
-        </div>
+    const hasFilters = Boolean(
+        filters.search || filters.template_type || filters.status,
+    );
+
+    return (
+        <DataTable
+            columns={columns}
+            data={checklists.data}
+            rowKey={(item) => item.id}
+            sort={sort}
+            onSortChange={(next) => {
+                if (!next) {
+                    visit({ sort: 'created_at', direction: 'desc', page: 1 });
+                    return;
+                }
+
+                visit({
+                    sort: next.key as SortKey,
+                    direction: next.direction,
+                    page: 1,
+                });
+            }}
+            ariaLiveMessage={`${checklists.total} inspecciones encontradas`}
+            toolbar={
+                <DataToolbar
+                    search={filters.search}
+                    onSearchChange={(search) => visit({ search, page: 1 })}
+                    placeholder="Buscar placa, conductor..."
+                >
+                    <FilterChips
+                        ariaLabel="Filtrar por tipo"
+                        value={(filters.template_type ?? 'all') as TypeFilter}
+                        onChange={(value) =>
+                            visit({
+                                template_type:
+                                    value === 'all'
+                                        ? null
+                                        : (value as 'tdp' | 'tdc'),
+                                page: 1,
+                            })
+                        }
+                        options={typeOptions}
+                    />
+                    <FilterChips
+                        ariaLabel="Filtrar por estado"
+                        value={(filters.status ?? 'all') as StatusFilter}
+                        onChange={(value) =>
+                            visit({
+                                status:
+                                    value === 'all'
+                                        ? null
+                                        : (value as 'draft' | 'completed'),
+                                page: 1,
+                            })
+                        }
+                        options={statusOptions}
+                    />
+                </DataToolbar>
+            }
+            footer={
+                <DataPagination
+                    meta={asPaginated(checklists, '/inspecciones')}
+                    onPerPageChange={(per_page) => visit({ per_page, page: 1 })}
+                    preservedQuery={{
+                        search: filters.search || undefined,
+                        per_page: filters.per_page,
+                        sort: filters.sort,
+                        direction: filters.direction,
+                        template_type: filters.template_type ?? undefined,
+                        status: filters.status ?? undefined,
+                    }}
+                />
+            }
+            emptyState={
+                <EmptyState
+                    icon={ClipboardCheck}
+                    title={
+                        hasFilters
+                            ? 'Sin resultados'
+                            : 'No hay inspecciones del periodo activo'
+                    }
+                    description={
+                        hasFilters
+                            ? 'Prueba con otro filtro o limpia la búsqueda.'
+                            : 'Crea la primera inspección TDP o TDC.'
+                    }
+                />
+            }
+        />
     );
 }

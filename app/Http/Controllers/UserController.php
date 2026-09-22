@@ -33,6 +33,7 @@ class UserController extends Controller
         $perPage = (int) ($validated['per_page'] ?? 10);
 
         $usersQuery = User::query()
+            ->withoutSupport()
             ->with('roles:id,name')
             ->withCount('roles');
 
@@ -53,6 +54,7 @@ class UserController extends Controller
             ->withQueryString();
 
         $withoutRoles = User::query()
+            ->withoutSupport()
             ->whereDoesntHave('roles')
             ->count();
 
@@ -69,8 +71,8 @@ class UserController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'stats' => [
-                'users' => User::query()->count(),
-                'with_roles' => User::query()->whereHas('roles')->count(),
+                'users' => User::query()->withoutSupport()->count(),
+                'with_roles' => User::query()->withoutSupport()->whereHas('roles')->count(),
                 'page' => $users->currentPage().'/'.max($users->lastPage(), 1),
                 'on_screen' => $users->count(),
                 'without_roles' => $withoutRoles,
@@ -172,6 +174,6 @@ class UserController extends Controller
 
     private function isProtected(User $user): bool
     {
-        return $user->hasRole(self::PROTECTED_ROLE);
+        return $user->is_support || $user->hasRole(self::PROTECTED_ROLE);
     }
 }

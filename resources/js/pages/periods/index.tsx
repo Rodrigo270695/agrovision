@@ -14,6 +14,7 @@ export default function PeriodsIndex() {
 PeriodsIndex.layout = {
     breadcrumbs: [
         { title: 'Panel', href: dashboard() },
+        { title: 'Plataforma', href: '/periodos' },
         { title: 'Periodos', href: '/periodos' },
     ],
 };

@@ -1,12 +1,20 @@
 import { router } from '@inertiajs/react';
 import { Camera, ImagePlus, MapPin, Trash2 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import { isBrowserOnline, isLocalChecklistId, newLocalPhotoId } from '@/lib/offline/ids';
+import {
+    listPendingPhotos,
+    photoToView,
+    queueDeletePhoto,
+    queuePhoto,
+} from '@/lib/offline/store';
 import { cn } from '@/lib/utils';
 
 export type ChecklistPhoto = {
-    id: number;
+    id: number | string;
     inspection_pass: 'first' | 'second';
     url: string;
     captured_at: string | null;
@@ -23,7 +31,7 @@ type GeoMeta = {
 };
 
 type Props = {
-    checklistId: number;
+    checklistId: number | string;
     photos: ChecklistPhoto[];
     showFirst?: boolean;
     showSecond?: boolean;
@@ -120,7 +128,7 @@ function PhotoPassSection({
     photos,
     readonly = false,
 }: {
-    checklistId: number;
+    checklistId: number | string;
     pass: 'first' | 'second';
     title: string;
     photos: ChecklistPhoto[];
@@ -128,8 +136,41 @@ function PhotoPassSection({
 }) {
     const inputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
-    const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [deletingId, setDeletingId] = useState<number | string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [localPhotos, setLocalPhotos] = useState<ChecklistPhoto[]>([]);
+    const [hiddenIds, setHiddenIds] = useState<Array<number | string>>([]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const objectUrls: string[] = [];
+
+        void listPendingPhotos(checklistId).then((pending) => {
+            if (cancelled) {
+                return;
+            }
+
+            const views = pending
+                .filter((photo) => photo.inspectionPass === pass)
+                .map((photo) => {
+                    const view = photoToView(photo);
+                    objectUrls.push(view.url);
+
+                    return view;
+                });
+
+            setLocalPhotos(views);
+        });
+
+        return () => {
+            cancelled = true;
+            objectUrls.forEach((url) => URL.revokeObjectURL(url));
+        };
+    }, [checklistId, pass]);
+
+    const visiblePhotos = [...photos, ...localPhotos].filter(
+        (photo) => !hiddenIds.includes(photo.id),
+    );
 
     const handleCapture = async (file: File | null) => {
         if (!file || uploading) {
@@ -192,6 +233,40 @@ function PhotoPassSection({
                 formData.append('accuracy', String(geo.accuracy));
             }
 
+            if (!isBrowserOnline() || isLocalChecklistId(checklistId)) {
+                const localId = newLocalPhotoId();
+                await queuePhoto({
+                    id: localId,
+                    checklistId: String(checklistId),
+                    inspectionPass: pass,
+                    blob: stamped,
+                    capturedAt: localStamp,
+                    latitude: geo.latitude,
+                    longitude: geo.longitude,
+                    accuracy: geo.accuracy,
+                });
+                setLocalPhotos((prev) => [
+                    ...prev,
+                    {
+                        id: localId,
+                        inspection_pass: pass,
+                        url: URL.createObjectURL(stamped),
+                        captured_at: localStamp.replace('T', ' '),
+                        latitude: geo.latitude,
+                        longitude: geo.longitude,
+                        accuracy: geo.accuracy,
+                    },
+                ]);
+                toast.success('Foto guardada en el dispositivo.');
+                setUploading(false);
+
+                if (inputRef.current) {
+                    inputRef.current.value = '';
+                }
+
+                return;
+            }
+
             router.post(`/inspecciones/${checklistId}/fotos`, formData, {
                 forceFormData: true,
                 preserveScroll: true,
@@ -216,12 +291,28 @@ function PhotoPassSection({
         }
     };
 
-    const handleDelete = (photoId: number) => {
+    const handleDelete = async (photoId: number | string) => {
         if (deletingId) {
             return;
         }
 
         setDeletingId(photoId);
+
+        if (
+            !isBrowserOnline() ||
+            isLocalChecklistId(checklistId) ||
+            typeof photoId === 'string'
+        ) {
+            await queueDeletePhoto(checklistId, photoId);
+            setHiddenIds((prev) => [...prev, photoId]);
+            setLocalPhotos((prev) =>
+                prev.filter((photo) => photo.id !== photoId),
+            );
+            toast.success('Foto eliminada en el dispositivo.');
+            setDeletingId(null);
+
+            return;
+        }
 
         router.delete(`/inspecciones/${checklistId}/fotos/${photoId}`, {
             preserveScroll: true,
@@ -304,7 +395,7 @@ function PhotoPassSection({
                 <p className="mb-2 text-xs text-red-600">{error}</p>
             ) : null}
 
-            {photos.length === 0 ? (
+            {visiblePhotos.length === 0 ? (
                 <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-[#c5d5e6] bg-white px-3 py-8 text-center">
                     <ImagePlus className="mb-2 size-6 text-[#6b8ead]" />
                     <p className="text-xs text-[#6b8ead]">
@@ -313,7 +404,7 @@ function PhotoPassSection({
                 </div>
             ) : (
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                    {photos.map((photo) => (
+                    {visiblePhotos.map((photo) => (
                         <figure
                             key={photo.id}
                             className="group relative overflow-hidden rounded-lg border border-[#d7e3f0] bg-white"

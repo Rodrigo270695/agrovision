@@ -1,259 +1,229 @@
-import { CalendarRange, Leaf, RefreshCw, Sprout } from 'lucide-react';
-import { DashboardAlertsList } from '@/components/dashboard/alerts-list';
-import { DashboardBarChart } from '@/components/dashboard/bar-chart';
+import { Link, usePage } from '@inertiajs/react';
 import {
-    DashboardCompareStat,
-    DashboardPassRateCompare,
-} from '@/components/dashboard/compare-panels';
+    AlertTriangle,
+    Bus,
+    CalendarRange,
+    ClipboardCheck,
+    FileStack,
+    GraduationCap,
+    Percent,
+    type LucideIcon,
+} from 'lucide-react';
+import { DashboardBarChart } from '@/components/dashboard/bar-chart';
 import { DashboardDonutChart } from '@/components/dashboard/donut-chart';
-import { DashboardKpiGrid } from '@/components/dashboard/kpi-card';
-import { SemaforoCard } from '@/components/dashboard/semaforo-card';
-import type { DashboardProps } from '@/components/dashboard/types';
-import { Link } from '@inertiajs/react';
+import type {
+    DashboardAlert,
+    DashboardKpi,
+    DashboardProps,
+} from '@/components/dashboard/types';
+import { cn } from '@/lib/utils';
 
-const vehicleColors = [
-    '#1a2b4c',
-    '#2e5a9e',
-    '#4a90e2',
-    '#6fa88a',
-    '#d4a84b',
-    '#c07070',
-    '#7c6bb5',
-    '#64748b',
-];
-
-const providerColors = [
-    '#2e5a9e',
-    '#3d8b6e',
-    '#6d28d9',
-    '#c2410c',
-    '#0f766e',
-    '#475569',
-];
-
-function formatGeneratedAt(value?: string): string {
-    if (!value) {
-        return '—';
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return value;
-    }
-
-    return date.toLocaleString('es-PE', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-}
-
-type Props = {
-    data: DashboardProps;
+const kpiIcons: Record<string, LucideIcon> = {
+    units: Bus,
+    docs: FileStack,
+    inspections: ClipboardCheck,
+    pass_rate: Percent,
+    expiring: AlertTriangle,
+    inductions: GraduationCap,
 };
 
-export function DashboardPage({ data }: Props) {
+function AlertsBody({ alerts }: { alerts: DashboardAlert[] }) {
+    if (alerts.length === 0) {
+        return (
+            <p className="px-4 py-8 text-center text-sm text-[#6b8ead]">
+                Sin alertas de vencimiento en la flota.
+            </p>
+        );
+    }
+
+    return (
+        <ul className="divide-y divide-[#eef3f8]">
+            {alerts.slice(0, 8).map((alert) => (
+                <li
+                    key={`${alert.unit_id}-${alert.type}-${alert.expires_at}`}
+                    className="flex items-center justify-between gap-3 px-4 py-2.5"
+                >
+                    <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-[#1a2b4c]">
+                            {alert.correlative}
+                            {alert.plate ? ` · ${alert.plate}` : ''}
+                        </p>
+                        <p className="truncate text-[11px] text-[#6b8ead]">
+                            {alert.type_label} · vence {alert.expires_at}
+                        </p>
+                    </div>
+                    <span
+                        className={cn(
+                            'shrink-0 text-[11px] font-medium',
+                            alert.level === 'warning'
+                                ? 'text-[#8a6d3b]'
+                                : 'text-[#8b3a3a]',
+                        )}
+                    >
+                        {alert.days_left < 0
+                            ? `${Math.abs(alert.days_left)}d vencido`
+                            : alert.days_left === 0
+                              ? 'Hoy'
+                              : `${alert.days_left}d`}
+                    </span>
+                </li>
+            ))}
+        </ul>
+    );
+}
+
+const stripKeys = [
+    'units',
+    'docs',
+    'inspections',
+    'pass_rate',
+    'expiring',
+    'inductions',
+];
+
+export function DashboardPage({ data }: { data: DashboardProps }) {
+    const tenant = usePage().props.tenant;
+    const tenantName = tenant?.name ?? 'Empresa';
     const {
-        generatedAt,
         activePeriod,
         kpis = [],
-        semaforos = [],
         charts,
-        comparisons,
         inductionsSummary,
         alerts = [],
     } = data;
 
-    const safeCharts = {
-        inspections: charts?.inspections ?? [],
-        documents_expiry: charts?.documents_expiry ?? [],
-        vehicles: charts?.vehicles ?? [],
-        providers: charts?.providers ?? [],
-        units_trend: charts?.units_trend ?? [],
-        inductions: charts?.inductions ?? [],
-        docs_progress: charts?.docs_progress ?? [],
-        inspection_compare: charts?.inspection_compare ?? [],
-    };
+    const strip = stripKeys
+        .map((key) => kpis.find((kpi) => kpi.key === key))
+        .filter((kpi): kpi is DashboardKpi => Boolean(kpi));
+
+    const expiry = charts?.documents_expiry ?? [];
+    const inspections = charts?.inspections ?? [];
+    const unitsTrend = (charts?.units_trend ?? []).map((item) => ({
+        ...item,
+        color: '#2e5a9e',
+    }));
+    const inductions = charts?.inductions ?? [];
 
     return (
-        <div className="relative isolate">
-            <div
-                aria-hidden
-                className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-linear-to-b from-[#e8f1fa] via-[#f4f8fc] to-transparent"
-            />
-            <div
-                aria-hidden
-                className="pointer-events-none absolute -top-10 -right-10 size-56 rounded-full bg-[#9ec4e8]/25 blur-3xl"
-            />
+        <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
+            <header className="flex flex-col gap-3 border-b border-border/60 pb-4 sm:flex-row sm:items-end sm:justify-between">
+                <div className="min-w-0">
+                    <p className="text-[11px] font-semibold tracking-[0.16em] text-[#6b8ead] uppercase">
+                        {tenantName}
+                    </p>
+                    <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#1a2b4c] sm:text-2xl">
+                        Panel de operación
+                    </h1>
+                    <p className="mt-1 max-w-xl text-sm text-[#5a7390]">
+                        SST: unidades, documentación, inspecciones e
+                        inducciones.
+                    </p>
+                </div>
 
-            <div className="relative space-y-5 p-4 sm:p-5 lg:p-6">
-                <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                    <div className="space-y-2">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-[#cfe0f0] bg-white/80 px-3 py-1 text-[11px] font-semibold tracking-[0.16em] text-[#2e5a9e] uppercase shadow-sm">
-                            <Leaf className="size-3.5" />
-                            Agrovisión · SST / Flota
+                <div className="flex flex-wrap items-center gap-2">
+                    {activePeriod ? (
+                        <div className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#d7e3f0] bg-white px-3 text-xs text-[#1a2b4c]">
+                            <CalendarRange className="size-3.5 text-[#2e5a9e]" />
+                            Periodo <strong>{activePeriod.name}</strong>
                         </div>
-                        <h1 className="font-display text-2xl font-semibold tracking-tight text-[#1a2b4c] sm:text-3xl">
-                            Panel operativo
-                        </h1>
-                        <p className="max-w-2xl text-sm leading-relaxed text-[#5a7390]">
-                            KPI comparativos de agroindustria: documentación,
-                            inspecciones, vencimientos e inducción SST.
-                        </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                        {activePeriod ? (
-                            <div className="inline-flex items-center gap-2 rounded-xl border border-[#cfe0f0] bg-white px-3 py-2 text-xs text-[#1a2b4c] shadow-sm">
-                                <CalendarRange className="size-3.5 text-[#2e5a9e]" />
-                                <span>
-                                    Periodo:{' '}
-                                    <strong>{activePeriod.name}</strong>
-                                </span>
-                            </div>
-                        ) : (
-                            <div className="inline-flex items-center gap-2 rounded-xl border border-[#e6dcc0] bg-[#fbf7ee] px-3 py-2 text-xs text-[#8a6d3b]">
-                                <Sprout className="size-3.5" />
-                                Sin periodo registrado
-                            </div>
-                        )}
-                        <div className="inline-flex items-center gap-2 rounded-xl border border-[#e2eaf3] bg-white/90 px-3 py-2 text-[11px] text-[#6b8ead]">
-                            <RefreshCw className="size-3.5" />
-                            Actualizado {formatGeneratedAt(generatedAt)}
+                    ) : (
+                        <div className="inline-flex h-9 items-center rounded-lg border border-[#e6dcc0] bg-[#fbf7ee] px-3 text-xs text-[#8a6d3b]">
+                            Sin periodo activo
                         </div>
-                    </div>
-                </header>
+                    )}
+                    <Link
+                        href="/unidades"
+                        className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg bg-[#1a2b4c] px-3 text-xs font-medium text-white hover:bg-[#122038]"
+                    >
+                        <Bus className="size-3.5" />
+                        Ver unidades
+                    </Link>
+                </div>
+            </header>
 
-                <DashboardKpiGrid items={kpis} />
+            <section className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-[#d7e3f0] bg-[#d7e3f0] sm:grid-cols-3 xl:grid-cols-6">
+                {strip.map((kpi) => {
+                    const Icon = kpiIcons[kpi.key] ?? Bus;
+                    const body = (
+                        <div className="flex h-full items-center gap-3 bg-white px-3.5 py-3">
+                            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#f4f7fb] text-[#2e5a9e]">
+                                <Icon className="size-3.5" strokeWidth={2.25} />
+                            </span>
+                            <div className="min-w-0">
+                                <p className="text-lg leading-none font-semibold text-[#1a2b4c]">
+                                    {kpi.value}
+                                </p>
+                                <p className="mt-1 truncate text-[11px] text-[#5a7390]">
+                                    {kpi.label}
+                                </p>
+                            </div>
+                        </div>
+                    );
 
-                <section className="space-y-3">
+                    if (!kpi.href) {
+                        return <div key={kpi.key}>{body}</div>;
+                    }
+
+                    return (
+                        <Link
+                            key={kpi.key}
+                            href={kpi.href}
+                            className={cn(
+                                'block cursor-pointer transition-colors hover:bg-[#f4f8fc]',
+                            )}
+                        >
+                            {body}
+                        </Link>
+                    );
+                })}
+            </section>
+
+            <section className="grid gap-4 xl:grid-cols-3">
+                <DashboardDonutChart
+                    title="Vencimientos"
+                    subtitle="Documentos de la flota"
+                    data={expiry}
+                />
+                <DashboardBarChart
+                    title="Unidades por mes"
+                    subtitle="Últimos 6 meses"
+                    data={unitsTrend}
+                    className="xl:col-span-2"
+                />
+            </section>
+
+            <section className="grid gap-4 xl:grid-cols-2">
+                <DashboardBarChart
+                    title="Inspecciones"
+                    subtitle="Estado operativo de checklists"
+                    data={inspections}
+                />
+                <DashboardDonutChart
+                    title="Inducciones SST"
+                    subtitle={`Asistentes ${inductionsSummary?.attended ?? 0} · Registrados ${inductionsSummary?.registered ?? 0}`}
+                    data={inductions}
+                />
+            </section>
+
+            <section className="overflow-hidden rounded-xl border border-[#d7e3f0] bg-white">
+                <div className="flex items-center justify-between gap-3 border-b border-[#eef3f8] px-4 py-3">
                     <div>
-                        <h2 className="text-sm font-semibold text-[#1a2b4c]">
-                            Semáforos de gestión
-                        </h2>
+                        <h3 className="text-sm font-semibold text-[#1a2b4c]">
+                            Alertas documentales
+                        </h3>
                         <p className="text-xs text-[#6b8ead]">
-                            Verde ≥ meta · Ámbar atención · Rojo crítico
+                            Vencidos o por vencer
                         </p>
                     </div>
-                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                        {semaforos.map((item) => (
-                            <SemaforoCard key={item.key} item={item} />
-                        ))}
-                    </div>
-                </section>
-
-                <section className="grid gap-3 lg:grid-cols-3">
-                    <DashboardCompareStat
-                        title="Unidades del mes"
-                        subtitle="Alta operativa vs mes previo"
-                        current={comparisons?.this_month_units ?? 0}
-                        previous={comparisons?.prev_month_units ?? 0}
-                    />
-                    <DashboardCompareStat
-                        title="Inspecciones del mes"
-                        subtitle="Checklists creados vs mes previo"
-                        current={comparisons?.this_month_inspections ?? 0}
-                        previous={comparisons?.prev_month_inspections ?? 0}
-                    />
-                    <DashboardPassRateCompare
-                        title="Aprobación 1ra vs 2da"
-                        first={comparisons?.first_pass_rate ?? null}
-                        second={comparisons?.second_pass_rate ?? null}
-                    />
-                </section>
-
-                <section className="grid gap-3 xl:grid-cols-2">
-                    <DashboardDonutChart
-                        title="Estado de vencimientos"
-                        subtitle="Documentos subidos (excluye DNI sin fecha)"
-                        data={safeCharts.documents_expiry}
-                    />
-                    <DashboardDonutChart
-                        title="Avance documental por unidad"
-                        subtitle={`Promedio flota: ${comparisons?.docs_avg_percent ?? 0}%`}
-                        data={safeCharts.docs_progress}
-                    />
-                </section>
-
-                <section className="grid gap-3 xl:grid-cols-2">
-                    <DashboardBarChart
-                        title="Inspecciones y consolidados"
-                        subtitle="Distribución operativa de checklists"
-                        data={safeCharts.inspections}
-                    />
-                    <DashboardBarChart
-                        title="1ra vs 2da inspección"
-                        subtitle="Comparativa de resultados"
-                        data={safeCharts.inspection_compare}
-                        dual
-                        primaryLegend="1ra"
-                        secondaryLegend="2da"
-                    />
-                </section>
-
-                <section className="grid gap-3 xl:grid-cols-2">
-                    <DashboardBarChart
-                        title="Unidades por mes"
-                        subtitle="Tendencia últimos 6 meses"
-                        data={safeCharts.units_trend.map((item) => ({
-                            ...item,
-                            color: '#2e5a9e',
-                        }))}
-                    />
-                    <DashboardDonutChart
-                        title="Inducciones SST"
-                        subtitle={`Asistentes: ${inductionsSummary?.attended ?? 0} · Registrados: ${inductionsSummary?.registered ?? 0}`}
-                        data={safeCharts.inductions}
-                    />
-                </section>
-
-                <section className="grid gap-3 xl:grid-cols-3">
-                    <DashboardBarChart
-                        title="Flota por tipo de vehículo"
-                        data={safeCharts.vehicles.map((item, index) => ({
-                            ...item,
-                            color: vehicleColors[index % vehicleColors.length],
-                        }))}
-                    />
-                    <DashboardBarChart
-                        title="Top proveedores"
-                        data={safeCharts.providers.map((item, index) => ({
-                            ...item,
-                            color: providerColors[
-                                index % providerColors.length
-                            ],
-                        }))}
-                    />
-                    <DashboardAlertsList alerts={alerts} />
-                </section>
-
-                <section className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
-                    <h2 className="mb-3 text-sm font-semibold text-[#1a2b4c]">
-                        Accesos rápidos
-                    </h2>
-                    <div className="flex flex-wrap gap-2">
-                        {[
-                            { href: '/unidades', label: 'Unidades' },
-                            { href: '/inspecciones', label: 'Inspecciones' },
-                            { href: '/consolidados', label: 'Consolidados' },
-                            { href: '/inducciones', label: 'Inducciones' },
-                            { href: '/periodos', label: 'Periodos' },
-                            { href: '/pareto', label: 'Pareto' },
-                        ].map((item) => (
-                            <Link
-                                key={item.href}
-                                href={item.href}
-                                className="rounded-full border border-[#cfe0f0] bg-[#f4f8fc] px-3 py-1.5 text-xs font-medium text-[#1a2b4c] transition hover:bg-[#e8f1fa]"
-                            >
-                                {item.label}
-                            </Link>
-                        ))}
-                    </div>
-                </section>
-            </div>
+                    <Link
+                        href="/unidades"
+                        className="text-xs font-medium text-[#2e5a9e] hover:underline"
+                    >
+                        Ver unidades
+                    </Link>
+                </div>
+                <AlertsBody alerts={alerts} />
+            </section>
         </div>
     );
 }

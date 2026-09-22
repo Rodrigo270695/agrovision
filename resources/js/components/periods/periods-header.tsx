@@ -1,5 +1,6 @@
-import { Plus } from 'lucide-react';
-import { PeriodsStats, type PeriodsStatsData } from '@/components/periods/periods-stats';
+import { CalendarRange, CheckCircle2, PauseCircle, Plus } from 'lucide-react';
+import { PageHeader } from '@/components/data-page';
+import type { PeriodsStatsData } from '@/components/periods/periods-stats';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/hooks/use-can';
 
@@ -12,31 +13,48 @@ export function PeriodsHeader({ stats, onCreate }: Props) {
     const { can } = useCan();
 
     return (
-        <div className="rounded-2xl border border-[#d7e3f0] bg-white p-5 shadow-sm sm:p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-3">
-                    <div>
-                        <h1 className="font-display inline-block border-b-2 border-[#4a90e2] pb-1 text-2xl font-semibold text-[#1a2b4c]">
-                            Periodos
-                        </h1>
-                        <p className="mt-2 text-sm text-[#5a7390]">
-                            Gestión de periodos operativos de las unidades.
-                        </p>
-                    </div>
-                    <PeriodsStats stats={stats} />
-                </div>
-
-                {can('periods.create') ? (
+        <PageHeader
+            title="Periodos"
+            description="Gestión de periodos operativos de las unidades."
+            stats={[
+                {
+                    label: 'Total',
+                    value: stats.periods,
+                    variant: 'info',
+                    icon: CalendarRange,
+                },
+                {
+                    label: 'Activos',
+                    value: stats.active,
+                    variant: 'success',
+                    icon: CheckCircle2,
+                },
+                {
+                    label: 'Inactivos',
+                    value: stats.inactive,
+                    variant: 'muted',
+                    icon: PauseCircle,
+                },
+                {
+                    label: 'En pantalla',
+                    value: stats.on_screen,
+                    variant: 'primary',
+                    icon: CalendarRange,
+                },
+            ]}
+            action={
+                can('periods.create') ? (
                     <Button
                         type="button"
                         onClick={onCreate}
-                        className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                        className="cursor-pointer gap-2 bg-[#1a2b4c] text-white hover:bg-[#122038]"
                     >
-                        <Plus className="size-4" />
-                        Nuevo periodo
+                        <Plus className="size-4" strokeWidth={2.5} />
+                        <span className="hidden sm:inline">Nuevo periodo</span>
+                        <span className="sm:hidden">Nuevo</span>
                     </Button>
-                ) : null}
-            </div>
-        </div>
+                ) : null
+            }
+        />
     );
 }

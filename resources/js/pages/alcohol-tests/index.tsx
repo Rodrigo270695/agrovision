@@ -14,6 +14,7 @@ export default function AlcoholTestsIndex() {
 AlcoholTestsIndex.layout = {
     breadcrumbs: [
         { title: 'Panel', href: dashboard() },
+        { title: 'Plataforma', href: '/alcoholimetro' },
         { title: 'Alcohómetro', href: '/alcoholimetro' },
     ],
 };

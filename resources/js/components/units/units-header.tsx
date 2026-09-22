@@ -1,6 +1,14 @@
-import { Download, FileSpreadsheet, Plus } from 'lucide-react';
-import { UnitsStats, type UnitsStatsData } from '@/components/units/units-stats';
+import {
+    Building2,
+    Bus,
+    Download,
+    FileSpreadsheet,
+    Plus,
+    TriangleAlert,
+} from 'lucide-react';
+import { PageHeader } from '@/components/data-page';
 import type { UnitsFilters } from '@/components/units/units-table';
+import type { UnitsStatsData } from '@/components/units/units-stats';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/hooks/use-can';
 
@@ -40,31 +48,50 @@ export function UnitsHeader({ stats, filters, onCreate, onImport }: Props) {
     const exportUrl = buildExportUrl(filters);
 
     return (
-        <div className="rounded-2xl border border-[#d7e3f0] bg-white p-5 shadow-sm sm:p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-3">
-                    <div>
-                        <h1 className="font-display inline-block border-b-2 border-[#4a90e2] pb-1 text-2xl font-semibold text-[#1a2b4c]">
-                            Unidades
-                        </h1>
-                        <p className="mt-2 text-sm text-[#5a7390]">
-                            Gestión de unidades de transporte y servicio.
-                        </p>
-                    </div>
-                    <UnitsStats stats={stats} />
-                </div>
-
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <PageHeader
+            title="Unidades"
+            description="Gestión de unidades de transporte y servicio."
+            stats={[
+                {
+                    label: 'Unidades',
+                    value: stats.units,
+                    variant: 'info',
+                    icon: Bus,
+                },
+                {
+                    label: 'Proveedores',
+                    value: stats.providers,
+                    variant: 'primary',
+                    icon: Building2,
+                },
+                {
+                    label: 'Sin placa',
+                    value: stats.without_plate,
+                    variant: 'warning',
+                    icon: TriangleAlert,
+                },
+                {
+                    label: 'En pantalla',
+                    value: stats.on_screen,
+                    variant: 'success',
+                    icon: Bus,
+                },
+            ]}
+            action={
+                <div className="flex flex-wrap items-center gap-2">
                     {can('units.view') ? (
                         <Button
                             type="button"
                             variant="outline"
                             asChild
-                            className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c] hover:bg-[#e8f1fa]"
+                            className="cursor-pointer gap-2 border-[#c5d5e6] text-[#1a2b4c] hover:bg-[#e8f1fa]"
                         >
                             <a href={exportUrl}>
                                 <Download className="size-4" />
-                                Descargar Excel
+                                <span className="hidden sm:inline">
+                                    Descargar Excel
+                                </span>
+                                <span className="sm:hidden">Excel</span>
                             </a>
                         </Button>
                     ) : null}
@@ -75,23 +102,29 @@ export function UnitsHeader({ stats, filters, onCreate, onImport }: Props) {
                                 type="button"
                                 variant="outline"
                                 onClick={onImport}
-                                className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c] hover:bg-[#e8f1fa]"
+                                className="cursor-pointer gap-2 border-[#c5d5e6] text-[#1a2b4c] hover:bg-[#e8f1fa]"
                             >
                                 <FileSpreadsheet className="size-4" />
-                                Importar Excel
+                                <span className="hidden sm:inline">
+                                    Importar Excel
+                                </span>
+                                <span className="sm:hidden">Importar</span>
                             </Button>
                             <Button
                                 type="button"
                                 onClick={onCreate}
-                                className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                                className="cursor-pointer gap-2 bg-[#1a2b4c] text-white hover:bg-[#122038]"
                             >
-                                <Plus className="size-4" />
-                                Nueva unidad
+                                <Plus className="size-4" strokeWidth={2.5} />
+                                <span className="hidden sm:inline">
+                                    Nueva unidad
+                                </span>
+                                <span className="sm:hidden">Nueva</span>
                             </Button>
                         </>
                     ) : null}
                 </div>
-            </div>
-        </div>
+            }
+        />
     );
 }

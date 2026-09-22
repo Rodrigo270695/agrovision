@@ -76,6 +76,10 @@ final class SystemRoles
 
     public static function currentCanUsePush(): bool
     {
+        if (! tenancy()->initialized) {
+            return false;
+        }
+
         $user = Auth::user();
 
         if (! $user) {
@@ -94,6 +98,10 @@ final class SystemRoles
      */
     public static function currentIsScopedCoordinator(): bool
     {
+        if (! tenancy()->initialized) {
+            return false;
+        }
+
         $user = Auth::user();
 
         if (! $user) {

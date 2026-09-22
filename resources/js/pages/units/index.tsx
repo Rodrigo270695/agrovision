@@ -14,6 +14,7 @@ export default function UnitsIndex() {
 UnitsIndex.layout = {
     breadcrumbs: [
         { title: 'Panel', href: dashboard() },
+        { title: 'Plataforma', href: '/unidades' },
         { title: 'Unidades', href: '/unidades' },
     ],
 };

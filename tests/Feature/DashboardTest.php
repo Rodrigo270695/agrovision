@@ -5,8 +5,6 @@ use App\Support\PermissionCatalog;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
-
 test('guests are redirected to the login page', function () {
     $response = $this->get(route('dashboard'));
     $response->assertRedirect(route('login'));

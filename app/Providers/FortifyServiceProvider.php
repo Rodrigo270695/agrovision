@@ -43,9 +43,17 @@ class FortifyServiceProvider extends ServiceProvider
      */
     private function configureViews(): void
     {
-        Fortify::loginView(fn (Request $request) => Inertia::render('auth/login', [
-            'status' => $request->session()->get('status'),
-        ]));
+        Fortify::loginView(function (Request $request) {
+            if (! tenancy()->initialized) {
+                return Inertia::render('central/login', [
+                    'status' => $request->session()->get('status'),
+                ]);
+            }
+
+            return Inertia::render('auth/login', [
+                'status' => $request->session()->get('status'),
+            ]);
+        });
 
         Fortify::verifyEmailView(fn (Request $request) => Inertia::render('auth/verify-email', [
             'status' => $request->session()->get('status'),
