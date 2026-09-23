@@ -41,7 +41,7 @@ async function pickBestCameraId(): Promise<string | undefined> {
 
 const MIN_SHARPNESS = 48;
 
-function ovalSourceRect(
+function padSourceRect(
     videoWidth: number,
     videoHeight: number,
 ): { sx: number; sy: number; sw: number; sh: number } {
@@ -60,14 +60,13 @@ function ovalSourceRect(
         visibleY = (videoHeight - visibleH) / 2;
     }
 
-    const sw = visibleW * 0.72;
-    const sh = visibleH * 0.78;
+    const side = Math.min(visibleW, visibleH) * 0.68;
 
     return {
-        sx: visibleX + (visibleW - sw) / 2,
-        sy: visibleY + (visibleH - sh) / 2,
-        sw,
-        sh,
+        sx: visibleX + (visibleW - side) / 2,
+        sy: visibleY + (visibleH - side) / 2,
+        sw: side,
+        sh: side,
     };
 }
 
@@ -158,10 +157,11 @@ function toFingerprintImage(
     sourceWidth: number,
     sourceHeight: number,
 ): { dataUrl: string; sharpness: number } {
-    const crop = ovalSourceRect(sourceWidth, sourceHeight);
+    const crop = padSourceRect(sourceWidth, sourceHeight);
+    const size = 420;
     const canvas = document.createElement('canvas');
-    canvas.width = 360;
-    canvas.height = 460;
+    canvas.width = size;
+    canvas.height = size;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
     if (!ctx) {
@@ -176,11 +176,11 @@ function toFingerprintImage(
         crop.sh,
         0,
         0,
-        canvas.width,
-        canvas.height,
+        size,
+        size,
     );
 
-    const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const image = ctx.getImageData(0, 0, size, size);
     const sharpness = sharpnessScore(image);
     const { data, width, height } = image;
     const gray = new Float32Array(width * height);
@@ -190,35 +190,115 @@ function toFingerprintImage(
             0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
     }
 
-    const blur = boxBlur(gray, width, height, 2);
+    const local = boxBlur(gray, width, height, 2);
     const detail = new Float32Array(gray.length);
+    let minX = width;
+    let minY = height;
+    let maxX = 0;
+    let maxY = 0;
+    let ridgeCount = 0;
+
+    for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+            const pixel = y * width + x;
+            const delta = gray[pixel] - local[pixel];
+            detail[pixel] = delta;
+            const isRidge = delta > -9 && delta < 16 && Math.abs(delta) > 3.2;
+
+            if (!isRidge) {
+                continue;
+            }
+
+            ridgeCount += 1;
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+        }
+    }
+
+    if (ridgeCount < width * height * 0.03) {
+        const margin = Math.round(size * 0.18);
+        minX = margin;
+        minY = margin;
+        maxX = size - margin;
+        maxY = size - margin;
+    }
+
+    const pad = 18;
+    minX = Math.max(0, minX - pad);
+    minY = Math.max(0, minY - pad);
+    maxX = Math.min(width - 1, maxX + pad);
+    maxY = Math.min(height - 1, maxY + pad);
+
+    const cropW = Math.max(1, maxX - minX);
+    const cropH = Math.max(1, maxY - minY);
     const samples: number[] = [];
 
-    for (let pixel = 0; pixel < gray.length; pixel += 1) {
-        detail[pixel] = gray[pixel] - blur[pixel];
+    for (let y = minY; y <= maxY; y += 3) {
+        for (let x = minX; x <= maxX; x += 3) {
+            const delta = detail[y * width + x];
 
-        if (pixel % 6 === 0) {
-            samples.push(detail[pixel]);
+            if (delta > -9 && delta < 16) {
+                samples.push(delta);
+            }
         }
     }
 
     samples.sort((a, b) => a - b);
-    const low = samples[Math.floor(samples.length * 0.06)] ?? -12;
-    const high = samples[Math.floor(samples.length * 0.94)] ?? 12;
-    const span = Math.max(10, high - low);
+    const low = samples[Math.floor(samples.length * 0.08)] ?? -8;
+    const high = samples[Math.floor(samples.length * 0.92)] ?? 8;
+    const span = Math.max(8, high - low);
+    const out = document.createElement('canvas');
+    out.width = 360;
+    out.height = 360;
+    const outCtx = out.getContext('2d');
 
-    for (let i = 0, pixel = 0; i < data.length; i += 4, pixel += 1) {
-        const stretched = ((detail[pixel] - low) / span) * 255;
-        const ink = Math.min(255, Math.max(0, 255 - stretched));
-        data[i] = ink;
-        data[i + 1] = ink;
-        data[i + 2] = ink;
+    if (!outCtx) {
+        throw new Error('No se pudo procesar la imagen.');
     }
 
-    ctx.putImageData(image, 0, 0);
+    outCtx.fillStyle = '#ffffff';
+    outCtx.fillRect(0, 0, out.width, out.height);
+    const print = outCtx.createImageData(cropW, cropH);
+    const printData = print.data;
+
+    for (let y = 0; y < cropH; y += 1) {
+        for (let x = 0; x < cropW; x += 1) {
+            const delta = detail[(minY + y) * width + (minX + x)];
+            const index = (y * cropW + x) * 4;
+            const isRidge = delta > -9 && delta < 16 && Math.abs(delta) > 2.4;
+            const ink = isRidge
+                ? Math.min(255, Math.max(0, 255 - ((delta - low) / span) * 255))
+                : 255;
+            printData[index] = ink;
+            printData[index + 1] = ink;
+            printData[index + 2] = ink;
+            printData[index + 3] = 255;
+        }
+    }
+
+    const printCanvas = document.createElement('canvas');
+    printCanvas.width = cropW;
+    printCanvas.height = cropH;
+    printCanvas.getContext('2d')?.putImageData(print, 0, 0);
+
+    const scale = Math.min(
+        (out.width - 24) / cropW,
+        (out.height - 24) / cropH,
+    );
+    const drawW = cropW * scale;
+    const drawH = cropH * scale;
+    outCtx.drawImage(
+        printCanvas,
+        (out.width - drawW) / 2,
+        (out.height - drawH) / 2,
+        drawW,
+        drawH,
+    );
 
     return {
-        dataUrl: canvas.toDataURL('image/png'),
+        dataUrl: out.toDataURL('image/png'),
         sharpness,
     };
 }
@@ -429,7 +509,7 @@ export function FingerprintCameraCapture({
 
                 {active ? (
                     <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                        <div className="h-[78%] w-[72%] rounded-[45%] border-2 border-emerald-300/90 shadow-[0_0_0_999px_rgba(15,23,42,0.35)]" />
+                        <div className="aspect-square w-[68%] rounded-full border-2 border-emerald-300/90 shadow-[0_0_0_999px_rgba(15,23,42,0.35)]" />
                     </div>
                 ) : null}
 
@@ -449,8 +529,8 @@ export function FingerprintCameraCapture({
                 <p className="text-center text-[11px] text-[#6b8ead]">
                     {active
                         ? torchOn
-                            ? 'Flash encendido. Centra la yema del dedo en el óvalo, no el borde, y toma la foto.'
-                            : 'Centra la yema del dedo en el óvalo, no el borde, y toma la foto.'
+                            ? 'Flash encendido. Llena el círculo solo con la yema. Se guarda la huella, no el dedo.'
+                            : 'Llena el círculo solo con la yema. Se guarda la huella, no el dedo.'
                         : preview
                           ? 'Huella lista. Si no se ven los surcos, vuelve a tomarla.'
                           : 'Se abre la cámara trasera. Es una sola foto, no un video.'}
