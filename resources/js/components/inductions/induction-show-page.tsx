@@ -1091,7 +1091,7 @@ export function InductionShowPage() {
                 description={
                     signingSpeaker
                         ? 'Firma del expositor requerida para cerrar la inducción.'
-                        : 'Firma con el dedo. La huella es una foto de cerca: acerca el dedo al óvalo y captura.'
+                        : 'Firma con el dedo. La huella es una foto de cerca: llena el círculo con la yema y captura.'
                 }
                 className="sm:max-w-lg"
                 bodyClassName="max-h-[70vh]"
