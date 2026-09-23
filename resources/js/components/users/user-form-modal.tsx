@@ -9,6 +9,7 @@ import { Spinner } from '@/components/ui/spinner';
 type Props = {
     open: boolean;
     user?: UserItem | null;
+    places?: { id: number; name: string }[];
     onClose: () => void;
 };
 
@@ -18,11 +19,17 @@ const emptyValues = {
     document_type: 'dni',
     document_number: '',
     phone: '',
+    place_id: '',
     password: '',
     password_confirmation: '',
 };
 
-export function UserFormModal({ open, user = null, onClose }: Props) {
+export function UserFormModal({
+    open,
+    user = null,
+    places = [],
+    onClose,
+}: Props) {
     const isEditing = Boolean(user);
     const form = useForm(emptyValues);
 
@@ -37,6 +44,7 @@ export function UserFormModal({ open, user = null, onClose }: Props) {
             document_type: user?.document_type ?? 'dni',
             document_number: user?.document_number ?? '',
             phone: user?.phone ?? '',
+            place_id: user?.place_id ? String(user.place_id) : '',
             password: '',
             password_confirmation: '',
         });
@@ -93,21 +101,23 @@ export function UserFormModal({ open, user = null, onClose }: Props) {
             return;
         }
 
+        form.transform((data) => {
+            const placeId = data.place_id ? Number(data.place_id) : null;
+
+            if (!data.password) {
+                const {
+                    password: _password,
+                    password_confirmation: _confirmation,
+                    ...rest
+                } = data;
+
+                return { ...rest, place_id: placeId };
+            }
+
+            return { ...data, place_id: placeId };
+        });
+
         if (isEditing && user) {
-            form.transform((data) => {
-                if (!data.password) {
-                    const {
-                        password: _password,
-                        password_confirmation: _confirmation,
-                        ...rest
-                    } = data;
-
-                    return rest;
-                }
-
-                return data;
-            });
-
             form.put(`/usuarios/${user.id}`, {
                 preserveScroll: true,
                 onSuccess: () => handleClose(),
@@ -166,11 +176,20 @@ export function UserFormModal({ open, user = null, onClose }: Props) {
                         document_type: form.errors.document_type,
                         document_number: form.errors.document_number,
                         phone: form.errors.phone,
+                        place_id: form.errors.place_id,
                         password: form.errors.password,
                         password_confirmation:
                             form.errors.password_confirmation,
                     }}
                     onChange={(field, value) => form.setData(field, value)}
+                    places={places}
+                    requiresPlace={
+                        user?.roles?.some((role) =>
+                            ['coordinador', 'inspector'].includes(
+                                role.name.toLowerCase(),
+                            ),
+                        ) ?? false
+                    }
                     isEditing={isEditing}
                 />
             </form>

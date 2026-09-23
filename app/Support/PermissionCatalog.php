@@ -36,6 +36,11 @@ final class PermissionCatalog
             'periods.update' => ['label' => 'Editar periodos', 'module' => 'Periodos'],
             'periods.delete' => ['label' => 'Eliminar periodos', 'module' => 'Periodos'],
 
+            'places.view' => ['label' => 'Ver lugares', 'module' => 'Lugares'],
+            'places.create' => ['label' => 'Crear lugares', 'module' => 'Lugares'],
+            'places.update' => ['label' => 'Editar lugares', 'module' => 'Lugares'],
+            'places.delete' => ['label' => 'Eliminar lugares', 'module' => 'Lugares'],
+
             'checklists.view' => ['label' => 'Ver checklists', 'module' => 'Checklists'],
             'checklists.create' => ['label' => 'Crear checklists', 'module' => 'Checklists'],
             'checklists.update' => ['label' => 'Editar checklists', 'module' => 'Checklists'],

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AlcoholTest;
 use App\Models\AlcoholTestPackage;
 use App\Models\Period;
+use App\Models\Place;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\PushNotificationService;
@@ -139,6 +140,7 @@ class AlcoholTestController extends Controller
             ->with([
                 'unit:id,correlative,plate_number,driver_name,coordinator_id',
                 'coordinator:id,name',
+                'place:id,name',
             ])
             ->orderByDesc('tested_at')
             ->orderByDesc('id');
@@ -181,6 +183,11 @@ class AlcoholTestController extends Controller
                     ->count(),
             ],
             'unitOptions' => $isCoordinator ? [] : $this->unitOptions(),
+            'placeOptions' => Place::query()
+                ->where('status', 'active')
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'defaultPlaceId' => Auth::user()?->place_id,
             'focusTestId' => $request->integer('test') ?: null,
             'isCoordinatorView' => $isCoordinator,
             'canAddTests' => $canCreate && $packageOpen && ! $isCoordinator,
@@ -203,18 +210,27 @@ class AlcoholTestController extends Controller
             'driver_dni' => ['nullable', 'string', 'max:20'],
             'plate_number' => ['nullable', 'string', 'max:20'],
             'alcohol_level' => ['required', 'numeric', 'min:0', 'max:10'],
-            'location' => ['nullable', 'string', 'max:255'],
+            'place_id' => [
+                'required',
+                'integer',
+                Rule::exists('places', 'id')->where(
+                    fn ($query) => $query->where('status', 'active'),
+                ),
+            ],
             'notes' => ['nullable', 'string', 'max:2000'],
             'evidence_photo_data_url' => ['required', 'string'],
         ], [
             'unit_id.required' => 'Selecciona la unidad.',
             'driver_name.required' => 'Indica el nombre del conductor.',
             'alcohol_level.required' => 'Indica el porcentaje de alcohol.',
+            'place_id.required' => 'Selecciona el lugar.',
+            'place_id.exists' => 'Selecciona un lugar activo.',
             'evidence_photo_data_url.required' => 'Adjunta la foto de evidencia del test.',
         ]);
 
         $unit = Unit::query()->findOrFail((int) $validated['unit_id']);
         $this->ensureCanAccessUnit($unit);
+        $place = Place::query()->findOrFail((int) $validated['place_id']);
 
         $level = round((float) $validated['alcohol_level'], 3);
         $positive = AlcoholTest::isPositiveLevel($level);
@@ -245,7 +261,8 @@ class AlcoholTestController extends Controller
             'plate_number' => $validated['plate_number'] ?? $unit->plate_number,
             'alcohol_level' => $level,
             'is_positive' => $positive,
-            'location' => $validated['location'] ?? null,
+            'place_id' => $place->id,
+            'location' => $place->name,
             'notes' => $validated['notes'] ?? null,
             'evidence_photo_path' => $photoPath,
             'coordinator_status' => $positive ? AlcoholTest::STATUS_PENDING : null,
@@ -585,7 +602,7 @@ class AlcoholTestController extends Controller
             'plate_number' => $test->plate_number,
             'alcohol_level' => (float) $test->alcohol_level,
             'is_positive' => $test->is_positive,
-            'location' => $test->location,
+            'location' => $test->place?->name ?? $test->location,
             'notes' => $test->notes,
             'evidence_photo_url' => $test->evidencePhotoUrl(),
             'coordinator_status' => $test->coordinator_status,

@@ -2,10 +2,19 @@ import { useForm } from '@inertiajs/react';
 import { Search } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { UserItem } from '@/components/users/users-table';
+import InputError from '@/components/input-error';
 import { AppModal } from '@/components/shared/app-modal';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 
@@ -18,16 +27,24 @@ type Props = {
     open: boolean;
     user: UserItem | null;
     roles: RoleOption[];
+    places: { id: number; name: string }[];
     onClose: () => void;
 };
 
 const checkClassName =
     'size-3.5 shrink-0 border-[#9bb4ce] data-[state=checked]:border-[#2e5a9e] data-[state=checked]:bg-[#2e5a9e] data-[state=checked]:text-white';
 
-export function UserRolesModal({ open, user, roles, onClose }: Props) {
+export function UserRolesModal({
+    open,
+    user,
+    roles,
+    places,
+    onClose,
+}: Props) {
     const [search, setSearch] = useState('');
-    const form = useForm<{ roles: string[] }>({
+    const form = useForm<{ roles: string[]; place_id: string }>({
         roles: [],
+        place_id: '',
     });
 
     useEffect(() => {
@@ -36,13 +53,17 @@ export function UserRolesModal({ open, user, roles, onClose }: Props) {
         }
 
         setSearch('');
-        form.setData(
-            'roles',
-            user.roles?.map((role) => role.name) ?? [],
-        );
+        form.setData({
+            roles: user.roles?.map((role) => role.name) ?? [],
+            place_id: user.place_id ? String(user.place_id) : '',
+        });
         form.clearErrors();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, user?.id]);
+
+    const needsPlace = form.data.roles.some((role) =>
+        ['coordinador', 'inspector'].includes(role.toLowerCase()),
+    );
 
     const filteredRoles = useMemo(() => {
         const query = search.trim().toLowerCase();
@@ -82,6 +103,11 @@ export function UserRolesModal({ open, user, roles, onClose }: Props) {
         if (!user) {
             return;
         }
+
+        form.transform((data) => ({
+            roles: data.roles,
+            place_id: data.place_id ? Number(data.place_id) : null,
+        }));
 
         form.put(`/usuarios/${user.id}/roles`, {
             preserveScroll: true,
@@ -142,6 +168,35 @@ export function UserRolesModal({ open, user, roles, onClose }: Props) {
                 </div>
 
                 <div className="space-y-1 px-4 py-2.5 sm:px-5">
+                    {needsPlace ? (
+                        <div className="mb-2 grid gap-1.5">
+                            <Label className="text-xs text-[#1a2b4c]">
+                                Lugar <span className="text-red-500">*</span>
+                            </Label>
+                            <Select
+                                value={form.data.place_id || undefined}
+                                onValueChange={(value) =>
+                                    form.setData('place_id', value)
+                                }
+                            >
+                                <SelectTrigger className="h-9 w-full cursor-pointer border-[#c5d5e6] bg-white text-xs text-[#1a2b4c]">
+                                    <SelectValue placeholder="Selecciona un lugar" />
+                                </SelectTrigger>
+                                <SelectContent className="border-[#d7e3f0] bg-white">
+                                    {places.map((place) => (
+                                        <SelectItem
+                                            key={place.id}
+                                            value={String(place.id)}
+                                            className="cursor-pointer"
+                                        >
+                                            {place.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <InputError message={form.errors.place_id} />
+                        </div>
+                    ) : null}
                     {filteredRoles.length === 0 ? (
                         <p className="py-6 text-center text-xs text-[#6b8ead]">
                             No se encontraron roles.

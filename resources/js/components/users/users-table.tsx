@@ -28,6 +28,8 @@ export type UserItem = {
     phone?: string | null;
     roles_count: number;
     roles?: UserRoleRef[];
+    place_id?: number | null;
+    place?: { id: number; name: string } | null;
     created_at?: string | null;
 };
 
@@ -209,6 +211,15 @@ export function UsersTable({
                 cell: (user) => (
                     <span className="text-xs text-muted-foreground">
                         {user.roles_count}
+                    </span>
+                ),
+            },
+            {
+                key: 'place',
+                header: 'Lugar',
+                cell: (user) => (
+                    <span className="text-xs text-muted-foreground">
+                        {user.place?.name || '—'}
                     </span>
                 ),
             },

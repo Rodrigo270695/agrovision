@@ -53,6 +53,8 @@ type PageProps = {
     tests: TestItem[];
     stats: Stats;
     unitOptions: UnitOption[];
+    placeOptions: { id: number; name: string }[];
+    defaultPlaceId?: number | null;
     focusTestId?: number | null;
     isCoordinatorView?: boolean;
     canAddTests?: boolean;
@@ -87,6 +89,8 @@ export default function AlcoholPackageShowPage() {
         tests,
         stats,
         unitOptions,
+        placeOptions,
+        defaultPlaceId,
         focusTestId,
         auth,
         isCoordinatorView,
@@ -536,6 +540,8 @@ export default function AlcoholPackageShowPage() {
                     open={testOpen}
                     packageId={pkg.id}
                     unitOptions={unitOptions ?? []}
+                    placeOptions={placeOptions ?? []}
+                    defaultPlaceId={defaultPlaceId}
                     onClose={() => setTestOpen(false)}
                 />
             ) : null}

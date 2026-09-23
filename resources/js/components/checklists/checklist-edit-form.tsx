@@ -149,7 +149,11 @@ function YesNoToggle({
     disabled?: boolean;
 }) {
     return (
-        <div className="flex w-full gap-2">
+        <div
+            role="group"
+            aria-label="Resultado del ítem"
+            className="inline-flex h-9 shrink-0 rounded-lg border border-[#d5e1ee] bg-[#f4f7fb] p-0.5 sm:h-8"
+        >
             {(['yes', 'no'] as const).map((option) => {
                 const active = value === option;
 
@@ -166,12 +170,12 @@ function YesNoToggle({
                             onChange(active ? '' : option);
                         }}
                         className={cn(
-                            'h-11 flex-1 rounded-lg border text-sm font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:h-10',
+                            'min-w-11 rounded-md px-2.5 text-[12px] font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50',
                             active && option === 'yes'
-                                ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                                ? 'bg-emerald-600 text-white shadow-sm'
                                 : active && option === 'no'
-                                  ? 'border-red-400 bg-red-50 text-red-700'
-                                  : 'border-[#c5d5e6] bg-white text-[#5a7390]',
+                                  ? 'bg-red-600 text-white shadow-sm'
+                                  : 'text-[#5a7390]',
                         )}
                     >
                         {option === 'yes' ? 'SÍ' : 'NO'}
@@ -787,7 +791,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                     </div>
                 ) : null}
 
-                <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
+                <div className="grid grid-cols-1 gap-1.5 xl:grid-cols-2">
                     {checklist.items.map((item, index) => {
                         const answer = answers[index];
                         const isChild = item.parent_id !== null;
@@ -809,85 +813,85 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                             <article
                                 key={item.id}
                                 className={cn(
-                                    'rounded-xl border border-[#e2eaf3] bg-white p-3',
-                                    isChild &&
-                                        'border-l-4 border-l-[#4a90e2] lg:ml-0',
+                                    'rounded-xl border border-[#e2eaf3] bg-white px-2.5 py-2 sm:px-3',
+                                    isChild && 'bg-[#f7fafc]',
+                                    value === 'yes' &&
+                                        'border-emerald-200 bg-emerald-50/50',
+                                    value === 'no' &&
+                                        'border-red-200 bg-red-50/40',
                                     observationMissing &&
                                         !sealed &&
                                         'border-amber-300',
-                                    value === 'no' && 'opacity-80',
                                 )}
                             >
-                                <div className="mb-2.5 flex items-start gap-2">
-                                    <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-[#1a2b4c] text-xs font-semibold text-white">
+                                <div className="flex items-start gap-2">
+                                    <span className="mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-[#1a2b4c] text-[11px] font-semibold text-white">
                                         {item.item_number}
                                     </span>
                                     <div className="min-w-0 flex-1">
-                                        <p
-                                            className={cn(
-                                                'pt-0.5 text-sm leading-snug text-[#1a2b4c]',
-                                                isChild && 'text-[#5a7390]',
-                                            )}
-                                        >
-                                            {item.label}
-                                        </p>
-                                        {item.weight != null ? (
+                                        <div className="flex items-start justify-between gap-2">
                                             <p
                                                 className={cn(
-                                                    'mt-0.5 text-[11px]',
-                                                    countsInPareto
-                                                        ? 'font-medium text-emerald-700'
-                                                        : value === 'no'
-                                                          ? 'text-red-500 line-through'
-                                                          : 'text-[#6b8ead]',
+                                                    'pt-0.5 text-[13px] leading-snug text-[#1a2b4c]',
+                                                    isChild && 'text-[#3d5674]',
                                                 )}
                                             >
-                                                Peso{' '}
-                                                {Number(item.weight).toFixed(2)}%
-                                                {value === 'no'
-                                                    ? ' (no suma)'
-                                                    : countsInPareto
-                                                      ? ' (suma)'
-                                                      : ''}
+                                                {item.label}
                                             </p>
-                                        ) : null}
+                                            <YesNoToggle
+                                                value={value}
+                                                disabled={disabled}
+                                                onChange={(next) =>
+                                                    updateAnswer(
+                                                        index,
+                                                        activePass === 'first'
+                                                            ? 'first_value'
+                                                            : 'second_value',
+                                                        next,
+                                                    )
+                                                }
+                                            />
+                                        </div>
+                                        <div className="mt-1.5 flex items-center gap-1.5">
+                                            {item.weight != null ? (
+                                                <span
+                                                    className={cn(
+                                                        'shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-medium tabular-nums',
+                                                        countsInPareto
+                                                            ? 'bg-emerald-100 text-emerald-800'
+                                                            : value === 'no'
+                                                              ? 'bg-red-100 text-red-700 line-through'
+                                                              : 'bg-[#eef3f8] text-[#6b8ead]',
+                                                    )}
+                                                >
+                                                    {Number(item.weight).toFixed(2)}%
+                                                </span>
+                                            ) : null}
+                                            <Input
+                                                value={answer?.observations ?? ''}
+                                                disabled={sealed}
+                                                onChange={(event) =>
+                                                    updateAnswer(
+                                                        index,
+                                                        'observations',
+                                                        event.target.value,
+                                                    )
+                                                }
+                                                placeholder={
+                                                    isExpiry
+                                                        ? 'Vencimiento'
+                                                        : 'Observación'
+                                                }
+                                                className={cn(
+                                                    'h-8 min-w-0 flex-1 border-[#c5d5e6] bg-white text-xs disabled:bg-[#f8fafc]',
+                                                    observationMissing &&
+                                                        !sealed &&
+                                                        'border-amber-400',
+                                                )}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
-                                <YesNoToggle
-                                    value={value}
-                                    disabled={disabled}
-                                    onChange={(next) =>
-                                        updateAnswer(
-                                            index,
-                                            activePass === 'first'
-                                                ? 'first_value'
-                                                : 'second_value',
-                                            next,
-                                        )
-                                    }
-                                />
-                                <Input
-                                    value={answer?.observations ?? ''}
-                                    disabled={sealed}
-                                    onChange={(event) =>
-                                        updateAnswer(
-                                            index,
-                                            'observations',
-                                            event.target.value,
-                                        )
-                                    }
-                                    placeholder={
-                                        isExpiry
-                                            ? 'Vencimiento / observación'
-                                            : 'Observación'
-                                    }
-                                    className={cn(
-                                        'mt-2 h-9 border-[#c5d5e6] text-sm disabled:bg-[#f8fafc]',
-                                        observationMissing &&
-                                            !sealed &&
-                                            'border-amber-400',
-                                    )}
-                                />
                             </article>
                         );
                     })}

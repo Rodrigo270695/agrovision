@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Storage;
  * @property string $alcohol_level
  * @property bool $is_positive
  * @property string|null $location
+ * @property int|null $place_id
  * @property string|null $notes
  * @property string|null $evidence_photo_path
  * @property string|null $coordinator_status
@@ -52,6 +53,7 @@ class AlcoholTest extends Model
         'alcohol_level',
         'is_positive',
         'location',
+        'place_id',
         'notes',
         'evidence_photo_path',
         'coordinator_status',
@@ -89,6 +91,11 @@ class AlcoholTest extends Model
     public function period(): BelongsTo
     {
         return $this->belongsTo(Period::class);
+    }
+
+    public function place(): BelongsTo
+    {
+        return $this->belongsTo(Place::class);
     }
 
     public function creator(): BelongsTo

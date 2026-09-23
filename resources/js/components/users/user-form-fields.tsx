@@ -20,14 +20,22 @@ export type UserFormValues = {
     document_type: string;
     document_number: string;
     phone: string;
+    place_id: string;
     password: string;
     password_confirmation: string;
+};
+
+type PlaceOption = {
+    id: number;
+    name: string;
 };
 
 type Props = {
     values: UserFormValues;
     errors: Partial<Record<keyof UserFormValues, string>>;
     onChange: (field: keyof UserFormValues, value: string) => void;
+    places?: PlaceOption[];
+    requiresPlace?: boolean;
     isEditing?: boolean;
 };
 
@@ -71,6 +79,8 @@ export function UserFormFields({
     values,
     errors,
     onChange,
+    places = [],
+    requiresPlace = false,
     isEditing = false,
 }: Props) {
     const [dniLoading, setDniLoading] = useState(false);
@@ -294,6 +304,38 @@ export function UserFormFields({
                     className={inputClassName}
                 />
                 <InputError message={errors.email} />
+            </div>
+
+            <div className="grid gap-2">
+                <Label className="text-[#1a2b4c]">
+                    Lugar{' '}
+                    {requiresPlace ? (
+                        <span className="text-red-500">*</span>
+                    ) : null}
+                </Label>
+                <Select
+                    value={values.place_id || undefined}
+                    onValueChange={(value) => onChange('place_id', value)}
+                >
+                    <SelectTrigger className="h-11 w-full cursor-pointer border-[#c5d5e6] bg-white text-[#1a2b4c]">
+                        <SelectValue placeholder="Selecciona un lugar" />
+                    </SelectTrigger>
+                    <SelectContent className="border-[#d7e3f0] bg-white">
+                        {places.map((place) => (
+                            <SelectItem
+                                key={place.id}
+                                value={String(place.id)}
+                                className="cursor-pointer"
+                            >
+                                {place.name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <InputError message={errors.place_id} />
+                <p className="text-xs text-[#6b8ead]">
+                    Obligatorio para coordinadores e inspectores.
+                </p>
             </div>
 
             <div className="grid gap-2">

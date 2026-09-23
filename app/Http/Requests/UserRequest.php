@@ -22,6 +22,7 @@ class UserRequest extends FormRequest
         /** @var User|null $user */
         $user = $this->route('user');
         $isUpdate = $user !== null;
+        $requiresPlace = $user?->requiresPlace() ?? false;
         $documentType = mb_strtolower((string) $this->input('document_type', 'dni'));
 
         $documentNumberRules = [
@@ -49,6 +50,11 @@ class UserRequest extends FormRequest
             'document_type' => ['required', 'string', Rule::in(['dni', 'ce', 'pasaporte'])],
             'document_number' => $documentNumberRules,
             'phone' => ['required', 'string', 'regex:/^9\d{8}$/'],
+            'place_id' => [
+                $requiresPlace ? 'required' : 'nullable',
+                'integer',
+                Rule::exists('places', 'id'),
+            ],
             'password' => [
                 $isUpdate ? 'nullable' : 'required',
                 'string',
@@ -75,6 +81,8 @@ class UserRequest extends FormRequest
             'document_number.regex' => 'El número de documento no es válido (DNI: 8 dígitos).',
             'phone.required' => 'El celular es obligatorio.',
             'phone.regex' => 'El celular debe tener 9 dígitos y empezar con 9.',
+            'place_id.required' => 'El lugar es obligatorio para coordinadores e inspectores.',
+            'place_id.exists' => 'El lugar seleccionado no existe.',
             'password.required' => 'La contraseña es obligatoria.',
             'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
             'password.confirmed' => 'Las contraseñas no coinciden.',
@@ -119,6 +127,7 @@ class UserRequest extends FormRequest
             'document_type' => $type !== '' ? $type : 'dni',
             'document_number' => $number,
             'phone' => $phone,
+            'place_id' => $this->filled('place_id') ? (int) $this->input('place_id') : null,
         ]);
 
         if (! $this->filled('password')) {

@@ -8,13 +8,27 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
+
+type PlaceOption = {
+    id: number;
+    name: string;
+};
 
 type Props = {
     open: boolean;
     packageId: number;
     unitOptions: UnitOption[];
+    placeOptions: PlaceOption[];
+    defaultPlaceId?: number | null;
     onClose: () => void;
 };
 
@@ -55,6 +69,8 @@ export function AlcoholTestFormModal({
     open,
     packageId,
     unitOptions,
+    placeOptions,
+    defaultPlaceId = null,
     onClose,
 }: Props) {
     const form = useForm({
@@ -63,7 +79,7 @@ export function AlcoholTestFormModal({
         driver_dni: '',
         plate_number: '',
         alcohol_level: '0',
-        location: '',
+        place_id: '',
         notes: '',
         evidence_photo_data_url: '',
     });
@@ -83,14 +99,14 @@ export function AlcoholTestFormModal({
             driver_dni: '',
             plate_number: '',
             alcohol_level: '0',
-            location: '',
+            place_id: defaultPlaceId ? String(defaultPlaceId) : '',
             notes: '',
             evidence_photo_data_url: '',
         });
         form.clearErrors();
         setPhotoError(null);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, packageId]);
+    }, [open, packageId, defaultPlaceId]);
 
     const plateOptions = useMemo(
         () =>
@@ -188,6 +204,11 @@ export function AlcoholTestFormModal({
             hasLocalError = true;
         }
 
+        if (!form.data.place_id) {
+            form.setError('place_id', 'Selecciona el lugar.');
+            hasLocalError = true;
+        }
+
         if (!form.data.evidence_photo_data_url) {
             form.setError(
                 'evidence_photo_data_url',
@@ -207,7 +228,7 @@ export function AlcoholTestFormModal({
             driver_dni: data.driver_dni || null,
             plate_number: data.plate_number || null,
             alcohol_level: Number(data.alcohol_level),
-            location: data.location || null,
+            place_id: Number(data.place_id),
             notes: data.notes || null,
             evidence_photo_data_url: data.evidence_photo_data_url,
         }));
@@ -445,16 +466,31 @@ export function AlcoholTestFormModal({
 
                 <div className="grid gap-1.5">
                     <Label className="text-xs text-[#1a2b4c]">
-                        Lugar / área
+                        Lugar <span className="text-red-500">*</span>
                     </Label>
-                    <Input
-                        value={form.data.location}
-                        onChange={(e) =>
-                            form.setData('location', e.target.value)
-                        }
-                        className="h-9 border-[#c5d5e6]"
-                        placeholder="Ej. Gate 1 / Planta"
-                    />
+                    <Select
+                        value={form.data.place_id || undefined}
+                        onValueChange={(value) => {
+                            form.clearErrors('place_id');
+                            form.setData('place_id', value);
+                        }}
+                    >
+                        <SelectTrigger className="h-9 w-full cursor-pointer border-[#c5d5e6] bg-white text-[#1a2b4c]">
+                            <SelectValue placeholder="Selecciona el lugar" />
+                        </SelectTrigger>
+                        <SelectContent className="border-[#d7e3f0] bg-white">
+                            {placeOptions.map((place) => (
+                                <SelectItem
+                                    key={place.id}
+                                    value={String(place.id)}
+                                    className="cursor-pointer"
+                                >
+                                    {place.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <InputError message={form.errors.place_id} />
                 </div>
 
                 <div className="grid gap-1.5">

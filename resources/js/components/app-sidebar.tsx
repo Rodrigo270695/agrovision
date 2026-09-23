@@ -10,6 +10,7 @@ import {
     GraduationCap,
     LayoutGrid,
     Layers,
+    MapPin,
     Settings2,
     Shield,
     Users,
@@ -60,6 +61,13 @@ const mainNavItems: NavItem[] = [
                 icon: CalendarRange,
                 permission: 'periods.view',
                 module: 'periods',
+            },
+            {
+                title: 'Lugares',
+                href: '/lugares',
+                icon: MapPin,
+                permission: 'places.view',
+                module: 'places',
             },
             {
                 title: 'Unidades',

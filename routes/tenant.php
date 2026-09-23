@@ -10,6 +10,7 @@ use App\Http\Controllers\InductionController;
 use App\Http\Controllers\LookupController;
 use App\Http\Controllers\ParetoController;
 use App\Http\Controllers\PeriodController;
+use App\Http\Controllers\PlaceController;
 use App\Http\Controllers\PublicFileController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RoleController;
@@ -116,6 +117,22 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
         Route::delete('periodos/{period}', [PeriodController::class, 'destroy'])
             ->middleware('permission:periods.delete')
             ->name('periods.destroy');
+
+        Route::get('lugares', [PlaceController::class, 'index'])
+            ->middleware('permission:places.view')
+            ->name('places.index');
+
+        Route::post('lugares', [PlaceController::class, 'store'])
+            ->middleware('permission:places.create')
+            ->name('places.store');
+
+        Route::put('lugares/{place}', [PlaceController::class, 'update'])
+            ->middleware('permission:places.update')
+            ->name('places.update');
+
+        Route::delete('lugares/{place}', [PlaceController::class, 'destroy'])
+            ->middleware('permission:places.delete')
+            ->name('places.destroy');
 
         Route::get('unidades', [UnitController::class, 'index'])
             ->middleware('permission:units.view')

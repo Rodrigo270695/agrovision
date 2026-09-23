@@ -21,6 +21,7 @@ type UsersPageProps = {
     stats: UsersStatsData;
     filters: UsersFilters;
     roleOptions: RoleOption[];
+    placeOptions: { id: number; name: string }[];
 };
 
 function isProtectedUser(user: UserItem): boolean {
@@ -31,7 +32,7 @@ function isProtectedUser(user: UserItem): boolean {
 }
 
 export function UsersPage() {
-    const { users, stats, filters, roleOptions } = usePage()
+    const { users, stats, filters, roleOptions, placeOptions } = usePage()
         .props as unknown as UsersPageProps;
     const { can } = useCan();
 
@@ -108,6 +109,7 @@ export function UsersPage() {
                 <UserFormModal
                     open={formOpen}
                     user={editingUser}
+                    places={placeOptions ?? []}
                     onClose={closeForm}
                 />
             ) : null}
@@ -125,6 +127,7 @@ export function UsersPage() {
                     open={rolesOpen}
                     user={rolesUser}
                     roles={roleOptions ?? []}
+                    places={placeOptions ?? []}
                     onClose={closeRoles}
                 />
             ) : null}

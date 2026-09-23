@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\UserRequest;
 use App\Http\Requests\UserRolesRequest;
+use App\Models\Place;
 use App\Models\User;
 use App\Support\IndexedRedirect;
 use Illuminate\Http\RedirectResponse;
@@ -34,7 +35,7 @@ class UserController extends Controller
 
         $usersQuery = User::query()
             ->withoutSupport()
-            ->with('roles:id,name')
+            ->with(['roles:id,name', 'place:id,name'])
             ->withCount('roles');
 
         if ($search !== '') {
@@ -43,7 +44,8 @@ class UserController extends Controller
                     ->where('name', 'ilike', "%{$search}%")
                     ->orWhere('email', 'ilike', "%{$search}%")
                     ->orWhere('document_number', 'ilike', "%{$search}%")
-                    ->orWhere('phone', 'ilike', "%{$search}%");
+                    ->orWhere('phone', 'ilike', "%{$search}%")
+                    ->orWhereHas('place', fn ($query) => $query->where('name', 'ilike', "%{$search}%"));
             });
         }
 
@@ -70,6 +72,10 @@ class UserController extends Controller
                 ->where('guard_name', 'web')
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            'placeOptions' => Place::query()
+                ->where('status', 'active')
+                ->orderBy('name')
+                ->get(['id', 'name']),
             'stats' => [
                 'users' => User::query()->withoutSupport()->count(),
                 'with_roles' => User::query()->withoutSupport()->whereHas('roles')->count(),
@@ -90,6 +96,7 @@ class UserController extends Controller
             'document_type' => $data['document_type'],
             'document_number' => $data['document_number'],
             'phone' => $data['phone'],
+            'place_id' => $data['place_id'] ?? null,
             'password' => $data['password'],
             'email_verified_at' => now(),
         ]);
@@ -117,6 +124,7 @@ class UserController extends Controller
             'document_type' => $data['document_type'],
             'document_number' => $data['document_number'],
             'phone' => $data['phone'],
+            'place_id' => $data['place_id'] ?? null,
         ];
 
         if (! empty($data['password'])) {
@@ -141,6 +149,10 @@ class UserController extends Controller
         }
 
         $user->syncRoles($request->validated('roles'));
+
+        if ($request->exists('place_id')) {
+            $user->update(['place_id' => $request->validated('place_id')]);
+        }
 
         return IndexedRedirect::toIndex($request, 'users.index', [
             'type' => 'success',

@@ -2,6 +2,7 @@ const TENANT_PAGES = [
     '/dashboard',
     '/pareto',
     '/periodos',
+    '/lugares',
     '/unidades',
     '/inspecciones',
     '/consolidados',
