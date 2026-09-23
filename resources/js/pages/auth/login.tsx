@@ -90,23 +90,15 @@ export default function Login({ status }: Props) {
                             ready ? 'login-fade-in' : 'opacity-0',
                         )}
                     >
-                        <header className="flex h-16 items-center">
-                            <div className="rounded-lg bg-white px-3.5 py-2">
-                                {branding.logo ? (
-                                    <img
-                                        src={branding.logo}
-                                        alt={branding.name}
-                                        className="h-16 w-auto max-w-[220px] object-contain"
-                                    />
-                                ) : (
-                                    <span className="font-display text-lg font-semibold text-[#122038]">
-                                        {branding.name}
-                                    </span>
-                                )}
-                            </div>
-                        </header>
-
                         <div className="flex flex-1 flex-col justify-center">
+                            <div className="mb-10 flex justify-center">
+                                <img
+                                    src="/logo.png"
+                                    alt="Grupo Indelsi"
+                                    className="h-60 w-auto max-w-[min(100%,26rem)] object-contain xl:h-72"
+                                />
+                            </div>
+
                             <div className="border-l-2 border-[#f5c440] pl-6">
                                 <p className="text-[11px] font-medium tracking-[0.22em] text-[#d4b056] uppercase">
                                     Seguridad y salud en el trabajo
@@ -173,20 +165,12 @@ export default function Login({ status }: Props) {
                 <div className="relative isolate lg:hidden">
                     <div className="login-hero-media absolute inset-0" />
                     <div className="login-hex-grid pointer-events-none absolute inset-0 opacity-40" />
-                    <div className="relative z-10 px-5 py-5">
-                        <div className="inline-block rounded-md bg-white px-2.5 py-1.5">
-                            {branding.logo ? (
-                                <img
-                                    src={branding.logo}
-                                    alt={branding.name}
-                                    className="h-11 w-auto max-w-[180px] object-contain"
-                                />
-                            ) : (
-                                <span className="font-display text-sm font-semibold text-[#122038]">
-                                    {branding.name}
-                                </span>
-                            )}
-                        </div>
+                    <div className="relative z-10 flex flex-col items-center px-5 py-6 text-center">
+                        <img
+                            src="/logo.png"
+                            alt="Grupo Indelsi"
+                            className="h-28 w-auto max-w-[16rem] object-contain"
+                        />
                         <p className="mt-5 text-[10px] font-medium tracking-[0.2em] text-[#d4b056] uppercase">
                             Seguridad y salud en el trabajo
                         </p>
@@ -208,8 +192,8 @@ export default function Login({ status }: Props) {
                                 <TenantBrandMark
                                     name={branding.name}
                                     logo={branding.logo}
-                                    className="size-11 shrink-0 rounded-xl text-sm ring-1 ring-[#d5deea]"
-                                    imageClassName="h-11 w-auto max-w-14 object-contain"
+                                    className="size-14 shrink-0 rounded-xl text-base ring-1 ring-[#d5deea]"
+                                    imageClassName="h-14 w-auto max-w-[4.5rem] object-contain"
                                 />
                                 <div className="min-w-0">
                                     <p className="font-display truncate text-[17px] font-semibold tracking-[-0.02em] text-[#122038]">
