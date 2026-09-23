@@ -9,6 +9,7 @@ use App\Models\Place;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\PushNotificationService;
+use App\Support\IndexedRedirect;
 use App\Support\PermissionCatalog;
 use App\Support\SignatureImage;
 use App\Support\SystemRoles;
@@ -42,13 +43,14 @@ class AlcoholTestController extends Controller
 
         $query = $this->scopedPackagesQuery()
             ->withCount($this->packageTestCounts($coordinatorId))
-            ->with('creator:id,name');
+            ->with(['creator:id,name', 'place:id,name']);
 
         if ($search !== '') {
             $query->where(function (Builder $builder) use ($search): void {
                 $builder
                     ->where('title', 'ilike', "%{$search}%")
-                    ->orWhere('notes', 'ilike', "%{$search}%");
+                    ->orWhere('notes', 'ilike', "%{$search}%")
+                    ->orWhereHas('place', fn (Builder $place) => $place->where('name', 'ilike', "%{$search}%"));
             });
         }
 
@@ -72,6 +74,9 @@ class AlcoholTestController extends Controller
                 'title' => $package->title,
                 'session_date' => optional($package->session_date)?->toDateString(),
                 'notes' => $package->notes,
+                'place' => $package->place
+                    ? ['id' => $package->place->id, 'name' => $package->place->name]
+                    : null,
                 'status' => $package->status,
                 'sent_to_coordinators_at' => optional($package->sent_to_coordinators_at)?->toIso8601String(),
                 'tests_count' => (int) $package->tests_count,
@@ -95,6 +100,8 @@ class AlcoholTestController extends Controller
                     ->count(),
             ],
             'isCoordinatorView' => $isCoordinator,
+            'placeOptions' => $this->activePlaceOptions(),
+            'defaultPlaceId' => Auth::user()?->place_id,
         ]);
     }
 
@@ -103,16 +110,26 @@ class AlcoholTestController extends Controller
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'session_date' => ['required', 'date'],
+            'place_id' => [
+                'required',
+                'integer',
+                Rule::exists('places', 'id')->where(
+                    fn ($query) => $query->where('status', 'active'),
+                ),
+            ],
             'notes' => ['nullable', 'string', 'max:2000'],
         ], [
             'title.required' => 'Indica un título para el paquete (ej. Test inopinada fiestas).',
             'session_date.required' => 'Indica la fecha del operativo.',
+            'place_id.required' => 'Selecciona el lugar.',
+            'place_id.exists' => 'Selecciona un lugar activo.',
         ]);
 
         $package = AlcoholTestPackage::query()->create([
             'title' => trim($validated['title']),
             'session_date' => $validated['session_date'],
             'notes' => $validated['notes'] ?? null,
+            'place_id' => (int) $validated['place_id'],
             'status' => AlcoholTestPackage::STATUS_OPEN,
             'created_by' => Auth::id(),
             'period_id' => Period::query()
@@ -133,7 +150,7 @@ class AlcoholTestController extends Controller
     {
         $this->ensureCanAccessPackage($alcoholimetro);
 
-        $alcoholimetro->load('creator:id,name');
+        $alcoholimetro->load(['creator:id,name', 'place:id,name']);
         $isCoordinator = SystemRoles::currentIsScopedCoordinator();
 
         $testsQuery = $alcoholimetro->tests()
@@ -165,6 +182,9 @@ class AlcoholTestController extends Controller
                 'title' => $alcoholimetro->title,
                 'session_date' => optional($alcoholimetro->session_date)?->toDateString(),
                 'notes' => $alcoholimetro->notes,
+                'place' => $alcoholimetro->place
+                    ? ['id' => $alcoholimetro->place->id, 'name' => $alcoholimetro->place->name]
+                    : null,
                 'status' => $alcoholimetro->status,
                 'is_closed' => $alcoholimetro->isClosed(),
                 'sent_to_coordinators_at' => optional($alcoholimetro->sent_to_coordinators_at)?->toIso8601String(),
@@ -183,16 +203,12 @@ class AlcoholTestController extends Controller
                     ->count(),
             ],
             'unitOptions' => $isCoordinator ? [] : $this->unitOptions(),
-            'placeOptions' => Place::query()
-                ->where('status', 'active')
-                ->orderBy('name')
-                ->get(['id', 'name']),
-            'defaultPlaceId' => Auth::user()?->place_id,
             'focusTestId' => $request->integer('test') ?: null,
             'isCoordinatorView' => $isCoordinator,
             'canAddTests' => $canCreate && $packageOpen && ! $isCoordinator,
             'canSendToCoordinators' => $canCreate && $packageOpen && $tests->isNotEmpty() && ! $isCoordinator,
             'canClosePackage' => $canCreate && $packageOpen && ! $isCoordinator,
+            'canDeletePackage' => $canCreate && ! $isCoordinator,
         ]);
     }
 
@@ -210,27 +226,25 @@ class AlcoholTestController extends Controller
             'driver_dni' => ['nullable', 'string', 'max:20'],
             'plate_number' => ['nullable', 'string', 'max:20'],
             'alcohol_level' => ['required', 'numeric', 'min:0', 'max:10'],
-            'place_id' => [
-                'required',
-                'integer',
-                Rule::exists('places', 'id')->where(
-                    fn ($query) => $query->where('status', 'active'),
-                ),
-            ],
             'notes' => ['nullable', 'string', 'max:2000'],
             'evidence_photo_data_url' => ['required', 'string'],
         ], [
             'unit_id.required' => 'Selecciona la unidad.',
             'driver_name.required' => 'Indica el nombre del conductor.',
             'alcohol_level.required' => 'Indica el porcentaje de alcohol.',
-            'place_id.required' => 'Selecciona el lugar.',
-            'place_id.exists' => 'Selecciona un lugar activo.',
             'evidence_photo_data_url.required' => 'Adjunta la foto de evidencia del test.',
         ]);
 
         $unit = Unit::query()->findOrFail((int) $validated['unit_id']);
         $this->ensureCanAccessUnit($unit);
-        $place = Place::query()->findOrFail((int) $validated['place_id']);
+        $place = $alcoholimetro->place;
+
+        if (! $place) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Este paquete no tiene lugar. Elimínalo y créalo de nuevo eligiendo el lugar.',
+            ]);
+        }
 
         $level = round((float) $validated['alcohol_level'], 3);
         $positive = AlcoholTest::isPositiveLevel($level);
@@ -359,6 +373,29 @@ class AlcoholTestController extends Controller
         ]);
     }
 
+    public function destroyPackage(Request $request, AlcoholTestPackage $alcoholimetro): RedirectResponse
+    {
+        $this->ensureCanAccessPackage($alcoholimetro);
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            abort(403);
+        }
+
+        $alcoholimetro->load('tests');
+
+        foreach ($alcoholimetro->tests as $test) {
+            $test->deleteEvidencePhoto();
+            $test->deleteSignatureFile();
+        }
+
+        $alcoholimetro->delete();
+
+        return IndexedRedirect::toIndex($request, 'alcohol-tests.index', [
+            'type' => 'success',
+            'message' => 'Paquete eliminado.',
+        ]);
+    }
+
     public function showTest(AlcoholTest $test): Response|RedirectResponse
     {
         $this->ensureCanAccessTest($test);
@@ -446,6 +483,7 @@ class AlcoholTestController extends Controller
         }
 
         $tests = $testsQuery->get();
+        $alcoholimetro->loadMissing('place:id,name');
 
         $pdf = Pdf::loadView('pdfs.alcohol-test-package-report', [
             'package' => $alcoholimetro,
@@ -575,6 +613,23 @@ class AlcoholTestController extends Controller
                 'driver_dni' => $unit->driver_dni,
                 'plate_number' => $unit->plate_number,
                 'coordinator_id' => $unit->coordinator_id,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<array{id: int, name: string}>
+     */
+    private function activePlaceOptions(): array
+    {
+        return Place::query()
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (Place $place) => [
+                'id' => $place->id,
+                'name' => $place->name,
             ])
             ->values()
             ->all();

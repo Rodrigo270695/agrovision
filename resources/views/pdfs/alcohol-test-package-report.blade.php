@@ -46,6 +46,9 @@
         <td style="width: 30%;" class="meta">
             <strong>Paquete:</strong> {{ str_pad((string) $package->id, 6, '0', STR_PAD_LEFT) }}<br>
             <strong>Fecha operativo:</strong> {{ $session }}<br>
+            @if ($package->place)
+                <strong>Lugar:</strong> {{ $package->place->name }}<br>
+            @endif
             <strong>Tolerancia:</strong> 0.000 %
         </td>
     </tr>

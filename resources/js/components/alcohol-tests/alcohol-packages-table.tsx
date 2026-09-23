@@ -1,4 +1,4 @@
-import { Eye, Wine } from 'lucide-react';
+import { Eye, Trash2, Wine } from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { useCallback, useMemo } from 'react';
 import {
@@ -17,6 +17,7 @@ export type AlcoholPackageItem = {
     title: string;
     session_date?: string | null;
     notes?: string | null;
+    place?: { id: number; name: string } | null;
     status?: string;
     sent_to_coordinators_at?: string | null;
     tests_count: number;
@@ -44,6 +45,8 @@ type Props = {
     packages: AlcoholPackagesPagination;
     filters: AlcoholPackagesFilters;
     isCoordinatorView?: boolean;
+    canDelete?: boolean;
+    onDelete?: (item: AlcoholPackageItem) => void;
 };
 
 function formatDate(value?: string | null): string {
@@ -68,6 +71,8 @@ export function AlcoholPackagesTable({
     packages,
     filters,
     isCoordinatorView = false,
+    canDelete = false,
+    onDelete,
 }: Props) {
     const visit = useCallback(
         (params: Partial<AlcoholPackagesFilters> & { page?: number }) => {
@@ -108,6 +113,15 @@ export function AlcoholPackagesTable({
                 cell: (item) => (
                     <span className="text-xs text-muted-foreground">
                         {formatDate(item.session_date)}
+                    </span>
+                ),
+            },
+            {
+                key: 'place',
+                header: 'Lugar',
+                cell: (item) => (
+                    <span className="text-xs text-foreground">
+                        {item.place?.name || '—'}
                     </span>
                 ),
             },
@@ -177,13 +191,25 @@ export function AlcoholPackagesTable({
                                     icon: Eye,
                                     href: `/alcoholimetro/${item.id}`,
                                 },
+                                ...(canDelete && onDelete
+                                    ? [
+                                          {
+                                              key: 'delete',
+                                              label: 'Eliminar',
+                                              icon: Trash2,
+                                              tone: 'danger' as const,
+                                              separatorBefore: true,
+                                              onSelect: () => onDelete(item),
+                                          },
+                                      ]
+                                    : []),
                             ]}
                         />
                     </div>
                 ),
             },
         ],
-        [isCoordinatorView],
+        [canDelete, isCoordinatorView, onDelete],
     );
 
     return (

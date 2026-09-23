@@ -12,6 +12,7 @@ use Illuminate\Support\Carbon;
  * @property string $title
  * @property Carbon $session_date
  * @property string|null $notes
+ * @property int|null $place_id
  * @property string $status
  * @property Carbon|null $sent_to_coordinators_at
  * @property Carbon|null $closed_at
@@ -29,6 +30,7 @@ class AlcoholTestPackage extends Model
         'title',
         'session_date',
         'notes',
+        'place_id',
         'status',
         'sent_to_coordinators_at',
         'closed_at',
@@ -67,6 +69,11 @@ class AlcoholTestPackage extends Model
     public function canModify(): bool
     {
         return $this->isOpen();
+    }
+
+    public function place(): BelongsTo
+    {
+        return $this->belongsTo(Place::class);
     }
 
     public function tests(): HasMany

@@ -1,6 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, FileDown, Lock, Plus, Send } from 'lucide-react';
+import { ArrowLeft, FileDown, Lock, Plus, Send, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { AlcoholPackageDeleteModal } from '@/components/alcohol-tests/alcohol-package-delete-modal';
 import { AlcoholTestFormModal } from '@/components/alcohol-tests/alcohol-test-form-modal';
 import { AlcoholTestRespondModal } from '@/components/alcohol-tests/alcohol-test-respond-modal';
 import type { UnitOption } from '@/components/alcohol-tests/alcohol-tests-table';
@@ -14,6 +15,7 @@ type PackageInfo = {
     title: string;
     session_date?: string | null;
     notes?: string | null;
+    place?: { id: number; name: string } | null;
     status?: string;
     is_closed?: boolean;
     sent_to_coordinators_at?: string | null;
@@ -53,13 +55,12 @@ type PageProps = {
     tests: TestItem[];
     stats: Stats;
     unitOptions: UnitOption[];
-    placeOptions: { id: number; name: string }[];
-    defaultPlaceId?: number | null;
     focusTestId?: number | null;
     isCoordinatorView?: boolean;
     canAddTests?: boolean;
     canSendToCoordinators?: boolean;
     canClosePackage?: boolean;
+    canDeletePackage?: boolean;
     auth: {
         user: { id: number; name: string; email: string } | null;
     };
@@ -89,16 +90,16 @@ export default function AlcoholPackageShowPage() {
         tests,
         stats,
         unitOptions,
-        placeOptions,
-        defaultPlaceId,
         focusTestId,
         auth,
         isCoordinatorView,
         canAddTests,
         canSendToCoordinators,
         canClosePackage,
+        canDeletePackage,
     } = usePage().props as unknown as PageProps;
     const [testOpen, setTestOpen] = useState(false);
+    const [deleteOpen, setDeleteOpen] = useState(false);
     const [responding, setResponding] = useState<TestItem | null>(null);
     const [sending, setSending] = useState(false);
     const [closing, setClosing] = useState(false);
@@ -138,6 +139,7 @@ export default function AlcoholPackageShowPage() {
                             </h1>
                             <p className="mt-1 text-sm text-[#5a7390]">
                                 Fecha operativo: {formatDate(pkg.session_date)}
+                                {pkg.place?.name ? ` · ${pkg.place.name}` : ''}
                                 {pkg.creator?.name
                                     ? ` · ${pkg.creator.name}`
                                     : ''}
@@ -205,6 +207,17 @@ export default function AlcoholPackageShowPage() {
                             ) : null}
                         </div>
                         <div className="flex flex-wrap gap-2">
+                            {canDeletePackage ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setDeleteOpen(true)}
+                                    className="cursor-pointer border-red-200 text-red-700 hover:bg-red-50"
+                                >
+                                    <Trash2 className="size-4" />
+                                    Eliminar
+                                </Button>
+                            ) : null}
                             <Button
                                 type="button"
                                 variant="outline"
@@ -540,9 +553,22 @@ export default function AlcoholPackageShowPage() {
                     open={testOpen}
                     packageId={pkg.id}
                     unitOptions={unitOptions ?? []}
-                    placeOptions={placeOptions ?? []}
-                    defaultPlaceId={defaultPlaceId}
                     onClose={() => setTestOpen(false)}
+                />
+            ) : null}
+
+            {canDeletePackage ? (
+                <AlcoholPackageDeleteModal
+                    open={deleteOpen}
+                    packageItem={{
+                        id: pkg.id,
+                        title: pkg.title,
+                        tests_count: stats.total,
+                        positive_count: stats.positive,
+                        pending_count: stats.pending,
+                        place: pkg.place,
+                    }}
+                    onClose={() => setDeleteOpen(false)}
                 />
             ) : null}
         </>

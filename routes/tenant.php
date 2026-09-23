@@ -270,6 +270,11 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->whereNumber('alcoholimetro')
             ->name('alcohol-tests.packages.close');
 
+        Route::delete('alcoholimetro/{alcoholimetro}', [AlcoholTestController::class, 'destroyPackage'])
+            ->middleware('permission:alcoholtests.create')
+            ->whereNumber('alcoholimetro')
+            ->name('alcohol-tests.packages.destroy');
+
         Route::get('alcoholimetro/{alcoholimetro}/pdf', [AlcoholTestController::class, 'packagePdf'])
             ->middleware('permission:alcoholtests.view')
             ->whereNumber('alcoholimetro')
