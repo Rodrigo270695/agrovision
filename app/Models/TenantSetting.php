@@ -68,7 +68,7 @@ class TenantSetting extends Model
 
     public function moduleEnabled(string $module): bool
     {
-        $modules = $this->modules ?? TenantModules::defaults();
+        $modules = TenantModules::sanitize($this->modules ?? []);
 
         return (bool) ($modules[$module] ?? true);
     }
@@ -89,7 +89,7 @@ class TenantSetting extends Model
             'sidebar_logo' => $this->publicUrl($this->sidebar_logo_path) ?? $logo,
             'login_logo' => $this->publicUrl($this->login_logo_path) ?? $logo,
             'primary_color' => $this->primary_color,
-            'modules' => array_merge(TenantModules::defaults(), $this->modules ?? []),
+            'modules' => TenantModules::sanitize($this->modules ?? []),
         ];
     }
 
