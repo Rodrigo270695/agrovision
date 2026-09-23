@@ -291,8 +291,8 @@ function trimToDenseCore(
         };
     }
 
-    const rowCut = Math.max(6, Math.round((maxX - minX) * 0.1));
-    const colCut = Math.max(6, Math.round((maxY - minY) * 0.1));
+    const rowCut = Math.max(4, Math.round((maxX - minX) * 0.055));
+    const colCut = Math.max(4, Math.round((maxY - minY) * 0.055));
 
     while (minY < maxY && rowCount[minY] < rowCut) {
         minY += 1;
@@ -383,16 +383,16 @@ function toFingerprintImage(
         }
     }
 
-    const energyCut = Math.max(2.4, percentile(energySamples, 0.62));
-    const edgeCut = Math.min(30, Math.max(14, percentile(edgeSamples, 0.5)));
+    const energyCut = Math.max(2.1, percentile(energySamples, 0.48));
+    const edgeCut = Math.min(34, Math.max(14, percentile(edgeSamples, 0.58)));
     const mask = new Uint8Array(gray.length);
 
     for (let i = 0; i < gray.length; i += 1) {
         if (
             energy[i] >= energyCut &&
             edge[i] <= edgeCut &&
-            absFine[i] > 1.8 &&
-            absFine[i] < 40
+            absFine[i] > 1.4 &&
+            absFine[i] < 58
         ) {
             mask[i] = 1;
         }
@@ -408,7 +408,7 @@ function toFingerprintImage(
     const solid = new Uint8Array(mask.length);
 
     for (let i = 0; i < mask.length; i += 1) {
-        if (density[i] > 0.38) {
+        if (density[i] > 0.28) {
             solid[i] = 1;
         }
     }
@@ -444,8 +444,8 @@ function toFingerprintImage(
         }
     }
 
-    const ridgeCut = Math.max(3.4, percentile(ridgeSamples, 0.42));
-    const ridgeHigh = Math.max(ridgeCut + 8, percentile(ridgeSamples, 0.94));
+    const ridgeCut = Math.max(2, percentile(ridgeSamples, 0.18));
+    const ridgeHigh = Math.max(ridgeCut + 6, percentile(ridgeSamples, 0.9));
     const span = ridgeHigh - ridgeCut;
     const ink = new Uint8Array(cropW * cropH);
     const tone = new Uint8Array(cropW * cropH);
@@ -457,63 +457,82 @@ function toFingerprintImage(
             const nx = (sourceX - centerX) / radiusX;
             const ny = (sourceY - centerY) / radiusY;
 
-            if (nx * nx + ny * ny > 0.92) {
+            if (nx * nx + ny * ny > 1) {
                 continue;
             }
 
             const delta = detail[sourceY * width + sourceX];
 
-            if (delta < ridgeCut || edge[sourceY * width + sourceX] > edgeCut + 6) {
+            if (delta < ridgeCut || edge[sourceY * width + sourceX] > edgeCut + 14) {
                 continue;
             }
 
+            const strength = Math.min(1, (delta - ridgeCut) / span);
             const index = y * cropW + x;
             ink[index] = 1;
-            tone[index] = Math.min(
-                210,
-                Math.max(0, Math.round(((delta - ridgeCut) / span) * 210)),
-            );
+            tone[index] = Math.round(78 - strength * 58);
         }
     }
 
-    let kept = ink;
+    const cleaned = new Uint8Array(ink.length);
 
-    for (let pass = 0; pass < 2; pass += 1) {
-        const next = new Uint8Array(kept.length);
+    for (let y = 1; y < cropH - 1; y += 1) {
+        for (let x = 1; x < cropW - 1; x += 1) {
+            const index = y * cropW + x;
 
-        for (let y = 1; y < cropH - 1; y += 1) {
-            for (let x = 1; x < cropW - 1; x += 1) {
-                const index = y * cropW + x;
+            if (ink[index] === 0) {
+                continue;
+            }
 
-                if (kept[index] === 0) {
-                    continue;
-                }
+            let neighbors = 0;
 
-                let neighbors = 0;
-
-                for (let oy = -1; oy <= 1; oy += 1) {
-                    for (let ox = -1; ox <= 1; ox += 1) {
-                        if (ox === 0 && oy === 0) {
-                            continue;
-                        }
-
-                        neighbors += kept[(y + oy) * cropW + (x + ox)];
+            for (let oy = -1; oy <= 1; oy += 1) {
+                for (let ox = -1; ox <= 1; ox += 1) {
+                    if (ox === 0 && oy === 0) {
+                        continue;
                     }
-                }
 
-                next[index] = neighbors >= 3 ? 1 : 0;
+                    neighbors += ink[(y + oy) * cropW + (x + ox)];
+                }
+            }
+
+            cleaned[index] = neighbors >= 2 ? 1 : 0;
+        }
+    }
+
+    for (let y = 1; y < cropH - 1; y += 1) {
+        for (let x = 1; x < cropW - 1; x += 1) {
+            const index = y * cropW + x;
+
+            if (cleaned[index] === 1) {
+                continue;
+            }
+
+            let neighbors = 0;
+
+            for (let oy = -1; oy <= 1; oy += 1) {
+                for (let ox = -1; ox <= 1; ox += 1) {
+                    if (ox === 0 && oy === 0) {
+                        continue;
+                    }
+
+                    neighbors += cleaned[(y + oy) * cropW + (x + ox)];
+                }
+            }
+
+            if (neighbors >= 4) {
+                cleaned[index] = 1;
+                tone[index] = 42;
             }
         }
-
-        kept = next;
     }
 
     const print = ctx.createImageData(cropW, cropH);
     const printData = print.data;
 
-    for (let i = 0; i < kept.length; i += 1) {
+    for (let i = 0; i < cleaned.length; i += 1) {
         const index = i * 4;
-        const value = kept[i] ? 255 - tone[i] : 255;
+        const value = cleaned[i] ? tone[i] : 255;
         printData[index] = value;
         printData[index + 1] = value;
         printData[index + 2] = value;
