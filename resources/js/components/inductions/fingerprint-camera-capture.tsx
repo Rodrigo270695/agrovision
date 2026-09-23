@@ -447,7 +447,7 @@ function toFingerprintImage(
 
             const pixel = sourceY * width + sourceX;
             const delta = detail[pixel];
-            const crest = Math.max(3.2, localLevel[pixel] * 1.72);
+            const crest = Math.max(2.6, localLevel[pixel] * 1.48);
 
             if (delta < crest || edge[pixel] > edgeCut + 14) {
                 continue;
@@ -479,16 +479,44 @@ function toFingerprintImage(
                 }
             }
 
-            cleaned[index] = neighbors >= 1 ? 1 : 0;
+            cleaned[index] = neighbors >= 2 ? 1 : 0;
+        }
+    }
+
+    const bridged = new Uint8Array(cleaned);
+
+    for (let y = 1; y < cropH - 1; y += 1) {
+        for (let x = 1; x < cropW - 1; x += 1) {
+            const index = y * cropW + x;
+
+            if (cleaned[index] === 1) {
+                continue;
+            }
+
+            let neighbors = 0;
+
+            for (let oy = -1; oy <= 1; oy += 1) {
+                for (let ox = -1; ox <= 1; ox += 1) {
+                    if (ox === 0 && oy === 0) {
+                        continue;
+                    }
+
+                    neighbors += cleaned[(y + oy) * cropW + (x + ox)];
+                }
+            }
+
+            if (neighbors === 2 || neighbors === 3) {
+                bridged[index] = 1;
+            }
         }
     }
 
     const print = ctx.createImageData(cropW, cropH);
     const printData = print.data;
 
-    for (let i = 0; i < cleaned.length; i += 1) {
+    for (let i = 0; i < bridged.length; i += 1) {
         const index = i * 4;
-        const value = cleaned[i] ? 28 : 255;
+        const value = bridged[i] ? 28 : 255;
         printData[index] = value;
         printData[index + 1] = value;
         printData[index + 2] = value;
@@ -555,6 +583,21 @@ export function FingerprintCameraCapture({
     useEffect(() => {
         setPreview(valueUrl ?? null);
     }, [valueUrl]);
+
+    useEffect(() => {
+        const video = videoRef.current;
+        const stream = streamRef.current;
+
+        if (!active || !video || !stream) {
+            return;
+        }
+
+        if (video.srcObject !== stream) {
+            video.srcObject = stream;
+        }
+
+        void video.play().catch(() => undefined);
+    }, [active]);
 
     useEffect(() => {
         return () => stopStream();
@@ -715,24 +758,23 @@ export function FingerprintCameraCapture({
     return (
         <div className={cn('space-y-2', className)}>
             <div className="relative mx-auto aspect-4/5 w-full max-w-48 overflow-hidden rounded-xl border border-dashed border-[#c5d5e6] bg-[#0f172a]">
+                <video
+                    ref={videoRef}
+                    muted
+                    playsInline
+                    autoPlay
+                    className={cn(
+                        'h-full w-full object-cover',
+                        !active && 'opacity-0',
+                    )}
+                />
                 {preview && !active ? (
                     <img
                         src={preview}
                         alt="Huella capturada"
-                        className="h-full w-full bg-white object-contain"
+                        className="absolute inset-0 h-full w-full bg-white object-contain"
                     />
-                ) : (
-                    <video
-                        ref={videoRef}
-                        muted
-                        playsInline
-                        autoPlay
-                        className={cn(
-                            'h-full w-full object-cover',
-                            !active && 'opacity-0',
-                        )}
-                    />
-                )}
+                ) : null}
 
                 {active ? (
                     <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
