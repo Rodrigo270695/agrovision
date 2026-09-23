@@ -2,6 +2,7 @@ import { Search } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
+import { SearchableCombobox } from '@/components/shared/searchable-combobox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -313,25 +314,22 @@ export function UserFormFields({
                         <span className="text-red-500">*</span>
                     ) : null}
                 </Label>
-                <Select
-                    value={values.place_id || undefined}
-                    onValueChange={(value) => onChange('place_id', value)}
-                >
-                    <SelectTrigger className="h-11 w-full cursor-pointer border-[#c5d5e6] bg-white text-[#1a2b4c]">
-                        <SelectValue placeholder="Selecciona un lugar" />
-                    </SelectTrigger>
-                    <SelectContent className="border-[#d7e3f0] bg-white">
-                        {places.map((place) => (
-                            <SelectItem
-                                key={place.id}
-                                value={String(place.id)}
-                                className="cursor-pointer"
-                            >
-                                {place.name}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <SearchableCombobox
+                    id="user-place"
+                    value={values.place_id || null}
+                    options={(places ?? []).map((place) => ({
+                        value: String(place.id),
+                        label: place.name,
+                    }))}
+                    onChange={(value) => onChange('place_id', value ?? '')}
+                    placeholder="Buscar lugar..."
+                    emptyMessage={
+                        (places ?? []).length === 0
+                            ? 'No hay lugares activos. Créalos en Lugares.'
+                            : 'Sin coincidencias'
+                    }
+                    allowClear={!requiresPlace}
+                />
                 <InputError message={errors.place_id} />
                 <p className="text-xs text-[#6b8ead]">
                     Obligatorio para coordinadores e inspectores.

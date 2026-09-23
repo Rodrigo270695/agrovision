@@ -4,17 +4,11 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { UserItem } from '@/components/users/users-table';
 import InputError from '@/components/input-error';
 import { AppModal } from '@/components/shared/app-modal';
+import { SearchableCombobox } from '@/components/shared/searchable-combobox';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 
@@ -173,27 +167,25 @@ export function UserRolesModal({
                             <Label className="text-xs text-[#1a2b4c]">
                                 Lugar <span className="text-red-500">*</span>
                             </Label>
-                            <Select
-                                value={form.data.place_id || undefined}
-                                onValueChange={(value) =>
-                                    form.setData('place_id', value)
+                            <SearchableCombobox
+                                id="user-roles-place"
+                                value={form.data.place_id || null}
+                                options={places.map((place) => ({
+                                    value: String(place.id),
+                                    label: place.name,
+                                }))}
+                                onChange={(value) =>
+                                    form.setData('place_id', value ?? '')
                                 }
-                            >
-                                <SelectTrigger className="h-9 w-full cursor-pointer border-[#c5d5e6] bg-white text-xs text-[#1a2b4c]">
-                                    <SelectValue placeholder="Selecciona un lugar" />
-                                </SelectTrigger>
-                                <SelectContent className="border-[#d7e3f0] bg-white">
-                                    {places.map((place) => (
-                                        <SelectItem
-                                            key={place.id}
-                                            value={String(place.id)}
-                                            className="cursor-pointer"
-                                        >
-                                            {place.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                placeholder="Buscar lugar..."
+                                emptyMessage={
+                                    places.length === 0
+                                        ? 'No hay lugares activos. Créalos en Lugares.'
+                                        : 'Sin coincidencias'
+                                }
+                                allowClear={false}
+                                disabled={form.processing}
+                            />
                             <InputError message={form.errors.place_id} />
                         </div>
                     ) : null}

@@ -363,3 +363,8 @@
     }
 }
 
+/* Radix Dialog bloquea el body. El select se pinta fuera del modal. */
+body[data-scroll-locked] [data-portal-dropdown] {
+    pointer-events: auto;
+}
+
