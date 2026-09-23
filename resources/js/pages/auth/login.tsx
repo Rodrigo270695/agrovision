@@ -91,14 +91,16 @@ export default function Login({ status }: Props) {
                         )}
                     >
                         <div className="flex flex-1 flex-col justify-center">
-                            <div className="mb-10 flex justify-center">
-                                <div className="rounded-[1.75rem] bg-[#f7f8fb] px-8 py-5 shadow-[0_22px_50px_rgba(4,10,24,0.42)]">
-                                    <img
-                                        src="/logo.png"
-                                        alt="Grupo Indelsi"
-                                        className="h-44 w-auto max-w-[min(100%,22rem)] object-contain xl:h-52"
-                                    />
-                                </div>
+                            <div className="relative mb-10 flex justify-center py-4">
+                                <div
+                                    aria-hidden
+                                    className="pointer-events-none absolute top-1/2 left-1/2 h-80 w-[36rem] max-w-[125%] -translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.94)_0%,rgba(236,242,248,0.62)_32%,rgba(160,184,210,0.16)_58%,transparent_76%)]"
+                                />
+                                <img
+                                    src="/logo.png"
+                                    alt="Grupo Indelsi"
+                                    className="relative z-10 h-48 w-auto max-w-[min(100%,24rem)] object-contain xl:h-56"
+                                />
                             </div>
 
                             <div className="border-l-2 border-[#f5c440] pl-6">
@@ -168,11 +170,15 @@ export default function Login({ status }: Props) {
                     <div className="login-hero-media absolute inset-0" />
                     <div className="login-hex-grid pointer-events-none absolute inset-0 opacity-40" />
                     <div className="relative z-10 flex flex-col items-center px-5 py-6 text-center">
-                        <div className="rounded-2xl bg-[#f7f8fb] px-5 py-3 shadow-[0_16px_36px_rgba(4,10,24,0.4)]">
+                        <div className="relative flex justify-center py-2">
+                            <div
+                                aria-hidden
+                                className="pointer-events-none absolute top-1/2 left-1/2 h-44 w-72 -translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.94)_0%,rgba(236,242,248,0.55)_36%,transparent_74%)]"
+                            />
                             <img
                                 src="/logo.png"
                                 alt="Grupo Indelsi"
-                                className="h-24 w-auto max-w-[15rem] object-contain"
+                                className="relative z-10 h-24 w-auto max-w-[15rem] object-contain"
                             />
                         </div>
                         <p className="mt-5 text-[10px] font-medium tracking-[0.2em] text-[#d4b056] uppercase">
