@@ -425,30 +425,14 @@ function toFingerprintImage(
     const centerY = (minY + maxY) / 2;
     const radiusX = Math.max(8, (maxX - minX) / 2);
     const radiusY = Math.max(8, (maxY - minY) / 2);
-    const ridgeSamples: number[] = [];
+    const positive = new Float32Array(detail.length);
 
-    for (let y = minY; y <= maxY; y += 2) {
-        for (let x = minX; x <= maxX; x += 2) {
-            const nx = (x - centerX) / radiusX;
-            const ny = (y - centerY) / radiusY;
-
-            if (nx * nx + ny * ny > 0.9) {
-                continue;
-            }
-
-            const delta = detail[y * width + x];
-
-            if (delta > 0) {
-                ridgeSamples.push(delta);
-            }
-        }
+    for (let i = 0; i < detail.length; i += 1) {
+        positive[i] = detail[i] > 0 ? detail[i] : 0;
     }
 
-    const ridgeCut = Math.max(2, percentile(ridgeSamples, 0.18));
-    const ridgeHigh = Math.max(ridgeCut + 6, percentile(ridgeSamples, 0.9));
-    const span = ridgeHigh - ridgeCut;
+    const localLevel = boxBlur(positive, width, height, 6);
     const ink = new Uint8Array(cropW * cropH);
-    const tone = new Uint8Array(cropW * cropH);
 
     for (let y = 0; y < cropH; y += 1) {
         for (let x = 0; x < cropW; x += 1) {
@@ -461,16 +445,15 @@ function toFingerprintImage(
                 continue;
             }
 
-            const delta = detail[sourceY * width + sourceX];
+            const pixel = sourceY * width + sourceX;
+            const delta = detail[pixel];
+            const crest = Math.max(3.2, localLevel[pixel] * 1.72);
 
-            if (delta < ridgeCut || edge[sourceY * width + sourceX] > edgeCut + 14) {
+            if (delta < crest || edge[pixel] > edgeCut + 14) {
                 continue;
             }
 
-            const strength = Math.min(1, (delta - ridgeCut) / span);
-            const index = y * cropW + x;
-            ink[index] = 1;
-            tone[index] = Math.round(78 - strength * 58);
+            ink[y * cropW + x] = 1;
         }
     }
 
@@ -496,34 +479,7 @@ function toFingerprintImage(
                 }
             }
 
-            cleaned[index] = neighbors >= 2 ? 1 : 0;
-        }
-    }
-
-    for (let y = 1; y < cropH - 1; y += 1) {
-        for (let x = 1; x < cropW - 1; x += 1) {
-            const index = y * cropW + x;
-
-            if (cleaned[index] === 1) {
-                continue;
-            }
-
-            let neighbors = 0;
-
-            for (let oy = -1; oy <= 1; oy += 1) {
-                for (let ox = -1; ox <= 1; ox += 1) {
-                    if (ox === 0 && oy === 0) {
-                        continue;
-                    }
-
-                    neighbors += cleaned[(y + oy) * cropW + (x + ox)];
-                }
-            }
-
-            if (neighbors >= 4) {
-                cleaned[index] = 1;
-                tone[index] = 42;
-            }
+            cleaned[index] = neighbors >= 1 ? 1 : 0;
         }
     }
 
@@ -532,7 +488,7 @@ function toFingerprintImage(
 
     for (let i = 0; i < cleaned.length; i += 1) {
         const index = i * 4;
-        const value = cleaned[i] ? tone[i] : 255;
+        const value = cleaned[i] ? 28 : 255;
         printData[index] = value;
         printData[index + 1] = value;
         printData[index + 2] = value;
