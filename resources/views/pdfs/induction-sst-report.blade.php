@@ -70,9 +70,9 @@
         </td>
         <td style="width: 30%; text-align: right;">
             @if (! empty($logoSrc))
-                <img class="logo" src="{{ $logoSrc }}" alt="Agrovision">
-            @else
-                <strong>AGROVISION</strong>
+                <img class="logo" src="{{ $logoSrc }}" alt="{{ $companyName ?? 'Logo' }}">
+            @elseif (! empty($companyName))
+                <strong>{{ $companyName }}</strong>
             @endif
         </td>
     </tr>

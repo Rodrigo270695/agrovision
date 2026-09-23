@@ -65,11 +65,17 @@ export default function ConfirmPassword() {
                         )}
                     >
                         <div className="rounded-3xl bg-white px-8 py-6 shadow-[0_16px_40px_rgba(0,0,0,0.25)] ring-4 ring-[#4a90e2]/45">
-                            <img
-                                src="/logo.png"
-                                alt="Grupo Indelsi"
-                                className="mx-auto h-32 w-auto max-w-[300px] object-contain xl:h-36 xl:max-w-[340px]"
-                            />
+                            {tenant?.login_logo || tenant?.logo ? (
+                                <img
+                                    src={tenant?.login_logo ?? tenant?.logo ?? ''}
+                                    alt={tenant?.name ?? 'Empresa'}
+                                    className="mx-auto h-32 w-auto max-w-[300px] object-contain xl:h-36 xl:max-w-[340px]"
+                                />
+                            ) : (
+                                <span className="font-display text-2xl font-semibold text-[#122038]">
+                                    {tenant?.name ?? 'Empresa'}
+                                </span>
+                            )}
                         </div>
 
                         <div className="max-w-lg space-y-4">
@@ -102,11 +108,17 @@ export default function ConfirmPassword() {
                     >
                         <div className="mb-5 flex flex-col items-center gap-3 text-center">
                             <div className="rounded-2xl bg-white px-5 py-3 shadow-sm ring-2 ring-[#4a90e2]/35 lg:hidden">
-                                <img
-                                    src="/logo.png"
-                                    alt="Grupo Indelsi"
-                                    className="mx-auto h-16 w-auto max-w-[200px] object-contain"
-                                />
+                                {tenant?.login_logo || tenant?.logo ? (
+                                    <img
+                                        src={tenant?.login_logo ?? tenant?.logo ?? ''}
+                                        alt={tenant?.name ?? 'Empresa'}
+                                        className="mx-auto h-16 w-auto max-w-[200px] object-contain"
+                                    />
+                                ) : (
+                                    <span className="font-display text-lg font-semibold text-[#122038]">
+                                        {tenant?.name ?? 'Empresa'}
+                                    </span>
+                                )}
                             </div>
                             <div className="w-full rounded-2xl border border-[#e2eaf3] bg-[#f7fafc] px-4 py-3">
                                 <p className="mb-2 text-[10px] font-semibold tracking-[0.2em] text-[#6b8ead] uppercase">

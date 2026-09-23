@@ -49,9 +49,9 @@
     <tr>
         <td style="width: 14%; text-align: center;">
             @if ($logoSrc)
-                <img class="logo" src="{{ $logoSrc }}" alt="Agrovision">
-            @else
-                <strong>AGROVISION</strong>
+                <img class="logo" src="{{ $logoSrc }}" alt="{{ $companyName ?? 'Logo' }}">
+            @elseif (! empty($companyName))
+                <strong>{{ $companyName }}</strong>
             @endif
         </td>
         <td style="width: 58%;" class="title">
@@ -189,9 +189,9 @@
         <tr>
             <td style="width: 14%; text-align: center;">
                 @if ($logoSrc)
-                    <img class="logo" src="{{ $logoSrc }}" alt="Agrovision">
-                @else
-                    <strong>AGROVISION</strong>
+                    <img class="logo" src="{{ $logoSrc }}" alt="{{ $companyName ?? 'Logo' }}">
+                @elseif (! empty($companyName))
+                    <strong>{{ $companyName }}</strong>
                 @endif
             </td>
             <td style="width: 58%;" class="title">
@@ -250,9 +250,9 @@
         <tr>
             <td style="width: 14%; text-align: center;">
                 @if ($logoSrc)
-                    <img class="logo" src="{{ $logoSrc }}" alt="Agrovision">
-                @else
-                    <strong>AGROVISION</strong>
+                    <img class="logo" src="{{ $logoSrc }}" alt="{{ $companyName ?? 'Logo' }}">
+                @elseif (! empty($companyName))
+                    <strong>{{ $companyName }}</strong>
                 @endif
             </td>
             <td style="width: 58%;" class="title">

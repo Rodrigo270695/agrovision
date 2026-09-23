@@ -35,9 +35,9 @@
     <tr>
         <td style="width: 18%; text-align: center;">
             @if (! empty($logoSrc))
-                <img class="logo" src="{{ $logoSrc }}" alt="Agrovision">
-            @else
-                <strong>AGROVISIÓN</strong>
+                <img class="logo" src="{{ $logoSrc }}" alt="{{ $companyName ?? 'Logo' }}">
+            @elseif (! empty($companyName))
+                <strong>{{ $companyName }}</strong>
             @endif
         </td>
         <td style="width: 52%;" class="title">

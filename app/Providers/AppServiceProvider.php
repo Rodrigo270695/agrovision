@@ -4,11 +4,13 @@ namespace App\Providers;
 
 use App\Models\UnitChecklist;
 use App\Models\UnitChecklistPhoto;
+use App\Support\PdfLogo;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Fortify\Contracts\LoginResponse;
@@ -42,6 +44,18 @@ class AppServiceProvider extends ServiceProvider
 
         Route::bind('checklist', fn (string $value) => UnitChecklist::query()->findOrFail($value));
         Route::bind('photo', fn (string $value) => UnitChecklistPhoto::query()->findOrFail($value));
+
+        View::composer('pdfs.*', function ($view): void {
+            $data = $view->getData();
+
+            if (! array_key_exists('logoSrc', $data)) {
+                $view->with('logoSrc', PdfLogo::dataUri());
+            }
+
+            if (! array_key_exists('companyName', $data)) {
+                $view->with('companyName', PdfLogo::companyName());
+            }
+        });
 
         Gate::before(function ($user, $ability) {
             if (! tenancy()->initialized) {

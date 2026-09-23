@@ -7,6 +7,7 @@ namespace App\Providers;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Permission\PermissionRegistrar;
 use Stancl\JobPipeline\JobPipeline;
@@ -124,6 +125,8 @@ class TenancyServiceProvider extends ServiceProvider
             'fortify.passkeys.relying_party_id' => request()->getHost(),
             'fortify.passkeys.allowed_origins' => [$hostUrl],
         ]);
+
+        Storage::forgetDisk('public');
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }

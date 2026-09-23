@@ -68,9 +68,9 @@
     <tr>
         <td style="width: 16%; text-align: center;">
             @if ($logoSrc)
-                <img class="logo" src="{{ $logoSrc }}" alt="Agrovision">
-            @else
-                <strong>REGLAMENTO</strong>
+                <img class="logo" src="{{ $logoSrc }}" alt="{{ $companyName ?? 'Logo' }}">
+            @elseif (! empty($companyName))
+                <strong>{{ $companyName }}</strong>
             @endif
         </td>
         <td style="width: 54%;" class="title">
