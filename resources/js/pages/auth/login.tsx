@@ -95,7 +95,7 @@ export default function Login({ status }: Props) {
                                 <img
                                     src="/logo.png"
                                     alt="Grupo Indelsi"
-                                    className="h-60 w-auto max-w-[min(100%,26rem)] rounded-2xl border-[3px] border-white object-contain p-4 xl:h-72"
+                                    className="h-60 w-auto max-w-[min(100%,26rem)] object-contain [filter:drop-shadow(0_0_10px_rgba(255,255,255,0.95))_drop-shadow(0_0_28px_rgba(255,255,255,0.55))_drop-shadow(0_8px_24px_rgba(255,255,255,0.22))] xl:h-72"
                                 />
                             </div>
 
@@ -104,7 +104,7 @@ export default function Login({ status }: Props) {
                                     Seguridad y salud en el trabajo
                                 </p>
                                 <h2 className="font-display mt-3 max-w-[15ch] text-[2.75rem] leading-[1.08] font-semibold tracking-[-0.035em] text-white xl:text-[3.15rem]">
-                                    Cuidar a la gente. Controlar el riesgo.
+                                    Tu Seguridad es nuestro compromiso diario.
                                 </h2>
                             </div>
 
@@ -169,7 +169,7 @@ export default function Login({ status }: Props) {
                         <img
                             src="/logo.png"
                             alt="Grupo Indelsi"
-                            className="h-28 w-auto max-w-[16rem] rounded-xl border-2 border-white object-contain p-2.5"
+                            className="h-28 w-auto max-w-[16rem] object-contain [filter:drop-shadow(0_0_8px_rgba(255,255,255,0.95))_drop-shadow(0_0_22px_rgba(255,255,255,0.5))]"
                         />
                         <p className="mt-5 text-[10px] font-medium tracking-[0.2em] text-[#d4b056] uppercase">
                             Seguridad y salud en el trabajo
