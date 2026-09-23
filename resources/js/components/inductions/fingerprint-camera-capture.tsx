@@ -152,6 +152,31 @@ function boxBlur(
     return output;
 }
 
+function sampleBilinear(
+    source: Float32Array,
+    width: number,
+    height: number,
+    x: number,
+    y: number,
+): number {
+    if (x < 0 || y < 0 || x >= width - 1 || y >= height - 1) {
+        return 0;
+    }
+
+    const x0 = Math.floor(x);
+    const y0 = Math.floor(y);
+    const fx = x - x0;
+    const fy = y - y0;
+    const index = y0 * width + x0;
+
+    return (
+        source[index] * (1 - fx) * (1 - fy) +
+        source[index + 1] * fx * (1 - fy) +
+        source[index + width] * (1 - fx) * fy +
+        source[index + width + 1] * fx * fy
+    );
+}
+
 function percentile(values: number[], p: number): number {
     if (values.length === 0) {
         return 0;
@@ -425,14 +450,17 @@ function toFingerprintImage(
     const centerY = (minY + maxY) / 2;
     const radiusX = Math.max(8, (maxX - minX) / 2);
     const radiusY = Math.max(8, (maxY - minY) / 2);
-    const positive = new Float32Array(detail.length);
+    const smooth = boxBlur(detail, 1);
+    const positive = new Float32Array(smooth.length);
 
-    for (let i = 0; i < detail.length; i += 1) {
-        positive[i] = detail[i] > 0 ? detail[i] : 0;
+    for (let i = 0; i < smooth.length; i += 1) {
+        positive[i] = smooth[i] > 0 ? smooth[i] : 0;
     }
 
-    const localLevel = boxBlur(positive, width, height, 6);
+    const localLevel = boxBlur(positive, width, height, 5);
     const ink = new Uint8Array(cropW * cropH);
+    const tangentX = new Int8Array(cropW * cropH);
+    const tangentY = new Int8Array(cropW * cropH);
 
     for (let y = 0; y < cropH; y += 1) {
         for (let x = 0; x < cropW; x += 1) {
@@ -441,72 +469,125 @@ function toFingerprintImage(
             const nx = (sourceX - centerX) / radiusX;
             const ny = (sourceY - centerY) / radiusY;
 
-            if (nx * nx + ny * ny > 1) {
+            if (
+                nx * nx + ny * ny > 1 ||
+                sourceX <= 0 ||
+                sourceY <= 0 ||
+                sourceX >= width - 1 ||
+                sourceY >= height - 1
+            ) {
                 continue;
             }
 
             const pixel = sourceY * width + sourceX;
-            const delta = detail[pixel];
-            const crest = Math.max(2.6, localLevel[pixel] * 1.48);
+            const value = smooth[pixel];
+            const crest = Math.max(1.6, localLevel[pixel] * 0.9);
 
-            if (delta < crest || edge[pixel] > edgeCut + 14) {
+            if (value < crest || edge[pixel] > edgeCut + 14) {
                 continue;
             }
 
-            ink[y * cropW + x] = 1;
+            const gx = smooth[pixel + 1] - smooth[pixel - 1];
+            const gy = smooth[pixel + width] - smooth[pixel - width];
+            const magnitude = Math.hypot(gx, gy);
+
+            if (magnitude < 0.35) {
+                continue;
+            }
+
+            const acrossX = gx / magnitude;
+            const acrossY = gy / magnitude;
+            const left = sampleBilinear(
+                smooth,
+                width,
+                height,
+                sourceX - acrossX,
+                sourceY - acrossY,
+            );
+            const right = sampleBilinear(
+                smooth,
+                width,
+                height,
+                sourceX + acrossX,
+                sourceY + acrossY,
+            );
+
+            if (value < left || value < right) {
+                continue;
+            }
+
+            if (value - (left + right) / 2 < 0.35) {
+                continue;
+            }
+
+            let tx = -acrossY;
+            let ty = acrossX;
+
+            if (Math.abs(tx) >= Math.abs(ty)) {
+                ty = Math.abs(ty) > 0.4 ? (ty >= 0 ? 1 : -1) : 0;
+                tx = tx >= 0 ? 1 : -1;
+            } else {
+                tx = Math.abs(tx) > 0.4 ? (tx >= 0 ? 1 : -1) : 0;
+                ty = ty >= 0 ? 1 : -1;
+            }
+
+            const index = y * cropW + x;
+            ink[index] = 1;
+            tangentX[index] = tx;
+            tangentY[index] = ty;
         }
     }
 
-    const cleaned = new Uint8Array(ink.length);
+    const lines = new Uint8Array(ink);
 
-    for (let y = 1; y < cropH - 1; y += 1) {
-        for (let x = 1; x < cropW - 1; x += 1) {
+    const mark = (x: number, y: number) => {
+        if (x < 0 || y < 0 || x >= cropW || y >= cropH) {
+            return;
+        }
+
+        lines[y * cropW + x] = 1;
+    };
+
+    for (let y = 0; y < cropH; y += 1) {
+        for (let x = 0; x < cropW; x += 1) {
             const index = y * cropW + x;
 
             if (ink[index] === 0) {
                 continue;
             }
 
-            let neighbors = 0;
+            const tx = tangentX[index];
+            const ty = tangentY[index];
 
-            for (let oy = -1; oy <= 1; oy += 1) {
-                for (let ox = -1; ox <= 1; ox += 1) {
-                    if (ox === 0 && oy === 0) {
-                        continue;
-                    }
-
-                    neighbors += ink[(y + oy) * cropW + (x + ox)];
-                }
-            }
-
-            cleaned[index] = neighbors >= 2 ? 1 : 0;
-        }
-    }
-
-    const bridged = new Uint8Array(cleaned);
-
-    for (let y = 1; y < cropH - 1; y += 1) {
-        for (let x = 1; x < cropW - 1; x += 1) {
-            const index = y * cropW + x;
-
-            if (cleaned[index] === 1) {
+            if (tx === 0 && ty === 0) {
                 continue;
             }
 
-            let neighbors = 0;
+            mark(x + tx, y + ty);
+            mark(x - tx, y - ty);
 
-            for (let oy = -1; oy <= 1; oy += 1) {
-                for (let ox = -1; ox <= 1; ox += 1) {
-                    if (ox === 0 && oy === 0) {
-                        continue;
-                    }
+            for (let step = 2; step <= 4; step += 1) {
+                const nextX = x + tx * step;
+                const nextY = y + ty * step;
 
-                    neighbors += cleaned[(y + oy) * cropW + (x + ox)];
+                if (
+                    nextX < 0 ||
+                    nextY < 0 ||
+                    nextX >= cropW ||
+                    nextY >= cropH
+                ) {
+                    break;
                 }
-            }
 
-            if (neighbors === 2 || neighbors === 3) {
-                bridged[index] = 1;
+                if (ink[nextY * cropW + nextX] === 0) {
+                    continue;
+                }
+
+                for (let fill = 1; fill < step; fill += 1) {
+                    mark(x + tx * fill, y + ty * fill);
+                }
+
+                break;
             }
         }
     }
@@ -514,9 +595,9 @@ function toFingerprintImage(
     const print = ctx.createImageData(cropW, cropH);
     const printData = print.data;
 
-    for (let i = 0; i < bridged.length; i += 1) {
+    for (let i = 0; i < lines.length; i += 1) {
         const index = i * 4;
-        const value = bridged[i] ? 28 : 255;
+        const value = lines[i] ? 24 : 255;
         printData[index] = value;
         printData[index + 1] = value;
         printData[index + 2] = value;
