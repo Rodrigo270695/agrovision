@@ -82,6 +82,6 @@ class UnitDocument extends Model
 
     public function url(): string
     {
-        return '/storage/'.ltrim($this->path, '/');
+        return \App\Support\PublicDisk::url($this->path) ?? '';
     }
 }

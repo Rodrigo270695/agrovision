@@ -172,7 +172,7 @@ class Induction extends Model
             return null;
         }
 
-        return '/storage/'.ltrim($this->speaker_signature_path, '/');
+        return \App\Support\PublicDisk::url($this->speaker_signature_path);
     }
 
     public function hasVerificationPhoto(): bool
@@ -186,7 +186,7 @@ class Induction extends Model
             return null;
         }
 
-        return '/storage/'.ltrim($this->verification_photo_path, '/');
+        return \App\Support\PublicDisk::url($this->verification_photo_path);
     }
 
     public function deleteVerificationPhotoFile(): void

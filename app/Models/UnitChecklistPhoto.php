@@ -62,7 +62,6 @@ class UnitChecklistPhoto extends Model
 
     public function url(): string
     {
-        // Ruta relativa: evita dependencias de APP_URL/puerto/dominio (Herd, artisan serve, etc.)
-        return '/storage/'.ltrim($this->path, '/');
+        return \App\Support\PublicDisk::url($this->path) ?? '';
     }
 }

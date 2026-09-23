@@ -51,7 +51,7 @@ class UnitChecklistSignature extends Model
             return null;
         }
 
-        return '/storage/'.ltrim($this->signature_path, '/');
+        return \App\Support\PublicDisk::url($this->signature_path);
     }
 
     public function deleteSignatureFile(): void

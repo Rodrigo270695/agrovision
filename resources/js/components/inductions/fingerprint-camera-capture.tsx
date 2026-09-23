@@ -60,8 +60,8 @@ function ovalSourceRect(
         visibleY = (videoHeight - visibleH) / 2;
     }
 
-    const sw = visibleW * 0.48;
-    const sh = visibleH * 0.58;
+    const sw = visibleW * 0.72;
+    const sh = visibleH * 0.78;
 
     return {
         sx: visibleX + (visibleW - sw) / 2,
@@ -106,6 +106,53 @@ function sharpnessScore(image: ImageData): number {
     return sumSq / count - mean * mean;
 }
 
+function boxBlur(
+    source: Float32Array,
+    width: number,
+    height: number,
+    radius: number,
+): Float32Array {
+    const horizontal = new Float32Array(source.length);
+    const output = new Float32Array(source.length);
+    const windowSize = radius * 2 + 1;
+
+    for (let y = 0; y < height; y++) {
+        let sum = 0;
+
+        for (let x = -radius; x <= radius; x++) {
+            sum += source[y * width + Math.min(width - 1, Math.max(0, x))];
+        }
+
+        for (let x = 0; x < width; x++) {
+            horizontal[y * width + x] = sum / windowSize;
+            const removeX = x - radius;
+            const addX = x + radius + 1;
+            sum -= source[y * width + Math.min(width - 1, Math.max(0, removeX))];
+            sum += source[y * width + Math.min(width - 1, Math.max(0, addX))];
+        }
+    }
+
+    for (let x = 0; x < width; x++) {
+        let sum = 0;
+
+        for (let y = -radius; y <= radius; y++) {
+            sum += horizontal[Math.min(height - 1, Math.max(0, y)) * width + x];
+        }
+
+        for (let y = 0; y < height; y++) {
+            output[y * width + x] = sum / windowSize;
+            const removeY = y - radius;
+            const addY = y + radius + 1;
+            sum -=
+                horizontal[Math.min(height - 1, Math.max(0, removeY)) * width + x];
+            sum +=
+                horizontal[Math.min(height - 1, Math.max(0, addY)) * width + x];
+        }
+    }
+
+    return output;
+}
+
 function toFingerprintImage(
     source: CanvasImageSource,
     sourceWidth: number,
@@ -135,19 +182,37 @@ function toFingerprintImage(
 
     const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const sharpness = sharpnessScore(image);
-    const data = image.data;
+    const { data, width, height } = image;
+    const gray = new Float32Array(width * height);
 
-    for (let i = 0; i < data.length; i += 4) {
-        const gray =
+    for (let i = 0, pixel = 0; i < data.length; i += 4, pixel += 1) {
+        gray[pixel] =
             0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        const contrasted = Math.min(
-            255,
-            Math.max(0, (gray - 105) * 1.7 + 128),
-        );
-        const bw = contrasted > 150 ? 248 : contrasted < 88 ? 18 : contrasted;
-        data[i] = bw;
-        data[i + 1] = bw;
-        data[i + 2] = bw;
+    }
+
+    const blur = boxBlur(gray, width, height, 2);
+    const detail = new Float32Array(gray.length);
+    const samples: number[] = [];
+
+    for (let pixel = 0; pixel < gray.length; pixel += 1) {
+        detail[pixel] = gray[pixel] - blur[pixel];
+
+        if (pixel % 6 === 0) {
+            samples.push(detail[pixel]);
+        }
+    }
+
+    samples.sort((a, b) => a - b);
+    const low = samples[Math.floor(samples.length * 0.06)] ?? -12;
+    const high = samples[Math.floor(samples.length * 0.94)] ?? 12;
+    const span = Math.max(10, high - low);
+
+    for (let i = 0, pixel = 0; i < data.length; i += 4, pixel += 1) {
+        const stretched = ((detail[pixel] - low) / span) * 255;
+        const ink = Math.min(255, Math.max(0, 255 - stretched));
+        data[i] = ink;
+        data[i + 1] = ink;
+        data[i + 2] = ink;
     }
 
     ctx.putImageData(image, 0, 0);
@@ -347,7 +412,7 @@ export function FingerprintCameraCapture({
                     <img
                         src={preview}
                         alt="Huella capturada"
-                        className="h-full w-full object-cover"
+                        className="h-full w-full bg-white object-contain"
                     />
                 ) : (
                     <video
@@ -364,7 +429,7 @@ export function FingerprintCameraCapture({
 
                 {active ? (
                     <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                        <div className="h-[58%] w-[48%] rounded-[45%] border-2 border-emerald-300/90 shadow-[0_0_0_999px_rgba(15,23,42,0.35)]" />
+                        <div className="h-[78%] w-[72%] rounded-[45%] border-2 border-emerald-300/90 shadow-[0_0_0_999px_rgba(15,23,42,0.35)]" />
                     </div>
                 ) : null}
 
@@ -384,8 +449,8 @@ export function FingerprintCameraCapture({
                 <p className="text-center text-[11px] text-[#6b8ead]">
                     {active
                         ? torchOn
-                            ? 'Flash encendido. Acerca el dedo al óvalo hasta ver los surcos y toma la foto.'
-                            : 'Acerca el dedo al óvalo hasta ver los surcos y toma la foto.'
+                            ? 'Flash encendido. Centra la yema del dedo en el óvalo, no el borde, y toma la foto.'
+                            : 'Centra la yema del dedo en el óvalo, no el borde, y toma la foto.'
                         : preview
                           ? 'Huella lista. Si no se ven los surcos, vuelve a tomarla.'
                           : 'Se abre la cámara trasera. Es una sola foto, no un video.'}

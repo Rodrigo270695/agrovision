@@ -118,7 +118,7 @@ class AlcoholTest extends Model
             return null;
         }
 
-        return '/storage/'.ltrim($this->coordinator_signature_path, '/');
+        return \App\Support\PublicDisk::url($this->coordinator_signature_path);
     }
 
     public function evidencePhotoUrl(): ?string
@@ -127,7 +127,7 @@ class AlcoholTest extends Model
             return null;
         }
 
-        return '/storage/'.ltrim($this->evidence_photo_path, '/');
+        return \App\Support\PublicDisk::url($this->evidence_photo_path);
     }
 
     public static function isPositiveLevel(float|string $level): bool

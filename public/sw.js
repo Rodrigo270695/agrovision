@@ -28,6 +28,7 @@ function isSkippablePage(pathname) {
     pathname.startsWith('/livewire') ||
     pathname.startsWith('/build/') ||
     pathname === '/sw.js' ||
+    pathname.startsWith('/storage/') ||
     pathname.endsWith('/pdf')
   );
 }

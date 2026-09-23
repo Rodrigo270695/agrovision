@@ -10,6 +10,7 @@ use App\Http\Controllers\InductionController;
 use App\Http\Controllers\LookupController;
 use App\Http\Controllers\ParetoController;
 use App\Http\Controllers\PeriodController;
+use App\Http\Controllers\PublicFileController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UnitController;
@@ -20,6 +21,10 @@ use App\Http\Middleware\EnsureTenantModule;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['web', EnsureTenantContext::class])->group(function () {
+    Route::get('storage/{path}', [PublicFileController::class, 'show'])
+        ->where('path', '.*')
+        ->name('tenant.storage');
+
     Route::get('impersonate/{token}', ImpersonationController::class)
         ->name('tenants.impersonate');
     Route::post('impersonate/salir', ImpersonationLeaveController::class)
