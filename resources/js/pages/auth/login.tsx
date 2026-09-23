@@ -95,7 +95,7 @@ export default function Login({ status }: Props) {
                                 <img
                                     src="/logo.png"
                                     alt="Grupo Indelsi"
-                                    className="h-60 w-auto max-w-[min(100%,26rem)] object-contain xl:h-72"
+                                    className="h-60 w-auto max-w-[min(100%,26rem)] rounded-2xl border-[3px] border-white object-contain p-4 xl:h-72"
                                 />
                             </div>
 
@@ -169,7 +169,7 @@ export default function Login({ status }: Props) {
                         <img
                             src="/logo.png"
                             alt="Grupo Indelsi"
-                            className="h-28 w-auto max-w-[16rem] object-contain"
+                            className="h-28 w-auto max-w-[16rem] rounded-xl border-2 border-white object-contain p-2.5"
                         />
                         <p className="mt-5 text-[10px] font-medium tracking-[0.2em] text-[#d4b056] uppercase">
                             Seguridad y salud en el trabajo
