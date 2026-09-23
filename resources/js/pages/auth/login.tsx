@@ -92,11 +92,13 @@ export default function Login({ status }: Props) {
                     >
                         <div className="flex flex-1 flex-col justify-center">
                             <div className="mb-10 flex justify-center">
-                                <img
-                                    src="/logo.png"
-                                    alt="Grupo Indelsi"
-                                    className="h-60 w-auto max-w-[min(100%,26rem)] object-contain [filter:drop-shadow(0_0_10px_rgba(255,255,255,0.95))_drop-shadow(0_0_28px_rgba(255,255,255,0.55))_drop-shadow(0_8px_24px_rgba(255,255,255,0.22))] xl:h-72"
-                                />
+                                <div className="rounded-[1.75rem] bg-[#f7f8fb] px-8 py-5 shadow-[0_22px_50px_rgba(4,10,24,0.42)]">
+                                    <img
+                                        src="/logo.png"
+                                        alt="Grupo Indelsi"
+                                        className="h-44 w-auto max-w-[min(100%,22rem)] object-contain xl:h-52"
+                                    />
+                                </div>
                             </div>
 
                             <div className="border-l-2 border-[#f5c440] pl-6">
@@ -166,11 +168,13 @@ export default function Login({ status }: Props) {
                     <div className="login-hero-media absolute inset-0" />
                     <div className="login-hex-grid pointer-events-none absolute inset-0 opacity-40" />
                     <div className="relative z-10 flex flex-col items-center px-5 py-6 text-center">
-                        <img
-                            src="/logo.png"
-                            alt="Grupo Indelsi"
-                            className="h-28 w-auto max-w-[16rem] object-contain [filter:drop-shadow(0_0_8px_rgba(255,255,255,0.95))_drop-shadow(0_0_22px_rgba(255,255,255,0.5))]"
-                        />
+                        <div className="rounded-2xl bg-[#f7f8fb] px-5 py-3 shadow-[0_16px_36px_rgba(4,10,24,0.4)]">
+                            <img
+                                src="/logo.png"
+                                alt="Grupo Indelsi"
+                                className="h-24 w-auto max-w-[15rem] object-contain"
+                            />
+                        </div>
                         <p className="mt-5 text-[10px] font-medium tracking-[0.2em] text-[#d4b056] uppercase">
                             Seguridad y salud en el trabajo
                         </p>
