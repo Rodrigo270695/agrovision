@@ -263,7 +263,7 @@ final class UnitExcelImporter
         $spreadsheet = IOFactory::load($file->getRealPath());
         $sheet = $spreadsheet->getSheetByName('Unidades')
             ?? $spreadsheet->getActiveSheet();
-        $rows = $sheet->toArray(null, true, true, false);
+        $rows = $sheet->toArray(null, true, false, false);
 
         if ($rows === []) {
             return [
@@ -734,33 +734,43 @@ final class UnitExcelImporter
 
     private function parseDate(mixed $value): ?string
     {
-        if ($value === null || trim((string) $value) === '') {
+        if ($value instanceof \DateTimeInterface) {
+            return Carbon::instance(\DateTime::createFromInterface($value))->format('Y-m-d');
+        }
+
+        if ($value === null) {
             return null;
         }
 
         if (is_numeric($value)) {
-            try {
-                return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value))
-                    ->format('Y-m-d');
-            } catch (\Throwable) {
-                return null;
+            $number = (float) $value;
+
+            if ($number > 20000 && $number < 80000) {
+                try {
+                    return Carbon::instance(ExcelDate::excelToDateTimeObject($number))
+                        ->format('Y-m-d');
+                } catch (\Throwable) {
+                    return null;
+                }
             }
         }
 
-        $raw = trim((string) $value);
+        $raw = str_replace(["\xc2\xa0", "\u{00a0}"], ' ', trim((string) $value));
+        $raw = preg_replace('/\s+\d{1,2}:\d{2}(:\d{2})?(\s*[ap]\.?m\.?)?$/i', '', $raw) ?? $raw;
+        $raw = trim($raw);
 
-        if (! preg_match('/^(\d{2})\/(\d{2})\/(\d{4})$/', $raw, $matches)) {
-            return null;
+        foreach (['!d/m/Y', '!j/n/Y', '!d-m-Y', '!j-n-Y', '!d.m.Y', '!Y-m-d', '!d/m/y', '!j/n/y'] as $format) {
+            $parsed = \DateTime::createFromFormat($format, $raw);
+            $errors = \DateTime::getLastErrors();
+
+            if (
+                $parsed instanceof \DateTime
+                && ($errors === false || ($errors['warning_count'] === 0 && $errors['error_count'] === 0))
+            ) {
+                return $parsed->format('Y-m-d');
+            }
         }
 
-        $day = (int) $matches[1];
-        $month = (int) $matches[2];
-        $year = (int) $matches[3];
-
-        if (! checkdate($month, $day, $year)) {
-            return null;
-        }
-
-        return sprintf('%04d-%02d-%02d', $year, $month, $day);
+        return null;
     }
 }
