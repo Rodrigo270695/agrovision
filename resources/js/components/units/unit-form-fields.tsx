@@ -867,12 +867,6 @@ export function UnitFormFields({
                             }
                         />
                     )}
-                    {field.key === 'plate_number' ? (
-                        <p className="text-[11px] text-[#6b8ead]">
-                            3 caracteres, guion y 3 más. Si omites el guion, se
-                            agrega solo.
-                        </p>
-                    ) : null}
                     <InputError
                         message={
                             errors[field.key] ??
