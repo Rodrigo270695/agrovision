@@ -29,8 +29,16 @@ export type UserItem = {
     roles_count: number;
     roles?: UserRoleRef[];
     place_id?: number | null;
-    place?: { id: number; name: string } | null;
-    places?: { id: number; name: string }[];
+    place?: {
+        id: number;
+        name: string;
+        site?: { id: number; name: string } | null;
+    } | null;
+    places?: {
+        id: number;
+        name: string;
+        site?: { id: number; name: string } | null;
+    }[];
     created_at?: string | null;
 };
 
@@ -200,13 +208,31 @@ export function UsersTable({
                 key: 'place',
                 header: 'Lugar',
                 cell: (user) => {
-                    const names =
+                    const assigned =
                         user.places && user.places.length > 0
-                            ? user.places.map((place) => place.name)
-                            : user.place?.name
-                              ? [user.place.name]
+                            ? user.places
+                            : user.place
+                              ? [user.place]
                               : [];
-                    const label = names.length > 0 ? names.join(', ') : '—';
+                    const grouped = new Map<string, string[]>();
+
+                    assigned.forEach((place) => {
+                        const site = place.site?.name?.trim() || '';
+                        const current = grouped.get(site) ?? [];
+                        current.push(place.name);
+                        grouped.set(site, current);
+                    });
+
+                    const label =
+                        grouped.size === 0
+                            ? '—'
+                            : [...grouped.entries()]
+                                  .map(([site, names]) =>
+                                      site
+                                          ? `${site}: ${names.join(', ')}`
+                                          : names.join(', '),
+                                  )
+                                  .join(' · ');
 
                     return (
                         <span

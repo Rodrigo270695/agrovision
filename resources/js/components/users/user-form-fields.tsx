@@ -31,6 +31,7 @@ export type UserFormValues = {
 type PlaceOption = {
     id: number;
     name: string;
+    site_name?: string | null;
 };
 
 type Props = {
@@ -335,7 +336,9 @@ export function UserFormFields({
                         value={values.place_id || null}
                         options={(places ?? []).map((place) => ({
                             value: String(place.id),
-                            label: place.name,
+                            label: place.site_name
+                                ? `${place.site_name} · ${place.name}`
+                                : place.name,
                         }))}
                         onChange={(value) => onChange('place_id', value ?? '')}
                         placeholder="Buscar lugar..."

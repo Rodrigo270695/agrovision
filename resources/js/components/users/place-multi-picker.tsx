@@ -4,9 +4,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
-type PlaceOption = {
+export type PlaceOption = {
     id: number;
     name: string;
+    site_name?: string | null;
 };
 
 type Props = {
@@ -34,10 +35,27 @@ export function PlaceMultiPicker({
             return places;
         }
 
-        return places.filter((place) =>
-            place.name.toLowerCase().includes(term),
-        );
+        return places.filter((place) => {
+            const site = (place.site_name ?? '').toLowerCase();
+
+            return (
+                place.name.toLowerCase().includes(term) || site.includes(term)
+            );
+        });
     }, [places, query]);
+
+    const groups = useMemo(() => {
+        const grouped = new Map<string, PlaceOption[]>();
+
+        filtered.forEach((place) => {
+            const site = place.site_name?.trim() || 'Sin sede';
+            const current = grouped.get(site) ?? [];
+            current.push(place);
+            grouped.set(site, current);
+        });
+
+        return [...grouped.entries()];
+    }, [filtered]);
 
     const toggle = (id: string, checked: boolean) => {
         onChange(
@@ -57,7 +75,7 @@ export function PlaceMultiPicker({
                     className="h-8 border-0 bg-transparent pl-8 text-xs shadow-none focus-visible:ring-0"
                 />
             </div>
-            <div className="max-h-40 overflow-y-auto p-1">
+            <div className="max-h-52 overflow-y-auto p-1">
                 {places.length === 0 ? (
                     <p className="px-2 py-3 text-center text-xs text-[#6b8ead]">
                         No hay lugares activos. Créalos en Lugares.
@@ -67,31 +85,39 @@ export function PlaceMultiPicker({
                         Sin coincidencias
                     </p>
                 ) : (
-                    filtered.map((place) => {
-                        const id = String(place.id);
-                        const checked = value.includes(id);
+                    groups.map(([siteName, sitePlaces]) => (
+                        <div key={siteName} className="mb-1">
+                            <p className="px-2 pt-1.5 pb-0.5 text-[10px] font-semibold tracking-wide text-[#2e5a9e] uppercase">
+                                {siteName}
+                            </p>
+                            {sitePlaces.map((place) => {
+                                const id = String(place.id);
+                                const checked = value.includes(id);
 
-                        return (
-                            <label
-                                key={place.id}
-                                className={cn(
-                                    'flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs text-[#1a2b4c] hover:bg-[#f8fafc]',
-                                    checked && 'bg-[#e8f1fa]/70',
-                                    disabled && 'pointer-events-none opacity-60',
-                                )}
-                            >
-                                <Checkbox
-                                    checked={checked}
-                                    disabled={disabled}
-                                    onCheckedChange={(next) =>
-                                        toggle(id, next === true)
-                                    }
-                                    className={checkClassName}
-                                />
-                                <span>{place.name}</span>
-                            </label>
-                        );
-                    })
+                                return (
+                                    <label
+                                        key={place.id}
+                                        className={cn(
+                                            'flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs text-[#1a2b4c] hover:bg-[#f8fafc]',
+                                            checked && 'bg-[#e8f1fa]/70',
+                                            disabled &&
+                                                'pointer-events-none opacity-60',
+                                        )}
+                                    >
+                                        <Checkbox
+                                            checked={checked}
+                                            disabled={disabled}
+                                            onCheckedChange={(next) =>
+                                                toggle(id, next === true)
+                                            }
+                                            className={checkClassName}
+                                        />
+                                        <span>{place.name}</span>
+                                    </label>
+                                );
+                            })}
+                        </div>
+                    ))
                 )}
             </div>
         </div>

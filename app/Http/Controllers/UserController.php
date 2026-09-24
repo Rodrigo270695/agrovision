@@ -34,7 +34,13 @@ class UserController extends Controller
 
         $usersQuery = User::query()
             ->withoutSupport()
-            ->with(['roles:id,name', 'place:id,name', 'places:id,name'])
+            ->with([
+                'roles:id,name',
+                'place:id,name,site_id',
+                'place.site:id,name',
+                'places:id,name,site_id',
+                'places.site:id,name',
+            ])
             ->withCount('roles');
 
         if ($search !== '') {
@@ -73,9 +79,19 @@ class UserController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'placeOptions' => Place::query()
+                ->with('site:id,name')
                 ->where('status', 'active')
-                ->orderBy('name')
-                ->get(['id', 'name']),
+                ->get(['id', 'site_id', 'name'])
+                ->map(fn (Place $place) => [
+                    'id' => $place->id,
+                    'name' => $place->name,
+                    'site_name' => $place->site?->name,
+                ])
+                ->sortBy([
+                    ['site_name', 'asc'],
+                    ['name', 'asc'],
+                ])
+                ->values(),
             'stats' => [
                 'users' => User::query()->withoutSupport()->count(),
                 'with_roles' => User::query()->withoutSupport()->whereHas('roles')->count(),

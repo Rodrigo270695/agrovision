@@ -21,7 +21,7 @@ type UsersPageProps = {
     stats: UsersStatsData;
     filters: UsersFilters;
     roleOptions: RoleOption[];
-    placeOptions: { id: number; name: string }[];
+    placeOptions: { id: number; name: string; site_name?: string | null }[];
 };
 
 export function UsersPage() {

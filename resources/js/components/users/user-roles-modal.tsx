@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { PlaceMultiPicker } from '@/components/users/place-multi-picker';
+import type { PlaceOption } from '@/components/users/place-multi-picker';
 import type { UserItem } from '@/components/users/users-table';
 import { cn } from '@/lib/utils';
 
@@ -23,7 +24,7 @@ type Props = {
     open: boolean;
     user: UserItem | null;
     roles: RoleOption[];
-    places: { id: number; name: string }[];
+    places: PlaceOption[];
     onClose: () => void;
 };
 
@@ -238,7 +239,9 @@ export function UserRolesModal({
                                         value={form.data.place_id || null}
                                         options={places.map((place) => ({
                                             value: String(place.id),
-                                            label: place.name,
+                                            label: place.site_name
+                                                ? `${place.site_name} · ${place.name}`
+                                                : place.name,
                                         }))}
                                         onChange={(value) =>
                                             form.setData('place_id', value ?? '')

@@ -10,7 +10,7 @@ import type { UserItem } from '@/components/users/users-table';
 type Props = {
     open: boolean;
     user?: UserItem | null;
-    places?: { id: number; name: string }[];
+    places?: { id: number; name: string; site_name?: string | null }[];
     onClose: () => void;
 };
 
