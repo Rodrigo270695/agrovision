@@ -80,13 +80,6 @@ function formatDate(value?: string | null): string {
         .replace('.', '');
 }
 
-function isProtectedUser(user: UserItem): boolean {
-    return (
-        user.roles?.some((role) => role.name.toLowerCase() === 'superadmin') ??
-        false
-    );
-}
-
 function UserActions({
     user,
     currentUserId,
@@ -101,21 +94,9 @@ function UserActions({
     onAssignRoles: (user: UserItem) => void;
 }) {
     const { can } = useCan();
-    const protectedUser = isProtectedUser(user);
     const isSelf = currentUserId === user.id;
     const canUpdate = can('users.update');
     const canDelete = can('users.delete') && !isSelf;
-
-    if (protectedUser) {
-        return (
-            <span
-                className="rounded-md bg-[#eef1f5] px-2 py-0.5 text-[10px] font-medium text-[#64748b]"
-                title="Usuario protegido del sistema"
-            >
-                Protegido
-            </span>
-        );
-    }
 
     return (
         <RowActionsMenu

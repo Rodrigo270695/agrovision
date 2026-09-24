@@ -17,8 +17,6 @@ use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
-    private const PROTECTED_ROLE = 'superadmin';
-
     public function index(Request $request): Response
     {
         $validated = $request->validate([
@@ -186,6 +184,6 @@ class UserController extends Controller
 
     private function isProtected(User $user): bool
     {
-        return $user->is_support || $user->hasRole(self::PROTECTED_ROLE);
+        return (bool) $user->is_support;
     }
 }

@@ -24,13 +24,6 @@ type UsersPageProps = {
     placeOptions: { id: number; name: string }[];
 };
 
-function isProtectedUser(user: UserItem): boolean {
-    return (
-        user.roles?.some((role) => role.name.toLowerCase() === 'superadmin') ??
-        false
-    );
-}
-
 export function UsersPage() {
     const { users, stats, filters, roleOptions, placeOptions } = usePage()
         .props as unknown as UsersPageProps;
@@ -53,7 +46,7 @@ export function UsersPage() {
     };
 
     const openEdit = (user: UserItem) => {
-        if (!can('users.update') || isProtectedUser(user)) {
+        if (!can('users.update')) {
             return;
         }
 
@@ -67,7 +60,7 @@ export function UsersPage() {
     };
 
     const openDelete = (user: UserItem) => {
-        if (!can('users.delete') || isProtectedUser(user)) {
+        if (!can('users.delete')) {
             return;
         }
 
@@ -81,7 +74,7 @@ export function UsersPage() {
     };
 
     const openRoles = (user: UserItem) => {
-        if (!can('users.update') || isProtectedUser(user)) {
+        if (!can('users.update')) {
             return;
         }
 
