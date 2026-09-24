@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class ResponsiblePerson extends Model
 {
+    protected $table = 'responsible_persons';
+
     protected $fillable = [
         'name',
         'sort',
