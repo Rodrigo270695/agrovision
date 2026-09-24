@@ -3,6 +3,8 @@
 namespace App\Support;
 
 use App\Models\LicenseCategory;
+use App\Models\ResponsiblePerson;
+use App\Models\ServiceType;
 use App\Models\VehicleType;
 
 class UnitCatalog
@@ -109,6 +111,60 @@ class UnitCatalog
 
         return LicenseCategory::query()->create([
             'name' => $trimmed,
+            'sort' => $sort,
+        ]);
+    }
+
+    public static function rememberServiceType(?string $name): ?ServiceType
+    {
+        return self::rememberUpperName(ServiceType::class, $name);
+    }
+
+    public static function rememberResponsiblePerson(?string $name): ?ResponsiblePerson
+    {
+        return self::rememberUpperName(ResponsiblePerson::class, $name);
+    }
+
+    public static function formatPlate(?string $plate): ?string
+    {
+        $raw = trim((string) $plate);
+
+        if ($raw === '') {
+            return null;
+        }
+
+        $body = strtoupper((string) preg_replace('/[^A-Za-z0-9]/', '', $raw));
+
+        if (strlen($body) === 6) {
+            return substr($body, 0, 3).'-'.substr($body, 3);
+        }
+
+        return $body;
+    }
+
+    /**
+     * @param  class-string<ServiceType|ResponsiblePerson>  $model
+     */
+    private static function rememberUpperName(string $model, ?string $name): ServiceType|ResponsiblePerson|null
+    {
+        $normalized = self::normalizeVehicleType($name);
+
+        if ($normalized === null) {
+            return null;
+        }
+
+        $existing = $model::query()
+            ->whereRaw('upper(name) = ?', [$normalized])
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $sort = ((int) $model::query()->max('sort')) + 10;
+
+        return $model::query()->create([
+            'name' => $normalized,
             'sort' => $sort,
         ]);
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Unit;
+use App\Support\UnitCatalog;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -37,7 +38,7 @@ class UnitRequest extends FormRequest
             'vehicle_type' => ['nullable', 'string', 'max:100'],
             'service_date' => ['nullable', 'date'],
             'driver_name' => ['nullable', 'string', 'max:255'],
-            'plate_number' => ['nullable', 'string', 'max:20'],
+            'plate_number' => ['nullable', 'regex:/^[A-Z0-9]{3}-[A-Z0-9]{3}$/'],
             'responsible_person' => ['nullable', 'string', 'max:255'],
             'service_type' => ['nullable', 'string', 'max:100'],
             'ruc' => ['nullable', 'string', 'max:11', 'regex:/^\d{11}$/'],
@@ -106,6 +107,7 @@ class UnitRequest extends FormRequest
             'email.email' => 'El correo no es válido.',
             'ruc.regex' => 'El RUC debe tener exactamente 11 dígitos.',
             'driver_dni.regex' => 'El DNI solo debe contener números.',
+            'plate_number.regex' => 'La placa debe ser 3 caracteres, un guion y 3 más. Ejemplo: T5M-121.',
             'service_date.date' => 'La fecha no es válida.',
         ];
     }
@@ -147,7 +149,7 @@ class UnitRequest extends FormRequest
             'route' => $this->nullableTrim('route'),
             'vehicle_type' => $this->nullableTrim('vehicle_type'),
             'driver_name' => $this->nullableTrim('driver_name'),
-            'plate_number' => $this->nullableTrim('plate_number'),
+            'plate_number' => UnitCatalog::formatPlate($this->nullableTrim('plate_number')),
             'responsible_person' => $this->nullableTrim('responsible_person'),
             'service_type' => $this->nullableTrim('service_type'),
             'ruc' => $this->nullableTrim('ruc'),

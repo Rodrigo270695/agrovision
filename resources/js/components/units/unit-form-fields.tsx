@@ -59,6 +59,8 @@ type Props = {
     coordinatorOptions: CoordinatorOption[];
     vehicleTypeOptions: string[];
     licenseCategoryOptions: LicenseCategoryOption[];
+    serviceTypeOptions: string[];
+    responsibleOptions: string[];
 };
 
 type RucInfo = {
@@ -131,6 +133,19 @@ const otherFields: Array<{
         placeholder: 'Ej. A-IIb',
     },
 ];
+
+function formatPlateInput(value: string): string {
+    const body = value
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .slice(0, 6);
+
+    if (body.length <= 3) {
+        return body;
+    }
+
+    return `${body.slice(0, 3)}-${body.slice(3)}`;
+}
 
 function getXsrfToken(): string {
     const match = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/);
@@ -213,6 +228,8 @@ export function UnitFormFields({
     coordinatorOptions,
     vehicleTypeOptions,
     licenseCategoryOptions,
+    serviceTypeOptions,
+    responsibleOptions,
 }: Props) {
     const [rucLoading, setRucLoading] = useState(false);
     const [dniLoading, setDniLoading] = useState(false);
@@ -223,16 +240,28 @@ export function UnitFormFields({
     const [licenseCategories, setLicenseCategories] = useState(
         licenseCategoryOptions,
     );
+    const [serviceTypes, setServiceTypes] = useState(serviceTypeOptions);
+    const [responsibles, setResponsibles] = useState(responsibleOptions);
     const [creatingField, setCreatingField] = useState<
-        'vehicle_type' | 'category' | null
+        'vehicle_type' | 'category' | 'service_type' | 'responsible_person' | null
     >(null);
     const [catalogError, setCatalogError] = useState<
-        Partial<Record<'vehicle_type' | 'category', string>>
+        Partial<
+            Record<
+                | 'vehicle_type'
+                | 'category'
+                | 'service_type'
+                | 'responsible_person',
+                string
+            >
+        >
     >({});
     const vehicleTypeKey = vehicleTypeOptions.join('\n');
     const licenseCategoryKey = licenseCategoryOptions
         .map((item) => item.name)
         .join('\n');
+    const serviceTypeKey = serviceTypeOptions.join('\n');
+    const responsibleKey = responsibleOptions.join('\n');
 
     useEffect(() => {
         setVehicleTypes(vehicleTypeOptions);
@@ -243,6 +272,16 @@ export function UnitFormFields({
         setLicenseCategories(licenseCategoryOptions);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [licenseCategoryKey]);
+
+    useEffect(() => {
+        setServiceTypes(serviceTypeOptions);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [serviceTypeKey]);
+
+    useEffect(() => {
+        setResponsibles(responsibleOptions);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [responsibleKey]);
 
     const vehicleTypeChoices = useMemo(() => {
         const names = [...vehicleTypes];
@@ -275,6 +314,34 @@ export function UnitFormFields({
             description: item.description ?? undefined,
         }));
     }, [licenseCategories, values.category]);
+
+    const serviceTypeChoices = useMemo(() => {
+        const names = [...serviceTypes];
+        const current = values.service_type.trim();
+
+        if (
+            current !== '' &&
+            !names.some((name) => name.toLowerCase() === current.toLowerCase())
+        ) {
+            names.push(current);
+        }
+
+        return names.map((name) => ({ value: name, label: name }));
+    }, [serviceTypes, values.service_type]);
+
+    const responsibleChoices = useMemo(() => {
+        const names = [...responsibles];
+        const current = values.responsible_person.trim();
+
+        if (
+            current !== '' &&
+            !names.some((name) => name.toLowerCase() === current.toLowerCase())
+        ) {
+            names.push(current);
+        }
+
+        return names.map((name) => ({ value: name, label: name }));
+    }, [responsibles, values.responsible_person]);
 
     const createVehicleType = async (name: string) => {
         setCatalogError((current) => ({ ...current, vehicle_type: undefined }));
@@ -339,6 +406,68 @@ export function UnitFormFields({
                     error instanceof Error
                         ? error.message
                         : 'No se pudo crear la categoría.',
+            }));
+        } finally {
+            setCreatingField(null);
+        }
+    };
+
+    const createServiceType = async (name: string) => {
+        setCatalogError((current) => ({ ...current, service_type: undefined }));
+        setCreatingField('service_type');
+
+        try {
+            const created = await createCatalog(
+                '/unidades/tipos-servicio',
+                name,
+            );
+
+            setServiceTypes((current) =>
+                current.some(
+                    (item) => item.toLowerCase() === created.name.toLowerCase(),
+                )
+                    ? current
+                    : [...current, created.name],
+            );
+            onChange('service_type', created.name);
+        } catch (error) {
+            setCatalogError((current) => ({
+                ...current,
+                service_type:
+                    error instanceof Error
+                        ? error.message
+                        : 'No se pudo crear el tipo de servicio.',
+            }));
+        } finally {
+            setCreatingField(null);
+        }
+    };
+
+    const createResponsible = async (name: string) => {
+        setCatalogError((current) => ({
+            ...current,
+            responsible_person: undefined,
+        }));
+        setCreatingField('responsible_person');
+
+        try {
+            const created = await createCatalog('/unidades/responsables', name);
+
+            setResponsibles((current) =>
+                current.some(
+                    (item) => item.toLowerCase() === created.name.toLowerCase(),
+                )
+                    ? current
+                    : [...current, created.name],
+            );
+            onChange('responsible_person', created.name);
+        } catch (error) {
+            setCatalogError((current) => ({
+                ...current,
+                responsible_person:
+                    error instanceof Error
+                        ? error.message
+                        : 'No se pudo crear el responsable.',
             }));
         } finally {
             setCreatingField(null);
@@ -654,6 +783,48 @@ export function UnitFormFields({
                             placeholder="Buscar o crear tipo"
                             emptyMessage="No hay tipos de vehículo"
                         />
+                    ) : field.key === 'service_type' ? (
+                        <SearchableCombobox
+                            id="unit-service_type"
+                            compact
+                            value={
+                                serviceTypeChoices.find(
+                                    (option) =>
+                                        option.value.toLowerCase() ===
+                                        values.service_type.trim().toLowerCase(),
+                                )?.value ?? null
+                            }
+                            options={serviceTypeChoices}
+                            onChange={(value) =>
+                                onChange('service_type', value ?? '')
+                            }
+                            onCreate={(name) => void createServiceType(name)}
+                            creating={creatingField === 'service_type'}
+                            placeholder="Buscar o crear servicio"
+                            emptyMessage="No hay tipos de servicio"
+                        />
+                    ) : field.key === 'responsible_person' ? (
+                        <SearchableCombobox
+                            id="unit-responsible_person"
+                            compact
+                            value={
+                                responsibleChoices.find(
+                                    (option) =>
+                                        option.value.toLowerCase() ===
+                                        values.responsible_person
+                                            .trim()
+                                            .toLowerCase(),
+                                )?.value ?? null
+                            }
+                            options={responsibleChoices}
+                            onChange={(value) =>
+                                onChange('responsible_person', value ?? '')
+                            }
+                            onCreate={(name) => void createResponsible(name)}
+                            creating={creatingField === 'responsible_person'}
+                            placeholder="Buscar o crear responsable"
+                            emptyMessage="Aún no hay responsables"
+                        />
                     ) : field.key === 'category' ? (
                         <SearchableCombobox
                             id="unit-category"
@@ -678,18 +849,37 @@ export function UnitFormFields({
                             name={field.key}
                             type={field.type ?? 'text'}
                             value={values[field.key]}
+                            maxLength={field.key === 'plate_number' ? 7 : undefined}
                             onChange={(event) =>
-                                onChange(field.key, event.target.value)
+                                onChange(
+                                    field.key,
+                                    field.key === 'plate_number'
+                                        ? formatPlateInput(event.target.value)
+                                        : event.target.value,
+                                )
                             }
                             placeholder={field.placeholder}
                             autoFocus={field.key === 'correlative'}
-                            className="h-9 border-[#c5d5e6] bg-white text-sm focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35"
+                            className={
+                                field.key === 'plate_number'
+                                    ? 'h-9 border-[#c5d5e6] bg-white text-sm uppercase focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35'
+                                    : 'h-9 border-[#c5d5e6] bg-white text-sm focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35'
+                            }
                         />
                     )}
+                    {field.key === 'plate_number' ? (
+                        <p className="text-[11px] text-[#6b8ead]">
+                            3 caracteres, guion y 3 más. Si omites el guion, se
+                            agrega solo.
+                        </p>
+                    ) : null}
                     <InputError
                         message={
                             errors[field.key] ??
-                            (field.key === 'vehicle_type' || field.key === 'category'
+                            (field.key === 'vehicle_type' ||
+                            field.key === 'category' ||
+                            field.key === 'service_type' ||
+                            field.key === 'responsible_person'
                                 ? catalogError[field.key]
                                 : undefined)
                         }

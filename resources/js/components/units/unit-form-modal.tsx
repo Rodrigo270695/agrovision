@@ -19,6 +19,8 @@ type Props = {
     coordinatorOptions: CoordinatorOption[];
     vehicleTypeOptions: string[];
     licenseCategoryOptions: LicenseCategoryOption[];
+    serviceTypeOptions: string[];
+    responsibleOptions: string[];
     onClose: () => void;
 };
 
@@ -79,6 +81,8 @@ export function UnitFormModal({
     coordinatorOptions,
     vehicleTypeOptions,
     licenseCategoryOptions,
+    serviceTypeOptions,
+    responsibleOptions,
     onClose,
 }: Props) {
     const isEditing = Boolean(unit);
@@ -205,6 +209,8 @@ export function UnitFormModal({
                     coordinatorOptions={coordinatorOptions}
                     vehicleTypeOptions={vehicleTypeOptions}
                     licenseCategoryOptions={licenseCategoryOptions}
+                    serviceTypeOptions={serviceTypeOptions}
+                    responsibleOptions={responsibleOptions}
                 />
             </form>
         </AppModal>

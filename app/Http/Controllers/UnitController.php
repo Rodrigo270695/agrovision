@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\UnitRequest;
 use App\Models\LicenseCategory;
 use App\Models\Period;
+use App\Models\ResponsiblePerson;
+use App\Models\ServiceType;
 use App\Models\Unit;
 use App\Models\VehicleType;
 use App\Support\IndexedRedirect;
@@ -75,6 +77,16 @@ class UnitController extends Controller
                 ->orderBy('sort')
                 ->orderBy('name')
                 ->get(['name', 'description']),
+            'serviceTypeOptions' => ServiceType::query()
+                ->orderBy('sort')
+                ->orderBy('name')
+                ->pluck('name')
+                ->values(),
+            'responsibleOptions' => ResponsiblePerson::query()
+                ->orderBy('sort')
+                ->orderBy('name')
+                ->pluck('name')
+                ->values(),
             'documentTypes' => collect(UnitDocumentTypes::labels())
                 ->map(fn (string $label, string $key) => [
                     'value' => $key,
@@ -195,6 +207,48 @@ class UnitController extends Controller
         return response()->json([
             'name' => $category->name,
             'description' => $category->description,
+        ]);
+    }
+
+    public function storeServiceType(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+        ], [
+            'name.required' => 'Escribe el tipo de servicio.',
+        ]);
+
+        $type = UnitCatalog::rememberServiceType($validated['name']);
+
+        if ($type === null) {
+            return response()->json([
+                'message' => 'Escribe el tipo de servicio.',
+            ], 422);
+        }
+
+        return response()->json([
+            'name' => $type->name,
+        ]);
+    }
+
+    public function storeResponsiblePerson(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+        ], [
+            'name.required' => 'Escribe el responsable.',
+        ]);
+
+        $person = UnitCatalog::rememberResponsiblePerson($validated['name']);
+
+        if ($person === null) {
+            return response()->json([
+                'message' => 'Escribe el responsable.',
+            ], 422);
+        }
+
+        return response()->json([
+            'name' => $person->name,
         ]);
     }
 
@@ -351,6 +405,20 @@ class UnitController extends Controller
                 is_string($data['category']) ? $data['category'] : null,
             );
             $data['category'] = $category?->name;
+        }
+
+        if (array_key_exists('service_type', $data)) {
+            $serviceType = UnitCatalog::rememberServiceType(
+                is_string($data['service_type']) ? $data['service_type'] : null,
+            );
+            $data['service_type'] = $serviceType?->name;
+        }
+
+        if (array_key_exists('responsible_person', $data)) {
+            $responsible = UnitCatalog::rememberResponsiblePerson(
+                is_string($data['responsible_person']) ? $data['responsible_person'] : null,
+            );
+            $data['responsible_person'] = $responsible?->name;
         }
 
         return $data;

@@ -28,6 +28,8 @@ type UnitsPageProps = {
     coordinatorOptions: CoordinatorOption[];
     vehicleTypeOptions: string[];
     licenseCategoryOptions: LicenseCategoryOption[];
+    serviceTypeOptions: string[];
+    responsibleOptions: string[];
     documentTypes: UnitDocumentTypeOption[];
     flash?: {
         unit_import?: {
@@ -46,6 +48,8 @@ export function UnitsPage() {
         coordinatorOptions,
         vehicleTypeOptions,
         licenseCategoryOptions,
+        serviceTypeOptions,
+        responsibleOptions,
         documentTypes,
         flash,
     } = usePage().props as unknown as UnitsPageProps;
@@ -157,6 +161,8 @@ export function UnitsPage() {
                     coordinatorOptions={coordinatorOptions ?? []}
                     vehicleTypeOptions={vehicleTypeOptions ?? []}
                     licenseCategoryOptions={licenseCategoryOptions ?? []}
+                    serviceTypeOptions={serviceTypeOptions ?? []}
+                    responsibleOptions={responsibleOptions ?? []}
                     onClose={closeForm}
                 />
             ) : null}

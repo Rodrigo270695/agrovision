@@ -420,11 +420,18 @@ final class UnitExcelImporter
             foreach ($pending as $data) {
                 $vehicleType = UnitCatalog::rememberVehicleType($data['vehicle_type'] ?? null);
                 $category = UnitCatalog::rememberLicenseCategory($data['category'] ?? null);
+                $serviceType = UnitCatalog::rememberServiceType($data['service_type'] ?? null);
+                $responsible = UnitCatalog::rememberResponsiblePerson($data['responsible_person'] ?? null);
 
                 Unit::create([
                     ...$data,
                     'vehicle_type' => $vehicleType?->name,
                     'category' => $category?->name,
+                    'service_type' => $serviceType?->name,
+                    'responsible_person' => $responsible?->name,
+                    'plate_number' => UnitCatalog::formatPlate(
+                        is_string($data['plate_number'] ?? null) ? $data['plate_number'] : null,
+                    ),
                     'period_id' => $period->id,
                 ]);
                 $imported++;
@@ -494,7 +501,7 @@ final class UnitExcelImporter
         $vehicleType = $this->stringValue($row[4] ?? null);
         $rawDate = $row[5] ?? null;
         $driverName = $this->stringValue($row[6] ?? null);
-        $plateNumber = $this->stringValue($row[7] ?? null);
+        $plateNumber = UnitCatalog::formatPlate($this->stringValue($row[7] ?? null));
         $responsible = $this->stringValue($row[8] ?? null);
         $serviceType = $this->stringValue($row[9] ?? null);
         $ruc = $this->stringValue($row[10] ?? null);
@@ -570,7 +577,7 @@ final class UnitExcelImporter
             'vehicle_type' => ['nullable', 'string', 'max:100'],
             'service_date' => ['nullable', 'date'],
             'driver_name' => ['nullable', 'string', 'max:255'],
-            'plate_number' => ['nullable', 'string', 'max:20'],
+            'plate_number' => ['nullable', 'regex:/^[A-Z0-9]{3}-[A-Z0-9]{3}$/'],
             'responsible_person' => ['nullable', 'string', 'max:255'],
             'service_type' => ['nullable', 'string', 'max:100'],
             'ruc' => ['nullable', 'string', 'regex:/^\d{11}$/'],
@@ -583,6 +590,7 @@ final class UnitExcelImporter
             'email.email' => 'El campo CORREO no es un email válido.',
             'ruc.regex' => 'El campo RUC debe tener 11 dígitos.',
             'driver_dni.regex' => 'El campo DNI CONDUCTOR solo debe contener números.',
+            'plate_number.regex' => 'El campo PLACA debe ser 3 caracteres, un guion y 3 más. Ejemplo: T5M-121.',
         ]);
 
         if ($validator->fails()) {
