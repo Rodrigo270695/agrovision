@@ -151,6 +151,52 @@ export function SearchableCombobox({
 
         updatePanel();
 
+        const list = listRef.current;
+
+        const onWheel = (event: WheelEvent) => {
+            if (!list) {
+                return;
+            }
+
+            // El Dialog bloquea la rueda en document (fase bubble). Cortamos
+            // aquí y movemos la lista a mano, igual que el Popover modal de VetSaas.
+            event.stopPropagation();
+
+            const delta =
+                event.deltaMode === 1
+                    ? event.deltaY * 16
+                    : event.deltaMode === 2
+                      ? event.deltaY * list.clientHeight
+                      : event.deltaY;
+            const maxScroll = list.scrollHeight - list.clientHeight;
+
+            if (maxScroll <= 0) {
+                return;
+            }
+
+            const next = Math.min(
+                maxScroll,
+                Math.max(0, list.scrollTop + delta),
+            );
+
+            if (next === list.scrollTop) {
+                return;
+            }
+
+            event.preventDefault();
+            list.scrollTop = next;
+        };
+
+        const onTouchMove = (event: TouchEvent) => {
+            event.stopPropagation();
+        };
+
+        list?.addEventListener('wheel', onWheel, {
+            capture: true,
+            passive: false,
+        });
+        list?.addEventListener('touchmove', onTouchMove, { passive: false });
+
         const onPointerDown = (event: MouseEvent) => {
             const target = event.target as Node;
 
@@ -170,6 +216,8 @@ export function SearchableCombobox({
         window.addEventListener('scroll', updatePanel, true);
 
         return () => {
+            list?.removeEventListener('wheel', onWheel, true);
+            list?.removeEventListener('touchmove', onTouchMove);
             document.removeEventListener('mousedown', onPointerDown);
             window.removeEventListener('resize', updatePanel);
             window.removeEventListener('scroll', updatePanel, true);
