@@ -7,6 +7,7 @@ use App\Http\Requests\UserRolesRequest;
 use App\Models\Place;
 use App\Models\User;
 use App\Support\IndexedRedirect;
+use App\Support\SystemRoles;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -33,7 +34,7 @@ class UserController extends Controller
 
         $usersQuery = User::query()
             ->withoutSupport()
-            ->with(['roles:id,name', 'place:id,name'])
+            ->with(['roles:id,name', 'place:id,name', 'places:id,name'])
             ->withCount('roles');
 
         if ($search !== '') {
@@ -43,7 +44,8 @@ class UserController extends Controller
                     ->orWhere('email', 'ilike', "%{$search}%")
                     ->orWhere('document_number', 'ilike', "%{$search}%")
                     ->orWhere('phone', 'ilike', "%{$search}%")
-                    ->orWhereHas('place', fn ($query) => $query->where('name', 'ilike', "%{$search}%"));
+                    ->orWhereHas('place', fn ($query) => $query->where('name', 'ilike', "%{$search}%"))
+                    ->orWhereHas('places', fn ($query) => $query->where('name', 'ilike', "%{$search}%"));
             });
         }
 
@@ -88,7 +90,7 @@ class UserController extends Controller
     {
         $data = $request->validated();
 
-        User::create([
+        $user = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
             'document_type' => $data['document_type'],
@@ -98,6 +100,8 @@ class UserController extends Controller
             'password' => $data['password'],
             'email_verified_at' => now(),
         ]);
+
+        $this->syncPlaces($user, $user->place_id ? [$user->place_id] : []);
 
         return IndexedRedirect::toIndex($request, 'users.index', [
             'type' => 'success',
@@ -122,7 +126,6 @@ class UserController extends Controller
             'document_type' => $data['document_type'],
             'document_number' => $data['document_number'],
             'phone' => $data['phone'],
-            'place_id' => $data['place_id'] ?? null,
         ];
 
         if (! empty($data['password'])) {
@@ -130,6 +133,14 @@ class UserController extends Controller
         }
 
         $user->update($payload);
+
+        $placeIds = $user->hasRole(SystemRoles::COORDINADOR)
+            ? ($data['place_ids'] ?? [])
+            : (isset($data['place_id']) && $data['place_id']
+                ? [(int) $data['place_id']]
+                : []);
+
+        $this->syncPlaces($user, $placeIds);
 
         return IndexedRedirect::toIndex($request, 'users.index', [
             'type' => 'success',
@@ -146,11 +157,21 @@ class UserController extends Controller
             ]);
         }
 
-        $user->syncRoles($request->validated('roles'));
+        $roles = $request->validated('roles');
+        $user->syncRoles($roles);
 
-        if ($request->exists('place_id')) {
-            $user->update(['place_id' => $request->validated('place_id')]);
-        }
+        $isCoordinator = in_array(SystemRoles::COORDINADOR, array_map(
+            static fn ($name) => mb_strtolower((string) $name),
+            $roles,
+        ), true);
+
+        $placeIds = $isCoordinator
+            ? ($request->validated('place_ids') ?? [])
+            : ($request->validated('place_id')
+                ? [(int) $request->validated('place_id')]
+                : []);
+
+        $this->syncPlaces($user, $placeIds);
 
         return IndexedRedirect::toIndex($request, 'users.index', [
             'type' => 'success',
@@ -185,5 +206,16 @@ class UserController extends Controller
     private function isProtected(User $user): bool
     {
         return (bool) $user->is_support;
+    }
+
+    /**
+     * @param  array<int, int|string>  $placeIds
+     */
+    private function syncPlaces(User $user, array $placeIds): void
+    {
+        $ids = array_values(array_unique(array_map('intval', $placeIds)));
+
+        $user->places()->sync($ids);
+        $user->update(['place_id' => $ids[0] ?? null]);
     }
 }

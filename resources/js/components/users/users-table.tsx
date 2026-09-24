@@ -30,6 +30,7 @@ export type UserItem = {
     roles?: UserRoleRef[];
     place_id?: number | null;
     place?: { id: number; name: string } | null;
+    places?: { id: number; name: string }[];
     created_at?: string | null;
 };
 
@@ -198,11 +199,24 @@ export function UsersTable({
             {
                 key: 'place',
                 header: 'Lugar',
-                cell: (user) => (
-                    <span className="text-xs text-muted-foreground">
-                        {user.place?.name || '—'}
-                    </span>
-                ),
+                cell: (user) => {
+                    const names =
+                        user.places && user.places.length > 0
+                            ? user.places.map((place) => place.name)
+                            : user.place?.name
+                              ? [user.place.name]
+                              : [];
+                    const label = names.length > 0 ? names.join(', ') : '—';
+
+                    return (
+                        <span
+                            className="block max-w-48 truncate text-xs text-muted-foreground"
+                            title={label}
+                        >
+                            {label}
+                        </span>
+                    );
+                },
             },
             {
                 key: 'document_number',

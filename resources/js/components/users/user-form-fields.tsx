@@ -14,6 +14,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
+import { PlaceMultiPicker } from '@/components/users/place-multi-picker';
 
 export type UserFormValues = {
     name: string;
@@ -22,6 +23,7 @@ export type UserFormValues = {
     document_number: string;
     phone: string;
     place_id: string;
+    place_ids: string[];
     password: string;
     password_confirmation: string;
 };
@@ -33,10 +35,15 @@ type PlaceOption = {
 
 type Props = {
     values: UserFormValues;
-    errors: Partial<Record<keyof UserFormValues, string>>;
-    onChange: (field: keyof UserFormValues, value: string) => void;
+    errors: Partial<Record<keyof UserFormValues | 'place_ids.0', string>>;
+    onChange: (
+        field: Exclude<keyof UserFormValues, 'place_ids'>,
+        value: string,
+    ) => void;
+    onPlaceIdsChange: (ids: string[]) => void;
     places?: PlaceOption[];
     requiresPlace?: boolean;
+    multiplePlaces?: boolean;
     isEditing?: boolean;
 };
 
@@ -80,8 +87,10 @@ export function UserFormFields({
     values,
     errors,
     onChange,
+    onPlaceIdsChange,
     places = [],
     requiresPlace = false,
+    multiplePlaces = false,
     isEditing = false,
 }: Props) {
     const [dniLoading, setDniLoading] = useState(false);
@@ -309,30 +318,46 @@ export function UserFormFields({
 
             <div className="grid gap-2">
                 <Label className="text-[#1a2b4c]">
-                    Lugar{' '}
+                    {multiplePlaces ? 'Lugares' : 'Lugar'}{' '}
                     {requiresPlace ? (
                         <span className="text-red-500">*</span>
                     ) : null}
                 </Label>
-                <SearchableCombobox
-                    id="user-place"
-                    value={values.place_id || null}
-                    options={(places ?? []).map((place) => ({
-                        value: String(place.id),
-                        label: place.name,
-                    }))}
-                    onChange={(value) => onChange('place_id', value ?? '')}
-                    placeholder="Buscar lugar..."
-                    emptyMessage={
-                        (places ?? []).length === 0
-                            ? 'No hay lugares activos. Créalos en Lugares.'
-                            : 'Sin coincidencias'
+                {multiplePlaces ? (
+                    <PlaceMultiPicker
+                        places={places ?? []}
+                        value={values.place_ids}
+                        onChange={onPlaceIdsChange}
+                    />
+                ) : (
+                    <SearchableCombobox
+                        id="user-place"
+                        value={values.place_id || null}
+                        options={(places ?? []).map((place) => ({
+                            value: String(place.id),
+                            label: place.name,
+                        }))}
+                        onChange={(value) => onChange('place_id', value ?? '')}
+                        placeholder="Buscar lugar..."
+                        emptyMessage={
+                            (places ?? []).length === 0
+                                ? 'No hay lugares activos. Créalos en Lugares.'
+                                : 'Sin coincidencias'
+                        }
+                        allowClear={!requiresPlace}
+                    />
+                )}
+                <InputError
+                    message={
+                        multiplePlaces
+                            ? (errors.place_ids ?? errors['place_ids.0'])
+                            : errors.place_id
                     }
-                    allowClear={!requiresPlace}
                 />
-                <InputError message={errors.place_id} />
                 <p className="text-xs text-[#6b8ead]">
-                    Obligatorio para coordinadores e inspectores.
+                    {multiplePlaces
+                        ? 'Un coordinador puede tener varios lugares.'
+                        : 'Obligatorio para coordinadores e inspectores.'}
                 </p>
             </div>
 

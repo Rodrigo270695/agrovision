@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\User;
+use App\Support\SystemRoles;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -22,7 +23,11 @@ class UserRequest extends FormRequest
         /** @var User|null $user */
         $user = $this->route('user');
         $isUpdate = $user !== null;
-        $requiresPlace = $user?->requiresPlace() ?? false;
+        $isCoordinator = $user?->hasRole(SystemRoles::COORDINADOR) ?? false;
+        $requiresSinglePlace = ($user?->requiresPlace() ?? false) && ! $isCoordinator;
+        $activePlace = Rule::exists('places', 'id')->where(
+            fn ($query) => $query->where('status', 'active'),
+        );
         $documentType = mb_strtolower((string) $this->input('document_type', 'dni'));
 
         $documentNumberRules = [
@@ -50,8 +55,14 @@ class UserRequest extends FormRequest
             'document_type' => ['required', 'string', Rule::in(['dni', 'ce', 'pasaporte'])],
             'document_number' => $documentNumberRules,
             'phone' => ['required', 'string', 'regex:/^9\d{8}$/'],
+            'place_ids' => [
+                $isCoordinator ? 'required' : 'nullable',
+                'array',
+                $isCoordinator ? 'min:1' : 'max:0',
+            ],
+            'place_ids.*' => ['integer', 'distinct', $activePlace],
             'place_id' => [
-                $requiresPlace ? 'required' : 'nullable',
+                $requiresSinglePlace ? 'required' : 'nullable',
                 'integer',
                 Rule::exists('places', 'id'),
             ],
@@ -81,7 +92,10 @@ class UserRequest extends FormRequest
             'document_number.regex' => 'El número de documento no es válido (DNI: 8 dígitos).',
             'phone.required' => 'El celular es obligatorio.',
             'phone.regex' => 'El celular debe tener 9 dígitos y empezar con 9.',
-            'place_id.required' => 'El lugar es obligatorio para coordinadores e inspectores.',
+            'place_ids.required' => 'Selecciona al menos un lugar para el coordinador.',
+            'place_ids.min' => 'Selecciona al menos un lugar para el coordinador.',
+            'place_ids.*.exists' => 'Selecciona lugares activos.',
+            'place_id.required' => 'El lugar es obligatorio para el inspector.',
             'place_id.exists' => 'El lugar seleccionado no existe.',
             'password.required' => 'La contraseña es obligatoria.',
             'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
@@ -121,13 +135,29 @@ class UserRequest extends FormRequest
 
         $phone = mb_substr($phone, 0, 9);
 
+        /** @var User|null $user */
+        $user = $this->route('user');
+        $isCoordinator = $user?->hasRole(SystemRoles::COORDINADOR) ?? false;
+
+        $placeIds = $isCoordinator
+            ? collect((array) $this->input('place_ids', []))
+                ->filter(fn ($id) => $id !== null && $id !== '')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all()
+            : [];
+
         $this->merge([
             'name' => trim((string) $this->input('name', '')),
             'email' => strtolower(trim((string) $this->input('email', ''))),
             'document_type' => $type !== '' ? $type : 'dni',
             'document_number' => $number,
             'phone' => $phone,
-            'place_id' => $this->filled('place_id') ? (int) $this->input('place_id') : null,
+            'place_ids' => $placeIds,
+            'place_id' => ! $isCoordinator && $this->filled('place_id')
+                ? (int) $this->input('place_id')
+                : null,
         ]);
 
         if (! $this->filled('password')) {

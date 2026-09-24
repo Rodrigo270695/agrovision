@@ -1,7 +1,7 @@
 import { useForm } from '@inertiajs/react';
 import { Search } from 'lucide-react';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import type { UserItem } from '@/components/users/users-table';
+import { useEffect, useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
 import InputError from '@/components/input-error';
 import { AppModal } from '@/components/shared/app-modal';
 import { SearchableCombobox } from '@/components/shared/searchable-combobox';
@@ -10,6 +10,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { PlaceMultiPicker } from '@/components/users/place-multi-picker';
+import type { UserItem } from '@/components/users/users-table';
 import { cn } from '@/lib/utils';
 
 export type RoleOption = {
@@ -36,9 +38,14 @@ export function UserRolesModal({
     onClose,
 }: Props) {
     const [search, setSearch] = useState('');
-    const form = useForm<{ roles: string[]; place_id: string }>({
+    const form = useForm<{
+        roles: string[];
+        place_id: string;
+        place_ids: string[];
+    }>({
         roles: [],
         place_id: '',
+        place_ids: [],
     });
 
     useEffect(() => {
@@ -46,18 +53,36 @@ export function UserRolesModal({
             return;
         }
 
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSearch('');
+        const activeIds = new Set(places.map((place) => String(place.id)));
+        const assigned = (user.places ?? [])
+            .map((place) => String(place.id))
+            .filter((id) => activeIds.has(id));
+        const primary =
+            user.place_id && activeIds.has(String(user.place_id))
+                ? String(user.place_id)
+                : '';
+        const placeIds = primary
+            ? [primary, ...assigned.filter((id) => id !== primary)]
+            : assigned;
+
         form.setData({
             roles: user.roles?.map((role) => role.name) ?? [],
-            place_id: user.place_id ? String(user.place_id) : '',
+            place_id: primary,
+            place_ids: placeIds,
         });
         form.clearErrors();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, user?.id]);
 
-    const needsPlace = form.data.roles.some((role) =>
-        ['coordinador', 'inspector'].includes(role.toLowerCase()),
+    const isCoordinator = form.data.roles.some(
+        (role) => role.toLowerCase() === 'coordinador',
     );
+    const isInspector = form.data.roles.some(
+        (role) => role.toLowerCase() === 'inspector',
+    );
+    const needsPlace = isCoordinator || isInspector;
 
     const filteredRoles = useMemo(() => {
         const query = search.trim().toLowerCase();
@@ -98,10 +123,25 @@ export function UserRolesModal({
             return;
         }
 
-        form.transform((data) => ({
-            roles: data.roles,
-            place_id: data.place_id ? Number(data.place_id) : null,
-        }));
+        form.transform((data) => {
+            const coordinator = data.roles.some(
+                (role) => role.toLowerCase() === 'coordinador',
+            );
+            const inspector = data.roles.some(
+                (role) => role.toLowerCase() === 'inspector',
+            );
+
+            return {
+                roles: data.roles,
+                place_ids: coordinator
+                    ? data.place_ids.map((id) => Number(id))
+                    : [],
+                place_id:
+                    !coordinator && inspector && data.place_id
+                        ? Number(data.place_id)
+                        : null,
+            };
+        });
 
         form.put(`/usuarios/${user.id}/roles`, {
             preserveScroll: true,
@@ -165,28 +205,56 @@ export function UserRolesModal({
                     {needsPlace ? (
                         <div className="mb-2 grid gap-1.5">
                             <Label className="text-xs text-[#1a2b4c]">
-                                Lugar <span className="text-red-500">*</span>
+                                {isCoordinator ? 'Lugares' : 'Lugar'}{' '}
+                                <span className="text-red-500">*</span>
                             </Label>
-                            <SearchableCombobox
-                                id="user-roles-place"
-                                value={form.data.place_id || null}
-                                options={places.map((place) => ({
-                                    value: String(place.id),
-                                    label: place.name,
-                                }))}
-                                onChange={(value) =>
-                                    form.setData('place_id', value ?? '')
-                                }
-                                placeholder="Buscar lugar..."
-                                emptyMessage={
-                                    places.length === 0
-                                        ? 'No hay lugares activos. Créalos en Lugares.'
-                                        : 'Sin coincidencias'
-                                }
-                                allowClear={false}
-                                disabled={form.processing}
-                            />
-                            <InputError message={form.errors.place_id} />
+                            {isCoordinator ? (
+                                <>
+                                    <PlaceMultiPicker
+                                        places={places}
+                                        value={form.data.place_ids}
+                                        onChange={(placeIds) =>
+                                            form.setData('place_ids', placeIds)
+                                        }
+                                        disabled={form.processing}
+                                    />
+                                    <p className="text-[11px] text-[#6b8ead]">
+                                        {form.data.place_ids.length}{' '}
+                                        {form.data.place_ids.length === 1
+                                            ? 'lugar seleccionado'
+                                            : 'lugares seleccionados'}
+                                    </p>
+                                    <InputError
+                                        message={
+                                            form.errors.place_ids ??
+                                            form.errors['place_ids.0']
+                                        }
+                                    />
+                                </>
+                            ) : (
+                                <>
+                                    <SearchableCombobox
+                                        id="user-roles-place"
+                                        value={form.data.place_id || null}
+                                        options={places.map((place) => ({
+                                            value: String(place.id),
+                                            label: place.name,
+                                        }))}
+                                        onChange={(value) =>
+                                            form.setData('place_id', value ?? '')
+                                        }
+                                        placeholder="Buscar lugar..."
+                                        emptyMessage={
+                                            places.length === 0
+                                                ? 'No hay lugares activos. Créalos en Lugares.'
+                                                : 'Sin coincidencias'
+                                        }
+                                        allowClear={false}
+                                        disabled={form.processing}
+                                    />
+                                    <InputError message={form.errors.place_id} />
+                                </>
+                            )}
                         </div>
                     ) : null}
                     {filteredRoles.length === 0 ? (

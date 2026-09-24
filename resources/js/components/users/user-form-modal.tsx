@@ -1,10 +1,11 @@
 import { useForm } from '@inertiajs/react';
-import { useEffect, useMemo, type FormEvent } from 'react';
-import { UserFormFields } from '@/components/users/user-form-fields';
-import type { UserItem } from '@/components/users/users-table';
+import { useEffect, useMemo } from 'react';
+import type { FormEvent } from 'react';
 import { AppModal } from '@/components/shared/app-modal';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import { UserFormFields } from '@/components/users/user-form-fields';
+import type { UserItem } from '@/components/users/users-table';
 
 type Props = {
     open: boolean;
@@ -20,6 +21,7 @@ const emptyValues = {
     document_number: '',
     phone: '',
     place_id: '',
+    place_ids: [] as string[],
     password: '',
     password_confirmation: '',
 };
@@ -31,6 +33,9 @@ export function UserFormModal({
     onClose,
 }: Props) {
     const isEditing = Boolean(user);
+    const multiplePlaces =
+        user?.roles?.some((role) => role.name.toLowerCase() === 'coordinador') ??
+        false;
     const form = useForm(emptyValues);
 
     useEffect(() => {
@@ -38,13 +43,26 @@ export function UserFormModal({
             return;
         }
 
+        const activeIds = new Set(places.map((place) => String(place.id)));
+        const assigned = (user?.places ?? [])
+            .map((place) => String(place.id))
+            .filter((id) => activeIds.has(id));
+        const primary =
+            user?.place_id && activeIds.has(String(user.place_id))
+                ? String(user.place_id)
+                : '';
+        const placeIds = primary
+            ? [primary, ...assigned.filter((id) => id !== primary)]
+            : assigned;
+
         form.setData({
             name: user?.name ?? '',
             email: user?.email ?? '',
             document_type: user?.document_type ?? 'dni',
             document_number: user?.document_number ?? '',
             phone: user?.phone ?? '',
-            place_id: user?.place_id ? String(user.place_id) : '',
+            place_id: primary,
+            place_ids: placeIds,
             password: '',
             password_confirmation: '',
         });
@@ -101,21 +119,24 @@ export function UserFormModal({
             return;
         }
 
-        form.transform((data) => {
-            const placeId = data.place_id ? Number(data.place_id) : null;
+        form.transform(
+            ({ place_id, place_ids, password, password_confirmation, ...rest }) => {
+                const placesPayload = multiplePlaces
+                    ? { place_ids: place_ids.map((id) => Number(id)) }
+                    : { place_id: place_id ? Number(place_id) : null };
 
-            if (!data.password) {
-                const {
-                    password: _password,
-                    password_confirmation: _confirmation,
-                    ...rest
-                } = data;
+                if (!password) {
+                    return { ...rest, ...placesPayload };
+                }
 
-                return { ...rest, place_id: placeId };
-            }
-
-            return { ...data, place_id: placeId };
-        });
+                return {
+                    ...rest,
+                    ...placesPayload,
+                    password,
+                    password_confirmation,
+                };
+            },
+        );
 
         if (isEditing && user) {
             form.put(`/usuarios/${user.id}`, {
@@ -125,6 +146,7 @@ export function UserFormModal({
                     form.transform((data) => data);
                 },
             });
+
             return;
         }
 
@@ -177,12 +199,18 @@ export function UserFormModal({
                         document_number: form.errors.document_number,
                         phone: form.errors.phone,
                         place_id: form.errors.place_id,
+                        place_ids: form.errors.place_ids,
+                        'place_ids.0': form.errors['place_ids.0'],
                         password: form.errors.password,
                         password_confirmation:
                             form.errors.password_confirmation,
                     }}
                     onChange={(field, value) => form.setData(field, value)}
+                    onPlaceIdsChange={(placeIds) =>
+                        form.setData('place_ids', placeIds)
+                    }
                     places={places}
+                    multiplePlaces={multiplePlaces}
                     requiresPlace={
                         user?.roles?.some((role) =>
                             ['coordinador', 'inspector'].includes(
