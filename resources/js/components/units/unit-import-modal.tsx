@@ -22,6 +22,8 @@ export type UnitImportError = {
 
 type UnitImportResult = {
     imported: number;
+    created?: number;
+    updated?: number;
     errors: UnitImportError[];
 };
 
@@ -277,10 +279,10 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
                         Columnas de la plantilla
                     </p>
                     <p className="mt-1 leading-relaxed">
-                        CORRELATIVO*, Celular, PROVEEDOR*, RUTA, T. VEHÍCULO,
-                        FECHA (dd/mm/yyyy), CONDUCTOR, PLACA, RESPONSABLE, TIPO
-                        DE SERVICIO, RUC, DNI CONDUCTOR, CATEGORIA, COORDINADOR,
-                        CORREO
+                        CORRELATIVO, Celular, PROVEEDOR, RUTA, T. VEHÍCULO, FECHA
+                        (dd/mm/yyyy), CONDUCTOR, PLACA, RESPONSABLE, TIPO DE
+                        SERVICIO, RUC, DNI CONDUCTOR, CATEGORIA, COORDINADOR. Si
+                        la placa ya está en el periodo, se actualiza esa unidad.
                     </p>
                 </div>
 
@@ -313,8 +315,10 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
                 importResult.imported > 0 &&
                 importResult.errors.length === 0 ? (
                     <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                        Se importaron {importResult.imported} unidades
-                        correctamente.
+                        {importResult.created !== undefined &&
+                        importResult.updated !== undefined
+                            ? `Se procesaron ${importResult.imported} unidades: ${importResult.created} nuevas y ${importResult.updated} actualizadas.`
+                            : `Se procesaron ${importResult.imported} unidades correctamente.`}
                     </div>
                 ) : null}
             </div>

@@ -41,7 +41,6 @@ final class UnitExcelImporter
         'DNI CONDUCTOR',
         'CATEGORIA',
         'COORDINADOR',
-        'CORREO',
     ];
 
     public function downloadTemplate(): StreamedResponse
@@ -55,7 +54,7 @@ final class UnitExcelImporter
             $sheet->setCellValue([$column, 1], $header);
         }
 
-        $headerRange = 'A1:O1';
+        $headerRange = 'A1:N1';
         $sheet->getStyle($headerRange)->applyFromArray([
             'font' => [
                 'bold' => true,
@@ -94,16 +93,14 @@ final class UnitExcelImporter
             '46909313',
             'B',
             $firstCoordinatorName,
-            'conductor@agrovision.com',
         ], null, 'A2');
 
         $sheet->getStyle('K2')->getNumberFormat()->setFormatCode('@');
         $sheet->setCellValueExplicit('K2', '20554556192', DataType::TYPE_STRING);
         $sheet->setCellValueExplicit('L2', '46909313', DataType::TYPE_STRING);
         $sheet->setCellValueExplicit('B2', '985555756', DataType::TYPE_STRING);
-        $sheet->setCellValueExplicit('O2', 'conductor@agrovision.com', DataType::TYPE_STRING);
 
-        foreach (range('A', 'O') as $column) {
+        foreach (range('A', 'N') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
 
@@ -189,14 +186,13 @@ final class UnitExcelImporter
             'DNI CONDUCTOR',
             'CATEGORIA',
             'COORDINADOR',
-            'CORREO',
         ];
 
         foreach ($headers as $index => $header) {
             $sheet->setCellValue([$index + 1, 1], $header);
         }
 
-        $sheet->getStyle('A1:Q1')->applyFromArray([
+        $sheet->getStyle('A1:P1')->applyFromArray([
             'font' => [
                 'bold' => true,
                 'color' => ['rgb' => 'FFFFFF'],
@@ -240,12 +236,11 @@ final class UnitExcelImporter
                 "P{$rowNumber}",
                 (string) ($unit->coordinatorUser?->name ?? ''),
             );
-            $sheet->setCellValueExplicit("Q{$rowNumber}", (string) ($unit->email ?? ''), DataType::TYPE_STRING);
 
             $rowNumber++;
         }
 
-        foreach (range('A', 'Q') as $column) {
+        foreach (range('A', 'P') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
 
@@ -261,7 +256,7 @@ final class UnitExcelImporter
     }
 
     /**
-     * @return array{imported: int, errors: list<array{row: int, messages: list<string>}>}
+     * @return array{imported: int, created: int, updated: int, errors: list<array{row: int, messages: list<string>}>}
      */
     public function import(UploadedFile $file, Period $period): array
     {
@@ -273,6 +268,8 @@ final class UnitExcelImporter
         if ($rows === []) {
             return [
                 'imported' => 0,
+                'created' => 0,
+                'updated' => 0,
                 'errors' => [[
                     'row' => 1,
                     'messages' => ['El archivo está vacío.'],
@@ -286,6 +283,8 @@ final class UnitExcelImporter
         if ($headerErrors !== []) {
             return [
                 'imported' => 0,
+                'created' => 0,
+                'updated' => 0,
                 'errors' => [[
                     'row' => 1,
                     'messages' => $headerErrors,
@@ -296,8 +295,8 @@ final class UnitExcelImporter
         $errors = [];
         $pending = [];
         $seenCorrelatives = [];
-        $seenDriverPlates = [];
-        $coordinatorMap = SystemRoles::coordinatorNameMap();
+        $seenPlates = [];
+        $coordinators = SystemRoles::coordinators();
 
         foreach ($rows as $index => $row) {
             $excelRow = $index + 2;
@@ -306,29 +305,26 @@ final class UnitExcelImporter
                 continue;
             }
 
-            $mapped = $this->mapRow($row, $excelRow, $coordinatorMap);
+            $mapped = $this->mapRow($row, $excelRow, $coordinators);
             $rowErrors = $mapped['errors'];
 
             if ($rowErrors === []) {
-                $correlative = $mapped['data']['correlative'];
+                $correlative = $mapped['data']['correlative'] ?? null;
 
-                if (isset($seenCorrelatives[$correlative])) {
-                    $rowErrors[] = "El correlativo \"{$correlative}\" está duplicado en la fila {$seenCorrelatives[$correlative]} del Excel.";
-                } else {
-                    $seenCorrelatives[$correlative] = $excelRow;
+                if (is_string($correlative) && $correlative !== '') {
+                    if (isset($seenCorrelatives[$correlative])) {
+                        $rowErrors[] = "El correlativo \"{$correlative}\" está duplicado en la fila {$seenCorrelatives[$correlative]} del Excel.";
+                    } else {
+                        $seenCorrelatives[$correlative] = $excelRow;
+                    }
                 }
 
-                $driverKey = $this->driverPlateKey(
-                    $mapped['data']['driver_dni'] ?? null,
-                    $mapped['data']['plate_number'] ?? null,
-                );
+                $plate = (string) $mapped['data']['plate_number'];
 
-                if ($driverKey !== null) {
-                    if (isset($seenDriverPlates[$driverKey])) {
-                        $rowErrors[] = "El DNI del conductor y la placa ya aparecen juntos en la fila {$seenDriverPlates[$driverKey]} del Excel.";
-                    } else {
-                        $seenDriverPlates[$driverKey] = $excelRow;
-                    }
+                if (isset($seenPlates[$plate])) {
+                    $rowErrors[] = "La placa \"{$plate}\" está duplicada en la fila {$seenPlates[$plate]} del Excel.";
+                } else {
+                    $seenPlates[$plate] = $excelRow;
                 }
             }
 
@@ -354,41 +350,54 @@ final class UnitExcelImporter
 
             return [
                 'imported' => 0,
+                'created' => 0,
+                'updated' => 0,
                 'errors' => $errors,
             ];
         }
 
-        $existingCorrelatives = Unit::query()
-            ->whereIn('correlative', array_column($pending, 'correlative'))
-            ->pluck('correlative')
-            ->all();
-
-        $existingDriverPlates = Unit::query()
+        $plates = array_values(array_unique(array_column($pending, 'plate_number')));
+        $unitsByPlate = Unit::query()
             ->where('period_id', $period->id)
-            ->whereNotNull('driver_dni')
-            ->where('driver_dni', '!=', '')
-            ->whereNotNull('plate_number')
-            ->where('plate_number', '!=', '')
-            ->get(['driver_dni', 'plate_number'])
-            ->mapWithKeys(fn (Unit $unit) => [
-                $this->driverPlateKey($unit->driver_dni, $unit->plate_number) => true,
-            ])
-            ->all();
+            ->whereIn(DB::raw('upper(plate_number)'), $plates)
+            ->get(['id', 'plate_number', 'correlative'])
+            ->groupBy(fn (Unit $unit) => mb_strtoupper((string) $unit->plate_number));
+
+        $correlatives = array_values(array_filter(array_column($pending, 'correlative')));
+        $correlativeOwners = $correlatives === []
+            ? collect()
+            : Unit::query()
+                ->whereIn('correlative', $correlatives)
+                ->pluck('id', 'correlative');
 
         foreach ($pending as $excelRow => $data) {
             $rowMessages = [];
+            $plate = (string) $data['plate_number'];
+            $matches = $unitsByPlate->get($plate, collect());
+            $unitId = null;
 
-            if (in_array($data['correlative'], $existingCorrelatives, true)) {
-                $rowMessages[] = "Ya existe una unidad con el correlativo \"{$data['correlative']}\".";
+            if ($matches->count() > 1) {
+                $rowMessages[] = "Hay más de una unidad con la placa \"{$plate}\" en este periodo.";
+            } elseif ($matches->count() === 1) {
+                $unitId = (int) $matches->first()->id;
             }
 
-            $driverKey = $this->driverPlateKey(
-                $data['driver_dni'] ?? null,
-                $data['plate_number'] ?? null,
-            );
+            $correlative = $data['correlative'] ?? null;
 
-            if ($driverKey !== null && isset($existingDriverPlates[$driverKey])) {
-                $rowMessages[] = "Ya existe una unidad con el mismo DNI del conductor ({$data['driver_dni']}) y placa ({$data['plate_number']}) en este periodo.";
+            if ($unitId === null && ($correlative === null || $correlative === '')) {
+                $rowMessages[] = 'El correlativo es obligatorio cuando la placa es nueva.';
+            }
+
+            if ($unitId === null && ($data['provider'] ?? null) === null) {
+                $rowMessages[] = 'El proveedor es obligatorio cuando la placa es nueva.';
+            }
+
+            if (is_string($correlative) && $correlative !== '' && $correlativeOwners->has($correlative)) {
+                $ownerId = (int) $correlativeOwners->get($correlative);
+
+                if ($unitId === null || $ownerId !== $unitId) {
+                    $rowMessages[] = "Ya existe otra unidad con el correlativo \"{$correlative}\".";
+                }
             }
 
             if ($rowMessages !== []) {
@@ -397,12 +406,18 @@ final class UnitExcelImporter
                     'messages' => $rowMessages,
                 ];
                 unset($pending[$excelRow]);
+
+                continue;
             }
+
+            $pending[$excelRow]['unit_id'] = $unitId;
         }
 
         if ($errors !== []) {
             return [
                 'imported' => 0,
+                'created' => 0,
+                'updated' => 0,
                 'errors' => array_values($errors),
             ];
         }
@@ -414,32 +429,59 @@ final class UnitExcelImporter
             }
         }
 
-        $imported = 0;
+        $created = 0;
+        $updated = 0;
 
-        DB::transaction(function () use ($pending, $period, &$imported): void {
+        DB::transaction(function () use ($pending, $period, &$created, &$updated): void {
             foreach ($pending as $data) {
+                $unitId = $data['unit_id'] ?? null;
+                unset($data['unit_id']);
+
                 $vehicleType = UnitCatalog::rememberVehicleType($data['vehicle_type'] ?? null);
                 $category = UnitCatalog::rememberLicenseCategory($data['category'] ?? null);
                 $serviceType = UnitCatalog::rememberServiceType($data['service_type'] ?? null);
                 $responsible = UnitCatalog::rememberResponsiblePerson($data['responsible_person'] ?? null);
 
+                if ($vehicleType) {
+                    $data['vehicle_type'] = $vehicleType->name;
+                }
+
+                if ($category) {
+                    $data['category'] = $category->name;
+                }
+
+                if ($serviceType) {
+                    $data['service_type'] = $serviceType->name;
+                }
+
+                if ($responsible) {
+                    $data['responsible_person'] = $responsible->name;
+                }
+
+                $attributes = $this->presentAttributes($data);
+                $attributes['plate_number'] = $data['plate_number'];
+
+                if ($unitId) {
+                    $unit = Unit::query()->findOrFail($unitId);
+                    $unit->fill($attributes);
+                    $unit->save();
+                    $updated++;
+
+                    continue;
+                }
+
                 Unit::create([
-                    ...$data,
-                    'vehicle_type' => $vehicleType?->name,
-                    'category' => $category?->name,
-                    'service_type' => $serviceType?->name,
-                    'responsible_person' => $responsible?->name,
-                    'plate_number' => UnitCatalog::formatPlate(
-                        is_string($data['plate_number'] ?? null) ? $data['plate_number'] : null,
-                    ),
+                    ...$attributes,
                     'period_id' => $period->id,
                 ]);
-                $imported++;
+                $created++;
             }
         });
 
         return [
-            'imported' => $imported,
+            'imported' => $created + $updated,
+            'created' => $created,
+            'updated' => $updated,
             'errors' => [],
         ];
     }
@@ -489,10 +531,10 @@ final class UnitExcelImporter
 
     /**
      * @param  array<int, mixed>  $row
-     * @param  array<string, int>  $coordinatorMap
+     * @param  \Illuminate\Support\Collection<int, \App\Models\User>  $coordinators
      * @return array{data: array<string, mixed>, errors: list<string>}
      */
-    private function mapRow(array $row, int $excelRow, array $coordinatorMap = []): array
+    private function mapRow(array $row, int $excelRow, $coordinators): array
     {
         $correlative = $this->stringValue($row[0] ?? null);
         $phone = $this->stringValue($row[1] ?? null);
@@ -508,22 +550,13 @@ final class UnitExcelImporter
         $driverDni = $this->stringValue($row[11] ?? null);
         $category = $this->stringValue($row[12] ?? null);
         $coordinatorName = $this->stringValue($row[13] ?? null);
-        $email = $this->stringValue($row[14] ?? null);
 
         $errors = [];
         $serviceDate = null;
         $coordinatorId = null;
 
-        if ($correlative === null) {
-            $errors[] = 'El campo CORRELATIVO* es obligatorio.';
-        }
-
-        if ($provider === null) {
-            $errors[] = 'El campo PROVEEDOR* es obligatorio.';
-        }
-
-        if ($email !== null && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $errors[] = 'El campo CORREO no es un email válido.';
+        if ($plateNumber === null) {
+            $errors[] = 'La PLACA es obligatoria. Con ella se identifica la unidad.';
         }
 
         if ($this->hasValue($rawDate)) {
@@ -537,12 +570,12 @@ final class UnitExcelImporter
         }
 
         if ($coordinatorName !== null) {
-            $key = mb_strtolower(trim($coordinatorName));
+            $resolved = $this->resolveCoordinator($coordinatorName, $coordinators);
 
-            if (! isset($coordinatorMap[$key])) {
-                $errors[] = "El COORDINADOR \"{$coordinatorName}\" no existe. Usa un nombre de la hoja Coordinadores.";
+            if ($resolved['error'] !== null) {
+                $errors[] = $resolved['error'];
             } else {
-                $coordinatorId = $coordinatorMap[$key];
+                $coordinatorId = $resolved['id'];
             }
         }
 
@@ -553,7 +586,6 @@ final class UnitExcelImporter
         $payload = [
             'correlative' => $correlative,
             'phone' => $phone,
-            'email' => $email,
             'provider' => $provider,
             'route' => $route,
             'vehicle_type' => $vehicleType,
@@ -569,15 +601,14 @@ final class UnitExcelImporter
         ];
 
         $validator = Validator::make($payload, [
-            'correlative' => ['required', 'string', 'max:50'],
+            'correlative' => ['nullable', 'string', 'max:50'],
             'phone' => ['nullable', 'string', 'max:20'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'provider' => ['required', 'string', 'max:255'],
+            'provider' => ['nullable', 'string', 'max:255'],
             'route' => ['nullable', 'string', 'max:255'],
             'vehicle_type' => ['nullable', 'string', 'max:100'],
             'service_date' => ['nullable', 'date'],
             'driver_name' => ['nullable', 'string', 'max:255'],
-            'plate_number' => ['nullable', 'regex:/^[A-Z0-9]{3}-[A-Z0-9]{3}$/'],
+            'plate_number' => ['required', 'regex:/^[A-Z0-9]{3}-[A-Z0-9]{3}$/'],
             'responsible_person' => ['nullable', 'string', 'max:255'],
             'service_type' => ['nullable', 'string', 'max:100'],
             'ruc' => ['nullable', 'string', 'regex:/^\d{11}$/'],
@@ -585,11 +616,9 @@ final class UnitExcelImporter
             'category' => ['nullable', 'string', 'max:100'],
             'coordinator_id' => ['nullable', 'integer'],
         ], [
-            'correlative.required' => 'El campo CORRELATIVO* es obligatorio.',
-            'provider.required' => 'El campo PROVEEDOR* es obligatorio.',
-            'email.email' => 'El campo CORREO no es un email válido.',
             'ruc.regex' => 'El campo RUC debe tener 11 dígitos.',
             'driver_dni.regex' => 'El campo DNI CONDUCTOR solo debe contener números.',
+            'plate_number.required' => 'La PLACA es obligatoria. Con ella se identifica la unidad.',
             'plate_number.regex' => 'El campo PLACA debe ser 3 caracteres, un guion y 3 más. Ejemplo: T5M-121.',
         ]);
 
@@ -611,13 +640,76 @@ final class UnitExcelImporter
         return trim((string) $value) !== '';
     }
 
-    private function driverPlateKey(?string $driverDni, ?string $plateNumber): ?string
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function presentAttributes(array $data): array
     {
-        if ($driverDni === null || $driverDni === '' || $plateNumber === null || $plateNumber === '') {
-            return null;
+        $attributes = [];
+
+        foreach ($data as $key => $value) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $attributes[$key] = $value;
         }
 
-        return mb_strtolower(trim($driverDni)).'|'.mb_strtoupper(trim($plateNumber));
+        return $attributes;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, \App\Models\User>  $coordinators
+     * @return array{id: int|null, error: string|null}
+     */
+    private function resolveCoordinator(string $name, $coordinators): array
+    {
+        $tokens = preg_split('/[\s,]+/u', mb_strtolower(trim($name))) ?: [];
+        $tokens = array_values(array_filter(
+            $tokens,
+            fn ($token) => mb_strlen((string) $token) >= 3,
+        ));
+
+        if ($tokens === []) {
+            return [
+                'id' => null,
+                'error' => "El COORDINADOR \"{$name}\" no se puede identificar.",
+            ];
+        }
+
+        $matches = $coordinators->filter(function ($user) use ($tokens) {
+            $haystack = mb_strtolower((string) $user->name);
+
+            foreach ($tokens as $token) {
+                if (! str_contains($haystack, $token)) {
+                    return false;
+                }
+            }
+
+            return true;
+        })->values();
+
+        if ($matches->count() === 1) {
+            return [
+                'id' => (int) $matches->first()->id,
+                'error' => null,
+            ];
+        }
+
+        if ($matches->isEmpty()) {
+            return [
+                'id' => null,
+                'error' => "El COORDINADOR \"{$name}\" no coincide con ningún coordinador.",
+            ];
+        }
+
+        $names = $matches->pluck('name')->implode(', ');
+
+        return [
+            'id' => null,
+            'error' => "El COORDINADOR \"{$name}\" coincide con varios usuarios: {$names}.",
+        ];
     }
 
     private function stringValue(mixed $value): ?string

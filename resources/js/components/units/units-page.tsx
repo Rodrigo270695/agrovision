@@ -34,6 +34,8 @@ type UnitsPageProps = {
     flash?: {
         unit_import?: {
             imported: number;
+            created?: number;
+            updated?: number;
             errors: Array<{ row: number; messages: string[] }>;
         } | null;
     };
