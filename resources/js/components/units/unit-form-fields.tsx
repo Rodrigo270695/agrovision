@@ -1,4 +1,7 @@
+import { Building2, Search } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import InputError from '@/components/input-error';
+import { SearchableCombobox } from '@/components/shared/searchable-combobox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,8 +13,6 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
-import { Building2, Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
 
 export type PeriodOption = {
     id: number;
@@ -24,6 +25,11 @@ export type CoordinatorOption = {
     id: number;
     name: string;
     email?: string | null;
+};
+
+export type LicenseCategoryOption = {
+    name: string;
+    description?: string | null;
 };
 
 export type UnitFormValues = {
@@ -51,6 +57,8 @@ type Props = {
     onChange: (field: keyof UnitFormValues, value: string) => void;
     periodOptions: PeriodOption[];
     coordinatorOptions: CoordinatorOption[];
+    vehicleTypeOptions: string[];
+    licenseCategoryOptions: LicenseCategoryOption[];
 };
 
 type RucInfo = {
@@ -119,8 +127,8 @@ const otherFields: Array<{
     },
     {
         key: 'category',
-        label: 'Categoría',
-        placeholder: 'Ej. B',
+        label: 'Categoría de licencia',
+        placeholder: 'Ej. A-IIb',
     },
 ];
 
@@ -158,18 +166,184 @@ async function postJson<T>(url: string, body: Record<string, string>): Promise<T
     return payload as T;
 }
 
+async function createCatalog(
+    url: string,
+    name: string,
+): Promise<{ name: string; description?: string | null }> {
+    const response = await fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-XSRF-TOKEN': getXsrfToken(),
+        },
+        body: JSON.stringify({ name }),
+    });
+
+    const payload = (await response.json().catch(() => ({}))) as {
+        name?: string;
+        description?: string | null;
+        message?: string;
+        errors?: Record<string, string[]>;
+    };
+
+    if (!response.ok) {
+        const firstError = payload.errors
+            ? Object.values(payload.errors).flat()[0]
+            : undefined;
+
+        throw new Error(
+            firstError || payload.message || 'No se pudo crear el registro.',
+        );
+    }
+
+    return {
+        name: payload.name ?? name,
+        description: payload.description,
+    };
+}
+
 export function UnitFormFields({
     values,
     errors,
     onChange,
     periodOptions,
     coordinatorOptions,
+    vehicleTypeOptions,
+    licenseCategoryOptions,
 }: Props) {
     const [rucLoading, setRucLoading] = useState(false);
     const [dniLoading, setDniLoading] = useState(false);
     const [rucError, setRucError] = useState<string | null>(null);
     const [dniError, setDniError] = useState<string | null>(null);
     const [rucInfo, setRucInfo] = useState<RucInfo | null>(null);
+    const [vehicleTypes, setVehicleTypes] = useState(vehicleTypeOptions);
+    const [licenseCategories, setLicenseCategories] = useState(
+        licenseCategoryOptions,
+    );
+    const [creatingField, setCreatingField] = useState<
+        'vehicle_type' | 'category' | null
+    >(null);
+    const [catalogError, setCatalogError] = useState<
+        Partial<Record<'vehicle_type' | 'category', string>>
+    >({});
+    const vehicleTypeKey = vehicleTypeOptions.join('\n');
+    const licenseCategoryKey = licenseCategoryOptions
+        .map((item) => item.name)
+        .join('\n');
+
+    useEffect(() => {
+        setVehicleTypes(vehicleTypeOptions);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [vehicleTypeKey]);
+
+    useEffect(() => {
+        setLicenseCategories(licenseCategoryOptions);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [licenseCategoryKey]);
+
+    const vehicleTypeChoices = useMemo(() => {
+        const names = [...vehicleTypes];
+        const current = values.vehicle_type.trim();
+
+        if (
+            current !== '' &&
+            !names.some((name) => name.toLowerCase() === current.toLowerCase())
+        ) {
+            names.push(current);
+        }
+
+        return names.map((name) => ({ value: name, label: name }));
+    }, [values.vehicle_type, vehicleTypes]);
+
+    const licenseCategoryChoices = useMemo(() => {
+        const items = [...licenseCategories];
+        const current = values.category.trim();
+
+        if (
+            current !== '' &&
+            !items.some((item) => item.name.toLowerCase() === current.toLowerCase())
+        ) {
+            items.push({ name: current });
+        }
+
+        return items.map((item) => ({
+            value: item.name,
+            label: item.name,
+            description: item.description ?? undefined,
+        }));
+    }, [licenseCategories, values.category]);
+
+    const createVehicleType = async (name: string) => {
+        setCatalogError((current) => ({ ...current, vehicle_type: undefined }));
+        setCreatingField('vehicle_type');
+
+        try {
+            const created = await createCatalog(
+                '/unidades/tipos-vehiculo',
+                name,
+            );
+
+            setVehicleTypes((current) =>
+                current.some(
+                    (item) => item.toLowerCase() === created.name.toLowerCase(),
+                )
+                    ? current
+                    : [...current, created.name],
+            );
+            onChange('vehicle_type', created.name);
+        } catch (error) {
+            setCatalogError((current) => ({
+                ...current,
+                vehicle_type:
+                    error instanceof Error
+                        ? error.message
+                        : 'No se pudo crear el tipo de vehículo.',
+            }));
+        } finally {
+            setCreatingField(null);
+        }
+    };
+
+    const createLicenseCategory = async (name: string) => {
+        setCatalogError((current) => ({ ...current, category: undefined }));
+        setCreatingField('category');
+
+        try {
+            const created = await createCatalog(
+                '/unidades/categorias-licencia',
+                name,
+            );
+
+            setLicenseCategories((current) =>
+                current.some(
+                    (item) =>
+                        item.name.toLowerCase() === created.name.toLowerCase(),
+                )
+                    ? current
+                    : [
+                          ...current,
+                          {
+                              name: created.name,
+                              description: created.description,
+                          },
+                      ],
+            );
+            onChange('category', created.name);
+        } catch (error) {
+            setCatalogError((current) => ({
+                ...current,
+                category:
+                    error instanceof Error
+                        ? error.message
+                        : 'No se pudo crear la categoría.',
+            }));
+        } finally {
+            setCreatingField(null);
+        }
+    };
 
     useEffect(() => {
         if (values.period_id === '' && periodOptions[0]) {
@@ -460,19 +634,66 @@ export function UnitFormFields({
                             <span className="text-red-500"> *</span>
                         ) : null}
                     </Label>
-                    <Input
-                        id={`unit-${field.key}`}
-                        name={field.key}
-                        type={field.type ?? 'text'}
-                        value={values[field.key]}
-                        onChange={(event) =>
-                            onChange(field.key, event.target.value)
+                    {field.key === 'vehicle_type' ? (
+                        <SearchableCombobox
+                            id="unit-vehicle_type"
+                            compact
+                            value={
+                                vehicleTypeChoices.find(
+                                    (option) =>
+                                        option.value.toLowerCase() ===
+                                        values.vehicle_type.trim().toLowerCase(),
+                                )?.value ?? null
+                            }
+                            options={vehicleTypeChoices}
+                            onChange={(value) =>
+                                onChange('vehicle_type', value ?? '')
+                            }
+                            onCreate={(name) => void createVehicleType(name)}
+                            creating={creatingField === 'vehicle_type'}
+                            placeholder="Buscar o crear tipo"
+                            emptyMessage="No hay tipos de vehículo"
+                        />
+                    ) : field.key === 'category' ? (
+                        <SearchableCombobox
+                            id="unit-category"
+                            compact
+                            value={
+                                licenseCategoryChoices.find(
+                                    (option) =>
+                                        option.value.toLowerCase() ===
+                                        values.category.trim().toLowerCase(),
+                                )?.value ?? null
+                            }
+                            options={licenseCategoryChoices}
+                            onChange={(value) => onChange('category', value ?? '')}
+                            onCreate={(name) => void createLicenseCategory(name)}
+                            creating={creatingField === 'category'}
+                            placeholder="Buscar o crear categoría"
+                            emptyMessage="No hay categorías"
+                        />
+                    ) : (
+                        <Input
+                            id={`unit-${field.key}`}
+                            name={field.key}
+                            type={field.type ?? 'text'}
+                            value={values[field.key]}
+                            onChange={(event) =>
+                                onChange(field.key, event.target.value)
+                            }
+                            placeholder={field.placeholder}
+                            autoFocus={field.key === 'correlative'}
+                            className="h-9 border-[#c5d5e6] bg-white text-sm focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35"
+                        />
+                    )}
+                    <InputError
+                        message={
+                            errors[field.key] ??
+                            (field.key === 'vehicle_type' || field.key === 'category'
+                                ? catalogError[field.key]
+                                : undefined)
                         }
-                        placeholder={field.placeholder}
-                        autoFocus={field.key === 'correlative'}
-                        className="h-9 border-[#c5d5e6] bg-white text-sm focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35"
                     />
-                    <InputError message={errors[field.key]} />
                 </div>
             ))}
 

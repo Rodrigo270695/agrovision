@@ -3,14 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UnitRequest;
+use App\Models\LicenseCategory;
 use App\Models\Period;
 use App\Models\Unit;
+use App\Models\VehicleType;
 use App\Support\IndexedRedirect;
+use App\Support\UnitCatalog;
 use App\Support\PermissionCatalog;
 use App\Support\SystemRoles;
 use App\Support\UnitDocumentTypes;
 use App\Support\UnitExcelImporter;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -62,6 +66,15 @@ class UnitController extends Controller
                 ->orderByDesc('date')
                 ->get(['id', 'name', 'status', 'date']),
             'coordinatorOptions' => $this->coordinatorOptions(),
+            'vehicleTypeOptions' => VehicleType::query()
+                ->orderBy('sort')
+                ->orderBy('name')
+                ->pluck('name')
+                ->values(),
+            'licenseCategoryOptions' => LicenseCategory::query()
+                ->orderBy('sort')
+                ->orderBy('name')
+                ->get(['name', 'description']),
             'documentTypes' => collect(UnitDocumentTypes::labels())
                 ->map(fn (string $label, string $key) => [
                     'value' => $key,
@@ -100,6 +113,8 @@ class UnitController extends Controller
             $data['coordinator_id'] = Auth::id();
         }
 
+        $data = $this->rememberCatalogValues($data);
+
         Unit::create($data);
 
         return IndexedRedirect::toIndex($request, 'units.index', [
@@ -118,6 +133,8 @@ class UnitController extends Controller
             $data['coordinator_id'] = Auth::id();
         }
 
+        $data = $this->rememberCatalogValues($data);
+
         $unit->update($data);
 
         return IndexedRedirect::toIndex($request, 'units.index', [
@@ -135,6 +152,49 @@ class UnitController extends Controller
         return IndexedRedirect::toIndex($request, 'units.index', [
             'type' => 'success',
             'message' => 'Unidad eliminada correctamente.',
+        ]);
+    }
+
+    public function storeVehicleType(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+        ], [
+            'name.required' => 'Escribe el tipo de vehículo.',
+        ]);
+
+        $type = UnitCatalog::rememberVehicleType($validated['name']);
+
+        if ($type === null) {
+            return response()->json([
+                'message' => 'Escribe el tipo de vehículo.',
+            ], 422);
+        }
+
+        return response()->json([
+            'name' => $type->name,
+        ]);
+    }
+
+    public function storeLicenseCategory(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+        ], [
+            'name.required' => 'Escribe la categoría.',
+        ]);
+
+        $category = UnitCatalog::rememberLicenseCategory($validated['name']);
+
+        if ($category === null) {
+            return response()->json([
+                'message' => 'Escribe la categoría.',
+            ], 422);
+        }
+
+        return response()->json([
+            'name' => $category->name,
+            'description' => $category->description,
         ]);
     }
 
@@ -271,6 +331,29 @@ class UnitController extends Controller
         }
 
         return $query->orderBy($filters['sort'], $filters['direction']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function rememberCatalogValues(array $data): array
+    {
+        if (array_key_exists('vehicle_type', $data)) {
+            $type = UnitCatalog::rememberVehicleType(
+                is_string($data['vehicle_type']) ? $data['vehicle_type'] : null,
+            );
+            $data['vehicle_type'] = $type?->name;
+        }
+
+        if (array_key_exists('category', $data)) {
+            $category = UnitCatalog::rememberLicenseCategory(
+                is_string($data['category']) ? $data['category'] : null,
+            );
+            $data['category'] = $category?->name;
+        }
+
+        return $data;
     }
 
     private function ensureCanAccessUnit(Unit $unit): void

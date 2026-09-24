@@ -1,12 +1,6 @@
-import { Check, ChevronsUpDown, X } from 'lucide-react';
-import {
-    useEffect,
-    useId,
-    useMemo,
-    useRef,
-    useState,
-    type KeyboardEvent,
-} from 'react';
+import { Check, ChevronsUpDown, Plus, X } from 'lucide-react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import { cn } from '@/lib/utils';
 
 export type SearchableComboboxOption = {
@@ -26,6 +20,9 @@ type Props = {
     allowClear?: boolean;
     className?: string;
     id?: string;
+    compact?: boolean;
+    onCreate?: (name: string) => void;
+    creating?: boolean;
 };
 
 function normalize(value: string): string {
@@ -51,6 +48,9 @@ export function SearchableCombobox({
     allowClear = true,
     className,
     id,
+    compact = false,
+    onCreate,
+    creating = false,
 }: Props) {
     const listId = useId();
     const rootRef = useRef<HTMLDivElement>(null);
@@ -84,6 +84,18 @@ export function SearchableCombobox({
             return haystack.includes(needle);
         });
     }, [options, query]);
+
+    const createName = query.trim();
+    const canCreate = Boolean(
+        onCreate &&
+            createName !== '' &&
+            !options.some(
+                (option) =>
+                    normalize(option.label) === normalize(createName) ||
+                    normalize(option.value) === normalize(createName),
+            ),
+    );
+    const itemCount = filtered.length + (canCreate ? 1 : 0);
 
     useEffect(() => {
         if (!open) {
@@ -139,6 +151,16 @@ export function SearchableCombobox({
         inputRef.current?.focus();
     };
 
+    const createCurrent = () => {
+        if (!onCreate || creating || createName === '') {
+            return;
+        }
+
+        onCreate(createName);
+        setOpen(false);
+        setQuery('');
+    };
+
     const openMenu = () => {
         if (disabled) {
             return;
@@ -159,9 +181,7 @@ export function SearchableCombobox({
         if (event.key === 'ArrowDown') {
             event.preventDefault();
             setHighlight((prev) =>
-                filtered.length === 0
-                    ? 0
-                    : Math.min(prev + 1, filtered.length - 1),
+                itemCount === 0 ? 0 : Math.min(prev + 1, itemCount - 1),
             );
 
             return;
@@ -176,10 +196,19 @@ export function SearchableCombobox({
 
         if (event.key === 'Enter') {
             event.preventDefault();
+
+            if (canCreate && highlight === filtered.length) {
+                createCurrent();
+
+                return;
+            }
+
             const option = filtered[highlight];
 
             if (option) {
                 selectOption(option);
+            } else if (canCreate) {
+                createCurrent();
             }
 
             return;
@@ -199,7 +228,8 @@ export function SearchableCombobox({
         <div ref={rootRef} className={cn('relative', className)}>
             <div
                 className={cn(
-                    'flex h-10 w-full items-center gap-1.5 rounded-md border border-[#c5d5e6] bg-white px-2.5 shadow-none transition',
+                    'flex w-full items-center gap-1.5 rounded-md border border-[#c5d5e6] bg-white px-2.5 shadow-none transition',
+                    compact ? 'h-9' : 'h-10',
                     'focus-within:border-[#2e5a9e] focus-within:ring-[3px] focus-within:ring-[#4a90e2]/35',
                     disabled && 'opacity-50',
                     open && 'border-[#2e5a9e] ring-[3px] ring-[#4a90e2]/35',
@@ -271,7 +301,7 @@ export function SearchableCombobox({
                     data-scroll-lock-scrollable=""
                     className="mt-1 max-h-48 overflow-y-auto overscroll-contain rounded-lg border border-[#d7e3f0] bg-white py-1 shadow-md"
                 >
-                    {filtered.length === 0 ? (
+                    {filtered.length === 0 && !canCreate ? (
                         <p className="px-3 py-3 text-center text-sm text-[#6b8ead]">
                             {emptyMessage}
                         </p>
@@ -322,6 +352,30 @@ export function SearchableCombobox({
                             );
                         })
                     )}
+                    {canCreate ? (
+                        <button
+                            type="button"
+                            data-index={filtered.length}
+                            className={cn(
+                                'flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm transition',
+                                highlight === filtered.length
+                                    ? 'bg-[#e8f1fa] text-[#1a2b4c]'
+                                    : 'text-[#1a2b4c] hover:bg-[#f8fafc]',
+                            )}
+                            onMouseEnter={() => setHighlight(filtered.length)}
+                            onMouseDown={(event) => {
+                                event.preventDefault();
+                                createCurrent();
+                            }}
+                        >
+                            <Plus className="size-3.5 shrink-0 text-[#2e5a9e]" />
+                            <span className="min-w-0 flex-1 truncate font-medium">
+                                {creating
+                                    ? 'Creando...'
+                                    : `Crear "${createName}"`}
+                            </span>
+                        </button>
+                    ) : null}
                 </div>
             ) : null}
         </div>

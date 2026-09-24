@@ -1,20 +1,24 @@
 import { useForm } from '@inertiajs/react';
-import { useEffect, useMemo, type FormEvent } from 'react';
-import {
-    UnitFormFields,
-    type CoordinatorOption,
-    type PeriodOption,
-} from '@/components/units/unit-form-fields';
-import type { UnitItem } from '@/components/units/units-table';
+import { useEffect, useMemo } from 'react';
+import type { FormEvent } from 'react';
 import { AppModal } from '@/components/shared/app-modal';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import { UnitFormFields } from '@/components/units/unit-form-fields';
+import type {
+    CoordinatorOption,
+    LicenseCategoryOption,
+    PeriodOption,
+} from '@/components/units/unit-form-fields';
+import type { UnitItem } from '@/components/units/units-table';
 
 type Props = {
     open: boolean;
     unit?: UnitItem | null;
     periodOptions: PeriodOption[];
     coordinatorOptions: CoordinatorOption[];
+    vehicleTypeOptions: string[];
+    licenseCategoryOptions: LicenseCategoryOption[];
     onClose: () => void;
 };
 
@@ -73,6 +77,8 @@ export function UnitFormModal({
     unit = null,
     periodOptions,
     coordinatorOptions,
+    vehicleTypeOptions,
+    licenseCategoryOptions,
     onClose,
 }: Props) {
     const isEditing = Boolean(unit);
@@ -146,6 +152,7 @@ export function UnitFormModal({
                 onSuccess: () => handleClose(),
                 onFinish: () => form.transform((data) => data),
             });
+
             return;
         }
 
@@ -196,6 +203,8 @@ export function UnitFormModal({
                     onChange={(field, value) => form.setData(field, value)}
                     periodOptions={periodOptions}
                     coordinatorOptions={coordinatorOptions}
+                    vehicleTypeOptions={vehicleTypeOptions}
+                    licenseCategoryOptions={licenseCategoryOptions}
                 />
             </form>
         </AppModal>

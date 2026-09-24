@@ -1,21 +1,23 @@
 import { usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { UnitDeleteModal } from '@/components/units/unit-delete-modal';
-import {
-    UnitDocumentsModal,
-    type UnitDocumentTypeOption,
-} from '@/components/units/unit-documents-modal';
+import { UnitDocumentsModal } from '@/components/units/unit-documents-modal';
+import type { UnitDocumentTypeOption } from '@/components/units/unit-documents-modal';
+import type {
+    CoordinatorOption,
+    LicenseCategoryOption,
+    PeriodOption,
+} from '@/components/units/unit-form-fields';
 import { UnitFormModal } from '@/components/units/unit-form-modal';
 import { UnitImportModal } from '@/components/units/unit-import-modal';
-import type { PeriodOption, CoordinatorOption } from '@/components/units/unit-form-fields';
 import { UnitsHeader } from '@/components/units/units-header';
-import {
-    UnitsTable,
-    type UnitItem,
-    type UnitsFilters,
-    type UnitsPagination,
-} from '@/components/units/units-table';
 import type { UnitsStatsData } from '@/components/units/units-stats';
+import { UnitsTable } from '@/components/units/units-table';
+import type {
+    UnitItem,
+    UnitsFilters,
+    UnitsPagination,
+} from '@/components/units/units-table';
 import { useCan } from '@/hooks/use-can';
 
 type UnitsPageProps = {
@@ -24,6 +26,8 @@ type UnitsPageProps = {
     filters: UnitsFilters;
     periodOptions: PeriodOption[];
     coordinatorOptions: CoordinatorOption[];
+    vehicleTypeOptions: string[];
+    licenseCategoryOptions: LicenseCategoryOption[];
     documentTypes: UnitDocumentTypeOption[];
     flash?: {
         unit_import?: {
@@ -40,6 +44,8 @@ export function UnitsPage() {
         filters,
         periodOptions,
         coordinatorOptions,
+        vehicleTypeOptions,
+        licenseCategoryOptions,
         documentTypes,
         flash,
     } = usePage().props as unknown as UnitsPageProps;
@@ -149,6 +155,8 @@ export function UnitsPage() {
                     unit={editingUnit}
                     periodOptions={periodOptions ?? []}
                     coordinatorOptions={coordinatorOptions ?? []}
+                    vehicleTypeOptions={vehicleTypeOptions ?? []}
+                    licenseCategoryOptions={licenseCategoryOptions ?? []}
                     onClose={closeForm}
                 />
             ) : null}

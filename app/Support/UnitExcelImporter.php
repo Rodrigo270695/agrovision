@@ -418,8 +418,13 @@ final class UnitExcelImporter
 
         DB::transaction(function () use ($pending, $period, &$imported): void {
             foreach ($pending as $data) {
+                $vehicleType = UnitCatalog::rememberVehicleType($data['vehicle_type'] ?? null);
+                $category = UnitCatalog::rememberLicenseCategory($data['category'] ?? null);
+
                 Unit::create([
                     ...$data,
+                    'vehicle_type' => $vehicleType?->name,
+                    'category' => $category?->name,
                     'period_id' => $period->id,
                 ]);
                 $imported++;
@@ -570,7 +575,7 @@ final class UnitExcelImporter
             'service_type' => ['nullable', 'string', 'max:100'],
             'ruc' => ['nullable', 'string', 'regex:/^\d{11}$/'],
             'driver_dni' => ['nullable', 'string', 'max:20', 'regex:/^\d+$/'],
-            'category' => ['nullable', 'string', 'max:20'],
+            'category' => ['nullable', 'string', 'max:100'],
             'coordinator_id' => ['nullable', 'integer'],
         ], [
             'correlative.required' => 'El campo CORRELATIVO* es obligatorio.',

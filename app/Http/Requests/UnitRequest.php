@@ -42,7 +42,7 @@ class UnitRequest extends FormRequest
             'service_type' => ['nullable', 'string', 'max:100'],
             'ruc' => ['nullable', 'string', 'max:11', 'regex:/^\d{11}$/'],
             'driver_dni' => ['nullable', 'string', 'max:20', 'regex:/^\d+$/'],
-            'category' => ['nullable', 'string', 'max:20'],
+            'category' => ['nullable', 'string', 'max:100'],
             'coordinator_id' => [
                 'nullable',
                 'integer',

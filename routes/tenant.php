@@ -172,6 +172,14 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:units.create')
             ->name('units.import');
 
+        Route::post('unidades/tipos-vehiculo', [UnitController::class, 'storeVehicleType'])
+            ->middleware('permission:units.create|units.update')
+            ->name('units.vehicle-types.store');
+
+        Route::post('unidades/categorias-licencia', [UnitController::class, 'storeLicenseCategory'])
+            ->middleware('permission:units.create|units.update')
+            ->name('units.license-categories.store');
+
         Route::post('unidades', [UnitController::class, 'store'])
             ->middleware('permission:units.create')
             ->name('units.store');
