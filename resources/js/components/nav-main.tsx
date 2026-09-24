@@ -48,6 +48,11 @@ const accents: Record<string, Accent> = {
         chip: 'bg-[#e0f2fe]',
         activeChip: 'bg-[#0369a1]/15 text-[#075985]',
     },
+    Lugares: {
+        icon: 'text-[#be123c]',
+        chip: 'bg-[#ffe4e6]',
+        activeChip: 'bg-[#be123c]/15 text-[#9f1239]',
+    },
     Unidades: {
         icon: 'text-[#2e5a9e]',
         chip: 'bg-[#e8f1fa]',
