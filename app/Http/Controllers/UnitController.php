@@ -303,11 +303,12 @@ class UnitController extends Controller
 
         return IndexedRedirect::toIndex($request, 'units.index', [
             'type' => 'success',
-            'message' => "Se procesaron {$result['imported']} unidades: {$result['created']} nuevas y {$result['updated']} actualizadas.",
+            'message' => "Se guardaron {$result['created']} movimientos nuevos y {$result['updated']} ya registrados. Unidades nuevas: {$result['units_created']}.",
         ])->with('unit_import', [
             'imported' => $result['imported'],
             'created' => $result['created'],
             'updated' => $result['updated'],
+            'units_created' => $result['units_created'],
             'errors' => [],
         ]);
     }

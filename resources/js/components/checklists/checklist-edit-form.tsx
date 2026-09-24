@@ -51,6 +51,7 @@ export type ChecklistFormData = {
     sealed_at: string | null;
     plate_number: string;
     driver_name: string | null;
+    driver_options?: { date: string; name: string }[];
     provider: string | null;
     location: string | null;
     transport_company: string | null;
@@ -259,6 +260,21 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
             checklist.second_inspected_time,
         ),
     );
+    const inspectionDate = firstAt.slice(0, 10);
+    const driversForDate = useMemo(() => {
+        const names = (checklist.driver_options ?? [])
+            .filter((option) => option.date === inspectionDate)
+            .map((option) => option.name);
+
+        if (
+            driverName !== '' &&
+            !names.some((name) => name.toLowerCase() === driverName.toLowerCase())
+        ) {
+            return [driverName, ...names];
+        }
+
+        return [...new Set(names)];
+    }, [checklist.driver_options, inspectionDate, driverName]);
     const firstResult = checklist.first_result ?? '';
     const secondResult = checklist.second_result ?? '';
     const [observations, setObservations] = useState(
@@ -660,12 +676,41 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                 </h2>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <Field label="Placa" value={checklist.plate_number} disabled />
-                    <Field
-                        label="Conductor"
-                        value={driverName}
-                        onChange={setDriverName}
-                        disabled={sealed}
-                    />
+                    {driversForDate.length > 0 ? (
+                        <div className="grid gap-1.5">
+                            <Label className="text-xs text-[#1a2b4c]">
+                                Conductor
+                            </Label>
+                            <select
+                                value={driverName}
+                                disabled={sealed}
+                                onChange={(event) =>
+                                    setDriverName(event.target.value)
+                                }
+                                className="h-10 rounded-md border border-[#c5d5e6] bg-white px-3 text-sm text-[#1a2b4c] disabled:bg-[#f8fafc]"
+                            >
+                                <option value="">Selecciona conductor</option>
+                                {driversForDate.map((name) => (
+                                    <option key={name} value={name}>
+                                        {name}
+                                    </option>
+                                ))}
+                            </select>
+                            {driversForDate.length > 1 ? (
+                                <p className="text-[11px] text-[#6b8ead]">
+                                    Conductores de esta placa en la fecha de la
+                                    1ra inspección.
+                                </p>
+                            ) : null}
+                        </div>
+                    ) : (
+                        <Field
+                            label="Conductor"
+                            value={driverName}
+                            onChange={setDriverName}
+                            disabled={sealed}
+                        />
+                    )}
                     <Field
                         label="Empresa de transporte"
                         value={transportCompany}

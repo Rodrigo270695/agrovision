@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Period;
 use App\Models\Unit;
+use App\Models\UnitMovement;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -256,7 +257,7 @@ final class UnitExcelImporter
     }
 
     /**
-     * @return array{imported: int, created: int, updated: int, errors: list<array{row: int, messages: list<string>}>}
+     * @return array{imported: int, created: int, updated: int, units_created: int, errors: list<array{row: int, messages: list<string>}>}
      */
     public function import(UploadedFile $file, Period $period): array
     {
@@ -270,6 +271,7 @@ final class UnitExcelImporter
                 'imported' => 0,
                 'created' => 0,
                 'updated' => 0,
+                'units_created' => 0,
                 'errors' => [[
                     'row' => 1,
                     'messages' => ['El archivo está vacío.'],
@@ -285,6 +287,7 @@ final class UnitExcelImporter
                 'imported' => 0,
                 'created' => 0,
                 'updated' => 0,
+                'units_created' => 0,
                 'errors' => [[
                     'row' => 1,
                     'messages' => $headerErrors,
@@ -352,6 +355,7 @@ final class UnitExcelImporter
                 'imported' => 0,
                 'created' => 0,
                 'updated' => 0,
+                'units_created' => 0,
                 'errors' => $errors,
             ];
         }
@@ -364,11 +368,18 @@ final class UnitExcelImporter
             ->groupBy(fn (Unit $unit) => mb_strtoupper((string) $unit->plate_number));
 
         $correlatives = array_values(array_filter(array_column($pending, 'correlative')));
-        $correlativeOwners = $correlatives === []
+        $unitCorrelativeOwners = $correlatives === []
             ? collect()
             : Unit::query()
                 ->whereIn('correlative', $correlatives)
                 ->pluck('id', 'correlative');
+        $movementsByCorrelative = $correlatives === []
+            ? collect()
+            : UnitMovement::query()
+                ->whereIn('correlative', $correlatives)
+                ->get()
+                ->keyBy('correlative');
+        $firstNewPlateRow = [];
 
         foreach ($pending as $excelRow => $data) {
             $rowMessages = [];
@@ -382,20 +393,23 @@ final class UnitExcelImporter
                 $unitId = (int) $matches->first()->id;
             }
 
-            $correlative = $data['correlative'] ?? null;
+            $correlative = (string) ($data['correlative'] ?? '');
+            $movement = $correlative !== '' ? $movementsByCorrelative->get($correlative) : null;
 
-            if ($unitId === null && ($correlative === null || $correlative === '')) {
-                $rowMessages[] = 'El correlativo es obligatorio cuando la placa es nueva.';
+            if ($movement !== null && mb_strtoupper((string) $movement->plate_number) !== $plate) {
+                $rowMessages[] = "El correlativo \"{$correlative}\" ya pertenece a otra placa.";
             }
 
-            if ($unitId === null && ($data['provider'] ?? null) === null) {
-                $rowMessages[] = 'El proveedor es obligatorio cuando la placa es nueva.';
+            if ($movement !== null && (int) $movement->period_id !== (int) $period->id) {
+                $rowMessages[] = "El correlativo \"{$correlative}\" ya está en otro periodo.";
             }
 
-            if (is_string($correlative) && $correlative !== '' && $correlativeOwners->has($correlative)) {
-                $ownerId = (int) $correlativeOwners->get($correlative);
+            if ($unitId === null && ! isset($firstNewPlateRow[$plate])) {
+                if (($data['provider'] ?? null) === null) {
+                    $rowMessages[] = 'El proveedor es obligatorio en el primer registro de una placa nueva.';
+                }
 
-                if ($unitId === null || $ownerId !== $unitId) {
+                if ($correlative !== '' && $unitCorrelativeOwners->has($correlative)) {
                     $rowMessages[] = "Ya existe otra unidad con el correlativo \"{$correlative}\".";
                 }
             }
@@ -410,7 +424,12 @@ final class UnitExcelImporter
                 continue;
             }
 
+            if ($unitId === null) {
+                $firstNewPlateRow[$plate] = true;
+            }
+
             $pending[$excelRow]['unit_id'] = $unitId;
+            $pending[$excelRow]['movement_id'] = $movement?->id;
         }
 
         if ($errors !== []) {
@@ -418,6 +437,7 @@ final class UnitExcelImporter
                 'imported' => 0,
                 'created' => 0,
                 'updated' => 0,
+                'units_created' => 0,
                 'errors' => array_values($errors),
             ];
         }
@@ -431,11 +451,15 @@ final class UnitExcelImporter
 
         $created = 0;
         $updated = 0;
+        $unitsCreated = 0;
 
-        DB::transaction(function () use ($pending, $period, &$created, &$updated): void {
+        DB::transaction(function () use ($pending, $period, &$created, &$updated, &$unitsCreated): void {
+            $createdUnitIds = [];
+
             foreach ($pending as $data) {
+                $movementId = $data['movement_id'] ?? null;
                 $unitId = $data['unit_id'] ?? null;
-                unset($data['unit_id']);
+                unset($data['movement_id'], $data['unit_id']);
 
                 $vehicleType = UnitCatalog::rememberVehicleType($data['vehicle_type'] ?? null);
                 $category = UnitCatalog::rememberLicenseCategory($data['category'] ?? null);
@@ -458,22 +482,41 @@ final class UnitExcelImporter
                     $data['responsible_person'] = $responsible->name;
                 }
 
+                $plate = (string) $data['plate_number'];
                 $attributes = $this->presentAttributes($data);
-                $attributes['plate_number'] = $data['plate_number'];
+                $attributes['plate_number'] = $plate;
 
-                if ($unitId) {
-                    $unit = Unit::query()->findOrFail($unitId);
-                    $unit->fill($attributes);
-                    $unit->save();
+                if (! $unitId && isset($createdUnitIds[$plate])) {
+                    $unitId = $createdUnitIds[$plate];
+                }
+
+                if (! $unitId) {
+                    $unit = Unit::create([
+                        ...$attributes,
+                        'period_id' => $period->id,
+                    ]);
+                    $unitId = $unit->id;
+                    $createdUnitIds[$plate] = $unitId;
+                    $unitsCreated++;
+                }
+
+                $movementAttributes = [
+                    ...$attributes,
+                    'unit_id' => $unitId,
+                    'period_id' => $period->id,
+                    'service_date' => $data['service_date'],
+                ];
+
+                if ($movementId) {
+                    $movement = UnitMovement::query()->findOrFail($movementId);
+                    $movement->fill($movementAttributes);
+                    $movement->save();
                     $updated++;
 
                     continue;
                 }
 
-                Unit::create([
-                    ...$attributes,
-                    'period_id' => $period->id,
-                ]);
+                UnitMovement::create($movementAttributes);
                 $created++;
             }
         });
@@ -482,6 +525,7 @@ final class UnitExcelImporter
             'imported' => $created + $updated,
             'created' => $created,
             'updated' => $updated,
+            'units_created' => $unitsCreated,
             'errors' => [],
         ];
     }
@@ -555,11 +599,17 @@ final class UnitExcelImporter
         $serviceDate = null;
         $coordinatorId = null;
 
+        if ($correlative === null) {
+            $errors[] = 'El correlativo es obligatorio. Identifica cada movimiento.';
+        }
+
         if ($plateNumber === null) {
             $errors[] = 'La PLACA es obligatoria. Con ella se identifica la unidad.';
         }
 
-        if ($this->hasValue($rawDate)) {
+        if (! $this->hasValue($rawDate)) {
+            $errors[] = 'La FECHA es obligatoria. Cada movimiento corresponde a un día.';
+        } else {
             $parsed = $this->parseDate($rawDate);
 
             if ($parsed === null) {

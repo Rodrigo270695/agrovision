@@ -9,6 +9,7 @@ use App\Models\ChecklistTemplate;
 use App\Models\Period;
 use App\Models\Unit;
 use App\Models\UnitChecklist;
+use App\Models\UnitMovement;
 use App\Models\UnitChecklistAnswer;
 use App\Models\UnitChecklistPhoto;
 use App\Models\UnitChecklistSignature;
@@ -345,6 +346,20 @@ class ChecklistController extends Controller
             ];
         })->values();
 
+        $driverOptions = UnitMovement::query()
+            ->where('unit_id', $checklist->unit_id)
+            ->whereNotNull('driver_name')
+            ->where('driver_name', '!=', '')
+            ->orderBy('service_date')
+            ->orderBy('driver_name')
+            ->get(['service_date', 'driver_name'])
+            ->unique(fn (UnitMovement $movement) => $movement->service_date->format('Y-m-d').'|'.mb_strtoupper($movement->driver_name))
+            ->map(fn (UnitMovement $movement) => [
+                'date' => $movement->service_date->format('Y-m-d'),
+                'name' => $movement->driver_name,
+            ])
+            ->values();
+
         return Inertia::render('checklists/edit', [
             'checklist' => [
                 'id' => $checklist->id,
@@ -353,6 +368,7 @@ class ChecklistController extends Controller
                 'is_sealed' => $checklist->isSealed(),
                 'plate_number' => $checklist->plate_number,
                 'driver_name' => $checklist->driver_name,
+                'driver_options' => $driverOptions,
                 'provider' => $checklist->provider,
                 'location' => $checklist->location,
                 'transport_company' => $checklist->transport_company,

@@ -24,6 +24,7 @@ type UnitImportResult = {
     imported: number;
     created?: number;
     updated?: number;
+    units_created?: number;
     errors: UnitImportError[];
 };
 
@@ -281,8 +282,10 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
                     <p className="mt-1 leading-relaxed">
                         CORRELATIVO, Celular, PROVEEDOR, RUTA, T. VEHÍCULO, FECHA
                         (dd/mm/yyyy), CONDUCTOR, PLACA, RESPONSABLE, TIPO DE
-                        SERVICIO, RUC, DNI CONDUCTOR, CATEGORIA, COORDINADOR. Si
-                        la placa ya está en el periodo, se actualiza esa unidad.
+                        SERVICIO, RUC, DNI CONDUCTOR, CATEGORIA, COORDINADOR.
+                        Cada fila es un movimiento. La misma placa puede repetirse
+                        el mismo día si cambia la ruta o el tipo de servicio. La
+                        unidad se crea solo con el primer registro.
                     </p>
                 </div>
 
@@ -317,8 +320,8 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
                     <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
                         {importResult.created !== undefined &&
                         importResult.updated !== undefined
-                            ? `Se procesaron ${importResult.imported} unidades: ${importResult.created} nuevas y ${importResult.updated} actualizadas.`
-                            : `Se procesaron ${importResult.imported} unidades correctamente.`}
+                            ? `Movimientos: ${importResult.created} nuevos y ${importResult.updated} ya registrados. Unidades nuevas: ${importResult.units_created ?? 0}.`
+                            : `Se procesaron ${importResult.imported} filas correctamente.`}
                     </div>
                 ) : null}
             </div>

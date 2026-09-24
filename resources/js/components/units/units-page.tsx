@@ -36,6 +36,7 @@ type UnitsPageProps = {
             imported: number;
             created?: number;
             updated?: number;
+            units_created?: number;
             errors: Array<{ row: number; messages: string[] }>;
         } | null;
     };
