@@ -1,6 +1,14 @@
 import { Check, ChevronsUpDown, Plus, X } from 'lucide-react';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import {
+    useEffect,
+    useId,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import type { KeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 
 export type SearchableComboboxOption = {
@@ -105,15 +113,51 @@ export function SearchableCombobox({
         setHighlight(0);
     }, [open, query]);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (!open) {
             return;
         }
 
+        const updatePanel = () => {
+            const trigger = rootRef.current;
+            const list = listRef.current;
+
+            if (!trigger || !list) {
+                return;
+            }
+
+            const rect = trigger.getBoundingClientRect();
+            const gap = 4;
+            const spaceBelow = window.innerHeight - rect.bottom - gap - 8;
+            const spaceAbove = rect.top - gap - 8;
+            const openUp = spaceBelow < 160 && spaceAbove > spaceBelow;
+            const maxHeight = Math.max(
+                120,
+                Math.min(220, openUp ? spaceAbove : spaceBelow),
+            );
+
+            list.style.left = `${rect.left}px`;
+            list.style.width = `${rect.width}px`;
+            list.style.maxHeight = `${maxHeight}px`;
+
+            if (openUp) {
+                list.style.top = 'auto';
+                list.style.bottom = `${window.innerHeight - rect.top + gap}px`;
+            } else {
+                list.style.bottom = 'auto';
+                list.style.top = `${rect.bottom + gap}px`;
+            }
+        };
+
+        updatePanel();
+
         const onPointerDown = (event: MouseEvent) => {
             const target = event.target as Node;
 
-            if (rootRef.current?.contains(target)) {
+            if (
+                rootRef.current?.contains(target) ||
+                listRef.current?.contains(target)
+            ) {
                 return;
             }
 
@@ -122,8 +166,14 @@ export function SearchableCombobox({
         };
 
         document.addEventListener('mousedown', onPointerDown);
+        window.addEventListener('resize', updatePanel);
+        window.addEventListener('scroll', updatePanel, true);
 
-        return () => document.removeEventListener('mousedown', onPointerDown);
+        return () => {
+            document.removeEventListener('mousedown', onPointerDown);
+            window.removeEventListener('resize', updatePanel);
+            window.removeEventListener('scroll', updatePanel, true);
+        };
     }, [open]);
 
     useEffect(() => {
@@ -292,14 +342,15 @@ export function SearchableCombobox({
                 </button>
             </div>
 
-            {open ? (
+            {open && typeof document !== 'undefined'
+                ? createPortal(
                 <div
                     ref={listRef}
                     id={listId}
                     role="listbox"
-                    // data-scroll-lock-scrollable: permite scroll dentro de Radix Dialog
+                    data-portal-dropdown=""
                     data-scroll-lock-scrollable=""
-                    className="mt-1 max-h-48 overflow-y-auto overscroll-contain rounded-lg border border-[#d7e3f0] bg-white py-1 shadow-md"
+                    className="fixed z-[200] overflow-y-auto overscroll-contain rounded-lg border border-[#d7e3f0] bg-white py-1 shadow-lg"
                 >
                     {filtered.length === 0 && !canCreate ? (
                         <p className="px-3 py-3 text-center text-sm text-[#6b8ead]">
@@ -376,8 +427,10 @@ export function SearchableCombobox({
                             </span>
                         </button>
                     ) : null}
-                </div>
-            ) : null}
+                </div>,
+                document.body,
+            )
+                : null}
         </div>
     );
 }
