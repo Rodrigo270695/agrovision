@@ -6,7 +6,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class PlaceRequest extends FormRequest
+class SiteRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -19,7 +19,6 @@ class PlaceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'site_id' => ['required', 'integer', 'exists:sites,id'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
             'status' => ['required', 'string', Rule::in(['active', 'inactive'])],
@@ -32,8 +31,6 @@ class PlaceRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'site_id.required' => 'Selecciona una sede.',
-            'site_id.exists' => 'La sede no existe.',
             'name.required' => 'El nombre es obligatorio.',
             'status.required' => 'El estado es obligatorio.',
             'status.in' => 'El estado no es válido.',
@@ -45,7 +42,6 @@ class PlaceRequest extends FormRequest
         $description = trim((string) $this->input('description', ''));
 
         $this->merge([
-            'site_id' => $this->filled('site_id') ? (int) $this->input('site_id') : null,
             'name' => trim((string) $this->input('name', '')),
             'description' => $description !== '' ? $description : null,
             'status' => $this->input('status', 'active') ?: 'active',

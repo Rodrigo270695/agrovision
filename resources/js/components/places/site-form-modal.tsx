@@ -1,17 +1,15 @@
 import { useForm } from '@inertiajs/react';
 import { useEffect, useMemo } from 'react';
 import type { FormEvent } from 'react';
-import InputError from '@/components/input-error';
 import { PlaceFormFields } from '@/components/places/place-form-fields';
-import type { PlaceItem } from '@/components/places/places-table';
+import type { SiteItem } from '@/components/places/sites-table';
 import { AppModal } from '@/components/shared/app-modal';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 
 type Props = {
     open: boolean;
-    place?: PlaceItem | null;
-    siteId?: number | null;
+    site?: SiteItem | null;
     onClose: () => void;
 };
 
@@ -19,16 +17,10 @@ const emptyValues = {
     name: '',
     description: '',
     status: 'active' as const,
-    site_id: '' as number | '',
 };
 
-export function PlaceFormModal({
-    open,
-    place = null,
-    siteId = null,
-    onClose,
-}: Props) {
-    const isEditing = Boolean(place);
+export function SiteFormModal({ open, site = null, onClose }: Props) {
+    const isEditing = Boolean(site);
     const form = useForm(emptyValues);
 
     useEffect(() => {
@@ -37,21 +29,17 @@ export function PlaceFormModal({
         }
 
         form.setData({
-            name: place?.name ?? '',
-            description: place?.description ?? '',
-            status: place?.status === 'inactive' ? 'inactive' : 'active',
-            site_id: siteId ?? '',
+            name: site?.name ?? '',
+            description: site?.description ?? '',
+            status: site?.status === 'inactive' ? 'inactive' : 'active',
         });
         form.clearErrors();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, place?.id, siteId]);
+    }, [open, site?.id]);
 
     const canSubmit = useMemo(
-        () =>
-            form.data.name.trim().length > 0 &&
-            Boolean(siteId) &&
-            !form.processing,
-        [form.data.name, form.processing, siteId],
+        () => form.data.name.trim().length > 0 && !form.processing,
+        [form.data.name, form.processing],
     );
 
     const handleClose = () => {
@@ -73,20 +61,20 @@ export function PlaceFormModal({
             onSuccess: () => handleClose(),
         };
 
-        if (isEditing && place) {
-            form.put(`/lugares/${place.id}`, options);
+        if (isEditing && site) {
+            form.put(`/sedes/${site.id}`, options);
 
             return;
         }
 
-        form.post('/lugares', options);
+        form.post('/sedes', options);
     };
 
     return (
         <AppModal
             open={open}
             onClose={handleClose}
-            title={isEditing ? 'Editar lugar' : 'Nuevo lugar'}
+            title={isEditing ? 'Editar sede' : 'Nueva sede'}
             description="El nombre es obligatorio. La descripción es opcional."
             footer={
                 <>
@@ -100,18 +88,21 @@ export function PlaceFormModal({
                     </Button>
                     <Button
                         type="submit"
-                        form="place-form"
+                        form="site-form"
                         disabled={!canSubmit}
                         className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {form.processing ? <Spinner /> : null}
-                        {isEditing ? 'Guardar cambios' : 'Crear lugar'}
+                        {isEditing ? 'Guardar cambios' : 'Crear sede'}
                     </Button>
                 </>
             }
         >
-            <form id="place-form" onSubmit={handleSubmit}>
+            <form id="site-form" onSubmit={handleSubmit}>
                 <PlaceFormFields
+                    idPrefix="site"
+                    namePlaceholder="Ej. Fundo Norte"
+                    descriptionPlaceholder="Detalle opcional de la sede"
                     values={form.data}
                     errors={{
                         name: form.errors.name,
@@ -120,7 +111,6 @@ export function PlaceFormModal({
                     }}
                     onChange={(field, value) => form.setData(field, value)}
                 />
-                <InputError message={form.errors.site_id} className="mt-3" />
             </form>
         </AppModal>
     );

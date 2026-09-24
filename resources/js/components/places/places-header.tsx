@@ -1,9 +1,9 @@
-import { CheckCircle2, MapPin, PauseCircle, Plus } from 'lucide-react';
+import { Building2, CheckCircle2, MapPin } from 'lucide-react';
 import { PageHeader } from '@/components/data-page';
-import { Button } from '@/components/ui/button';
-import { useCan } from '@/hooks/use-can';
 
 export type PlacesStatsData = {
+    sites: number;
+    sites_active: number;
     places: number;
     active: number;
     inactive: number;
@@ -12,21 +12,30 @@ export type PlacesStatsData = {
 
 type Props = {
     stats: PlacesStatsData;
-    onCreate: () => void;
 };
 
-export function PlacesHeader({ stats, onCreate }: Props) {
-    const { can } = useCan();
-
+export function PlacesHeader({ stats }: Props) {
     return (
         <PageHeader
             title="Lugares"
-            description="Puntos donde trabajan coordinadores, inspectores y los tests de alcohómetro."
+            description="Crea una sede, selecciónala y luego registra sus lugares."
             stats={[
                 {
-                    label: 'Total',
-                    value: stats.places,
+                    label: 'Sedes',
+                    value: stats.sites,
                     variant: 'info',
+                    icon: Building2,
+                },
+                {
+                    label: 'Sedes activas',
+                    value: stats.sites_active,
+                    variant: 'success',
+                    icon: CheckCircle2,
+                },
+                {
+                    label: 'Lugares',
+                    value: stats.places,
+                    variant: 'primary',
                     icon: MapPin,
                 },
                 {
@@ -35,32 +44,7 @@ export function PlacesHeader({ stats, onCreate }: Props) {
                     variant: 'success',
                     icon: CheckCircle2,
                 },
-                {
-                    label: 'Inactivos',
-                    value: stats.inactive,
-                    variant: 'muted',
-                    icon: PauseCircle,
-                },
-                {
-                    label: 'En pantalla',
-                    value: stats.on_screen,
-                    variant: 'primary',
-                    icon: MapPin,
-                },
             ]}
-            action={
-                can('places.create') ? (
-                    <Button
-                        type="button"
-                        onClick={onCreate}
-                        className="cursor-pointer gap-2 bg-[#1a2b4c] text-white hover:bg-[#122038]"
-                    >
-                        <Plus className="size-4" strokeWidth={2.5} />
-                        <span className="hidden sm:inline">Nuevo lugar</span>
-                        <span className="sm:hidden">Nuevo</span>
-                    </Button>
-                ) : null
-            }
         />
     );
 }

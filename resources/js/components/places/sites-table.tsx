@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { MapPin, Pencil, Trash2 } from 'lucide-react';
+import { Building2, Pencil, Trash2 } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import {
@@ -10,53 +10,42 @@ import {
     StatBadge,
 } from '@/components/data-page';
 import type { DataTableColumn, SortState } from '@/components/data-page';
+import type { PlacesFilters, PlacesPagination } from '@/components/places/places-table';
 import { RowActionsMenu } from '@/components/shared/row-actions-menu';
 import { useCan } from '@/hooks/use-can';
 import { isBrowserOnline } from '@/lib/offline/ids';
 import { asPaginated } from '@/lib/paginated';
 
-export type PlaceItem = {
+export type SiteItem = {
     id: number | string;
     name: string;
     description?: string | null;
     status: string;
-    users_count?: number;
-    alcohol_tests_count?: number;
+    places_count?: number;
 };
 
-export type PlacesPagination = {
-    data: PlaceItem[];
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-    from: number | null;
-    to: number | null;
-};
-
-export type PlacesFilters = {
-    search: string;
-    sort: 'name' | 'status' | 'created_at';
-    direction: 'asc' | 'desc';
-    per_page: number;
+export type SitesPagination = Omit<PlacesPagination, 'data'> & {
+    data: SiteItem[];
 };
 
 type Props = {
-    places: PlacesPagination;
+    sites: SitesPagination;
     filters: PlacesFilters;
+    selectedId?: number | string | null;
     carry?: Record<string, string | number | undefined>;
-    locked?: boolean;
-    onEdit: (place: PlaceItem) => void;
-    onDelete: (place: PlaceItem) => void;
+    onSelect: (site: SiteItem) => void;
+    onEdit: (site: SiteItem) => void;
+    onDelete: (site: SiteItem) => void;
 };
 
 type SortKey = PlacesFilters['sort'];
 
-export function PlacesTable({
-    places,
+export function SitesTable({
+    sites,
     filters,
+    selectedId = null,
     carry = {},
-    locked = false,
+    onSelect,
     onEdit,
     onDelete,
 }: Props) {
@@ -76,11 +65,11 @@ export function PlacesTable({
                 '/lugares',
                 {
                     ...carry,
-                    search: params.search ?? filters.search,
-                    sort: params.sort ?? filters.sort,
-                    direction: params.direction ?? filters.direction,
-                    per_page: params.per_page ?? filters.per_page,
-                    page: params.page ?? 1,
+                    sites_search: params.search ?? filters.search,
+                    sites_sort: params.sort ?? filters.sort,
+                    sites_direction: params.direction ?? filters.direction,
+                    sites_per_page: params.per_page ?? filters.per_page,
+                    sites_page: params.page ?? 1,
                 },
                 {
                     preserveState: true,
@@ -96,20 +85,20 @@ export function PlacesTable({
         ? { key: filters.sort, direction: filters.direction }
         : null;
 
-    const columns = useMemo<DataTableColumn<PlaceItem>[]>(
+    const columns = useMemo<DataTableColumn<SiteItem>[]>(
         () => [
             {
                 key: 'name',
                 header: 'Nombre',
                 sortable: true,
-                cell: (place) => (
+                cell: (site) => (
                     <div className="flex min-w-0 flex-col leading-tight">
                         <span className="truncate text-sm font-semibold text-foreground">
-                            {place.name}
+                            {site.name}
                         </span>
-                        {place.description ? (
+                        {site.description ? (
                             <span className="truncate text-xs text-muted-foreground">
-                                {place.description}
+                                {site.description}
                             </span>
                         ) : null}
                     </div>
@@ -119,19 +108,19 @@ export function PlacesTable({
                 key: 'status',
                 header: 'Estado',
                 sortable: true,
-                cell: (place) =>
-                    place.status === 'active' ? (
+                cell: (site) =>
+                    site.status === 'active' ? (
                         <StatBadge label="Activo" value="" variant="success" />
                     ) : (
                         <StatBadge label="Inactivo" value="" variant="muted" />
                     ),
             },
             {
-                key: 'users_count',
-                header: 'Usuarios',
-                cell: (place) => (
+                key: 'places_count',
+                header: 'Lugares',
+                cell: (site) => (
                     <span className="text-xs text-muted-foreground">
-                        {place.users_count ?? 0}
+                        {site.places_count ?? 0}
                     </span>
                 ),
             },
@@ -141,20 +130,20 @@ export function PlacesTable({
                 align: 'right',
                 showInMobile: true,
                 className: 'w-12',
-                cell: (place) => (
+                cell: (site) => (
                     <div
                         className="flex justify-end"
                         onClick={(event) => event.stopPropagation()}
                     >
                         <RowActionsMenu
-                            label={`Acciones de ${place.name}`}
+                            label={`Acciones de ${site.name}`}
                             items={[
                                 can('places.update')
                                     ? {
                                           key: 'edit',
                                           label: 'Editar',
                                           icon: Pencil,
-                                          onSelect: () => onEdit(place),
+                                          onSelect: () => onEdit(site),
                                       }
                                     : null,
                                 can('places.delete')
@@ -164,7 +153,7 @@ export function PlacesTable({
                                           icon: Trash2,
                                           tone: 'danger' as const,
                                           separatorBefore: true,
-                                          onSelect: () => onDelete(place),
+                                          onSelect: () => onDelete(site),
                                       }
                                     : null,
                             ].filter(
@@ -182,9 +171,15 @@ export function PlacesTable({
     return (
         <DataTable
             columns={columns}
-            data={places.data}
-            rowKey={(place) => place.id}
+            data={sites.data}
+            rowKey={(site) => site.id}
             sort={sort}
+            onRowClick={onSelect}
+            getRowClassName={(site) =>
+                String(site.id) === String(selectedId ?? '')
+                    ? 'bg-[#e8f1fb]'
+                    : undefined
+            }
             onSortChange={(next) => {
                 if (!next) {
                     visit({ sort: 'name', direction: 'asc', page: 1 });
@@ -198,45 +193,37 @@ export function PlacesTable({
                     page: 1,
                 });
             }}
-            isLoading={locked}
-            ariaLiveMessage={`${places.total} lugares encontrados`}
+            ariaLiveMessage={`${sites.total} sedes encontradas`}
             toolbar={
                 <DataToolbar
                     search={filters.search}
                     onSearchChange={(search) => visit({ search, page: 1 })}
-                    placeholder="Buscar por nombre o descripción..."
+                    placeholder="Buscar sede por nombre o descripción..."
                 />
             }
             footer={
                 <DataPagination
-                    meta={asPaginated(places, '/lugares')}
-                    perPageSelectId="places-per-page"
+                    meta={asPaginated(sites, '/lugares')}
+                    perPageSelectId="sites-per-page"
                     onPerPageChange={(per_page) => visit({ per_page, page: 1 })}
                     preservedQuery={{
                         ...carry,
-                        search: filters.search || undefined,
-                        per_page: filters.per_page,
-                        sort: filters.sort,
-                        direction: filters.direction,
+                        sites_search: filters.search || undefined,
+                        sites_per_page: filters.per_page,
+                        sites_sort: filters.sort,
+                        sites_direction: filters.direction,
                     }}
+                    pageQueryKey="sites_page"
                 />
             }
             emptyState={
                 <EmptyState
-                    icon={MapPin}
-                    title={
-                        locked
-                            ? 'Selecciona una sede'
-                            : filters.search
-                              ? 'Sin resultados'
-                              : 'Aún no hay lugares'
-                    }
+                    icon={Building2}
+                    title={filters.search ? 'Sin resultados' : 'Aún no hay sedes'}
                     description={
-                        locked
-                            ? 'Elige una sede en la tabla de arriba para ver y crear sus lugares.'
-                            : filters.search
-                              ? 'Prueba con otro término o limpia la búsqueda.'
-                              : 'Crea el primer lugar de esta sede.'
+                        filters.search
+                            ? 'Prueba con otro término o limpia la búsqueda.'
+                            : 'Crea la primera sede para poder registrar lugares.'
                     }
                 />
             }

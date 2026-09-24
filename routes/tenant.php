@@ -122,6 +122,20 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:places.view')
             ->name('places.index');
 
+        Route::post('sedes', [PlaceController::class, 'storeSite'])
+            ->middleware('permission:places.create')
+            ->name('sites.store');
+
+        Route::put('sedes/{site}', [PlaceController::class, 'updateSite'])
+            ->middleware('permission:places.update')
+            ->whereNumber('site')
+            ->name('sites.update');
+
+        Route::delete('sedes/{site}', [PlaceController::class, 'destroySite'])
+            ->middleware('permission:places.delete')
+            ->whereNumber('site')
+            ->name('sites.destroy');
+
         Route::post('lugares', [PlaceController::class, 'store'])
             ->middleware('permission:places.create')
             ->name('places.store');

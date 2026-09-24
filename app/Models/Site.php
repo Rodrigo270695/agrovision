@@ -3,41 +3,28 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
- * @property int|null $site_id
  * @property string $name
  * @property string|null $description
  * @property string $status
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-class Place extends Model
+class Site extends Model
 {
     protected $fillable = [
-        'site_id',
         'name',
         'description',
         'status',
     ];
 
-    public function site(): BelongsTo
+    public function places(): HasMany
     {
-        return $this->belongsTo(Site::class);
-    }
-
-    public function users(): HasMany
-    {
-        return $this->hasMany(User::class);
-    }
-
-    public function alcoholTests(): HasMany
-    {
-        return $this->hasMany(AlcoholTest::class);
+        return $this->hasMany(Place::class);
     }
 
     public function isActive(): bool

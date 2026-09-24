@@ -107,6 +107,8 @@ export type DataTableProps<T> = {
      * Clases CSS extra por fila (p. ej. resaltar registros antiguos).
      */
     getRowClassName?: (row: T) => string | undefined;
+    /** Clic en la fila (sede seleccionada, por ejemplo). */
+    onRowClick?: (row: T) => void;
     className?: string;
 };
 
@@ -153,6 +155,7 @@ export function DataTable<T>({
     ariaLiveMessage,
     selection,
     getRowClassName,
+    onRowClick,
     className,
     tableLayoutFixed = false,
 }: DataTableProps<T>) {
@@ -360,8 +363,14 @@ export function DataTable<T>({
                                         <tr
                                             key={reactKey}
                                             data-selected={isRowSelected}
+                                            onClick={
+                                                onRowClick
+                                                    ? () => onRowClick(row)
+                                                    : undefined
+                                            }
                                             className={cn(
                                                 'border-b border-border/40 transition-colors last:border-b-0 hover:bg-muted/30',
+                                                onRowClick && 'cursor-pointer',
                                                 isRowSelected &&
                                                     'bg-primary/5 hover:bg-primary/10',
                                                 rowClassExtra,
@@ -425,8 +434,14 @@ export function DataTable<T>({
                             <div
                                 key={reactKey}
                                 data-selected={isRowSelected}
+                                onClick={
+                                    onRowClick
+                                        ? () => onRowClick(row)
+                                        : undefined
+                                }
                                 className={cn(
                                     'flex items-start gap-3 px-4 py-2.5 transition-colors hover:bg-muted/30',
+                                    onRowClick && 'cursor-pointer',
                                     isRowSelected && 'bg-primary/5',
                                     rowClassExtra,
                                 )}

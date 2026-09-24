@@ -20,21 +20,31 @@ type Props = {
     values: PlaceFormValues;
     errors: Partial<Record<keyof PlaceFormValues, string>>;
     onChange: (field: keyof PlaceFormValues, value: string) => void;
+    idPrefix?: string;
+    namePlaceholder?: string;
+    descriptionPlaceholder?: string;
 };
 
-export function PlaceFormFields({ values, errors, onChange }: Props) {
+export function PlaceFormFields({
+    values,
+    errors,
+    onChange,
+    idPrefix = 'place',
+    namePlaceholder = 'Ej. Garita 1',
+    descriptionPlaceholder = 'Detalle opcional del lugar',
+}: Props) {
     return (
         <div className="space-y-4">
             <div className="grid gap-2">
-                <Label htmlFor="place-name" className="text-[#1a2b4c]">
+                <Label htmlFor={`${idPrefix}-name`} className="text-[#1a2b4c]">
                     Nombre <span className="text-red-500">*</span>
                 </Label>
                 <Input
-                    id="place-name"
+                    id={`${idPrefix}-name`}
                     name="name"
                     value={values.name}
                     onChange={(event) => onChange('name', event.target.value)}
-                    placeholder="Ej. Garita 1"
+                    placeholder={namePlaceholder}
                     autoFocus
                     className="h-11 border-[#c5d5e6] bg-white focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35"
                 />
@@ -42,17 +52,17 @@ export function PlaceFormFields({ values, errors, onChange }: Props) {
             </div>
 
             <div className="grid gap-2">
-                <Label htmlFor="place-description" className="text-[#1a2b4c]">
+                <Label htmlFor={`${idPrefix}-description`} className="text-[#1a2b4c]">
                     Descripción
                 </Label>
                 <Textarea
-                    id="place-description"
+                    id={`${idPrefix}-description`}
                     name="description"
                     value={values.description}
                     onChange={(event) =>
                         onChange('description', event.target.value)
                     }
-                    placeholder="Detalle opcional del lugar"
+                    placeholder={descriptionPlaceholder}
                     rows={3}
                     className="border-[#c5d5e6] bg-white"
                 />

@@ -34,6 +34,8 @@ export type DataPaginationProps<T> = {
      * oculta.
      */
     onPerPageChange?: (perPage: number) => void;
+    /** Id del selector de tamaño. Úsalo si hay más de un paginador en la página. */
+    perPageSelectId?: string;
     /** Opciones disponibles en el selector de "por página". */
     perPageOptions?: readonly number[];
     className?: string;
@@ -97,6 +99,7 @@ export function DataPagination<T>({
     pageQueryKey = 'page',
     preservedQuery,
     onPerPageChange,
+    perPageSelectId = 'per-page-select',
     perPageOptions = DEFAULT_PER_PAGE_OPTIONS,
     className,
 }: DataPaginationProps<T>) {
@@ -171,7 +174,7 @@ export function DataPagination<T>({
                 {onPerPageChange && (
                     <div className="flex items-center gap-2">
                         <label
-                            htmlFor="per-page-select"
+                            htmlFor={perPageSelectId}
                             className="text-xs text-muted-foreground sm:text-sm"
                         >
                             Por página
@@ -183,7 +186,7 @@ export function DataPagination<T>({
                             }
                         >
                             <SelectTrigger
-                                id="per-page-select"
+                                id={perPageSelectId}
                                 size="sm"
                                 className="h-8 w-22 cursor-pointer"
                             >
