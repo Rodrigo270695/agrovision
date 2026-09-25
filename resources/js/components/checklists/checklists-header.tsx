@@ -69,9 +69,9 @@ export function ChecklistsHeader({ stats, onCreate, onSendBatch }: Props) {
                         >
                             <Plus className="size-4" strokeWidth={2.5} />
                             <span className="hidden sm:inline">
-                                Nueva inspección
+                                Armar paquete
                             </span>
-                            <span className="sm:hidden">Nueva</span>
+                            <span className="sm:hidden">Armar</span>
                         </Button>
                     ) : null}
                 </div>

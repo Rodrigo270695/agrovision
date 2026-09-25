@@ -22,9 +22,12 @@ use App\Support\PdfLogo;
 use App\Support\PermissionCatalog;
 use App\Support\SystemRoles;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -181,6 +184,86 @@ class ChecklistController extends Controller
                 'on_screen' => $checklists->count(),
             ],
         ]);
+    }
+
+    public function day(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'date' => ['required', 'date'],
+        ]);
+
+        $date = Carbon::parse($validated['date'])->toDateString();
+
+        return response()->json([
+            'date' => $date,
+            'coordinators' => $this->dayGroups($date)->values(),
+        ]);
+    }
+
+    public function storeDay(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'date' => ['required', 'date'],
+            'coordinator_id' => ['required', 'integer'],
+            'unit_ids' => ['required', 'array', 'min:1'],
+            'unit_ids.*' => ['integer'],
+        ], [
+            'date.required' => 'Elige la fecha del paquete.',
+            'coordinator_id.required' => 'Elige el coordinador.',
+            'unit_ids.required' => 'Elige al menos una placa.',
+            'unit_ids.min' => 'Elige al menos una placa.',
+        ]);
+
+        $date = Carbon::parse($validated['date'])->toDateString();
+        $coordinatorId = (int) $validated['coordinator_id'];
+
+        if (
+            SystemRoles::currentIsScopedCoordinator()
+            && $coordinatorId !== (int) Auth::id()
+        ) {
+            abort(403, 'Solo puedes armar el paquete de tus unidades.');
+        }
+
+        $wanted = collect($validated['unit_ids'])->map(fn ($id) => (int) $id)->unique();
+        $group = $this->dayGroups($date)->firstWhere('id', $coordinatorId);
+        $plates = collect(is_array($group) ? $group['plates'] : [])
+            ->filter(fn (array $plate) => $wanted->contains($plate['unit_id']) && $plate['status'] !== 'exists');
+
+        if ($plates->isEmpty()) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Esas placas ya están en el paquete de esa fecha.',
+            ]);
+        }
+
+        $created = 0;
+        $attached = 0;
+
+        DB::transaction(function () use ($plates, $date, &$created, &$attached): void {
+            foreach ($plates as $plate) {
+                $result = $this->ensureChecklistForPlate($plate, $date);
+
+                if ($result === 'created') {
+                    $created++;
+                } else {
+                    $attached++;
+                }
+            }
+        });
+
+        $label = Carbon::parse($date)->format('d/m/Y');
+        $message = "Paquete del {$label}: {$created} inspecciones nuevas.";
+
+        if ($attached > 0) {
+            $message .= " {$attached} ya existían y quedaron en esa fecha.";
+        }
+
+        return redirect()
+            ->route('checklists.index')
+            ->with('toast', [
+                'type' => 'success',
+                'message' => $message,
+            ]);
     }
 
     public function store(StoreUnitChecklistRequest $request): RedirectResponse
@@ -968,6 +1051,193 @@ class ChecklistController extends Controller
                 "Para aprobar la {$passLabel} inspección el Pareto debe ser ≥ {$min}% (actual: {$percent}%)."
             );
         }
+    }
+
+    /**
+     * @return Collection<int, array{id: int, name: string, plates: list<array<string, mixed>>}>
+     */
+    private function dayGroups(string $date): Collection
+    {
+        $query = UnitMovement::query()
+            ->with([
+                'coordinator:id,name',
+                'unit:id,plate_number,correlative,driver_name,provider,category,vehicle_type,period_id,coordinator_id',
+            ])
+            ->whereDate('service_date', $date)
+            ->whereNotNull('coordinator_id')
+            ->whereNotNull('unit_id')
+            ->whereHas('period', fn ($builder) => $builder->where('status', 'active'));
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $query->where('coordinator_id', Auth::id());
+        }
+
+        $movements = $query
+            ->orderBy('plate_number')
+            ->orderBy('id')
+            ->get();
+
+        $templates = ChecklistTemplate::query()
+            ->where('is_active', true)
+            ->get()
+            ->keyBy('type');
+
+        $byCoordinator = [];
+
+        foreach ($movements as $movement) {
+            $coordinatorId = (int) $movement->coordinator_id;
+
+            if (! isset($byCoordinator[$coordinatorId])) {
+                $byCoordinator[$coordinatorId] = [
+                    'id' => $coordinatorId,
+                    'name' => (string) ($movement->coordinator?->name ?? 'Coordinador'),
+                    'rows' => [],
+                ];
+            }
+
+            if (isset($byCoordinator[$coordinatorId]['rows'][$movement->unit_id])) {
+                continue;
+            }
+
+            $byCoordinator[$coordinatorId]['rows'][$movement->unit_id] = $movement;
+        }
+
+        $unitIds = $movements->pluck('unit_id')->unique()->filter()->values();
+        $existing = UnitChecklist::query()
+            ->whereIn('unit_id', $unitIds)
+            ->get(['id', 'unit_id', 'template_id', 'period_id', 'first_inspected_on']);
+
+        return collect($byCoordinator)
+            ->sortBy('name')
+            ->map(function (array $group) use ($templates, $existing) {
+                $plates = [];
+
+                foreach ($group['rows'] as $movement) {
+                    $type = $this->templateTypeForVehicle($movement->vehicle_type ?: $movement->unit?->vehicle_type);
+                    $template = $templates->get($type);
+
+                    if (! $template || ! $movement->unit) {
+                        continue;
+                    }
+
+                    $periodId = (int) $movement->period_id;
+                    $sameDay = $existing->first(function (UnitChecklist $checklist) use ($movement, $template, $periodId) {
+                        return (int) $checklist->unit_id === (int) $movement->unit_id
+                            && (int) $checklist->template_id === (int) $template->id
+                            && (int) $checklist->period_id === $periodId
+                            && $checklist->first_inspected_on?->toDateString() === $movement->service_date->toDateString();
+                    });
+
+                    $plates[] = [
+                        'unit_id' => (int) $movement->unit_id,
+                        'period_id' => $periodId,
+                        'plate' => (string) ($movement->plate_number ?: $movement->unit->plate_number ?: $movement->unit->correlative),
+                        'driver' => $movement->driver_name ?: $movement->unit->driver_name,
+                        'provider' => $movement->provider ?: $movement->unit->provider,
+                        'vehicle_type' => $movement->vehicle_type ?: $movement->unit->vehicle_type,
+                        'category' => $movement->category ?: $movement->unit->category,
+                        'template_type' => $type,
+                        'template_id' => (int) $template->id,
+                        'status' => $sameDay ? 'exists' : 'new',
+                    ];
+                }
+
+                return [
+                    'id' => $group['id'],
+                    'name' => $group['name'],
+                    'plates' => $plates,
+                ];
+            })
+            ->filter(fn (array $group) => $group['plates'] !== [])
+            ->values();
+    }
+
+    /**
+     * @param  array<string, mixed>  $plate
+     */
+    private function ensureChecklistForPlate(array $plate, string $date): string
+    {
+        $existing = UnitChecklist::query()
+            ->where('unit_id', $plate['unit_id'])
+            ->where('template_id', $plate['template_id'])
+            ->where('period_id', $plate['period_id'])
+            ->whereDate('first_inspected_on', $date)
+            ->first();
+
+        if ($existing) {
+            return 'exists';
+        }
+
+        $undated = UnitChecklist::query()
+            ->where('unit_id', $plate['unit_id'])
+            ->where('template_id', $plate['template_id'])
+            ->where('period_id', $plate['period_id'])
+            ->whereNull('first_inspected_on')
+            ->first();
+
+        if ($undated) {
+            $undated->update([
+                'first_inspected_on' => $date,
+                'driver_name' => $undated->driver_name ?: $plate['driver'],
+                'provider' => $undated->provider ?: $plate['provider'],
+                'vehicle_info' => $undated->vehicle_info ?: $plate['vehicle_type'],
+            ]);
+
+            return 'attached';
+        }
+
+        $unit = Unit::query()->findOrFail($plate['unit_id']);
+        $template = ChecklistTemplate::query()
+            ->with('signatureRoles')
+            ->findOrFail($plate['template_id']);
+        $items = app(ParetoChecklistSync::class)->syncForInspection($template->type);
+
+        $checklist = UnitChecklist::query()->create([
+            'unit_id' => $unit->id,
+            'period_id' => $plate['period_id'],
+            'template_id' => $template->id,
+            'created_by' => Auth::id(),
+            'plate_number' => $plate['plate'],
+            'driver_name' => $plate['driver'],
+            'provider' => $plate['provider'],
+            'transport_company' => $plate['provider'],
+            'vehicle_info' => $plate['vehicle_type'],
+            'license_class' => $plate['category'],
+            'first_inspected_on' => $date,
+            'status' => 'draft',
+        ]);
+
+        foreach ($items as $item) {
+            UnitChecklistAnswer::query()->create([
+                'unit_checklist_id' => $checklist->id,
+                'checklist_item_id' => $item->id,
+            ]);
+        }
+
+        foreach ($template->signatureRoles as $role) {
+            UnitChecklistSignature::query()->create([
+                'unit_checklist_id' => $checklist->id,
+                'signature_role_id' => $role->id,
+                'signer_name' => $role->sort_order === 1 ? $plate['driver'] : null,
+            ]);
+        }
+
+        return 'created';
+    }
+
+    private function templateTypeForVehicle(?string $vehicleType): string
+    {
+        $value = mb_strtoupper(trim((string) $vehicleType));
+
+        if (
+            str_contains($value, 'CAMIONETA')
+            || str_contains($value, 'PICK')
+            || $value === 'TDC'
+        ) {
+            return 'tdc';
+        }
+
+        return 'tdp';
     }
 
     private function ensureCanAccessUnit(Unit $unit): void

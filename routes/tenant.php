@@ -213,6 +213,14 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:units.update')
             ->name('units.documents.destroy');
 
+        Route::get('inspecciones/dia', [ChecklistController::class, 'day'])
+            ->middleware('permission:checklists.create')
+            ->name('checklists.day');
+
+        Route::post('inspecciones/dia', [ChecklistController::class, 'storeDay'])
+            ->middleware('permission:checklists.create')
+            ->name('checklists.day.store');
+
         Route::get('inspecciones/paquetes/vista', [InspectionBatchController::class, 'preview'])
             ->middleware('permission:checklists.update')
             ->name('inspection-batches.preview');
