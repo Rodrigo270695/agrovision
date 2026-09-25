@@ -7,6 +7,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\ImpersonationLeaveController;
 use App\Http\Controllers\InductionController;
+use App\Http\Controllers\InspectionBatchController;
 use App\Http\Controllers\LookupController;
 use App\Http\Controllers\ParetoController;
 use App\Http\Controllers\PeriodController;
@@ -211,6 +212,30 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
         Route::delete('unidades/{unit}/documentos/{document}', [UnitDocumentController::class, 'destroy'])
             ->middleware('permission:units.update')
             ->name('units.documents.destroy');
+
+        Route::get('inspecciones/paquetes/vista', [InspectionBatchController::class, 'preview'])
+            ->middleware('permission:checklists.update')
+            ->name('inspection-batches.preview');
+
+        Route::post('inspecciones/paquetes', [InspectionBatchController::class, 'store'])
+            ->middleware('permission:checklists.update')
+            ->name('inspection-batches.store');
+
+        Route::get('paquetes-inspeccion', [InspectionBatchController::class, 'index'])
+            ->middleware('permission:checklists.view')
+            ->name('inspection-batches.index');
+
+        Route::get('paquetes-inspeccion/{batch}', [InspectionBatchController::class, 'show'])
+            ->middleware('permission:checklists.view')
+            ->name('inspection-batches.show');
+
+        Route::post('paquetes-inspeccion/{batch}/firmar', [InspectionBatchController::class, 'sign'])
+            ->middleware('permission:consolidations.respond')
+            ->name('inspection-batches.sign');
+
+        Route::get('paquetes-inspeccion/{batch}/pdf', [InspectionBatchController::class, 'pdf'])
+            ->middleware('permission:checklists.view')
+            ->name('inspection-batches.pdf');
 
         Route::get('inspecciones', [ChecklistController::class, 'index'])
             ->middleware('permission:checklists.view')

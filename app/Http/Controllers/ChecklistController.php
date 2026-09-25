@@ -275,6 +275,7 @@ class ChecklistController extends Controller
             'answers.item',
             'signatures',
             'photos',
+            'inspectionBatch:id,inspected_on,status,signer_name,signed_at',
         ]);
 
         $this->ensureCanAccessChecklist($checklist);
@@ -392,6 +393,13 @@ class ChecklistController extends Controller
                 'coordinator_action_plan' => $checklist->coordinator_action_plan,
                 'can_send_to_coordinator' => $checklist->canSendToCoordinator(),
                 'can_start_second' => $checklist->canStartSecondInspection(),
+                'inspection_batch' => $checklist->inspectionBatch ? [
+                    'id' => $checklist->inspectionBatch->id,
+                    'inspected_on' => $checklist->inspectionBatch->inspected_on->format('Y-m-d'),
+                    'status' => $checklist->inspectionBatch->status,
+                    'signer_name' => $checklist->inspectionBatch->signer_name,
+                    'signed_at' => optional($checklist->inspectionBatch->signed_at)?->toIso8601String(),
+                ] : null,
                 'period' => $checklist->period,
                 'unit' => $checklist->unit,
                 'template' => [
@@ -707,6 +715,7 @@ class ChecklistController extends Controller
             'answers.item',
             'signatures',
             'photos',
+            'inspectionBatch',
         ]);
 
         $signaturesByRole = $checklist->signatures->keyBy('signature_role_id');
@@ -796,6 +805,24 @@ class ChecklistController extends Controller
             ? $toDataUri(Storage::disk('public')->path($checklist->coordinator_signature_path))
             : null;
 
+        $batchSignature = null;
+
+        if ($checklist->inspectionBatch?->isSigned()) {
+            $batch = $checklist->inspectionBatch;
+            $batchImage = $batch->signature_path
+                ? $toDataUri(Storage::disk('public')->path($batch->signature_path))
+                : null;
+
+            $batchSignature = [
+                'date' => $batch->inspected_on->format('d/m/Y'),
+                'signer_name' => $batch->signer_name,
+                'signed_at' => $batch->signed_at
+                    ?->timezone(config('app.timezone'))
+                    ->format('d/m/Y H:i'),
+                'image_src' => $batchImage,
+            ];
+        }
+
         $type = strtoupper((string) ($checklist->template->type ?? 'INS'));
         $plate = preg_replace('/[^A-Za-z0-9\-_]/', '', (string) $checklist->plate_number) ?: 'placa';
         $filename = "inspeccion-{$type}-{$plate}-{$checklist->id}.pdf";
@@ -808,6 +835,7 @@ class ChecklistController extends Controller
             'logoSrc' => PdfLogo::dataUri(),
             'paretoChart' => $paretoChart,
             'coordinatorSignatureSrc' => $coordinatorSignatureSrc,
+            'batchSignature' => $batchSignature,
         ])->setPaper('a4', 'portrait');
 
         if ($request->boolean('download')) {

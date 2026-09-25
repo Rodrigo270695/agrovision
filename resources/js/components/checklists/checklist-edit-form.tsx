@@ -71,6 +71,13 @@ export type ChecklistFormData = {
     coordinator_action_plan?: string | null;
     can_send_to_coordinator?: boolean;
     can_start_second?: boolean;
+    inspection_batch?: {
+        id: number;
+        inspected_on: string;
+        status: 'sent' | 'signed';
+        signer_name?: string | null;
+        signed_at?: string | null;
+    } | null;
     period?: {
         id: number;
         name: string;
@@ -540,6 +547,50 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                     </div>
                 </div>
 
+                {checklist.inspection_batch ? (
+                    <div
+                        className={
+                            checklist.inspection_batch.status === 'signed'
+                                ? 'mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900'
+                                : 'mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900'
+                        }
+                    >
+                        {checklist.inspection_batch.status === 'signed' ? (
+                            <>
+                                Firma masiva del coordinador
+                                {checklist.inspection_batch.signer_name
+                                    ? ` (${checklist.inspection_batch.signer_name})`
+                                    : ''}{' '}
+                                aplicada al paquete del{' '}
+                                {checklist.inspection_batch.inspected_on
+                                    .slice(0, 10)
+                                    .split('-')
+                                    .reverse()
+                                    .join('/')}
+                                .
+                            </>
+                        ) : (
+                            <>
+                                Esta inspección está en el paquete del{' '}
+                                {checklist.inspection_batch.inspected_on
+                                    .slice(0, 10)
+                                    .split('-')
+                                    .reverse()
+                                    .join('/')}
+                                . El
+                                coordinador firma una sola vez y cubre todas las
+                                del día.
+                            </>
+                        )}{' '}
+                        <a
+                            href={`/paquetes-inspeccion/${checklist.inspection_batch.id}`}
+                            className="font-semibold underline"
+                        >
+                            Ver paquete
+                        </a>
+                    </div>
+                ) : null}
+
                 {sealed ? (
                     <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
@@ -976,8 +1027,9 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                         Firmas virtuales
                     </h2>
                     <p className="mb-3 text-xs text-[#5a7390]">
-                        Opcional: agrega nombre y firma de quien esté presente.
-                        Al sellar quedan bloqueadas.
+                        Firma del conductor y del inspector. La del coordinador
+                        no se hace aquí: el paquete del día se firma una sola
+                        vez y esa firma cubre todas las inspecciones.
                     </p>
                     <div className="grid gap-4 sm:grid-cols-2">
                         {checklist.signatures.map((signature, index) => {

@@ -39,6 +39,8 @@ use Illuminate\Support\Facades\Storage;
  * @property Carbon|null $coordinator_signed_at
  * @property Carbon|null $coordinator_responded_at
  * @property \Illuminate\Support\Carbon|null $sealed_at
+ * @property int|null $inspection_batch_id
+ * @property-read InspectionBatch|null $inspectionBatch
  * @property-read Unit $unit
  * @property-read Period $period
  * @property-read ChecklistTemplate $template
@@ -79,6 +81,7 @@ class UnitChecklist extends Model
         'coordinator_signed_at',
         'coordinator_responded_at',
         'sealed_at',
+        'inspection_batch_id',
     ];
 
     /**
@@ -130,6 +133,11 @@ class UnitChecklist extends Model
     public function photos(): HasMany
     {
         return $this->hasMany(UnitChecklistPhoto::class)->orderByDesc('created_at');
+    }
+
+    public function inspectionBatch(): BelongsTo
+    {
+        return $this->belongsTo(InspectionBatch::class);
     }
 
     public function isCompleted(): bool

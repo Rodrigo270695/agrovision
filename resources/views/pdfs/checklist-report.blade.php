@@ -370,6 +370,21 @@
         @endif
     @endif
 
+    @if (! empty($batchSignature))
+        <h2>Firma masiva del coordinador</h2>
+        <p>
+            Paquete del {{ $batchSignature['date'] }}.
+            {{ $batchSignature['signer_name'] ?: 'Coordinador' }}
+            @if (! empty($batchSignature['signed_at']))
+                · {{ $batchSignature['signed_at'] }}
+            @endif
+            . Esta firma cubre todas las inspecciones de esa fecha.
+        </p>
+        @if (! empty($batchSignature['image_src']))
+            <img class="sig-img" src="{{ $batchSignature['image_src'] }}" alt="Firma masiva">
+        @endif
+    @endif
+
     <h2>Firmas / responsables</h2>
     <table class="sig-grid">
         @foreach ($signatures->chunk(2) as $chunk)

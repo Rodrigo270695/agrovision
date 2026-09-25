@@ -28,6 +28,7 @@ final class TenantTables
             'checklist_items',
             'checklist_signature_roles',
             'unit_checklists',
+            'inspection_batches',
             'unit_checklist_answers',
             'unit_checklist_signatures',
             'unit_checklist_photos',

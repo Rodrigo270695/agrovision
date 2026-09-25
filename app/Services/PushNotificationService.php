@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AlcoholTest;
 use App\Models\AlcoholTestPackage;
+use App\Models\InspectionBatch;
 use App\Models\PushSubscription;
 use App\Models\UnitChecklist;
 use App\Models\User;
@@ -46,6 +47,25 @@ class PushNotificationService
             'body' => "Placa {$checklist->plate_number}: tienes un consolidado pendiente de plan de acción.",
             'url' => "/consolidados/{$checklist->id}",
             'tag' => "consolidation-observed-{$checklist->id}",
+        ]);
+    }
+
+    public function notifyInspectionBatch(InspectionBatch $batch): void
+    {
+        $coordinator = User::query()->find($batch->coordinator_id);
+
+        if (! $coordinator) {
+            return;
+        }
+
+        $date = $batch->inspected_on->format('d/m/Y');
+        $total = $batch->checklists()->count();
+
+        $this->sendToUsers(collect([$coordinator]), [
+            'title' => 'Paquete de inspecciones',
+            'body' => "{$date}: {$total} inspecciones listas para una firma masiva.",
+            'url' => "/paquetes-inspeccion/{$batch->id}",
+            'tag' => "inspection-batch-{$batch->id}",
         ]);
     }
 

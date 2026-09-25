@@ -10,6 +10,7 @@ import { ChecklistDeleteModal } from '@/components/checklists/checklist-delete-m
 import { ChecklistEditForm, type ChecklistFormData } from '@/components/checklists/checklist-edit-form';
 import { ChecklistPdfPreviewModal } from '@/components/checklists/checklist-pdf-preview-modal';
 import { ChecklistsHeader } from '@/components/checklists/checklists-header';
+import { SendInspectionBatchModal } from '@/components/checklists/send-inspection-batch-modal';
 import type { ChecklistsStatsData } from '@/components/checklists/checklists-stats';
 import {
     ChecklistsTable,
@@ -68,6 +69,7 @@ export function ChecklistsPage() {
     const { can } = useCan();
 
     const [createOpen, setCreateOpen] = useState(false);
+    const [batchOpen, setBatchOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleting, setDeleting] = useState<ChecklistItemRow | null>(null);
     const [pdfOpen, setPdfOpen] = useState(false);
@@ -169,6 +171,7 @@ export function ChecklistsPage() {
                         setCreateOpen(true);
                     }
                 }}
+                onSendBatch={() => setBatchOpen(true)}
             />
 
             <ChecklistsTable
@@ -207,6 +210,13 @@ export function ChecklistsPage() {
                     setDeleteOpen(true);
                 }}
             />
+
+            {can('checklists.update') ? (
+                <SendInspectionBatchModal
+                    open={batchOpen}
+                    onClose={() => setBatchOpen(false)}
+                />
+            ) : null}
 
             {can('checklists.create') ? (
                 <ChecklistCreateModal
