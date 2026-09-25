@@ -1,11 +1,7 @@
-import { Download, ExternalLink, FileText, Send } from 'lucide-react';
-import { router } from '@inertiajs/react';
-import { useState } from 'react';
+import { Download, ExternalLink, FileText } from 'lucide-react';
 import { AppModal } from '@/components/shared/app-modal';
 import type { ChecklistItemRow } from '@/components/checklists/checklists-table';
 import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
-import { useCan } from '@/hooks/use-can';
 
 type Props = {
     open: boolean;
@@ -20,9 +16,6 @@ function pdfUrl(id: number | string, download = false): string {
 }
 
 export function ChecklistPdfPreviewModal({ open, checklist, onClose }: Props) {
-    const { can } = useCan();
-    const [sending, setSending] = useState(false);
-
     if (!checklist) {
         return null;
     }
@@ -30,27 +23,6 @@ export function ChecklistPdfPreviewModal({ open, checklist, onClose }: Props) {
     const previewSrc = pdfUrl(checklist.id);
     const downloadSrc = pdfUrl(checklist.id, true);
     const type = (checklist.template?.type ?? '').toUpperCase();
-    const canSend =
-        can('checklists.update') &&
-        (checklist.first_result === 'approved' ||
-            checklist.first_result === 'rejected') &&
-        checklist.coordinator_status !== 'reviewed' &&
-        !checklist.sealed_at;
-    const alreadyObserved = checklist.coordinator_status === 'observed';
-    const alreadyReviewed = checklist.coordinator_status === 'reviewed';
-
-    const sendToCoordinator = () => {
-        if (!canSend || sending) {
-            return;
-        }
-
-        setSending(true);
-        router.post(`/inspecciones/${checklist.id}/enviar-coordinador`, {}, {
-            preserveScroll: true,
-            onFinish: () => setSending(false),
-            onSuccess: () => onClose(),
-        });
-    };
 
     return (
         <AppModal
@@ -97,39 +69,14 @@ export function ChecklistPdfPreviewModal({ open, checklist, onClose }: Props) {
                             Descargar PDF
                         </a>
                     </Button>
-                    {canSend ? (
-                        <Button
-                            type="button"
-                            disabled={sending}
-                            onClick={sendToCoordinator}
-                            className="cursor-pointer bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
-                        >
-                            {sending ? <Spinner /> : <Send className="size-4" />}
-                            {alreadyObserved
-                                ? 'Reenviar a coordinador'
-                                : 'Enviar a coordinador'}
-                        </Button>
-                    ) : null}
                 </>
             }
         >
             <div className="flex min-h-[70vh] flex-col bg-[#eef2f7]">
                 <div className="flex flex-wrap items-center gap-2 border-b border-[#e2eaf3] bg-white px-4 py-2 text-xs text-[#5a7390]">
                     <FileText className="size-3.5 text-[#2e5a9e]" />
-                    Vista previa del consolidado.
-                    {alreadyReviewed ? (
-                        <span className="rounded-full bg-violet-50 px-2 py-0.5 font-medium text-violet-800">
-                            Revisado
-                        </span>
-                    ) : alreadyObserved ? (
-                        <span className="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-800">
-                            Observado — pendiente respuesta del coordinador
-                        </span>
-                    ) : (
-                        <span>
-                            Puedes enviarlo al coordinador para plan de acción.
-                        </span>
-                    )}
+                    Vista previa. El coordinador recibe el paquete de esta
+                    fecha, no esta inspección sola.
                 </div>
                 <iframe
                     key={previewSrc}

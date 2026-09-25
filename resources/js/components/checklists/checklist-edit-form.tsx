@@ -623,33 +623,9 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                 ) : waitingCoordinator ? (
                     <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                            {checklist.coordinator_status === 'observed' ? (
-                                <>
-                                    Consolidado en estado{' '}
-                                    <strong>Observado</strong>. La 1ra inspección
-                                    quedó registrada y no se puede modificar.
-                                    Esperando plan de acción y firma del
-                                    coordinador. Cuando responda quedará{' '}
-                                    <strong>Revisado</strong> y se habilita la
-                                    2da supervisión.
-                                </>
-                            ) : checklist.first_result === 'rejected' ? (
-                                <>
-                                    1ra inspección <strong>desaprobada</strong> y
-                                    bloqueada. Envía el consolidado PDF al
-                                    coordinador. La 2da supervisión queda en
-                                    espera hasta su plan de acción (estado
-                                    Revisado).
-                                </>
-                            ) : (
-                                <>
-                                    1ra inspección <strong>aprobada</strong> y
-                                    bloqueada. Envía el consolidado PDF al
-                                    coordinador. La 2da supervisión queda en
-                                    espera hasta su plan de acción (estado
-                                    Revisado).
-                                </>
-                            )}
+                            La 1ra quedó cerrada. La 2da es de la misma fecha.
+                            Al terminar las del día, envía el paquete al
+                            coordinador desde Inspecciones.
                         </div>
                         <Button
                             type="button"
@@ -671,11 +647,13 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                     <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
                             {signaturesUnlocked
-                                ? '1ra y 2da aprobadas. Puedes agregar firmas opcionales y sellar la inspección.'
+                                ? '1ra y 2da cerradas. Firma conductor e inspector, y envía el paquete de esta fecha al coordinador.'
                                 : (
                                       <>
-                                          Consolidado <strong>Revisado</strong>.
-                                          Completa la <strong>2da inspección</strong>.
+                                          La 1ra quedó cerrada. Sigue con la{' '}
+                                          <strong>2da inspección</strong> de la
+                                          misma fecha. Al terminar el día, envía
+                                          el paquete al coordinador.
                                           <span className="mt-1 block font-medium">
                                               Progreso 2da:{' '}
                                               {secondStats.marked}/
@@ -800,7 +778,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                         disabled={sealed}
                     />
                     <Field
-                        label="1ra inspección (fecha y hora)"
+                        label="Fecha de la inspección (arma el paquete)"
                         type="datetime-local"
                         value={firstAt}
                         onChange={setFirstAt}
@@ -1111,9 +1089,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                     <div className="mx-auto flex max-w-5xl flex-col gap-2">
                         <p className="text-center text-[11px] text-[#5a7390] sm:text-right">
                             {waitingCoordinator
-                                ? checklist.coordinator_status === 'observed'
-                                    ? 'Consolidado Observado: el coordinador debe responder en Consolidados.'
-                                    : 'Envía el consolidado al coordinador desde el modal PDF para continuar.'
+                                ? 'Cierra la 1ra para habilitar la 2da de esta misma fecha.'
                                   : !firstLocked && !livePareto.passes
                                     ? `Pareto ${livePareto.percent.toFixed(2)}% (< ${PARETO_PASS_THRESHOLD}%): desaprueba o corrige ítems en NO.`
                                     : !firstLocked && !canApproveActivePass
@@ -1131,7 +1107,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                               ? 'Marca todos los ítems en SÍ/NO para aprobar la 2da.'
                                               : `Necesitas ≥ ${PARETO_PASS_THRESHOLD}% Pareto para aprobar la 2da.`
                                         : signaturesUnlocked
-                                          ? 'Puedes firmar (opcional) y sellar la inspección.'
+                                          ? 'Firma conductor e inspector. El coordinador firma el paquete del día.'
                                           : 'Puedes guardar el progreso en cualquier momento.'}
                         </p>
                         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">

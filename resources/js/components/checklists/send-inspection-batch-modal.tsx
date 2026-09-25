@@ -121,7 +121,7 @@ export function SendInspectionBatchModal({ open, onClose }: Props) {
             open={open}
             onClose={onClose}
             title="Enviar paquete del día"
-            description="Se agrupa por fecha y por coordinador. Él firma una sola vez y esa firma cubre todas las inspecciones del paquete."
+            description="La fecha de la 1ra inspección es el paquete. Se envía una vez a cada coordinador y con una firma cubre todas las de ese día."
             footer={
                 <>
                     <Button

@@ -14,7 +14,6 @@ use App\Models\UnitChecklistAnswer;
 use App\Models\UnitChecklistPhoto;
 use App\Models\UnitChecklistSignature;
 use App\Services\ParetoChecklistSync;
-use App\Services\PushNotificationService;
 use App\Support\IndexedRedirect;
 use App\Support\ParetoCheckTypes;
 use App\Support\ParetoPassThreshold;
@@ -458,15 +457,12 @@ class ChecklistController extends Controller
                 $incomingFirstResult = $data['first_result'] ?? null;
                 $incomingSecondResult = $data['second_result'] ?? null;
 
-                // 1ra bloqueada al aprobar o desaprobar; 2da solo tras Revisado del coordinador.
+                // 1ra bloqueada al aprobar o desaprobar. La 2da sigue en la misma fecha.
                 $firstResult = $firstAlreadyDecided
                     ? $checklist->first_result
                     : $incomingFirstResult;
-                $secondAllowed = $checklist->canStartSecondInspection()
-                    || (
-                        in_array($firstResult, ['approved', 'rejected'], true)
-                        && $checklist->isReviewedByCoordinator()
-                    );
+                $secondAllowed = in_array($firstResult, ['approved', 'rejected'], true)
+                    && ! $checklist->isSealed();
                 $secondResult = ! $secondAllowed
                     ? null
                     : ($secondAlreadyApproved
@@ -475,7 +471,7 @@ class ChecklistController extends Controller
 
                 if (($incomingSecondResult ?? null) && ! $secondAllowed) {
                     throw new \RuntimeException(
-                        'La 2da inspección solo se habilita cuando el coordinador responde el consolidado (estado Revisado).'
+                        'Cierra la 1ra inspección (aprobar o desaprobar) antes de la 2da.'
                     );
                 }
 
@@ -634,7 +630,7 @@ class ChecklistController extends Controller
         if ($pass === 'second' && ! $checklist->canStartSecondInspection()) {
             return back()->with('toast', [
                 'type' => 'error',
-                'message' => 'La 2da inspección (y sus fotos) se habilitan cuando el consolidado está Revisado por el coordinador.',
+                'message' => 'La 2da inspección se habilita cuando la 1ra está aprobada o desaprobada.',
             ]);
         }
 
@@ -898,57 +894,15 @@ class ChecklistController extends Controller
                 throw new \RuntimeException('Debes cerrar la 1ra inspección (aprobar o desaprobar) antes de la 2da.');
             }
 
-            if (! $checklist->isReviewedByCoordinator()) {
-                throw new \RuntimeException(
-                    'Debes esperar la respuesta del coordinador (estado Revisado) antes de la 2da inspección.'
-                );
-            }
-
             $this->assertPassAnswersReady($checklist, $answers, 'second');
         }
     }
 
     public function sendToCoordinator(Request $request, UnitChecklist $checklist): RedirectResponse
     {
-        $checklist->loadMissing(['period', 'unit']);
-        $this->ensureCanAccessChecklist($checklist);
-
-        if ($checklist->period?->status !== 'active') {
-            return back()->with('toast', [
-                'type' => 'error',
-                'message' => 'No se puede enviar un checklist de un periodo inactivo.',
-            ]);
-        }
-
-        if (! $checklist->canSendToCoordinator()) {
-            return back()->with('toast', [
-                'type' => 'error',
-                'message' => $checklist->first_result === null
-                    ? 'Primero debes aprobar o desaprobar la 1ra inspección.'
-                    : ($checklist->isReviewedByCoordinator()
-                        ? 'Este consolidado ya fue revisado por el coordinador.'
-                        : 'No se puede enviar este consolidado al coordinador.'),
-            ]);
-        }
-
-        if (! $checklist->unit?->coordinator_id) {
-            return back()->with('toast', [
-                'type' => 'error',
-                'message' => 'La unidad no tiene coordinador asignado.',
-            ]);
-        }
-
-        $checklist->update([
-            'coordinator_status' => UnitChecklist::COORDINATOR_OBSERVED,
-            'sent_to_coordinator_at' => now(),
-        ]);
-
-        app(PushNotificationService::class)
-            ->notifyCoordinatorsConsolidationObserved($checklist->fresh(['unit']), Auth::user());
-
         return back()->with('toast', [
-            'type' => 'success',
-            'message' => 'Consolidado enviado al coordinador. Estado: Observado.',
+            'type' => 'error',
+            'message' => 'El coordinador recibe el paquete del día. Ciérralo en Inspecciones → Enviar paquete.',
         ]);
     }
 

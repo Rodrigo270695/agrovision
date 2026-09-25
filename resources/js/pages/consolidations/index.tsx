@@ -209,7 +209,7 @@ export default function ConsolidationsIndexPage() {
             <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
                 <PageHeader
                     title="Consolidados"
-                    description="Informes enviados a coordinador. Solo ves los de tus unidades si eres coordinador."
+                    description="Respuestas anteriores, de una en una. Las inspecciones nuevas se envían en el paquete del día."
                     stats={[
                         {
                             label: 'Total',
