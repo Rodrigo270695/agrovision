@@ -647,6 +647,7 @@ class ChecklistController extends Controller
                 'photos' => $checklist->photos->map(fn (UnitChecklistPhoto $photo) => [
                     'id' => $photo->id,
                     'inspection_pass' => $photo->inspection_pass,
+                    'checklist_item_id' => $photo->checklist_item_id,
                     'url' => $photo->url(),
                     'captured_at' => optional($photo->captured_at)?->timezone(config('app.timezone'))->format('d/m/Y H:i:s'),
                     'latitude' => $photo->latitude,
@@ -855,6 +856,7 @@ class ChecklistController extends Controller
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'accuracy' => ['nullable', 'numeric', 'min:0'],
+            'checklist_item_id' => ['nullable', 'integer'],
         ], [
             'photo.required' => 'Debes tomar o seleccionar una foto.',
             'photo.image' => 'El archivo debe ser una imagen.',
@@ -864,16 +866,37 @@ class ChecklistController extends Controller
 
         $file = $request->file('photo');
         $pass = $validated['inspection_pass'];
+        $itemId = $this->evidenceItemId($request, $checklist);
+
+        if ($itemId === false) {
+            return $this->checklistToast($request, $checklist, 'error', 'Este ítem no admite foto de evidencia.');
+        }
 
         if ($pass === 'second' && ! $checklist->canStartSecondInspection()) {
             return $this->checklistToast($request, $checklist, 'error', 'La 2da inspección se habilita cuando la 1ra está aprobada o desaprobada.');
         }
 
-        $directory = "checklists/{$checklist->id}/{$pass}";
+        if ($itemId !== null) {
+            $previous = UnitChecklistPhoto::query()
+                ->where('unit_checklist_id', $checklist->id)
+                ->where('checklist_item_id', $itemId)
+                ->where('inspection_pass', $pass)
+                ->get();
+
+            foreach ($previous as $old) {
+                Storage::disk($old->disk)->delete($old->path);
+                $old->delete();
+            }
+        }
+
+        $directory = $itemId
+            ? "checklists/{$checklist->id}/{$pass}/items/{$itemId}"
+            : "checklists/{$checklist->id}/{$pass}";
         $path = $file->store($directory, 'public');
 
-        UnitChecklistPhoto::query()->create([
+        $photo = UnitChecklistPhoto::query()->create([
             'unit_checklist_id' => $checklist->id,
+            'checklist_item_id' => $itemId,
             'inspection_pass' => $pass,
             'path' => $path,
             'disk' => 'public',
@@ -886,6 +909,18 @@ class ChecklistController extends Controller
             'uploaded_by' => Auth::id(),
         ]);
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Foto subida.',
+                'photo' => [
+                    'id' => $photo->id,
+                    'checklist_item_id' => $photo->checklist_item_id,
+                    'inspection_pass' => $photo->inspection_pass,
+                    'url' => $photo->url(),
+                ],
+            ]);
+        }
+
         return $this->checklistToast(
             $request,
             $checklist,
@@ -896,7 +931,7 @@ class ChecklistController extends Controller
         );
     }
 
-    public function destroyPhoto(UnitChecklist $checklist, UnitChecklistPhoto $photo): RedirectResponse
+    public function destroyPhoto(UnitChecklist $checklist, UnitChecklistPhoto $photo): JsonResponse|RedirectResponse
     {
         if ($photo->unit_checklist_id !== $checklist->id) {
             abort(404);
@@ -923,10 +958,41 @@ class ChecklistController extends Controller
         Storage::disk($photo->disk)->delete($photo->path);
         $photo->delete();
 
+        if (request()->expectsJson()) {
+            return response()->json([
+                'message' => 'Foto eliminada correctamente.',
+            ]);
+        }
+
         return back()->with('toast', [
             'type' => 'success',
             'message' => 'Foto eliminada correctamente.',
         ]);
+    }
+
+    /**
+     * @return int|null|false null cuando no es evidencia, false si el ítem no está permitido
+     */
+    private function evidenceItemId(Request $request, UnitChecklist $checklist): int|null|false
+    {
+        if (! $request->filled('checklist_item_id')) {
+            return null;
+        }
+
+        $item = ChecklistItem::query()->find($request->integer('checklist_item_id'));
+        $checklist->loadMissing('template');
+        $allowed = ['13', '14', '19', '21', '26', '30'];
+
+        if (
+            ! $item
+            || (int) $item->template_id !== (int) $checklist->template_id
+            || $checklist->template?->type !== 'tdp'
+            || ! in_array((string) $item->item_number, $allowed, true)
+        ) {
+            return false;
+        }
+
+        return $item->id;
     }
 
     public function pdf(Request $request, UnitChecklist $checklist): Response|RedirectResponse

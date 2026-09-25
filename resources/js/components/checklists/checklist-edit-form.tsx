@@ -1,12 +1,14 @@
 import { Link, router } from '@inertiajs/react';
 import {
     ArrowLeft,
+    Camera,
     CheckCircle2,
     FileDown,
     Lock,
     ShieldCheck,
+    Trash2,
 } from 'lucide-react';
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import {
     ChecklistPhotosSection,
@@ -18,6 +20,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
+import { getCsrfToken } from '@/lib/csrf';
 import { isBrowserOnline, isLocalChecklistId } from '@/lib/offline/ids';
 import { applyUpdateToChecklist, queueUpdate, saveEditSnapshot } from '@/lib/offline/store';
 import { cn } from '@/lib/utils';
@@ -102,6 +105,79 @@ export type ChecklistFormData = {
     signatures: ChecklistFormSignature[];
     photos: ChecklistPhoto[];
 };
+
+const TDP_EVIDENCE_ITEMS = new Set(['13', '14', '19', '21', '26', '30']);
+
+function toDateInputValue(value: string): string {
+    const trimmed = value.trim();
+
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+        return trimmed.slice(0, 10);
+    }
+
+    const match = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+
+    if (match) {
+        return `${match[3]}-${match[2]}-${match[1]}`;
+    }
+
+    return '';
+}
+
+function itemAllowsEvidence(
+    templateType: string,
+    itemNumber: string | null,
+): boolean {
+    return (
+        templateType === 'tdp' &&
+        itemNumber !== null &&
+        TDP_EVIDENCE_ITEMS.has(itemNumber)
+    );
+}
+
+async function compressEvidence(file: File): Promise<File> {
+    const url = URL.createObjectURL(file);
+
+    try {
+        const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const element = new Image();
+            element.onload = () => resolve(element);
+            element.onerror = () => reject(new Error('decode'));
+            element.src = url;
+        });
+        const maxSide = 1280;
+        const scale = Math.min(
+            1,
+            maxSide / Math.max(image.naturalWidth, image.naturalHeight),
+        );
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const ctx = canvas.getContext('2d');
+
+        if (!ctx) {
+            return file;
+        }
+
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+        const blob = await new Promise<Blob | null>((resolve) => {
+            canvas.toBlob((result) => resolve(result), 'image/jpeg', 0.82);
+        });
+
+        if (!blob) {
+            return file;
+        }
+
+        return new File([blob], `evidencia-${Date.now()}.jpg`, {
+            type: 'image/jpeg',
+        });
+    } catch {
+        return file;
+    } finally {
+        URL.revokeObjectURL(url);
+    }
+}
 
 type Props = {
     checklist: ChecklistFormData;
@@ -301,6 +377,12 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
             observations: item.observations ?? '',
         })),
     );
+    const [evidencePhotos, setEvidencePhotos] = useState<ChecklistPhoto[]>(
+        checklist.photos ?? [],
+    );
+    const [evidenceBusy, setEvidenceBusy] = useState<number | null>(null);
+    const evidenceInputRef = useRef<HTMLInputElement>(null);
+    const evidenceTargetRef = useRef<number | null>(null);
     const [signatures, setSignatures] = useState<SignatureState[]>(
         checklist.signatures.map((signature) => ({
             signature_role_id: signature.signature_role_id,
@@ -324,7 +406,9 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                 return false;
             }
 
-            return (answers[index]?.observations ?? '').trim() === '';
+            return (
+                toDateInputValue(answers[index]?.observations ?? '') === ''
+            );
         });
 
         return {
@@ -352,7 +436,9 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                 return false;
             }
 
-            return (answers[index]?.observations ?? '').trim() === '';
+            return (
+                toDateInputValue(answers[index]?.observations ?? '') === ''
+            );
         });
 
         return {
@@ -421,6 +507,110 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                 i === index ? { ...answer, [key]: value } : answer,
             ),
         );
+    };
+
+    const uploadEvidence = async (itemId: number, file: File) => {
+        if (sealed || evidenceBusy) {
+            return;
+        }
+
+        if (!isBrowserOnline() || isLocalChecklistId(checklist.id)) {
+            toast.error('Conéctate para subir la foto de evidencia.');
+
+            return;
+        }
+
+        setEvidenceBusy(itemId);
+
+        try {
+            const prepared = await compressEvidence(file);
+            const formData = new FormData();
+            formData.append('inspection_pass', activePass);
+            formData.append('checklist_item_id', String(itemId));
+            formData.append('photo', prepared);
+
+            const response = await fetch(`/inspecciones/${checklist.id}/fotos`, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-XSRF-TOKEN': getCsrfToken(),
+                },
+                body: formData,
+            });
+            const data = (await response.json().catch(() => null)) as {
+                message?: string;
+                photo?: ChecklistPhoto;
+            } | null;
+
+            if (!response.ok || !data?.photo) {
+                toast.error(data?.message || 'No se pudo subir la foto.');
+
+                return;
+            }
+
+            setEvidencePhotos((prev) => [
+                ...prev.filter(
+                    (photo) =>
+                        !(
+                            photo.checklist_item_id === itemId &&
+                            photo.inspection_pass === activePass
+                        ),
+                ),
+                {
+                    ...data.photo,
+                    checklist_item_id: itemId,
+                    inspection_pass: activePass,
+                    captured_at: data.photo.captured_at ?? null,
+                    latitude: data.photo.latitude ?? null,
+                    longitude: data.photo.longitude ?? null,
+                    accuracy: data.photo.accuracy ?? null,
+                },
+            ]);
+            toast.success('Foto de evidencia subida.');
+        } catch {
+            toast.error('No se pudo subir la foto.');
+        } finally {
+            setEvidenceBusy(null);
+        }
+    };
+
+    const removeEvidence = async (photo: ChecklistPhoto) => {
+        if (sealed || evidenceBusy || typeof photo.id !== 'number') {
+            return;
+        }
+
+        setEvidenceBusy(photo.checklist_item_id ?? -1);
+
+        try {
+            const response = await fetch(
+                `/inspecciones/${checklist.id}/fotos/${photo.id}`,
+                {
+                    method: 'DELETE',
+                    credentials: 'same-origin',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-XSRF-TOKEN': getCsrfToken(),
+                    },
+                },
+            );
+
+            if (!response.ok) {
+                toast.error('No se pudo quitar la foto.');
+
+                return;
+            }
+
+            setEvidencePhotos((prev) =>
+                prev.filter((item) => item.id !== photo.id),
+            );
+        } catch {
+            toast.error('No se pudo quitar la foto.');
+        } finally {
+            setEvidenceBusy(null);
+        }
     };
 
     const buildPayload = (extra: Record<string, unknown> = {}) => {
@@ -877,12 +1067,45 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                     </div>
                 ) : null}
 
+                <input
+                    ref={evidenceInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    form="checklist-item-evidence"
+                    className="hidden"
+                    onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        const itemId = evidenceTargetRef.current;
+                        event.target.value = '';
+
+                        if (!file || itemId === null) {
+                            return;
+                        }
+
+                        void uploadEvidence(itemId, file);
+                    }}
+                />
                 <div className="grid grid-cols-1 gap-1.5 xl:grid-cols-2">
                     {checklist.items.map((item, index) => {
                         const answer = answers[index];
                         const isChild = item.parent_id !== null;
                         const isExpiry =
                             item.check_type === 'expiry' || item.has_expiry;
+                        const expiryDate = toDateInputValue(
+                            answer?.observations ?? '',
+                        );
+                        const allowsEvidence = itemAllowsEvidence(
+                            checklist.template.type,
+                            item.item_number,
+                        );
+                        const evidencePhoto = allowsEvidence
+                            ? (evidencePhotos.find(
+                                  (photo) =>
+                                      photo.checklist_item_id === item.id &&
+                                      photo.inspection_pass === activePass,
+                              ) ?? null)
+                            : null;
                         const value =
                             activePass === 'first'
                                 ? (answer?.first_value ?? '')
@@ -890,9 +1113,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                         const disabled =
                             sealed ||
                             (activePass === 'first' ? firstLocked : secondLocked);
-                        const observationMissing =
-                            isExpiry &&
-                            (answer?.observations ?? '').trim() === '';
+                        const observationMissing = isExpiry && expiryDate === '';
                         const countsInPareto = value === 'yes';
 
                         return (
@@ -953,29 +1174,114 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                     {Number(item.weight).toFixed(2)}%
                                                 </span>
                                             ) : null}
-                                            <Input
-                                                value={answer?.observations ?? ''}
-                                                disabled={sealed}
-                                                onChange={(event) =>
-                                                    updateAnswer(
-                                                        index,
-                                                        'observations',
-                                                        event.target.value,
-                                                    )
-                                                }
-                                                placeholder={
-                                                    isExpiry
-                                                        ? 'Vencimiento'
-                                                        : 'Observación'
-                                                }
-                                                className={cn(
-                                                    'h-8 min-w-0 flex-1 border-[#c5d5e6] bg-white text-xs disabled:bg-[#f8fafc]',
-                                                    observationMissing &&
-                                                        !sealed &&
-                                                        'border-amber-400',
-                                                )}
-                                            />
+                                            {isExpiry ? (
+                                                <Input
+                                                    type="date"
+                                                    value={expiryDate}
+                                                    disabled={sealed}
+                                                    onChange={(event) =>
+                                                        updateAnswer(
+                                                            index,
+                                                            'observations',
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    aria-label={`Vencimiento de ${item.label}`}
+                                                    className={cn(
+                                                        'h-8 min-w-0 flex-1 border-[#c5d5e6] bg-white text-xs disabled:bg-[#f8fafc]',
+                                                        observationMissing &&
+                                                            !sealed &&
+                                                            'border-amber-400',
+                                                    )}
+                                                />
+                                            ) : (
+                                                <Input
+                                                    value={
+                                                        answer?.observations ??
+                                                        ''
+                                                    }
+                                                    disabled={sealed}
+                                                    onChange={(event) =>
+                                                        updateAnswer(
+                                                            index,
+                                                            'observations',
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    placeholder="Observación"
+                                                    className="h-8 min-w-0 flex-1 border-[#c5d5e6] bg-white text-xs disabled:bg-[#f8fafc]"
+                                                />
+                                            )}
                                         </div>
+                                        {allowsEvidence ? (
+                                            <div className="mt-1.5 flex items-center gap-2">
+                                                {evidencePhoto ? (
+                                                    <a
+                                                        href={evidencePhoto.url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="block shrink-0 overflow-hidden rounded-md border border-[#d7e3f0]"
+                                                    >
+                                                        <img
+                                                            src={
+                                                                evidencePhoto.url
+                                                            }
+                                                            alt={`Evidencia ${item.label}`}
+                                                            className="size-12 object-cover"
+                                                        />
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-[10px] text-[#6b8ead]">
+                                                        Sin foto
+                                                    </span>
+                                                )}
+                                                {!disabled ? (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        disabled={
+                                                            evidenceBusy ===
+                                                            item.id
+                                                        }
+                                                        onClick={() => {
+                                                            evidenceTargetRef.current =
+                                                                item.id;
+                                                            evidenceInputRef.current?.click();
+                                                        }}
+                                                        className="h-8 cursor-pointer gap-1 border-[#c5d5e6] px-2 text-[11px] text-[#1a2b4c]"
+                                                    >
+                                                        {evidenceBusy ===
+                                                        item.id ? (
+                                                            <Spinner />
+                                                        ) : (
+                                                            <Camera className="size-3.5" />
+                                                        )}
+                                                        {evidencePhoto
+                                                            ? 'Cambiar foto'
+                                                            : 'Subir foto'}
+                                                    </Button>
+                                                ) : null}
+                                                {evidencePhoto && !disabled ? (
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        disabled={
+                                                            evidenceBusy ===
+                                                            item.id
+                                                        }
+                                                        onClick={() =>
+                                                            void removeEvidence(
+                                                                evidencePhoto,
+                                                            )
+                                                        }
+                                                        className="size-8 cursor-pointer text-red-600 hover:bg-red-50 hover:text-red-700"
+                                                        aria-label="Quitar foto de evidencia"
+                                                    >
+                                                        <Trash2 className="size-3.5" />
+                                                    </Button>
+                                                ) : null}
+                                            </div>
+                                        ) : null}
                                     </div>
                                 </div>
                             </article>

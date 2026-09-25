@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 export type ChecklistPhoto = {
     id: number | string;
     inspection_pass: 'first' | 'second';
+    checklist_item_id?: number | null;
     url: string;
     captured_at: string | null;
     latitude: number | null;
@@ -668,10 +669,14 @@ export function ChecklistPhotosSection({
     readonlySecond,
 }: Props) {
     const firstPhotos = photos.filter(
-        (photo) => photo.inspection_pass === 'first',
+        (photo) =>
+            photo.inspection_pass === 'first' &&
+            photo.checklist_item_id == null,
     );
     const secondPhotos = photos.filter(
-        (photo) => photo.inspection_pass === 'second',
+        (photo) =>
+            photo.inspection_pass === 'second' &&
+            photo.checklist_item_id == null,
     );
 
     return (

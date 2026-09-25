@@ -9,6 +9,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $unit_checklist_id
+ * @property int|null $checklist_item_id
  * @property string $inspection_pass
  * @property string $path
  * @property string $disk
@@ -24,6 +25,7 @@ class UnitChecklistPhoto extends Model
 {
     protected $fillable = [
         'unit_checklist_id',
+        'checklist_item_id',
         'inspection_pass',
         'path',
         'disk',
