@@ -10,6 +10,7 @@ import { Spinner } from '@/components/ui/spinner';
 import type { ChecklistFormData } from '@/components/checklists/checklist-edit-form';
 import type { OfflineCatalogTemplate } from '@/lib/offline/db';
 import { isBrowserOnline } from '@/lib/offline/ids';
+import { cn } from '@/lib/utils';
 
 export type ChecklistTemplateOption = {
     id: number;
@@ -83,17 +84,24 @@ export function ChecklistCreateModal({
         () =>
             activeUnits.map((unit) => {
                 const plate = unit.plate_number || unit.correlative;
+                const kind = templateTypeForVehicle(unit.vehicle_type).toUpperCase();
 
                 return {
                     value: String(unit.id),
-                    label: plate,
+                    label: `${plate} · ${kind}`,
                     description: [
                         unit.driver_name || 'Sin conductor',
                         unit.vehicle_type || null,
                     ]
                         .filter(Boolean)
                         .join(' · '),
-                    keywords: [plate, unit.driver_name, unit.vehicle_type, unit.correlative]
+                    keywords: [
+                        plate,
+                        unit.driver_name,
+                        unit.vehicle_type,
+                        unit.correlative,
+                        kind,
+                    ]
                         .filter(Boolean)
                         .join(' '),
                 };
@@ -204,12 +212,46 @@ export function ChecklistCreateModal({
                         emptyMessage="No hay unidades en el periodo activo"
                     />
                 </div>
-                {unit ? (
-                    <p className="text-[11px] text-[#5a7390]">
-                        Se abre {template ? template.type.toUpperCase() : 'sin plantilla'}.
-                        Camioneta usa TDC. El resto usa TDP.
-                    </p>
-                ) : null}
+                <div className="grid gap-1.5">
+                    <Label className="text-xs text-[#1a2b4c]">Checklist</Label>
+                    {unit && templateType ? (
+                        <div
+                            className={cn(
+                                'flex items-center justify-between gap-3 rounded-lg border px-3 py-2',
+                                templateType === 'tdc'
+                                    ? 'border-amber-200 bg-amber-50'
+                                    : 'border-[#c5d5e6] bg-[#e8f1fa]',
+                            )}
+                        >
+                            <div>
+                                <p className="text-sm font-bold text-[#1a2b4c]">
+                                    {templateType.toUpperCase()}
+                                </p>
+                                <p className="text-[11px] text-[#5a7390]">
+                                    {unit.vehicle_type || 'Sin tipo'}
+                                    {templateType === 'tdc'
+                                        ? ' · camioneta'
+                                        : ' · transporte de personal'}
+                                </p>
+                            </div>
+                            <span
+                                className={cn(
+                                    'rounded-full px-2.5 py-1 text-xs font-bold',
+                                    templateType === 'tdc'
+                                        ? 'bg-amber-200 text-amber-950'
+                                        : 'bg-[#1a2b4c] text-white',
+                                )}
+                            >
+                                {templateType.toUpperCase()}
+                            </span>
+                        </div>
+                    ) : (
+                        <p className="rounded-lg bg-[#f8fafc] px-3 py-2 text-[11px] text-[#5a7390]">
+                            Camioneta abre TDC. El resto abre TDP. Se ve al
+                            elegir la unidad.
+                        </p>
+                    )}
+                </div>
                 {unit && !template ? (
                     <p className="text-xs text-red-600">
                         No hay plantilla activa para este tipo de unidad.
