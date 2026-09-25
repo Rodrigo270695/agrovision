@@ -4,6 +4,7 @@ use App\Http\Controllers\AlcoholTestController;
 use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\ConsolidationController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DriverBoardController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\ImpersonationLeaveController;
 use App\Http\Controllers\InductionController;
@@ -217,6 +218,10 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
         Route::get('tablero-sst', SstBoardController::class)
             ->middleware('permission:checklists.view')
             ->name('sst-board');
+
+        Route::get('tablero-conductores', DriverBoardController::class)
+            ->middleware('permission:inductions.view')
+            ->name('inductions.board');
 
         Route::get('inspecciones/dia', [ChecklistController::class, 'day'])
             ->middleware('permission:checklists.create')

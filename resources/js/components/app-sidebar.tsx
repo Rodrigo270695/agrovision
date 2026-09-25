@@ -93,6 +93,13 @@ const mainNavItems: NavItem[] = [
                 module: 'checklists',
             },
             {
+                title: 'Tablero conductores',
+                href: '/tablero-conductores',
+                icon: Users,
+                permission: 'inductions.view',
+                module: 'inductions',
+            },
+            {
                 title: 'Paquetes',
                 href: '/paquetes-inspeccion',
                 icon: Package,
