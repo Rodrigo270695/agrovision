@@ -16,6 +16,7 @@ use App\Http\Controllers\PlaceController;
 use App\Http\Controllers\PublicFileController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SecurityReportController;
 use App\Http\Controllers\SstBoardController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UnitDocumentController;
@@ -218,6 +219,10 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
         Route::get('tablero-sst', SstBoardController::class)
             ->middleware('permission:checklists.view')
             ->name('sst-board');
+
+        Route::get('reporte-sst', SecurityReportController::class)
+            ->middleware('permission:checklists.view')
+            ->name('checklists.security-report');
 
         Route::get('tablero-conductores', DriverBoardController::class)
             ->middleware('permission:inductions.view')

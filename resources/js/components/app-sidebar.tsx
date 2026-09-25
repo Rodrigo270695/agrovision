@@ -93,6 +93,13 @@ const mainNavItems: NavItem[] = [
                 module: 'checklists',
             },
             {
+                title: 'Reporte SST',
+                href: '/reporte-sst',
+                icon: ClipboardCheck,
+                permission: 'checklists.view',
+                module: 'checklists',
+            },
+            {
                 title: 'Tablero conductores',
                 href: '/tablero-conductores',
                 icon: Users,
