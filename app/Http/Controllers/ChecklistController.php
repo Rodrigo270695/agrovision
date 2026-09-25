@@ -585,6 +585,7 @@ class ChecklistController extends Controller
     {
         $checklist->loadMissing(['period', 'unit', 'signatures', 'template.signatureRoles']);
         $this->ensureCanAccessChecklist($checklist);
+        $this->pinChecklistRedirect($request, $checklist);
 
         if ($checklist->period?->status !== 'active') {
             return back()->with('toast', [
@@ -757,23 +758,18 @@ class ChecklistController extends Controller
         ]);
     }
 
-    public function storePhoto(Request $request, UnitChecklist $checklist): RedirectResponse
+    public function storePhoto(Request $request, UnitChecklist $checklist): JsonResponse|RedirectResponse
     {
         $checklist->loadMissing(['period', 'unit']);
         $this->ensureCanAccessChecklist($checklist);
+        $this->pinChecklistRedirect($request, $checklist);
 
         if ($checklist->period?->status !== 'active') {
-            return back()->with('toast', [
-                'type' => 'error',
-                'message' => 'No se pueden subir fotos en un periodo inactivo.',
-            ]);
+            return $this->checklistToast($request, $checklist, 'error', 'No se pueden subir fotos en un periodo inactivo.');
         }
 
         if ($checklist->isSealed()) {
-            return back()->with('toast', [
-                'type' => 'error',
-                'message' => 'Esta inspección está sellada. No se pueden agregar fotos.',
-            ]);
+            return $this->checklistToast($request, $checklist, 'error', 'Esta inspección está sellada. No se pueden agregar fotos.');
         }
 
         $validated = $request->validate([
@@ -794,10 +790,7 @@ class ChecklistController extends Controller
         $pass = $validated['inspection_pass'];
 
         if ($pass === 'second' && ! $checklist->canStartSecondInspection()) {
-            return back()->with('toast', [
-                'type' => 'error',
-                'message' => 'La 2da inspección se habilita cuando la 1ra está aprobada o desaprobada.',
-            ]);
+            return $this->checklistToast($request, $checklist, 'error', 'La 2da inspección se habilita cuando la 1ra está aprobada o desaprobada.');
         }
 
         $directory = "checklists/{$checklist->id}/{$pass}";
@@ -817,12 +810,14 @@ class ChecklistController extends Controller
             'uploaded_by' => Auth::id(),
         ]);
 
-        return back()->with('toast', [
-            'type' => 'success',
-            'message' => $pass === 'first'
+        return $this->checklistToast(
+            $request,
+            $checklist,
+            'success',
+            $pass === 'first'
                 ? 'Foto de la 1ra inspección subida.'
                 : 'Foto de la 2da inspección subida.',
-        ]);
+        );
     }
 
     public function destroyPhoto(UnitChecklist $checklist, UnitChecklistPhoto $photo): RedirectResponse
@@ -833,6 +828,7 @@ class ChecklistController extends Controller
 
         $checklist->loadMissing(['period', 'unit']);
         $this->ensureCanAccessChecklist($checklist);
+        $this->pinChecklistRedirect(request(), $checklist);
 
         if ($checklist->period?->status !== 'active') {
             return back()->with('toast', [
@@ -1409,6 +1405,28 @@ class ChecklistController extends Controller
 
             $checklist->update(['inspection_batch_id' => $batch->id]);
         }
+    }
+
+    private function pinChecklistRedirect(Request $request, UnitChecklist $checklist): void
+    {
+        $request->headers->set('referer', route('checklists.edit', $checklist));
+    }
+
+    private function checklistToast(Request $request, UnitChecklist $checklist, string $type, string $message): JsonResponse|RedirectResponse
+    {
+        if ($request->expectsJson()) {
+            return response()->json(
+                ['message' => $message],
+                $type === 'success' ? 200 : 422,
+            );
+        }
+
+        $this->pinChecklistRedirect($request, $checklist);
+
+        return back()->with('toast', [
+            'type' => $type,
+            'message' => $message,
+        ]);
     }
 
     private function ensureCanAccessUnit(Unit $unit): void

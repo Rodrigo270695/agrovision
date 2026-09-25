@@ -55,6 +55,17 @@ class UpdateUnitChecklistRequest extends FormRequest
         return [];
     }
 
+    protected function getRedirectUrl(): string
+    {
+        $checklist = $this->route('checklist');
+
+        if ($checklist instanceof \App\Models\UnitChecklist) {
+            return route('checklists.edit', $checklist);
+        }
+
+        return parent::getRedirectUrl();
+    }
+
     protected function prepareForValidation(): void
     {
         $nullable = [

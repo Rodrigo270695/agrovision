@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import { getCsrfToken } from '@/lib/csrf';
 import { isBrowserOnline, isLocalChecklistId, newLocalPhotoId } from '@/lib/offline/ids';
 import {
     listPendingPhotos,
@@ -62,63 +63,256 @@ function getCurrentPosition(): Promise<GeolocationPosition> {
     });
 }
 
+const MAX_PHOTO_SIDE = 1280;
+const MAX_PHOTO_BYTES = 9 * 1024 * 1024;
+
+type Drawable = {
+    source: CanvasImageSource;
+    width: number;
+    height: number;
+    close: () => void;
+};
+
+async function sniffImageType(
+    file: Blob,
+): Promise<'image/jpeg' | 'image/png' | 'image/webp' | null> {
+    const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+
+    if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+        return 'image/jpeg';
+    }
+
+    if (
+        bytes[0] === 0x89 &&
+        bytes[1] === 0x50 &&
+        bytes[2] === 0x4e &&
+        bytes[3] === 0x47
+    ) {
+        return 'image/png';
+    }
+
+    if (
+        bytes[0] === 0x52 &&
+        bytes[1] === 0x49 &&
+        bytes[2] === 0x46 &&
+        bytes[3] === 0x46 &&
+        bytes[8] === 0x57 &&
+        bytes[9] === 0x45 &&
+        bytes[10] === 0x42 &&
+        bytes[11] === 0x50
+    ) {
+        return 'image/webp';
+    }
+
+    return null;
+}
+
+async function uploadableOriginal(file: File): Promise<File> {
+    const sniffed = await sniffImageType(file);
+    const declared =
+        file.type === 'image/jpg' ? 'image/jpeg' : file.type;
+    const type =
+        sniffed ??
+        (declared === 'image/jpeg' ||
+        declared === 'image/png' ||
+        declared === 'image/webp'
+            ? declared
+            : null);
+
+    if (!type) {
+        throw new Error(
+            'Esa foto no se pudo leer. Usa el botón Cámara: la galería a veces manda HEIC.',
+        );
+    }
+
+    if (file.size > MAX_PHOTO_BYTES) {
+        throw new Error(
+            'La foto es muy pesada y el celular no pudo reducirla. Toma otra con la cámara.',
+        );
+    }
+
+    const extension =
+        type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg';
+
+    return new File([file], `inspeccion-${Date.now()}.${extension}`, {
+        type,
+    });
+}
+
+async function loadDrawable(file: File): Promise<Drawable> {
+    if (typeof createImageBitmap === 'function') {
+        try {
+            const bitmap = await createImageBitmap(file, {
+                imageOrientation: 'from-image',
+            });
+
+            return {
+                source: bitmap,
+                width: bitmap.width,
+                height: bitmap.height,
+                close: () => bitmap.close(),
+            };
+        } catch {
+            try {
+                const bitmap = await createImageBitmap(file);
+
+                return {
+                    source: bitmap,
+                    width: bitmap.width,
+                    height: bitmap.height,
+                    close: () => bitmap.close(),
+                };
+            } catch {
+                // Sigue con Image, más compatible en Android.
+            }
+        }
+    }
+
+    const url = URL.createObjectURL(file);
+
+    try {
+        const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const element = new Image();
+            element.onload = () => resolve(element);
+            element.onerror = () => reject(new Error('decode'));
+            element.src = url;
+        });
+
+        if (!image.naturalWidth || !image.naturalHeight) {
+            throw new Error('decode');
+        }
+
+        return {
+            source: image,
+            width: image.naturalWidth,
+            height: image.naturalHeight,
+            close: () => URL.revokeObjectURL(url),
+        };
+    } catch (error) {
+        URL.revokeObjectURL(url);
+        throw error;
+    }
+}
+
+function canvasToJpeg(canvas: HTMLCanvasElement): Promise<Blob | null> {
+    return new Promise((resolve) => {
+        if (!canvas.toBlob) {
+            resolve(null);
+
+            return;
+        }
+
+        canvas.toBlob((result) => resolve(result), 'image/jpeg', 0.82);
+    });
+}
+
 async function stampPhoto(file: File, geo: GeoMeta): Promise<File> {
-    const bitmap = await createImageBitmap(file);
-    const maxWidth = 1600;
-    const scale = bitmap.width > maxWidth ? maxWidth / bitmap.width : 1;
-    const width = Math.round(bitmap.width * scale);
-    const height = Math.round(bitmap.height * scale);
+    let drawable: Drawable;
 
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-
-    const ctx = canvas.getContext('2d');
-
-    if (!ctx) {
-        return file;
+    try {
+        drawable = await loadDrawable(file);
+    } catch {
+        return uploadableOriginal(file);
     }
 
-    ctx.drawImage(bitmap, 0, 0, width, height);
-    bitmap.close();
+    try {
+        const longest = Math.max(drawable.width, drawable.height);
+        const scale = longest > MAX_PHOTO_SIDE ? MAX_PHOTO_SIDE / longest : 1;
+        const width = Math.max(1, Math.round(drawable.width * scale));
+        const height = Math.max(1, Math.round(drawable.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
 
-    const dateLine = formatStampDate(geo.capturedAt);
-    const gpsLine =
-        geo.latitude !== null && geo.longitude !== null
-            ? `GPS ${geo.latitude.toFixed(6)}, ${geo.longitude.toFixed(6)}${
-                  geo.accuracy !== null
-                      ? ` (±${Math.round(geo.accuracy)}m)`
-                      : ''
-              }`
-            : 'GPS no disponible';
+        const ctx = canvas.getContext('2d');
 
-    const fontSize = Math.max(14, Math.round(width * 0.028));
-    const padding = Math.round(fontSize * 0.7);
-    const lineHeight = Math.round(fontSize * 1.35);
-    const boxHeight = padding * 2 + lineHeight * 2;
-    const boxY = height - boxHeight;
+        if (!ctx) {
+            return uploadableOriginal(file);
+        }
 
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-    ctx.fillRect(0, boxY, width, boxHeight);
+        ctx.drawImage(drawable.source, 0, 0, width, height);
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `bold ${fontSize}px sans-serif`;
-    ctx.textBaseline = 'top';
-    ctx.fillText(dateLine, padding, boxY + padding);
-    ctx.font = `${fontSize}px sans-serif`;
-    ctx.fillText(gpsLine, padding, boxY + padding + lineHeight);
+        const dateLine = formatStampDate(geo.capturedAt);
+        const gpsLine =
+            geo.latitude !== null && geo.longitude !== null
+                ? `GPS ${geo.latitude.toFixed(6)}, ${geo.longitude.toFixed(6)}${
+                      geo.accuracy !== null
+                          ? ` (±${Math.round(geo.accuracy)}m)`
+                          : ''
+                  }`
+                : 'GPS no disponible';
 
-    const blob = await new Promise<Blob | null>((resolve) => {
-        canvas.toBlob((result) => resolve(result), 'image/jpeg', 0.85);
+        const fontSize = Math.max(14, Math.round(width * 0.028));
+        const padding = Math.round(fontSize * 0.7);
+        const lineHeight = Math.round(fontSize * 1.35);
+        const boxHeight = padding * 2 + lineHeight * 2;
+        const boxY = height - boxHeight;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+        ctx.fillRect(0, boxY, width, boxHeight);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        ctx.textBaseline = 'top';
+        ctx.fillText(dateLine, padding, boxY + padding);
+        ctx.font = `${fontSize}px sans-serif`;
+        ctx.fillText(gpsLine, padding, boxY + padding + lineHeight);
+
+        const blob = await canvasToJpeg(canvas);
+
+        if (!blob) {
+            return uploadableOriginal(file);
+        }
+
+        return new File([blob], `inspeccion-${Date.now()}.jpg`, {
+            type: 'image/jpeg',
+        });
+    } catch {
+        return uploadableOriginal(file);
+    } finally {
+        drawable.close();
+    }
+}
+
+async function postPhoto(
+    checklistId: number | string,
+    formData: FormData,
+): Promise<string | null> {
+    const response = await fetch(`/inspecciones/${checklistId}/fotos`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-XSRF-TOKEN': getCsrfToken(),
+        },
+        body: formData,
     });
 
-    if (!blob) {
-        return file;
+    if (response.ok) {
+        return null;
     }
 
-    return new File([blob], `inspeccion-${Date.now()}.jpg`, {
-        type: 'image/jpeg',
-    });
+    if (response.status === 419) {
+        return 'La sesión expiró. Recarga la página e intenta de nuevo.';
+    }
+
+    if (response.status === 422) {
+        const data = (await response.json().catch(() => null)) as {
+            errors?: Record<string, string[]>;
+            message?: string;
+        } | null;
+        const first = data?.errors
+            ? Object.values(data.errors)[0]?.[0]
+            : null;
+
+        return first || data?.message || 'No se pudo subir la foto.';
+    }
+
+    if (response.status === 404) {
+        return 'No se encontró la inspección para subir la foto. Recarga la página.';
+    }
+
+    return 'No se pudo subir la foto. Intenta de nuevo.';
 }
 
 function PhotoPassSection({
@@ -267,23 +461,22 @@ function PhotoPassSection({
                 return;
             }
 
-            router.post(`/inspecciones/${checklistId}/fotos`, formData, {
-                forceFormData: true,
-                preserveScroll: true,
-                onFinish: () => {
-                    setUploading(false);
+            const uploadError = await postPhoto(checklistId, formData);
 
-                    if (inputRef.current) {
-                        inputRef.current.value = '';
-                    }
-                },
-                onError: () => {
-                    setError('No se pudo subir la foto. Intenta de nuevo.');
-                },
-            });
-        } catch {
+            if (uploadError) {
+                setError(uploadError);
+            } else {
+                toast.success('Foto subida.');
+                router.reload({ preserveScroll: true });
+            }
+        } catch (error) {
+            setError(
+                error instanceof Error && error.message
+                    ? error.message
+                    : 'No se pudo procesar la foto.',
+            );
+        } finally {
             setUploading(false);
-            setError('No se pudo procesar la foto.');
 
             if (inputRef.current) {
                 inputRef.current.value = '';
@@ -383,7 +576,7 @@ function PhotoPassSection({
                     ref={inputRef}
                     type="file"
                     accept="image/*"
-                    capture="environment"
+                    form="checklist-photo-source"
                     className="hidden"
                     onChange={(event) =>
                         handleCapture(event.target.files?.[0] ?? null)
