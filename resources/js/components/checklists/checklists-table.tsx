@@ -54,14 +54,6 @@ export type ChecklistsPagination = {
     to: number | null;
 };
 
-export type InspectionPackageOption = {
-    id: number;
-    inspected_on: string;
-    coordinator_name?: string | null;
-    checklists_count: number;
-    status: string;
-};
-
 export type ChecklistsFilters = {
     search: string;
     template_type?: 'tdp' | 'tdc' | null;
@@ -75,7 +67,6 @@ export type ChecklistsFilters = {
 type Props = {
     checklists: ChecklistsPagination;
     filters: ChecklistsFilters;
-    packages?: InspectionPackageOption[];
     onEdit: (item: ChecklistItemRow) => void;
     onDelete: (item: ChecklistItemRow) => void;
     onPreviewPdf: (item: ChecklistItemRow) => void;
@@ -154,20 +145,9 @@ function statusBadge(item: ChecklistItemRow) {
     return <StatBadge label="Borrador" value="" variant="warning" />;
 }
 
-function formatDay(value?: string | null): string {
-    if (!value) {
-        return '—';
-    }
-
-    const [year, month, day] = value.slice(0, 10).split('-');
-
-    return day && month && year ? `${day}/${month}/${year}` : value;
-}
-
 export function ChecklistsTable({
     checklists,
     filters,
-    packages = [],
     onEdit,
     onDelete,
     onPreviewPdf,
@@ -206,7 +186,6 @@ export function ChecklistsTable({
                     sort: params.sort ?? filters.sort,
                     direction: params.direction ?? filters.direction,
                     per_page: params.per_page ?? filters.per_page,
-                    batch_id: params.batch_id ?? filters.batch_id ?? undefined,
                     ...(params.page ? { page: params.page } : {}),
                 },
                 { preserveState: true, preserveScroll: true, replace: true },
@@ -392,27 +371,6 @@ export function ChecklistsTable({
                     onSearchChange={(search) => visit({ search, page: 1 })}
                     placeholder="Buscar placa, conductor..."
                 >
-                    {packages.length > 0 ? (
-                        <select
-                            value={filters.batch_id ? String(filters.batch_id) : ''}
-                            onChange={(event) =>
-                                visit({
-                                    batch_id: Number(event.target.value),
-                                    page: 1,
-                                })
-                            }
-                            aria-label="Paquete"
-                            className="h-10 cursor-pointer rounded-lg border border-[#1a2b4c] bg-[#1a2b4c] px-3 text-sm font-medium text-white outline-none"
-                        >
-                            {packages.map((item) => (
-                                <option key={item.id} value={String(item.id)}>
-                                    {formatDay(item.inspected_on)} ·{' '}
-                                    {item.coordinator_name || 'Sin coordinador'} ·{' '}
-                                    {item.checklists_count}
-                                </option>
-                            ))}
-                        </select>
-                    ) : null}
                     <FilterChips
                         ariaLabel="Filtrar por tipo"
                         value={(filters.template_type ?? 'all') as TypeFilter}
@@ -454,7 +412,6 @@ export function ChecklistsTable({
                         direction: filters.direction,
                         template_type: filters.template_type ?? undefined,
                         status: filters.status ?? undefined,
-                        batch_id: filters.batch_id ?? undefined,
                     }}
                 />
             }
@@ -464,12 +421,12 @@ export function ChecklistsTable({
                     title={
                         hasFilters
                             ? 'Sin resultados'
-                            : 'Este paquete no tiene inspecciones'
+                            : 'Aún no hay inspecciones'
                     }
                     description={
                         hasFilters
                             ? 'Prueba con otro filtro o limpia la búsqueda.'
-                            : 'Arma un paquete por fecha y coordinador. La tabla muestra solo las de ese paquete.'
+                            : 'Crea una inspección eligiendo la fecha y una unidad.'
                     }
                 />
             }

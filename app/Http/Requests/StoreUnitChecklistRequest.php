@@ -35,6 +35,7 @@ class StoreUnitChecklistRequest extends FormRequest
                 'integer',
                 Rule::exists('checklist_templates', 'id')->where('is_active', true),
             ],
+            'inspected_on' => ['required', 'date'],
         ];
     }
 
@@ -48,6 +49,8 @@ class StoreUnitChecklistRequest extends FormRequest
             'unit_id.exists' => 'La unidad debe pertenecer a un periodo activo.',
             'template_id.required' => 'Debes seleccionar el tipo de checklist.',
             'template_id.exists' => 'La plantilla seleccionada no es válida.',
+            'inspected_on.required' => 'Elige la fecha de la inspección.',
+            'inspected_on.date' => 'La fecha de la inspección no es válida.',
         ];
     }
 }

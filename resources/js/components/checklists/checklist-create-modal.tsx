@@ -2,6 +2,7 @@ import { router } from '@inertiajs/react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { AppModal } from '@/components/shared/app-modal';
+import { SearchableCombobox } from '@/components/shared/searchable-combobox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,7 +10,6 @@ import { Spinner } from '@/components/ui/spinner';
 import type { ChecklistFormData } from '@/components/checklists/checklist-edit-form';
 import type { OfflineCatalogTemplate } from '@/lib/offline/db';
 import { isBrowserOnline } from '@/lib/offline/ids';
-import { cn } from '@/lib/utils';
 
 export type ChecklistTemplateOption = {
     id: number;
@@ -26,32 +26,12 @@ export type ActiveUnitOption = {
     driver_name?: string | null;
     provider?: string | null;
     category?: string | null;
+    vehicle_type?: string | null;
     period?: {
         id: number;
         name: string;
         status?: string;
     } | null;
-};
-
-type PlateRow = {
-    unit_id: number;
-    plate: string;
-    driver: string | null;
-    vehicle_type: string | null;
-    template_type: 'tdp' | 'tdc' | string;
-    status: 'new' | 'exists';
-};
-
-type CoordinatorGroup = {
-    id: number;
-    name: string;
-    plates: PlateRow[];
-};
-
-type DayPreview = {
-    date: string;
-    coordinators: CoordinatorGroup[];
-    dates?: string[];
 };
 
 type Props = {
@@ -70,17 +50,25 @@ function todayInput(): string {
     return local.toISOString().slice(0, 10);
 }
 
+function templateTypeForVehicle(vehicleType: string | null | undefined): 'tdp' | 'tdc' {
+    const value = (vehicleType ?? '').trim().toUpperCase();
+
+    if (value.includes('CAMIONETA') || value.includes('PICK') || value === 'TDC') {
+        return 'tdc';
+    }
+
+    return 'tdp';
+}
+
 export function ChecklistCreateModal({
     open,
+    templates,
+    activeUnits,
     onClose,
 }: Props) {
     const [date, setDate] = useState(todayInput);
-    const [preview, setPreview] = useState<DayPreview | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [unitId, setUnitId] = useState<string | null>(null);
     const [sending, setSending] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [coordinatorId, setCoordinatorId] = useState('');
-    const [selected, setSelected] = useState<number[]>([]);
 
     useEffect(() => {
         if (!open) {
@@ -88,98 +76,38 @@ export function ChecklistCreateModal({
         }
 
         setDate(todayInput());
-        setCoordinatorId('');
-        setSelected([]);
-        setPreview(null);
+        setUnitId(null);
     }, [open]);
 
-    useEffect(() => {
-        if (!open || date === '') {
-            return;
-        }
-
-        const controller = new AbortController();
-        setLoading(true);
-        setError(null);
-
-        void fetch(`/inspecciones/dia?date=${date}`, {
-            credentials: 'same-origin',
-            signal: controller.signal,
-            headers: {
-                Accept: 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-        })
-            .then(async (response) => {
-                const payload = (await response.json().catch(() => null)) as
-                    | DayPreview
-                    | { message?: string }
-                    | null;
-
-                if (!response.ok || !payload || !('coordinators' in payload)) {
-                    throw new Error(
-                        (payload as { message?: string } | null)?.message ||
-                            'No se pudo cargar ese día.',
-                    );
-                }
-
-                setPreview(payload);
-                const first = payload.coordinators[0];
-                setCoordinatorId(first ? String(first.id) : '');
-                setSelected(
-                    first
-                        ? first.plates
-                              .filter((plate) => plate.status !== 'exists')
-                              .map((plate) => plate.unit_id)
-                        : [],
-                );
-            })
-            .catch((reason: unknown) => {
-                if (reason instanceof DOMException && reason.name === 'AbortError') {
-                    return;
-                }
-
-                setPreview(null);
-                setError(
-                    reason instanceof Error
-                        ? reason.message
-                        : 'No se pudo cargar ese día.',
-                );
-            })
-            .finally(() => setLoading(false));
-
-        return () => controller.abort();
-    }, [open, date]);
-
-    const coordinator = useMemo(
+    const options = useMemo(
         () =>
-            preview?.coordinators.find(
-                (item) => String(item.id) === coordinatorId,
-            ) ?? null,
-        [preview, coordinatorId],
+            activeUnits.map((unit) => {
+                const plate = unit.plate_number || unit.correlative;
+
+                return {
+                    value: String(unit.id),
+                    label: plate,
+                    description: [
+                        unit.driver_name || 'Sin conductor',
+                        unit.vehicle_type || null,
+                    ]
+                        .filter(Boolean)
+                        .join(' · '),
+                    keywords: [plate, unit.driver_name, unit.vehicle_type, unit.correlative]
+                        .filter(Boolean)
+                        .join(' '),
+                };
+            }),
+        [activeUnits],
     );
 
-    const chooseCoordinator = (value: string) => {
-        setCoordinatorId(value);
-        const next = preview?.coordinators.find(
-            (item) => String(item.id) === value,
-        );
-        setSelected(
-            next
-                ? next.plates
-                      .filter((plate) => plate.status !== 'exists')
-                      .map((plate) => plate.unit_id)
-                : [],
-        );
-    };
+    const unit = useMemo(
+        () => activeUnits.find((item) => String(item.id) === unitId) ?? null,
+        [activeUnits, unitId],
+    );
 
-    const togglePlate = (unitId: number) => {
-        setSelected((current) =>
-            current.includes(unitId)
-                ? current.filter((id) => id !== unitId)
-                : [...current, unitId],
-        );
-    };
+    const templateType = unit ? templateTypeForVehicle(unit.vehicle_type) : null;
+    const template = templates.find((item) => item.type === templateType) ?? null;
 
     const handleClose = () => {
         if (sending) {
@@ -193,22 +121,22 @@ export function ChecklistCreateModal({
         event.preventDefault();
 
         if (!isBrowserOnline()) {
-            toast.error('Crear las inspecciones necesita conexión.');
+            toast.error('Crear la inspección necesita conexión.');
 
             return;
         }
 
-        if (!coordinator || selected.length === 0 || sending) {
+        if (!unit || !template || sending) {
             return;
         }
 
         setSending(true);
         router.post(
-            '/inspecciones/dia',
+            '/inspecciones',
             {
-                date,
-                coordinator_id: coordinator.id,
-                unit_ids: selected,
+                unit_id: unit.id,
+                template_id: template.id,
+                inspected_on: date,
             },
             {
                 preserveScroll: true,
@@ -222,9 +150,9 @@ export function ChecklistCreateModal({
         <AppModal
             open={open}
             onClose={handleClose}
-            title="Crear inspecciones"
-            description="Elige la fecha y el coordinador. Salen las unidades del periodo activo, aunque ese día no se haya cargado el transporte."
-            className="sm:max-w-xl"
+            title="Nueva inspección"
+            description="Elige la fecha y una sola unidad. Se abre esa inspección para completarla."
+            className="sm:max-w-lg"
             footer={
                 <>
                     <Button
@@ -239,11 +167,11 @@ export function ChecklistCreateModal({
                     <Button
                         type="submit"
                         form="checklist-create-form"
-                        disabled={selected.length === 0 || sending || loading}
+                        disabled={!unit || !template || sending}
                         className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {sending ? <Spinner /> : null}
-                        Crear {selected.length || ''} inspecciones
+                        Crear inspección
                     </Button>
                 </>
             }
@@ -253,115 +181,40 @@ export function ChecklistCreateModal({
                 onSubmit={handleSubmit}
                 className="space-y-3"
             >
-                <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">
-                            Fecha <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                            type="date"
-                            value={date}
-                            onChange={(event) => setDate(event.target.value)}
-                            className="h-10 border-[#c5d5e6]"
-                        />
-                    </div>
-                    <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">
-                            Coordinador <span className="text-red-500">*</span>
-                        </Label>
-                        <select
-                            value={coordinatorId}
-                            onChange={(event) =>
-                                chooseCoordinator(event.target.value)
-                            }
-                            disabled={loading || (preview?.coordinators.length ?? 0) === 0}
-                            className="h-10 w-full cursor-pointer rounded-md border border-[#c5d5e6] bg-white px-3 text-sm text-[#1a2b4c] outline-none focus:border-[#2e5a9e]"
-                        >
-                            {preview?.coordinators.length ? (
-                                preview.coordinators.map((item) => (
-                                    <option key={item.id} value={String(item.id)}>
-                                        {item.name} ({item.plates.length})
-                                    </option>
-                                ))
-                            ) : (
-                                <option value="">Sin coordinadores</option>
-                            )}
-                        </select>
-                    </div>
+                <div className="grid gap-1.5">
+                    <Label className="text-xs text-[#1a2b4c]">
+                        Fecha <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                        type="date"
+                        value={date}
+                        onChange={(event) => setDate(event.target.value)}
+                        className="h-10 border-[#c5d5e6]"
+                    />
                 </div>
-
-                {loading ? (
-                    <p className="text-xs text-[#5a7390]">Cargando unidades del día…</p>
+                <div className="grid gap-1.5">
+                    <Label className="text-xs text-[#1a2b4c]">
+                        Unidad <span className="text-red-500">*</span>
+                    </Label>
+                    <SearchableCombobox
+                        value={unitId}
+                        options={options}
+                        onChange={setUnitId}
+                        placeholder="Buscar placa o conductor"
+                        emptyMessage="No hay unidades en el periodo activo"
+                    />
+                </div>
+                {unit ? (
+                    <p className="text-[11px] text-[#5a7390]">
+                        Se abre {template ? template.type.toUpperCase() : 'sin plantilla'}.
+                        Camioneta usa TDC. El resto usa TDP.
+                    </p>
                 ) : null}
-                {error ? <p className="text-xs text-red-600">{error}</p> : null}
-
-                {coordinator && !loading && coordinator.plates.length === 0 ? (
-                    <div className="rounded-lg bg-[#f8fafc] px-3 py-2 text-xs text-[#5a7390]">
-                        <p>
-                            {coordinator.name} no tiene unidades en el periodo
-                            activo.
-                        </p>
-                    </div>
+                {unit && !template ? (
+                    <p className="text-xs text-red-600">
+                        No hay plantilla activa para este tipo de unidad.
+                    </p>
                 ) : null}
-
-                {coordinator ? (
-                    <div className="max-h-72 space-y-1.5 overflow-y-auto pr-1">
-                        {coordinator.plates.map((plate) => {
-                            const checked = selected.includes(plate.unit_id);
-                            const locked = plate.status === 'exists';
-
-                            return (
-                                <label
-                                    key={plate.unit_id}
-                                    className={cn(
-                                        'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2',
-                                        locked
-                                            ? 'border-[#e2eaf3] bg-[#f8fafc] text-[#6b8ead]'
-                                            : 'border-[#d7e3f0] bg-white text-[#1a2b4c]',
-                                    )}
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={locked || checked}
-                                        disabled={locked}
-                                        onChange={() => togglePlate(plate.unit_id)}
-                                        className="size-4 accent-[#1a2b4c]"
-                                    />
-                                    <span className="min-w-0 flex-1">
-                                        <span className="block text-sm font-semibold">
-                                            {plate.plate}
-                                        </span>
-                                        <span className="block truncate text-[11px] text-[#5a7390]">
-                                            {plate.driver || 'Sin conductor'}
-                                            {plate.vehicle_type
-                                                ? ` · ${plate.vehicle_type}`
-                                                : ''}
-                                        </span>
-                                    </span>
-                                    <span
-                                        className={cn(
-                                            'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                                            plate.template_type === 'tdc'
-                                                ? 'bg-amber-50 text-amber-800'
-                                                : 'bg-[#e8f1fa] text-[#1a2b4c]',
-                                        )}
-                                    >
-                                        {plate.template_type.toUpperCase()}
-                                    </span>
-                                    {locked ? (
-                                        <span className="shrink-0 text-[10px] font-medium text-emerald-700">
-                                            Ya creada
-                                        </span>
-                                    ) : null}
-                                </label>
-                            );
-                        })}
-                    </div>
-                ) : null}
-
-                <p className="text-[11px] text-[#5a7390]">
-                    Camioneta abre TDC. El resto abre TDP.
-                </p>
             </form>
         </AppModal>
     );

@@ -60,24 +60,6 @@ class ChecklistController extends Controller
         $direction = $validated['direction'] ?? 'desc';
         $perPage = (int) ($validated['per_page'] ?? 10);
 
-        $packageQuery = InspectionBatch::query()
-            ->with('coordinator:id,name')
-            ->withCount('checklists');
-
-        if (SystemRoles::currentIsScopedCoordinator()) {
-            $packageQuery->where('coordinator_id', Auth::id());
-        }
-
-        $packages = $packageQuery
-            ->orderByDesc('inspected_on')
-            ->orderBy('id')
-            ->get();
-
-        $requestedBatch = (int) ($validated['batch_id'] ?? 0);
-        $batchId = $packages->contains('id', $requestedBatch)
-            ? $requestedBatch
-            : (int) ($packages->first()->id ?? 0);
-
         $query = UnitChecklist::query()
             ->with([
                 'template:id,type,code,name',
@@ -85,12 +67,6 @@ class ChecklistController extends Controller
                 'unit:id,correlative,plate_number,period_id,coordinator_id',
             ])
             ->whereHas('period', fn ($q) => $q->where('status', 'active'));
-
-        if ($batchId > 0) {
-            $query->where('inspection_batch_id', $batchId);
-        } else {
-            $query->whereRaw('1 = 0');
-        }
 
         if (SystemRoles::currentIsScopedCoordinator()) {
             $query->whereHas('unit', fn ($q) => $q->where('coordinator_id', Auth::id()));
@@ -127,14 +103,9 @@ class ChecklistController extends Controller
         $statsQuery = UnitChecklist::query()
             ->whereHas('period', fn ($q) => $q->where('status', 'active'));
 
-        if ($batchId > 0) {
-            $statsQuery->where('inspection_batch_id', $batchId);
-        } else {
-            $statsQuery->whereRaw('1 = 0');
-        }
-
         if (SystemRoles::currentIsScopedCoordinator()) {
             $activeUnitsQuery->where('coordinator_id', Auth::id());
+            $statsQuery->whereHas('unit', fn ($q) => $q->where('coordinator_id', Auth::id()));
         }
 
         $templates = ChecklistTemplate::query()
@@ -154,15 +125,7 @@ class ChecklistController extends Controller
                 'sort' => $sort,
                 'direction' => $direction,
                 'per_page' => $perPage,
-                'batch_id' => $batchId > 0 ? $batchId : null,
             ],
-            'packages' => $packages->map(fn (InspectionBatch $batch) => [
-                'id' => $batch->id,
-                'inspected_on' => $batch->inspected_on->format('Y-m-d'),
-                'coordinator_name' => $batch->coordinator?->name,
-                'checklists_count' => $batch->checklists_count,
-                'status' => $batch->status,
-            ])->values(),
             'templates' => $templates->map(fn (ChecklistTemplate $template) => [
                 'id' => $template->id,
                 'type' => $template->type,
@@ -177,6 +140,7 @@ class ChecklistController extends Controller
                 'driver_name',
                 'provider',
                 'category',
+                'vehicle_type',
                 'coordinator_id',
             ]),
             'offlineCatalog' => $templates->map(function (ChecklistTemplate $template) use ($paretoSync) {
@@ -364,10 +328,13 @@ class ChecklistController extends Controller
             ]);
         }
 
+        $inspectedOn = Carbon::parse($data['inspected_on'])->toDateString();
+
         $existing = UnitChecklist::query()
             ->where('unit_id', $unit->id)
             ->where('template_id', $data['template_id'])
             ->where('period_id', $unit->period_id)
+            ->whereDate('first_inspected_on', $inspectedOn)
             ->first();
 
         if ($existing) {
@@ -375,12 +342,30 @@ class ChecklistController extends Controller
                 ->route('checklists.edit', $existing)
                 ->with('toast', [
                     'type' => 'success',
-                    'message' => 'Ya existe un checklist para esa placa en el periodo. Se abrió el existente.',
+                    'message' => 'Esa placa ya tiene inspección en esa fecha. Se abrió la existente.',
+                ]);
+        }
+
+        $undated = UnitChecklist::query()
+            ->where('unit_id', $unit->id)
+            ->where('template_id', $data['template_id'])
+            ->where('period_id', $unit->period_id)
+            ->whereNull('first_inspected_on')
+            ->first();
+
+        if ($undated) {
+            $undated->update(['first_inspected_on' => $inspectedOn]);
+
+            return redirect()
+                ->route('checklists.edit', $undated)
+                ->with('toast', [
+                    'type' => 'success',
+                    'message' => 'Se abrió la inspección de esa placa.',
                 ]);
         }
 
         try {
-            $checklist = DB::transaction(function () use ($unit, $data) {
+            $checklist = DB::transaction(function () use ($unit, $data, $inspectedOn) {
                 $template = ChecklistTemplate::query()
                     ->with(['signatureRoles'])
                     ->findOrFail($data['template_id']);
@@ -398,6 +383,8 @@ class ChecklistController extends Controller
                     'provider' => $unit->provider,
                     'transport_company' => $unit->provider,
                     'license_class' => $unit->category,
+                    'vehicle_info' => $unit->vehicle_type,
+                    'first_inspected_on' => $inspectedOn,
                     'status' => 'draft',
                 ]);
 

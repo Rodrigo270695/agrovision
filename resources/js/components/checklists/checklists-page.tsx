@@ -17,7 +17,6 @@ import {
     type ChecklistItemRow,
     type ChecklistsFilters,
     type ChecklistsPagination,
-    type InspectionPackageOption,
 } from '@/components/checklists/checklists-table';
 import { useCan } from '@/hooks/use-can';
 import { isBrowserOnline, isLocalChecklistId } from '@/lib/offline/ids';
@@ -34,7 +33,6 @@ type PageProps = {
     checklists: ChecklistsPagination;
     stats: ChecklistsStatsData;
     filters: ChecklistsFilters;
-    packages?: InspectionPackageOption[];
     templates: ChecklistTemplateOption[];
     activeUnits: ActiveUnitOption[];
     offlineCatalog?: OfflineCatalogTemplate[];
@@ -66,7 +64,7 @@ function prefetchInspectionEdits(
 
 export function ChecklistsPage() {
     const page = usePage();
-    const { checklists, stats, filters, packages, templates, activeUnits, offlineCatalog } =
+    const { checklists, stats, filters, templates, activeUnits, offlineCatalog } =
         page.props as unknown as PageProps;
     const { can } = useCan();
 
@@ -179,7 +177,6 @@ export function ChecklistsPage() {
             <ChecklistsTable
                 checklists={mergedChecklists}
                 filters={filters}
-                packages={packages ?? []}
                 onEdit={(item) => {
                     if (can('checklists.update') || item.sealed_at) {
                         void openEditor(item);
