@@ -16,7 +16,9 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -163,39 +165,49 @@ final class UnitExcelImporter
 
     /**
      * @param  iterable<int, Unit>  $units
+     * @param  array{period?: string, dates?: string, search?: string, generated_at?: string, total?: int}  $meta
      */
-    public function export(iterable $units, string $filename = 'unidades.xlsx'): StreamedResponse
+    public function export(iterable $units, string $filename = 'unidades.xlsx', array $meta = []): StreamedResponse
     {
         $spreadsheet = new Spreadsheet;
+        $spreadsheet->getProperties()
+            ->setCreator('Agrovision')
+            ->setTitle('Unidades')
+            ->setSubject('Exportación de unidades');
+
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Unidades');
+        $sheet->getTabColor()->setRGB('1A2B4C');
 
-        $headers = [
-            'PERIODO',
-            'FECHA PERIODO',
-            'CORRELATIVO',
-            'Celular',
-            'PROVEEDOR',
-            'RUTA',
-            'T. VEHÍCULO',
-            'FECHA',
-            'CONDUCTOR',
-            'PLACA',
-            'RESPONSABLE',
-            'TIPO DE SERVICIO',
-            'RUC',
-            'DNI CONDUCTOR',
-            'CATEGORIA',
-            'COORDINADOR',
+        $columns = [
+            ['PERIODO', '1A2B4C', 20],
+            ['FECHA PERIODO', '1A2B4C', 16],
+            ['CORRELATIVO', '1A2B4C', 20],
+            ['CELULAR', '1F6A5B', 14],
+            ['PROVEEDOR', '8A5A12', 42],
+            ['RUTA', '2E5A9E', 32],
+            ['T. VEHÍCULO', '2E5A9E', 16],
+            ['FECHA', '2E5A9E', 14],
+            ['CONDUCTOR', '1F6A5B', 34],
+            ['PLACA', '1A2B4C', 14],
+            ['RESPONSABLE', '8A5A12', 28],
+            ['TIPO DE SERVICIO', '2E5A9E', 22],
+            ['RUC', '8A5A12', 16],
+            ['DNI CONDUCTOR', '1F6A5B', 16],
+            ['CATEGORÍA', '1F6A5B', 16],
+            ['COORDINADOR', '8A5A12', 28],
         ];
 
-        foreach ($headers as $index => $header) {
-            $sheet->setCellValue([$index + 1, 1], $header);
-        }
+        $lastColumn = 'P';
+        $headerRow = 3;
 
-        $sheet->getStyle('A1:P1')->applyFromArray([
+        $sheet->mergeCells("A1:{$lastColumn}1");
+        $sheet->setCellValue('A1', 'UNIDADES');
+        $sheet->getRowDimension(1)->setRowHeight(28);
+        $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
             'font' => [
                 'bold' => true,
+                'size' => 16,
                 'color' => ['rgb' => 'FFFFFF'],
             ],
             'fill' => [
@@ -203,12 +215,66 @@ final class UnitExcelImporter
                 'startColor' => ['rgb' => '1A2B4C'],
             ],
             'alignment' => [
-                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'horizontal' => Alignment::HORIZONTAL_LEFT,
                 'vertical' => Alignment::VERTICAL_CENTER,
+                'indent' => 1,
             ],
         ]);
 
-        $rowNumber = 2;
+        $summary = sprintf(
+            'Periodo: %s    ·    Fechas: %s    ·    Búsqueda: %s    ·    Registros: %d    ·    Generado: %s',
+            $meta['period'] ?? 'Todos los periodos',
+            $meta['dates'] ?? 'Todas las fechas',
+            $meta['search'] ?? 'Sin búsqueda',
+            $meta['total'] ?? 0,
+            $meta['generated_at'] ?? now()->format('d/m/Y H:i'),
+        );
+
+        $sheet->mergeCells("A2:{$lastColumn}2");
+        $sheet->setCellValue('A2', $summary);
+        $sheet->getRowDimension(2)->setRowHeight(20);
+        $sheet->getStyle("A2:{$lastColumn}2")->applyFromArray([
+            'font' => [
+                'size' => 10,
+                'color' => ['rgb' => '1A2B4C'],
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'E8F1FA'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_LEFT,
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'indent' => 1,
+            ],
+        ]);
+
+        foreach ($columns as $index => $column) {
+            $cell = [$index + 1, $headerRow];
+            $sheet->setCellValue($cell, $column[0]);
+            $sheet->getStyle($cell)->applyFromArray([
+                'font' => [
+                    'bold' => true,
+                    'size' => 10,
+                    'color' => ['rgb' => 'FFFFFF'],
+                ],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => $column[1]],
+                ],
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                    'vertical' => Alignment::VERTICAL_CENTER,
+                    'wrapText' => true,
+                ],
+            ]);
+            $sheet->getColumnDimensionByColumn($index + 1)->setWidth($column[2]);
+        }
+
+        $sheet->getRowDimension($headerRow)->setRowHeight(24);
+
+        $rowNumber = $headerRow + 1;
+        $written = 0;
 
         foreach ($units as $unit) {
             $serviceDate = $unit->service_date
@@ -233,19 +299,68 @@ final class UnitExcelImporter
             $sheet->setCellValueExplicit("M{$rowNumber}", (string) ($unit->ruc ?? ''), DataType::TYPE_STRING);
             $sheet->setCellValueExplicit("N{$rowNumber}", (string) ($unit->driver_dni ?? ''), DataType::TYPE_STRING);
             $sheet->setCellValue("O{$rowNumber}", (string) ($unit->category ?? ''));
-            $sheet->setCellValue(
-                "P{$rowNumber}",
-                (string) ($unit->coordinatorUser?->name ?? ''),
-            );
+            $sheet->setCellValue("P{$rowNumber}", (string) ($unit->coordinatorUser?->name ?? ''));
+
+            $fill = $written % 2 === 0 ? 'FFFFFF' : 'F4F7FB';
+            $sheet->getStyle("A{$rowNumber}:{$lastColumn}{$rowNumber}")->applyFromArray([
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => $fill],
+                ],
+                'alignment' => [
+                    'vertical' => Alignment::VERTICAL_CENTER,
+                ],
+                'font' => [
+                    'size' => 10,
+                    'color' => ['rgb' => '1A2B4C'],
+                ],
+            ]);
+            $sheet->getRowDimension($rowNumber)->setRowHeight(18);
 
             $rowNumber++;
+            $written++;
         }
 
-        foreach (range('A', 'P') as $column) {
-            $sheet->getColumnDimension($column)->setAutoSize(true);
+        $lastDataRow = max($headerRow, $rowNumber - 1);
+
+        if ($written === 0) {
+            $sheet->mergeCells("A4:{$lastColumn}4");
+            $sheet->setCellValue('A4', 'Sin registros para los filtros aplicados.');
+            $sheet->getStyle("A4:{$lastColumn}4")->applyFromArray([
+                'font' => [
+                    'italic' => true,
+                    'color' => ['rgb' => '5A7390'],
+                ],
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_LEFT,
+                    'vertical' => Alignment::VERTICAL_CENTER,
+                    'indent' => 1,
+                ],
+            ]);
+            $lastDataRow = 4;
         }
 
-        $sheet->getRowDimension(1)->setRowHeight(22);
+        $sheet->getStyle("A{$headerRow}:{$lastColumn}{$lastDataRow}")->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => 'D0D7E2'],
+                ],
+            ],
+        ]);
+
+        $sheet->freezePane('A4');
+        $sheet->setAutoFilter("A{$headerRow}:{$lastColumn}{$lastDataRow}");
+        $sheet->setSelectedCell('A4');
+
+        $pageSetup = $sheet->getPageSetup();
+        $pageSetup->setOrientation(PageSetup::ORIENTATION_LANDSCAPE);
+        $pageSetup->setPaperSize(PageSetup::PAPERSIZE_A4);
+        $pageSetup->setFitToWidth(1);
+        $pageSetup->setFitToHeight(0);
+        $pageSetup->setRowsToRepeatAtTopByStartAndEnd(1, $headerRow);
+        $sheet->getPageMargins()->setTop(0.5)->setBottom(0.5)->setLeft(0.4)->setRight(0.4);
+        $sheet->getHeaderFooter()->setOddFooter('&LAgrovision · Unidades&RPágina &P de &N');
 
         $writer = new Xlsx($spreadsheet);
 

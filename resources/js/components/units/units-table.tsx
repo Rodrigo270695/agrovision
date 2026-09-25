@@ -30,7 +30,6 @@ export type UnitItem = {
     period_id: number;
     correlative: string;
     phone?: string | null;
-    email?: string | null;
     provider: string;
     route?: string | null;
     vehicle_type?: string | null;
@@ -409,7 +408,7 @@ export function UnitsTable({
                 <DataToolbar
                     search={filters.search}
                     onSearchChange={(search) => visit({ search, page: 1 })}
-                    placeholder="Buscar correlativo, placa, conductor, correo..."
+                    placeholder="Buscar correlativo, placa, conductor..."
                 >
                     <PeriodFilterSelect
                         value={filters.period_id}

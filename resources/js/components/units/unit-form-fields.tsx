@@ -36,7 +36,6 @@ export type UnitFormValues = {
     period_id: string;
     correlative: string;
     phone: string;
-    email: string;
     provider: string;
     route: string;
     vehicle_type: string;
@@ -89,13 +88,6 @@ const otherFields: Array<{
         key: 'phone',
         label: 'Celular',
         placeholder: 'Ej. 985555756',
-    },
-    {
-        key: 'email',
-        label: 'Correo',
-        type: 'email',
-        placeholder: 'Ej. conductor@agrovision.com',
-        full: true,
     },
     {
         key: 'route',

@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -268,9 +269,35 @@ class UnitController extends Controller
             ->with(['period:id,name,date', 'coordinatorUser:id,name'])
             ->get();
 
+        $periodName = 'Todos los periodos';
+
+        if ($filters['period_id']) {
+            $periodName = (string) (Period::query()->whereKey($filters['period_id'])->value('name') ?? $periodName);
+        }
+
+        if ($filters['all_dates'] || ($filters['date_from'] === null && $filters['date_to'] === null)) {
+            $dateLabel = 'Todas las fechas';
+        } elseif ($filters['date_from'] === $filters['date_to']) {
+            $dateLabel = Carbon::parse((string) $filters['date_from'])->format('d/m/Y');
+        } else {
+            $from = $filters['date_from']
+                ? Carbon::parse($filters['date_from'])->format('d/m/Y')
+                : '…';
+            $to = $filters['date_to']
+                ? Carbon::parse($filters['date_to'])->format('d/m/Y')
+                : '…';
+            $dateLabel = "{$from} al {$to}";
+        }
+
         $suffix = now()->format('Y-m-d_His');
 
-        return $importer->export($units, "unidades-{$suffix}.xlsx");
+        return $importer->export($units, "unidades-{$suffix}.xlsx", [
+            'period' => $periodName,
+            'dates' => $dateLabel,
+            'search' => $filters['search'] !== '' ? $filters['search'] : 'Sin búsqueda',
+            'generated_at' => now()->format('d/m/Y H:i'),
+            'total' => $units->count(),
+        ]);
     }
 
     public function import(Request $request, UnitExcelImporter $importer): RedirectResponse
@@ -431,7 +458,6 @@ class UnitController extends Controller
                     ->orWhere('plate_number', 'ilike', "%{$search}%")
                     ->orWhere('driver_name', 'ilike', "%{$search}%")
                     ->orWhere('route', 'ilike', "%{$search}%")
-                    ->orWhere('email', 'ilike', "%{$search}%")
                     ->orWhereHas('coordinatorUser', function ($q) use ($search) {
                         $q->where('name', 'ilike', "%{$search}%");
                     });
