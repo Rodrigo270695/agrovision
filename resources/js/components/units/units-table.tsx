@@ -9,6 +9,7 @@ import {
     type DataTableColumn,
     type SortState,
 } from '@/components/data-page';
+import { DateRangeFilter } from '@/components/shared/date-range-filter';
 import {
     PeriodFilterSelect,
     type PeriodFilterOption,
@@ -81,6 +82,8 @@ export type UnitsPagination = {
 export type UnitsFilters = {
     search: string;
     period_id?: number | null;
+    date_from?: string | null;
+    date_to?: string | null;
     sort:
         | 'correlative'
         | 'provider'
@@ -204,12 +207,26 @@ export function UnitsTable({
             )
                 ? params.period_id
                 : filters.period_id;
+            const nextDateFrom = Object.prototype.hasOwnProperty.call(
+                params,
+                'date_from',
+            )
+                ? params.date_from
+                : filters.date_from;
+            const nextDateTo = Object.prototype.hasOwnProperty.call(
+                params,
+                'date_to',
+            )
+                ? params.date_to
+                : filters.date_to;
 
             router.get(
                 '/unidades',
                 {
                     search: params.search ?? filters.search,
                     ...(nextPeriodId ? { period_id: nextPeriodId } : {}),
+                    ...(nextDateFrom ? { date_from: nextDateFrom } : {}),
+                    ...(nextDateTo ? { date_to: nextDateTo } : {}),
                     sort: params.sort ?? filters.sort,
                     direction: params.direction ?? filters.direction,
                     per_page: params.per_page ?? filters.per_page,
@@ -349,7 +366,12 @@ export function UnitsTable({
         [onDelete, onDocuments, onEdit],
     );
 
-    const hasFilters = Boolean(filters.search || filters.period_id);
+    const hasFilters = Boolean(
+        filters.search ||
+            filters.period_id ||
+            filters.date_from ||
+            filters.date_to,
+    );
 
     return (
         <DataTable
@@ -388,6 +410,24 @@ export function UnitsTable({
                             visit({ period_id: periodId, page: 1 })
                         }
                     />
+                    <DateRangeFilter
+                        desde={filters.date_from ?? null}
+                        hasta={filters.date_to ?? null}
+                        onApply={(dateFrom, dateTo) =>
+                            visit({
+                                date_from: dateFrom,
+                                date_to: dateTo,
+                                page: 1,
+                            })
+                        }
+                        onClear={() =>
+                            visit({
+                                date_from: null,
+                                date_to: null,
+                                page: 1,
+                            })
+                        }
+                    />
                 </DataToolbar>
             }
             footer={
@@ -400,6 +440,8 @@ export function UnitsTable({
                         sort: filters.sort,
                         direction: filters.direction,
                         period_id: filters.period_id ?? undefined,
+                        date_from: filters.date_from || undefined,
+                        date_to: filters.date_to || undefined,
                     }}
                 />
             }

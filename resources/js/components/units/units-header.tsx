@@ -30,6 +30,14 @@ function buildExportUrl(filters: UnitsFilters): string {
         params.set('period_id', String(filters.period_id));
     }
 
+    if (filters.date_from) {
+        params.set('date_from', filters.date_from);
+    }
+
+    if (filters.date_to) {
+        params.set('date_to', filters.date_to);
+    }
+
     if (filters.sort) {
         params.set('sort', filters.sort);
     }

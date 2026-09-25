@@ -60,6 +60,8 @@ class UnitController extends Controller
             'filters' => [
                 'search' => $filters['search'],
                 'period_id' => $filters['period_id'],
+                'date_from' => $filters['date_from'],
+                'date_to' => $filters['date_to'],
                 'sort' => $filters['sort'],
                 'direction' => $filters['direction'],
                 'per_page' => $filters['per_page'],
@@ -314,13 +316,15 @@ class UnitController extends Controller
     }
 
     /**
-     * @return array{search: string, period_id: int|null, sort: string, direction: string, per_page: int}
+     * @return array{search: string, period_id: int|null, date_from: string|null, date_to: string|null, sort: string, direction: string, per_page: int}
      */
     private function validatedFilters(Request $request): array
     {
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:255'],
             'period_id' => ['nullable', 'integer', 'exists:periods,id'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date'],
             'sort' => ['nullable', Rule::in([
                 'correlative',
                 'provider',
@@ -334,9 +338,18 @@ class UnitController extends Controller
             'per_page' => ['nullable', Rule::in([5, 10, 25, 50])],
         ]);
 
+        $dateFrom = $validated['date_from'] ?? null;
+        $dateTo = $validated['date_to'] ?? null;
+
+        if ($dateFrom && $dateTo && $dateFrom > $dateTo) {
+            [$dateFrom, $dateTo] = [$dateTo, $dateFrom];
+        }
+
         return [
             'search' => trim((string) ($validated['search'] ?? '')),
             'period_id' => $validated['period_id'] ?? null,
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
             'sort' => $validated['sort'] ?? 'correlative',
             'direction' => $validated['direction'] ?? 'desc',
             'per_page' => (int) ($validated['per_page'] ?? 10),
@@ -358,7 +371,7 @@ class UnitController extends Controller
     }
 
     /**
-     * @param  array{search: string, period_id: int|null, sort: string, direction: string, per_page: int}  $filters
+     * @param  array{search: string, period_id: int|null, date_from: string|null, date_to: string|null, sort: string, direction: string, per_page: int}  $filters
      * @param  Builder<Unit>|null  $base
      * @return Builder<Unit>
      */
@@ -368,6 +381,33 @@ class UnitController extends Controller
 
         if ($filters['period_id']) {
             $query->where('period_id', $filters['period_id']);
+        }
+
+        $dateFrom = $filters['date_from'];
+        $dateTo = $filters['date_to'];
+
+        if ($dateFrom || $dateTo) {
+            $query->where(function ($builder) use ($dateFrom, $dateTo) {
+                $builder->whereHas('movements', function ($movement) use ($dateFrom, $dateTo) {
+                    if ($dateFrom) {
+                        $movement->whereDate('service_date', '>=', $dateFrom);
+                    }
+
+                    if ($dateTo) {
+                        $movement->whereDate('service_date', '<=', $dateTo);
+                    }
+                })->orWhere(function ($unit) use ($dateFrom, $dateTo) {
+                    $unit->whereDoesntHave('movements');
+
+                    if ($dateFrom) {
+                        $unit->whereDate('service_date', '>=', $dateFrom);
+                    }
+
+                    if ($dateTo) {
+                        $unit->whereDate('service_date', '<=', $dateTo);
+                    }
+                });
+            });
         }
 
         if ($filters['search'] !== '') {
