@@ -298,7 +298,6 @@ final class UnitExcelImporter
         $errors = [];
         $pending = [];
         $seenCorrelatives = [];
-        $seenPlates = [];
         $coordinators = SystemRoles::coordinators();
 
         foreach ($rows as $index => $row) {
@@ -320,14 +319,6 @@ final class UnitExcelImporter
                     } else {
                         $seenCorrelatives[$correlative] = $excelRow;
                     }
-                }
-
-                $plate = (string) $mapped['data']['plate_number'];
-
-                if (isset($seenPlates[$plate])) {
-                    $rowErrors[] = "La placa \"{$plate}\" está duplicada en la fila {$seenPlates[$plate]} del Excel.";
-                } else {
-                    $seenPlates[$plate] = $excelRow;
                 }
             }
 
