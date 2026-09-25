@@ -395,7 +395,7 @@ function Legend({
 SstBoardPage.layout = {
     breadcrumbs: [
         { title: 'Panel', href: dashboard() },
-        { title: 'Plataforma', href: '#' },
+        { title: 'Reportes', href: '#' },
         { title: 'Tablero SST', href: '/tablero-sst' },
     ],
 };

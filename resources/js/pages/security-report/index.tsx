@@ -421,7 +421,7 @@ function Donut({ summary }: { summary: Summary }) {
 SecurityReportPage.layout = {
     breadcrumbs: [
         { title: 'Panel', href: dashboard() },
-        { title: 'Plataforma', href: '#' },
+        { title: 'Reportes', href: '#' },
         { title: 'Reporte SST', href: '/reporte-sst' },
     ],
 };

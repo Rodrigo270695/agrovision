@@ -352,7 +352,7 @@ function Legend({
 DriverBoardPage.layout = {
     breadcrumbs: [
         { title: 'Panel', href: dashboard() },
-        { title: 'Plataforma', href: '#' },
+        { title: 'Reportes', href: '#' },
         { title: 'Tablero conductores', href: '/tablero-conductores' },
     ],
 };

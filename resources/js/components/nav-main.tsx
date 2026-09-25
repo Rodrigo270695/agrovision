@@ -36,7 +36,32 @@ const accents: Record<string, Accent> = {
     Plataforma: {
         icon: 'text-[#2e5a9e]',
         chip: 'bg-[#e8f1fa]',
-        activeChip: 'bg-white text-[#1a2b4c]',
+        activeChip: 'bg-[#d6e6f7] text-[#1a2b4c]',
+    },
+    Reportes: {
+        icon: 'text-[#1d4ed8]',
+        chip: 'bg-[#dbeafe]',
+        activeChip: 'bg-[#bfdbfe] text-[#1d4ed8]',
+    },
+    'Tablero SST': {
+        icon: 'text-[#0e7490]',
+        chip: 'bg-[#cffafe]',
+        activeChip: 'bg-[#0e7490]/15 text-[#155e75]',
+    },
+    'Reporte SST': {
+        icon: 'text-[#1e40af]',
+        chip: 'bg-[#dbeafe]',
+        activeChip: 'bg-[#1e40af]/15 text-[#1e3a8a]',
+    },
+    'Tablero conductores': {
+        icon: 'text-[#047857]',
+        chip: 'bg-[#d1fae5]',
+        activeChip: 'bg-[#047857]/15 text-[#065f46]',
+    },
+    Paquetes: {
+        icon: 'text-[#7c3aed]',
+        chip: 'bg-[#ede9fe]',
+        activeChip: 'bg-[#7c3aed]/15 text-[#5b21b6]',
     },
     Pareto: {
         icon: 'text-[#6d28d9]',
@@ -76,7 +101,7 @@ const accents: Record<string, Accent> = {
     Inducción: {
         icon: 'text-[#047857]',
         chip: 'bg-[#d1fae5]',
-        activeChip: 'bg-white text-[#047857]',
+        activeChip: 'bg-[#a7f3d0] text-[#047857]',
     },
     Configuración: {
         icon: 'text-[#047857]',
@@ -86,7 +111,7 @@ const accents: Record<string, Accent> = {
     Usuario: {
         icon: 'text-[#6d28d9]',
         chip: 'bg-[#efe8fb]',
-        activeChip: 'bg-white text-[#6d28d9]',
+        activeChip: 'bg-[#ddd6fe] text-[#6d28d9]',
     },
     Usuarios: {
         icon: 'text-[#6d28d9]',
@@ -108,7 +133,7 @@ const accents: Record<string, Accent> = {
 const fallbackAccent: Accent = {
     icon: 'text-[#2e5a9e]',
     chip: 'bg-[#e8f1fa]',
-    activeChip: 'bg-white/15 text-white',
+    activeChip: 'bg-[#2e5a9e]/15 text-[#1a2b4c]',
 };
 
 function accentFor(title: string): Accent {
