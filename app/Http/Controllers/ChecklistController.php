@@ -408,13 +408,7 @@ class ChecklistController extends Controller
                     ]);
                 }
 
-                foreach ($template->signatureRoles as $role) {
-                    UnitChecklistSignature::query()->create([
-                        'unit_checklist_id' => $checklist->id,
-                        'signature_role_id' => $role->id,
-                        'signer_name' => $role->sort_order === 1 ? $unit->driver_name : null,
-                    ]);
-                }
+                $this->ensurePassSignatures($checklist);
 
                 return $checklist;
             });
@@ -455,8 +449,6 @@ class ChecklistController extends Controller
                     'message' => 'Este checklist pertenece a un periodo inactivo y no se puede editar.',
                 ]);
         }
-
-        $signaturesByRole = $checklist->signatures->keyBy('signature_role_id');
 
         $paretoMeta = [
             'weight_total' => 0.0,
@@ -500,19 +492,28 @@ class ChecklistController extends Controller
             })
             ->values();
 
-        $signatures = $checklist->template->signatureRoles->map(function ($role) use ($signaturesByRole) {
-            $signature = $signaturesByRole->get($role->id);
+        $this->ensurePassSignatures($checklist);
+        $checklist->load('signatures');
 
-            return [
-                'signature_role_id' => $role->id,
-                'label' => $role->label,
-                'signer_name' => $signature?->signer_name,
-                'signature_url' => $signature?->signatureUrl(),
-                'signed_at' => $signature?->signed_at
+        $signatures = $checklist->signatures
+            ->filter(fn (UnitChecklistSignature $signature) => $signature->slot !== null)
+            ->sortBy(fn (UnitChecklistSignature $signature) => sprintf(
+                '%s-%02d',
+                $signature->inspection_pass === 'second' ? '2' : '1',
+                array_search($signature->slot, ['driver', 'sst', 'inspector'], true) ?: 0,
+            ))
+            ->values()
+            ->map(fn (UnitChecklistSignature $signature) => [
+                'signature_role_id' => $signature->id,
+                'slot' => $signature->slot,
+                'inspection_pass' => $signature->inspection_pass,
+                'label' => $this->signatureSlotLabel((string) $signature->slot),
+                'signer_name' => $signature->signer_name,
+                'signature_url' => $signature->signatureUrl(),
+                'signed_at' => $signature->signed_at
                     ?->timezone(config('app.timezone'))
                     ->format('d/m/Y H:i'),
-            ];
-        })->values();
+            ]);
 
         $driverOptions = UnitMovement::query()
             ->where('unit_id', $checklist->unit_id)
@@ -707,10 +708,20 @@ class ChecklistController extends Controller
                 }
 
                 foreach ($data['signatures'] ?? [] as $signatureData) {
-                    $signature = UnitChecklistSignature::query()
-                        ->where('unit_checklist_id', $checklist->id)
-                        ->where('signature_role_id', $signatureData['signature_role_id'])
-                        ->first();
+                    $signatureQuery = UnitChecklistSignature::query()
+                        ->where('unit_checklist_id', $checklist->id);
+
+                    if (! empty($signatureData['slot'])) {
+                        $signature = $signatureQuery
+                            ->where('slot', $signatureData['slot'])
+                            ->where('inspection_pass', $signatureData['inspection_pass'] ?? 'first')
+                            ->first();
+                    } else {
+                        $signature = $signatureQuery
+                            ->where('signature_role_id', $signatureData['signature_role_id'])
+                            ->whereNull('slot')
+                            ->first();
+                    }
 
                     if (! $signature) {
                         continue;
@@ -882,8 +893,6 @@ class ChecklistController extends Controller
             'inspectionBatch',
         ]);
 
-        $signaturesByRole = $checklist->signatures->keyBy('signature_role_id');
-
         $scored = 0.0;
         $catalog = 0.0;
 
@@ -929,23 +938,29 @@ class ChecklistController extends Controller
             return 'data:'.$mime.';base64,'.base64_encode($binary);
         };
 
-        $signatures = $checklist->template->signatureRoles
-            ->sortBy('sort_order')
-            ->values()
-            ->map(function ($role) use ($signaturesByRole, $toDataUri) {
-                $signature = $signaturesByRole->get($role->id);
-                $image = null;
+        $this->ensurePassSignatures($checklist);
+        $checklist->unsetRelation('signatures');
+        $checklist->load('signatures');
 
-                if ($signature?->signature_path) {
-                    $candidate = Storage::disk('public')->path($signature->signature_path);
-                    $image = $toDataUri($candidate);
-                }
+        $signatures = $checklist->signatures
+            ->filter(fn (UnitChecklistSignature $signature) => $signature->slot !== null)
+            ->sortBy(fn (UnitChecklistSignature $signature) => sprintf(
+                '%s-%02d',
+                $signature->inspection_pass === 'second' ? '2' : '1',
+                array_search($signature->slot, ['driver', 'sst', 'inspector'], true) ?: 0,
+            ))
+            ->values()
+            ->map(function (UnitChecklistSignature $signature) use ($toDataUri) {
+                $image = $signature->signature_path
+                    ? $toDataUri(Storage::disk('public')->path($signature->signature_path))
+                    : null;
+                $pass = $signature->inspection_pass === 'second' ? '2da' : '1ra';
 
                 return [
-                    'label' => $role->label,
-                    'signer_name' => $signature?->signer_name,
+                    'label' => $pass.' · '.$this->signatureSlotLabel((string) $signature->slot),
+                    'signer_name' => $signature->signer_name,
                     'image_src' => $image,
-                    'signed_at' => $signature?->signed_at
+                    'signed_at' => $signature->signed_at
                         ?->timezone(config('app.timezone'))
                         ->format('d/m/Y H:i'),
                 ];
@@ -1309,13 +1324,7 @@ class ChecklistController extends Controller
             ]);
         }
 
-        foreach ($template->signatureRoles as $role) {
-            UnitChecklistSignature::query()->create([
-                'unit_checklist_id' => $checklist->id,
-                'signature_role_id' => $role->id,
-                'signer_name' => $role->sort_order === 1 ? $plate['driver'] : null,
-            ]);
-        }
+        $this->ensurePassSignatures($checklist);
 
         return 'created';
     }
@@ -1333,6 +1342,41 @@ class ChecklistController extends Controller
         }
 
         return 'tdp';
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function signatureSlots(): array
+    {
+        return [
+            'driver' => 'Firma del conductor',
+            'sst' => 'V°B° SST',
+            'inspector' => 'Firma del inspector',
+        ];
+    }
+
+    private function signatureSlotLabel(string $slot): string
+    {
+        return $this->signatureSlots()[$slot] ?? $slot;
+    }
+
+    private function ensurePassSignatures(UnitChecklist $checklist): void
+    {
+        foreach (['first', 'second'] as $pass) {
+            foreach (array_keys($this->signatureSlots()) as $slot) {
+                UnitChecklistSignature::query()->firstOrCreate(
+                    [
+                        'unit_checklist_id' => $checklist->id,
+                        'inspection_pass' => $pass,
+                        'slot' => $slot,
+                    ],
+                    [
+                        'signer_name' => $slot === 'driver' ? $checklist->driver_name : null,
+                    ],
+                );
+            }
+        }
     }
 
     private function attachLooseChecklists(): void

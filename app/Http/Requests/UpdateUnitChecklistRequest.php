@@ -41,7 +41,9 @@ class UpdateUnitChecklistRequest extends FormRequest
             'answers.*.second_value' => ['nullable', Rule::in(['yes', 'no'])],
             'answers.*.observations' => ['nullable', 'string', 'max:1000'],
             'signatures' => ['nullable', 'array'],
-            'signatures.*.signature_role_id' => ['required', 'integer', 'exists:checklist_signature_roles,id'],
+            'signatures.*.signature_role_id' => ['nullable', 'integer'],
+            'signatures.*.slot' => ['nullable', Rule::in(['driver', 'sst', 'inspector'])],
+            'signatures.*.inspection_pass' => ['nullable', Rule::in(['first', 'second'])],
             'signatures.*.signer_name' => ['nullable', 'string', 'max:255'],
             'signatures.*.signature_data_url' => ['nullable', 'string'],
             'signatures.*.clear_signature' => ['nullable', 'boolean'],
@@ -108,6 +110,8 @@ class UpdateUnitChecklistRequest extends FormRequest
 
                     return [
                         'signature_role_id' => $signature['signature_role_id'] ?? null,
+                        'slot' => $signature['slot'] ?? null,
+                        'inspection_pass' => $signature['inspection_pass'] ?? 'first',
                         'signer_name' => $name === '' ? null : $name,
                         'signature_data_url' => $signature['signature_data_url'] ?? null,
                         'clear_signature' => (bool) ($signature['clear_signature'] ?? false),

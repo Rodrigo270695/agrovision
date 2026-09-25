@@ -242,7 +242,7 @@ export default function InspectionBatchesIndexPage() {
                             description={
                                 hasFilters
                                     ? 'Prueba con otro filtro o limpia la búsqueda.'
-                                    : 'Desde Inspecciones, envía el paquete del día cuando la 2da inspección esté cerrada.'
+                                    : 'Desde Inspecciones, envía el paquete cuando la 1ra inspección esté cerrada. La 2da no bloquea el envío.'
                             }
                         />
                     }

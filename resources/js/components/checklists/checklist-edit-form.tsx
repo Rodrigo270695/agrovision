@@ -38,6 +38,8 @@ export type ChecklistFormItem = {
 
 export type ChecklistFormSignature = {
     signature_role_id: number;
+    slot: 'driver' | 'sst' | 'inspector';
+    inspection_pass: 'first' | 'second';
     label: string;
     signer_name: string | null;
     signature_url?: string | null;
@@ -115,6 +117,8 @@ type AnswerState = {
 
 type SignatureState = {
     signature_role_id: number;
+    slot: 'driver' | 'sst' | 'inspector';
+    inspection_pass: 'first' | 'second';
     signer_name: string;
     signature_data_url: string | null;
     clear_signature: boolean;
@@ -237,7 +241,9 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
         firstLocked && !secondUnlocked && !sealed;
     const secondLocked =
         sealed || checklist.second_result === 'approved';
-    const signaturesUnlocked = checklist.second_result === 'approved';
+    const canSeal =
+        checklist.first_result === 'approved' &&
+        checklist.second_result === 'approved';
 
     const [processing, setProcessing] = useState(false);
     const [location, setLocation] = useState(checklist.location ?? '');
@@ -298,6 +304,8 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
     const [signatures, setSignatures] = useState<SignatureState[]>(
         checklist.signatures.map((signature) => ({
             signature_role_id: signature.signature_role_id,
+            slot: signature.slot,
+            inspection_pass: signature.inspection_pass,
             signer_name: signature.signer_name ?? '',
             signature_data_url: null,
             clear_signature: false,
@@ -437,6 +445,8 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
             answers,
             signatures: signatures.map((signature) => ({
                 signature_role_id: signature.signature_role_id,
+                slot: signature.slot,
+                inspection_pass: signature.inspection_pass,
                 signer_name: signature.signer_name || null,
                 signature_data_url: signature.signature_data_url,
                 clear_signature: signature.clear_signature,
@@ -534,15 +544,17 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                         />
                         <StepPill
                             label="2da"
-                            active={secondUnlocked && !signaturesUnlocked}
-                            done={checklist.second_result === 'approved'}
+                            active={secondUnlocked && !secondLocked && !sealed}
+                            done={
+                                checklist.second_result === 'approved' ||
+                                checklist.second_result === 'rejected'
+                            }
                             locked={!secondUnlocked}
                         />
                         <StepPill
                             label="Firmas"
-                            active={signaturesUnlocked && !sealed}
+                            active={!sealed}
                             done={sealed}
-                            locked={!signaturesUnlocked}
                         />
                     </div>
                 </div>
@@ -646,8 +658,8 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                 ) : secondUnlocked ? (
                     <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                            {signaturesUnlocked
-                                ? '1ra y 2da cerradas. Firma conductor e inspector, y envía el paquete de esta fecha al coordinador.'
+                            {canSeal
+                                ? '1ra y 2da cerradas. Cada una tiene sus firmas: conductor, V°B° SST e inspector. El coordinador firma el paquete del día.'
                                 : (
                                       <>
                                           La 1ra quedó cerrada. Sigue con la{' '}
@@ -999,90 +1011,123 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                 readonlySecond={sealed || secondLocked}
             />
 
-            {signaturesUnlocked ? (
-                <div className="rounded-2xl border border-[#d7e3f0] bg-white p-3 shadow-sm sm:p-5">
-                    <h2 className="mb-1 text-sm font-semibold text-[#1a2b4c]">
-                        Firmas virtuales
-                    </h2>
-                    <p className="mb-3 text-xs text-[#5a7390]">
-                        Firma del conductor y del inspector. La del coordinador
-                        no se hace aquí: el paquete del día se firma una sola
-                        vez y esa firma cubre todas las inspecciones.
-                    </p>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        {checklist.signatures.map((signature, index) => {
-                            const state = signatures[index];
+            <div className="rounded-2xl border border-[#d7e3f0] bg-white p-3 shadow-sm sm:p-5">
+                <h2 className="mb-1 text-sm font-semibold text-[#1a2b4c]">
+                    Firmas
+                </h2>
+                <p className="mb-3 text-xs text-[#5a7390]">
+                    La 1ra y la 2da firman por separado. Cada una lleva firma
+                    del conductor, V°B° SST y firma del inspector. La del
+                    coordinador cubre el paquete del día, no esta inspección.
+                </p>
+                {(['first', 'second'] as const).map((pass) => {
+                    const passLocked =
+                        sealed || (pass === 'second' && !secondUnlocked);
+                    const cards = checklist.signatures
+                        .map((signature, index) => ({ signature, index }))
+                        .filter(
+                            ({ signature }) =>
+                                signature.inspection_pass === pass,
+                        );
 
-                            return (
-                                <div
-                                    key={signature.signature_role_id}
-                                    className="rounded-xl border border-[#e2eaf3] bg-[#f8fafc] p-3"
-                                >
-                                    <Label className="text-xs font-semibold text-[#1a2b4c]">
-                                        {signature.label}
-                                    </Label>
-                                    <Input
-                                        value={state?.signer_name ?? ''}
-                                        disabled={sealed}
-                                        onChange={(event) => {
-                                            const value = event.target.value;
-                                            setSignatures((prev) =>
-                                                prev.map((item, i) =>
-                                                    i === index
-                                                        ? {
-                                                              ...item,
-                                                              signer_name: value,
-                                                          }
-                                                        : item,
-                                                ),
-                                            );
-                                        }}
-                                        placeholder="Nombre completo"
-                                        className="mt-2 h-10 border-[#c5d5e6] bg-white"
-                                    />
-                                    <div className="mt-2">
-                                        <SignaturePad
-                                            disabled={sealed}
-                                            valueUrl={
-                                                state?.clear_signature
-                                                    ? null
-                                                    : (state?.signature_data_url ??
-                                                      state?.existing_url)
-                                            }
-                                            onChange={(dataUrl) => {
-                                                setSignatures((prev) =>
-                                                    prev.map((item, i) =>
-                                                        i === index
-                                                            ? {
-                                                                  ...item,
-                                                                  signature_data_url:
-                                                                      dataUrl,
-                                                                  clear_signature:
-                                                                      dataUrl ===
-                                                                      null,
-                                                                  existing_url:
-                                                                      dataUrl ===
-                                                                      null
-                                                                          ? null
-                                                                          : item.existing_url,
-                                                              }
-                                                            : item,
-                                                    ),
-                                                );
-                                            }}
-                                        />
-                                    </div>
-                                    {signature.signed_at ? (
-                                        <p className="mt-1 text-[11px] text-[#6b8ead]">
-                                            Firmado: {signature.signed_at}
-                                        </p>
-                                    ) : null}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            ) : null}
+                    if (cards.length === 0) {
+                        return null;
+                    }
+
+                    return (
+                        <div key={pass} className="mt-4">
+                            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#1a2b4c]">
+                                {pass === 'first'
+                                    ? 'Firmas de la 1ra'
+                                    : 'Firmas de la 2da'}
+                            </h3>
+                            {pass === 'second' && !secondUnlocked ? (
+                                <p className="mb-2 text-xs text-[#8a5a12]">
+                                    Se habilitan al cerrar la 1ra. No hace
+                                    falta que la 2da esté aprobada para
+                                    enviar el paquete.
+                                </p>
+                            ) : null}
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                {cards.map(({ signature, index }) => {
+                                    const state = signatures[index];
+
+                                    return (
+                                        <div
+                                            key={`${signature.inspection_pass}-${signature.slot}`}
+                                            className="rounded-xl border border-[#e2eaf3] bg-[#f8fafc] p-3"
+                                        >
+                                            <Label className="text-xs font-semibold text-[#1a2b4c]">
+                                                {signature.label}
+                                            </Label>
+                                            <Input
+                                                value={state?.signer_name ?? ''}
+                                                disabled={passLocked}
+                                                onChange={(event) => {
+                                                    const value =
+                                                        event.target.value;
+                                                    setSignatures((prev) =>
+                                                        prev.map((item, i) =>
+                                                            i === index
+                                                                ? {
+                                                                      ...item,
+                                                                      signer_name:
+                                                                          value,
+                                                                  }
+                                                                : item,
+                                                        ),
+                                                    );
+                                                }}
+                                                placeholder="Nombre completo"
+                                                className="mt-2 h-10 border-[#c5d5e6] bg-white"
+                                            />
+                                            <div className="mt-2">
+                                                <SignaturePad
+                                                    disabled={passLocked}
+                                                    valueUrl={
+                                                        state?.clear_signature
+                                                            ? null
+                                                            : (state?.signature_data_url ??
+                                                              state?.existing_url)
+                                                    }
+                                                    onChange={(dataUrl) => {
+                                                        setSignatures((prev) =>
+                                                            prev.map(
+                                                                (item, i) =>
+                                                                    i === index
+                                                                        ? {
+                                                                              ...item,
+                                                                              signature_data_url:
+                                                                                  dataUrl,
+                                                                              clear_signature:
+                                                                                  dataUrl ===
+                                                                                  null,
+                                                                              existing_url:
+                                                                                  dataUrl ===
+                                                                                  null
+                                                                                      ? null
+                                                                                      : item.existing_url,
+                                                                          }
+                                                                        : item,
+                                                            ),
+                                                        );
+                                                    }}
+                                                />
+                                            </div>
+                                            {signature.signed_at ? (
+                                                <p className="mt-1 text-[11px] text-[#6b8ead]">
+                                                    Firmado:{' '}
+                                                    {signature.signed_at}
+                                                </p>
+                                            ) : null}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
 
             {!sealed ? (
                 <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#d7e3f0] bg-white/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
@@ -1106,9 +1151,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                             : !secondStats.allMarked
                                               ? 'Marca todos los ítems en SÍ/NO para aprobar la 2da.'
                                               : `Necesitas ≥ ${PARETO_PASS_THRESHOLD}% Pareto para aprobar la 2da.`
-                                        : signaturesUnlocked
-                                          ? 'Firma conductor e inspector. El coordinador firma el paquete del día.'
-                                          : 'Puedes guardar el progreso en cualquier momento.'}
+                                        : 'Las firmas de la 1ra y de la 2da son independientes: conductor, V°B° SST e inspector. Puedes guardar en cualquier momento.'}
                         </p>
                         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                             <Button
@@ -1172,7 +1215,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                 </Button>
                             ) : null}
 
-                            {signaturesUnlocked ? (
+                            {canSeal ? (
                                 <Button
                                     type="button"
                                     disabled={processing}

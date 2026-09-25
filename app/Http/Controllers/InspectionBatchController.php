@@ -106,7 +106,7 @@ class InspectionBatchController extends Controller
         $alreadySigned = 0;
 
         foreach ($checklists as $checklist) {
-            $closed = in_array($checklist->second_result, ['approved', 'rejected'], true);
+            $closed = in_array($checklist->first_result, ['approved', 'rejected'], true);
             $coordinatorId = $checklist->unit?->coordinator_id;
 
             if (! $closed) {
@@ -160,21 +160,21 @@ class InspectionBatchController extends Controller
         /** @var Collection<int, Collection<int, UnitChecklist>> $readyByCoordinator */
         $readyByCoordinator = $checklists
             ->filter(function (UnitChecklist $checklist) {
-                return in_array($checklist->second_result, ['approved', 'rejected'], true)
+                return in_array($checklist->first_result, ['approved', 'rejected'], true)
                     && $checklist->unit?->coordinator_id
                     && ! $checklist->inspectionBatch?->isSigned();
             })
             ->groupBy(fn (UnitChecklist $checklist) => (int) $checklist->unit->coordinator_id);
 
         $pending = $checklists
-            ->reject(fn (UnitChecklist $checklist) => in_array($checklist->second_result, ['approved', 'rejected'], true))
+            ->reject(fn (UnitChecklist $checklist) => in_array($checklist->first_result, ['approved', 'rejected'], true))
             ->count();
 
         if ($readyByCoordinator->isEmpty()) {
             return back()->with('toast', [
                 'type' => 'error',
                 'message' => $pending > 0
-                    ? 'Ese día aún no hay inspecciones con la 2da cerrada para armar el paquete.'
+                    ? 'Ese día aún no hay inspecciones con la 1ra cerrada para enviar.'
                     : 'No hay inspecciones de esa fecha para enviar.',
             ]);
         }
@@ -231,7 +231,7 @@ class InspectionBatchController extends Controller
         $message = "Paquete del {$label}: {$attached} inspecciones enviadas a {$packages} coordinador(es). Una firma cubre todo el paquete.";
 
         if ($pending > 0) {
-            $message .= " Quedaron {$pending} sin la 2da inspección cerrada.";
+            $message .= " Quedaron {$pending} sin la 1ra inspección cerrada.";
         }
 
         return redirect()
@@ -391,6 +391,8 @@ class InspectionBatchController extends Controller
             ->sortBy(fn (UnitChecklist $checklist) => $checklist->plate_number)
             ->values()
             ->map(function (UnitChecklist $checklist) {
+                $usesSecond = $checklist->second_result !== null;
+
                 $items = $checklist->answers
                     ->filter(fn (UnitChecklistAnswer $answer) => $answer->item !== null)
                     ->sortBy(fn (UnitChecklistAnswer $answer) => [
@@ -398,8 +400,8 @@ class InspectionBatchController extends Controller
                         $answer->item->id,
                     ])
                     ->values()
-                    ->map(function (UnitChecklistAnswer $answer) use ($checklist) {
-                        $value = $checklist->second_result
+                    ->map(function (UnitChecklistAnswer $answer) use ($usesSecond) {
+                        $value = $usesSecond
                             ? $answer->second_value
                             : $answer->first_value;
 
@@ -412,6 +414,9 @@ class InspectionBatchController extends Controller
 
                 $ok = $items->where('value', 'yes')->count();
                 $fail = $items->where('value', 'no')->count();
+                $decided = $usesSecond
+                    ? $checklist->second_result !== null
+                    : $checklist->first_result !== null;
 
                 return [
                     'id' => $checklist->id,
@@ -420,9 +425,10 @@ class InspectionBatchController extends Controller
                     'provider' => $checklist->provider,
                     'first_result' => $checklist->first_result,
                     'second_result' => $checklist->second_result,
+                    'reviewed_pass' => $usesSecond ? '2da' : '1ra',
                     'ok' => $ok,
                     'fail' => $fail,
-                    'conforme' => $fail === 0 && $checklist->second_result !== null && $ok > 0,
+                    'conforme' => $fail === 0 && $decided && $ok > 0,
                     'items' => $items->values()->all(),
                 ];
             });

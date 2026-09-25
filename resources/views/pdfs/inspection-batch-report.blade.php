@@ -76,6 +76,7 @@
                 <td class="{{ $row['fail'] > 0 ? 'no' : '' }}">{{ $row['fail'] }}</td>
                 <td class="{{ $row['conforme'] ? 'pill-ok' : 'pill-no' }}">
                     {{ $row['conforme'] ? 'CONFORME' : 'FALTA' }}
+                    · {{ $row['reviewed_pass'] ?? '1ra' }}
                 </td>
             </tr>
         @endforeach
@@ -87,7 +88,7 @@
         <h3>
             {{ $row['plate_number'] ?: 'Sin placa' }}
             · {{ $row['driver_name'] ?: 'Sin conductor' }}
-            · <span class="{{ $row['conforme'] ? 'ok' : 'no' }}">{{ $row['conforme'] ? 'CONFORME' : 'FALTA' }}</span>
+            · <span class="{{ $row['conforme'] ? 'ok' : 'no' }}">{{ $row['conforme'] ? 'CONFORME' : 'FALTA' }} · {{ $row['reviewed_pass'] ?? '1ra' }}</span>
         </h3>
         <table class="grid">
             <thead>

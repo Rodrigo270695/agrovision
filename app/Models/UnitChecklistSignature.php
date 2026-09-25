@@ -10,7 +10,9 @@ use Illuminate\Support\Facades\Storage;
 /**
  * @property int $id
  * @property int $unit_checklist_id
- * @property int $signature_role_id
+ * @property int|null $signature_role_id
+ * @property string $inspection_pass
+ * @property string|null $slot
  * @property string|null $signer_name
  * @property string|null $signature_path
  * @property Carbon|null $signed_at
@@ -20,6 +22,8 @@ class UnitChecklistSignature extends Model
     protected $fillable = [
         'unit_checklist_id',
         'signature_role_id',
+        'inspection_pass',
+        'slot',
         'signer_name',
         'signature_path',
         'signed_at',

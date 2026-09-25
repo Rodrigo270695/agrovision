@@ -362,13 +362,24 @@ export function buildLocalDraft(input: {
             observations: null,
         })),
         pareto: input.catalog.pareto,
-        signatures: input.catalog.signatureRoles.map((role) => ({
-            signature_role_id: role.id,
-            label: role.label,
-            signer_name: role.sort_order === 1 ? input.unit.driver_name ?? null : null,
-            signature_url: null,
-            signed_at: null,
-        })),
+        signatures: (['first', 'second'] as const).flatMap((pass, passIndex) =>
+            (
+                [
+                    ['driver', 'Firma del conductor'],
+                    ['sst', 'V°B° SST'],
+                    ['inspector', 'Firma del inspector'],
+                ] as const
+            ).map(([slot, label], slotIndex) => ({
+                signature_role_id: -(passIndex * 10 + slotIndex + 1),
+                slot,
+                inspection_pass: pass,
+                label,
+                signer_name:
+                    slot === 'driver' ? (input.unit.driver_name ?? null) : null,
+                signature_url: null,
+                signed_at: null,
+            })),
+        ),
         photos: [],
     };
 }

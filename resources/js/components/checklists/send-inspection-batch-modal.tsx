@@ -121,7 +121,7 @@ export function SendInspectionBatchModal({ open, onClose }: Props) {
             open={open}
             onClose={onClose}
             title="Enviar paquete del día"
-            description="La fecha de la 1ra inspección es el paquete. Se envía una vez a cada coordinador y con una firma cubre todas las de ese día."
+            description="Se envía con la 1ra cerrada. La 2da sigue por su cuenta, con sus propias firmas."
             footer={
                 <>
                     <Button
@@ -166,7 +166,7 @@ export function SendInspectionBatchModal({ open, onClose }: Props) {
                     <div className="space-y-2 text-xs text-[#1a2b4c]">
                         {preview.groups.length === 0 ? (
                             <p className="rounded-lg bg-[#f8fafc] px-3 py-2 text-[#5a7390]">
-                                No hay inspecciones con la 2da cerrada para
+                                No hay inspecciones con la 1ra cerrada para
                                 enviar.
                             </p>
                         ) : (
@@ -184,8 +184,8 @@ export function SendInspectionBatchModal({ open, onClose }: Props) {
                         )}
                         {preview.pending > 0 ? (
                             <p className="text-[#8a5a12]">
-                                {preview.pending} aún no cierran la 2da
-                                inspección y no entran al paquete.
+                                {preview.pending} aún no cierran la 1ra
+                                inspección y no entran al envío.
                             </p>
                         ) : null}
                         {preview.without_coordinator > 0 ? (

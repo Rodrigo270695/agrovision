@@ -22,6 +22,7 @@ type ChecklistRow = {
     provider: string | null;
     first_result: string | null;
     second_result: string | null;
+    reviewed_pass: '1ra' | '2da';
     ok: number;
     fail: number;
     conforme: boolean;
@@ -166,8 +167,8 @@ export default function InspectionBatchShowPage() {
                                                 )}
                                             >
                                                 {row.conforme
-                                                    ? 'Conforme'
-                                                    : 'Falta algo'}
+                                                    ? `Conforme ${row.reviewed_pass}`
+                                                    : `Falta algo · ${row.reviewed_pass}`}
                                             </span>
                                             <button
                                                 type="button"
