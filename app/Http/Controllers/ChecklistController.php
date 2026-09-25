@@ -559,11 +559,11 @@ class ChecklistController extends Controller
         $checklist->load('signatures');
 
         $signatures = $checklist->signatures
-            ->filter(fn (UnitChecklistSignature $signature) => $signature->slot !== null)
+            ->filter(fn (UnitChecklistSignature $signature) => in_array($signature->slot, ['driver', 'sst'], true))
             ->sortBy(fn (UnitChecklistSignature $signature) => sprintf(
                 '%s-%02d',
                 $signature->inspection_pass === 'second' ? '2' : '1',
-                array_search($signature->slot, ['driver', 'sst', 'inspector'], true) ?: 0,
+                array_search($signature->slot, ['driver', 'sst'], true) ?: 0,
             ))
             ->values()
             ->map(fn (UnitChecklistSignature $signature) => [
@@ -1069,11 +1069,11 @@ class ChecklistController extends Controller
         $checklist->load('signatures');
 
         $signatures = $checklist->signatures
-            ->filter(fn (UnitChecklistSignature $signature) => $signature->slot !== null)
+            ->filter(fn (UnitChecklistSignature $signature) => in_array($signature->slot, ['driver', 'sst'], true))
             ->sortBy(fn (UnitChecklistSignature $signature) => sprintf(
                 '%s-%02d',
                 $signature->inspection_pass === 'second' ? '2' : '1',
-                array_search($signature->slot, ['driver', 'sst', 'inspector'], true) ?: 0,
+                array_search($signature->slot, ['driver', 'sst'], true) ?: 0,
             ))
             ->values()
             ->map(function (UnitChecklistSignature $signature) use ($toDataUri) {
@@ -1129,22 +1129,20 @@ class ChecklistController extends Controller
             ? $toDataUri(Storage::disk('public')->path($checklist->coordinator_signature_path))
             : null;
 
-        $batchSignature = null;
-
         if ($checklist->inspectionBatch?->isSigned()) {
             $batch = $checklist->inspectionBatch;
             $batchImage = $batch->signature_path
                 ? $toDataUri(Storage::disk('public')->path($batch->signature_path))
                 : null;
 
-            $batchSignature = [
-                'date' => $batch->inspected_on->format('d/m/Y'),
+            $signatures->push([
+                'label' => 'Firma del coordinador',
                 'signer_name' => $batch->signer_name,
+                'image_src' => $batchImage,
                 'signed_at' => $batch->signed_at
                     ?->timezone(config('app.timezone'))
                     ->format('d/m/Y H:i'),
-                'image_src' => $batchImage,
-            ];
+            ]);
         }
 
         $type = strtoupper((string) ($checklist->template->type ?? 'INS'));
@@ -1159,7 +1157,6 @@ class ChecklistController extends Controller
             'logoSrc' => PdfLogo::dataUri(),
             'paretoChart' => $paretoChart,
             'coordinatorSignatureSrc' => $coordinatorSignatureSrc,
-            'batchSignature' => $batchSignature,
         ])->setPaper('a4', 'portrait');
 
         if ($request->boolean('download')) {
@@ -1490,7 +1487,6 @@ class ChecklistController extends Controller
         return [
             'driver' => 'Firma del conductor',
             'sst' => 'V°B° SST',
-            'inspector' => 'Firma del inspector',
         ];
     }
 

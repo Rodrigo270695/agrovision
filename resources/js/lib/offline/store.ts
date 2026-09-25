@@ -367,7 +367,6 @@ export function buildLocalDraft(input: {
                 [
                     ['driver', 'Firma del conductor'],
                     ['sst', 'V°B° SST'],
-                    ['inspector', 'Firma del inspector'],
                 ] as const
             ).map(([slot, label], slotIndex) => ({
                 signature_role_id: -(passIndex * 10 + slotIndex + 1),

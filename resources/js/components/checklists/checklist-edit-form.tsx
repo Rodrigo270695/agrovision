@@ -849,7 +849,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                     <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
                             {canSeal
-                                ? '1ra y 2da cerradas. Cada una tiene sus firmas: conductor, V°B° SST e inspector. El coordinador firma el paquete del día.'
+                                ? '1ra y 2da cerradas. Cada una lleva la firma del conductor y el V°B° SST.'
                                 : (
                                       <>
                                           La 1ra quedó cerrada. Sigue con la{' '}
@@ -1322,9 +1322,8 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                     Firmas
                 </h2>
                 <p className="mb-3 text-xs text-[#5a7390]">
-                    La 1ra y la 2da firman por separado. Cada una lleva firma
-                    del conductor, V°B° SST y firma del inspector. La del
-                    coordinador cubre el paquete del día, no esta inspección.
+                    La 1ra y la 2da firman por separado. Cada una lleva la
+                    firma del conductor y el V°B° SST.
                 </p>
                 {(['first', 'second'] as const).map((pass) => {
                     const passLocked =
@@ -1354,8 +1353,13 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                     enviar el paquete.
                                 </p>
                             ) : null}
-                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                {cards.map(({ signature, index }) => {
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                {cards
+                                    .filter(
+                                        ({ signature }) =>
+                                            signature.slot !== 'inspector',
+                                    )
+                                    .map(({ signature, index }) => {
                                     const state = signatures[index];
 
                                     return (
@@ -1457,7 +1461,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                             : !secondStats.allMarked
                                               ? 'Marca todos los ítems en SÍ/NO para aprobar la 2da.'
                                               : `Necesitas ≥ ${PARETO_PASS_THRESHOLD}% Pareto para aprobar la 2da.`
-                                        : 'Las firmas de la 1ra y de la 2da son independientes: conductor, V°B° SST e inspector. Puedes guardar en cualquier momento.'}
+                                        : 'Las firmas de la 1ra y de la 2da son independientes: conductor y V°B° SST. Puedes guardar en cualquier momento.'}
                         </p>
                         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                             <Button
