@@ -1,4 +1,4 @@
-import { CircleCheck, ClipboardList, FileText, Package, Plus } from 'lucide-react';
+import { CircleCheck, ClipboardList, Download, FileText, Package, Plus } from 'lucide-react';
 import {
     type ChecklistsStatsData,
 } from '@/components/checklists/checklists-stats';
@@ -8,11 +8,17 @@ import { useCan } from '@/hooks/use-can';
 
 type Props = {
     stats: ChecklistsStatsData;
+    exportHref: string;
     onCreate: () => void;
     onSendBatch?: () => void;
 };
 
-export function ChecklistsHeader({ stats, onCreate, onSendBatch }: Props) {
+export function ChecklistsHeader({
+    stats,
+    exportHref,
+    onCreate,
+    onSendBatch,
+}: Props) {
     const { can } = useCan();
 
     return (
@@ -47,6 +53,22 @@ export function ChecklistsHeader({ stats, onCreate, onSendBatch }: Props) {
             ]}
             action={
                 <div className="flex flex-wrap items-center gap-2">
+                    {can('checklists.view') ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            asChild
+                            className="cursor-pointer gap-2 border-[#1a2b4c] text-[#1a2b4c] hover:bg-[#e8f1fa]"
+                        >
+                            <a href={exportHref}>
+                                <Download className="size-4" />
+                                <span className="hidden sm:inline">
+                                    Exportar
+                                </span>
+                                <span className="sm:hidden">Excel</span>
+                            </a>
+                        </Button>
+                    ) : null}
                     {can('checklists.update') && onSendBatch ? (
                         <Button
                             type="button"

@@ -1,6 +1,7 @@
 import { ClipboardCheck, FileDown, Pencil, Trash2 } from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { useCallback, useMemo } from 'react';
+import { DateRangeFilter } from '@/components/shared/date-range-filter';
 import { toast } from 'sonner';
 import { isBrowserOnline } from '@/lib/offline/ids';
 import {
@@ -58,6 +59,8 @@ export type ChecklistsFilters = {
     search: string;
     template_type?: 'tdp' | 'tdc' | null;
     status?: 'draft' | 'completed' | null;
+    date_from?: string | null;
+    date_to?: string | null;
     sort: 'plate_number' | 'created_at' | 'status' | 'first_result';
     direction: 'asc' | 'desc';
     per_page: number;
@@ -176,6 +179,18 @@ export function ChecklistsTable({
             )
                 ? params.status
                 : filters.status;
+            const nextFrom = Object.prototype.hasOwnProperty.call(
+                params,
+                'date_from',
+            )
+                ? params.date_from
+                : filters.date_from;
+            const nextTo = Object.prototype.hasOwnProperty.call(
+                params,
+                'date_to',
+            )
+                ? params.date_to
+                : filters.date_to;
 
             router.get(
                 '/inspecciones',
@@ -183,6 +198,8 @@ export function ChecklistsTable({
                     search: params.search ?? filters.search,
                     ...(nextType ? { template_type: nextType } : {}),
                     ...(nextStatus ? { status: nextStatus } : {}),
+                    ...(nextFrom ? { date_from: nextFrom } : {}),
+                    ...(nextTo ? { date_to: nextTo } : {}),
                     sort: params.sort ?? filters.sort,
                     direction: params.direction ?? filters.direction,
                     per_page: params.per_page ?? filters.per_page,
@@ -343,7 +360,11 @@ export function ChecklistsTable({
     );
 
     const hasFilters = Boolean(
-        filters.search || filters.template_type || filters.status,
+        filters.search ||
+            filters.template_type ||
+            filters.status ||
+            filters.date_from ||
+            filters.date_to,
     );
 
     return (
@@ -399,6 +420,24 @@ export function ChecklistsTable({
                         }
                         options={statusOptions}
                     />
+                    <DateRangeFilter
+                        desde={filters.date_from ?? null}
+                        hasta={filters.date_to ?? null}
+                        onApply={(dateFrom, dateTo) =>
+                            visit({
+                                date_from: dateFrom,
+                                date_to: dateTo,
+                                page: 1,
+                            })
+                        }
+                        onClear={() =>
+                            visit({
+                                date_from: null,
+                                date_to: null,
+                                page: 1,
+                            })
+                        }
+                    />
                 </DataToolbar>
             }
             footer={
@@ -412,6 +451,8 @@ export function ChecklistsTable({
                         direction: filters.direction,
                         template_type: filters.template_type ?? undefined,
                         status: filters.status ?? undefined,
+                        date_from: filters.date_from ?? undefined,
+                        date_to: filters.date_to ?? undefined,
                     }}
                 />
             }

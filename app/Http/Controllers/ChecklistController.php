@@ -16,6 +16,7 @@ use App\Models\UnitChecklistPhoto;
 use App\Models\UnitChecklistSignature;
 use App\Services\ParetoChecklistSync;
 use App\Support\IndexedRedirect;
+use App\Support\InspectionDatabaseExporter;
 use App\Support\ParetoCheckTypes;
 use App\Support\ParetoPassThreshold;
 use App\Support\ParetoPieChart;
@@ -27,6 +28,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -44,6 +46,8 @@ class ChecklistController extends Controller
             'search' => ['nullable', 'string', 'max:255'],
             'template_type' => ['nullable', Rule::in(['tdp', 'tdc'])],
             'status' => ['nullable', Rule::in(['draft', 'completed'])],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date'],
             'sort' => ['nullable', Rule::in(['plate_number', 'created_at', 'status', 'first_result'])],
             'direction' => ['nullable', Rule::in(['asc', 'desc'])],
             'per_page' => ['nullable', Rule::in([5, 10, 25, 50])],
@@ -56,6 +60,7 @@ class ChecklistController extends Controller
         $search = trim((string) ($validated['search'] ?? ''));
         $templateType = $validated['template_type'] ?? null;
         $status = $validated['status'] ?? null;
+        [$dateFrom, $dateTo] = $this->inspectionDateRange($validated);
         $sort = $validated['sort'] ?? 'created_at';
         $direction = $validated['direction'] ?? 'desc';
         $perPage = (int) ($validated['per_page'] ?? 10);
@@ -89,6 +94,8 @@ class ChecklistController extends Controller
             $query->where('status', $status);
         }
 
+        $this->applyInspectionDateRange($query, $dateFrom, $dateTo);
+
         $query->orderBy($sort, $direction);
 
         $checklists = $query->paginate($perPage)->withQueryString();
@@ -108,6 +115,8 @@ class ChecklistController extends Controller
             $statsQuery->whereHas('unit', fn ($q) => $q->where('coordinator_id', Auth::id()));
         }
 
+        $this->applyInspectionDateRange($statsQuery, $dateFrom, $dateTo);
+
         $templates = ChecklistTemplate::query()
             ->where('is_active', true)
             ->with(['items', 'signatureRoles'])
@@ -122,6 +131,8 @@ class ChecklistController extends Controller
                 'search' => $search,
                 'template_type' => $templateType,
                 'status' => $status,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
                 'sort' => $sort,
                 'direction' => $direction,
                 'per_page' => $perPage,
@@ -188,6 +199,71 @@ class ChecklistController extends Controller
                 'on_screen' => $checklists->count(),
             ],
         ]);
+    }
+
+    public function export(Request $request, InspectionDatabaseExporter $exporter): StreamedResponse
+    {
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'template_type' => ['nullable', Rule::in(['tdp', 'tdc'])],
+            'status' => ['nullable', Rule::in(['draft', 'completed'])],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date'],
+        ]);
+
+        $search = trim((string) ($validated['search'] ?? ''));
+        $templateType = $validated['template_type'] ?? null;
+        $status = $validated['status'] ?? null;
+        [$dateFrom, $dateTo] = $this->inspectionDateRange($validated);
+
+        $query = UnitChecklist::query()
+            ->with([
+                'template:id,type',
+                'period:id,name,status',
+                'unit.coordinatorUser.place.site',
+                'unit.coordinatorUser.places.site',
+                'unit.documents',
+                'answers.item',
+            ])
+            ->whereHas('period', fn ($q) => $q->where('status', 'active'));
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $query->whereHas('unit', fn ($q) => $q->where('coordinator_id', Auth::id()));
+        }
+
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search) {
+                $builder
+                    ->where('plate_number', 'ilike', "%{$search}%")
+                    ->orWhere('driver_name', 'ilike', "%{$search}%")
+                    ->orWhere('provider', 'ilike', "%{$search}%");
+            });
+        }
+
+        if ($templateType) {
+            $query->whereHas('template', fn ($q) => $q->where('type', $templateType));
+        }
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        $this->applyInspectionDateRange($query, $dateFrom, $dateTo);
+
+        $checklists = $query
+            ->orderBy('first_inspected_on')
+            ->orderBy('id')
+            ->get();
+
+        $filename = 'inspecciones';
+
+        if ($dateFrom || $dateTo) {
+            $filename .= '-'.($dateFrom ?: 'inicio').'_a_'.($dateTo ?: now()->toDateString());
+        } else {
+            $filename .= '-'.now()->format('Y-m-d_His');
+        }
+
+        return $exporter->download($checklists, $filename.'.xlsx');
     }
 
     public function day(Request $request): JsonResponse
@@ -1404,6 +1480,41 @@ class ChecklistController extends Controller
             );
 
             $checklist->update(['inspection_batch_id' => $batch->id]);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array{0: ?string, 1: ?string}
+     */
+    private function inspectionDateRange(array $validated): array
+    {
+        $from = isset($validated['date_from']) ? (string) $validated['date_from'] : null;
+        $to = isset($validated['date_to']) ? (string) $validated['date_to'] : null;
+
+        if ($from === '') {
+            $from = null;
+        }
+
+        if ($to === '') {
+            $to = null;
+        }
+
+        if ($from !== null && $to !== null && $from > $to) {
+            return [$to, $from];
+        }
+
+        return [$from, $to];
+    }
+
+    private function applyInspectionDateRange(mixed $query, ?string $from, ?string $to): void
+    {
+        if ($from) {
+            $query->whereDate('first_inspected_on', '>=', $from);
+        }
+
+        if ($to) {
+            $query->whereDate('first_inspected_on', '<=', $to);
         }
     }
 

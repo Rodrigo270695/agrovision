@@ -264,6 +264,10 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:checklists.view')
             ->name('checklists.index');
 
+        Route::get('inspecciones/exportar', [ChecklistController::class, 'export'])
+            ->middleware('permission:checklists.view')
+            ->name('checklists.export');
+
         Route::post('inspecciones', [ChecklistController::class, 'store'])
             ->middleware('permission:checklists.create')
             ->name('checklists.store');
