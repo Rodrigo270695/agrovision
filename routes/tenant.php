@@ -15,6 +15,7 @@ use App\Http\Controllers\PlaceController;
 use App\Http\Controllers\PublicFileController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SstBoardController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UnitDocumentController;
 use App\Http\Controllers\UserController;
@@ -212,6 +213,10 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
         Route::delete('unidades/{unit}/documentos/{document}', [UnitDocumentController::class, 'destroy'])
             ->middleware('permission:units.update')
             ->name('units.documents.destroy');
+
+        Route::get('tablero-sst', SstBoardController::class)
+            ->middleware('permission:checklists.view')
+            ->name('sst-board');
 
         Route::get('inspecciones/dia', [ChecklistController::class, 'day'])
             ->middleware('permission:checklists.create')
