@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Induction;
 use App\Models\InductionAttendee;
+use App\Models\Site;
 use App\Models\Unit;
 use App\Models\UnitDocument;
+use App\Models\User;
 use App\Support\SystemRoles;
 use App\Support\UnitDocumentTypes;
 use Carbon\CarbonInterface;
@@ -23,22 +25,21 @@ class DriverBoardController extends Controller
         $validated = $request->validate([
             'week' => ['nullable', 'string', 'max:20'],
             'coordinator_id' => ['nullable', 'integer'],
-            'sede' => ['nullable', 'string', 'max:255'],
+            'sede' => ['nullable', 'integer'],
         ]);
 
         $week = $this->resolveWeek($validated['week'] ?? null);
         $coordinatorId = isset($validated['coordinator_id'])
             ? (int) $validated['coordinator_id']
             : null;
-        $sede = trim((string) ($validated['sede'] ?? ''));
-        $sede = $sede === '' ? null : $sede;
+        $siteId = isset($validated['sede']) ? (int) $validated['sede'] : null;
 
         if (SystemRoles::currentIsScopedCoordinator()) {
             $coordinatorId = (int) Auth::id();
         }
 
-        $drivers = $this->drivers($coordinatorId);
-        $sessions = $this->sessions($week, $sede);
+        $drivers = $this->drivers($coordinatorId, $siteId);
+        $sessions = $this->sessions($week);
         $covered = $this->coveredTopics($sessions, $drivers);
 
         $coordinatorNames = $drivers
@@ -56,12 +57,11 @@ class DriverBoardController extends Controller
                 'week_label' => $week['label'],
                 'week_number' => $week['number'],
                 'coordinators' => $coordinatorNames,
-                'sede' => $sede,
             ],
             'filters' => [
                 'week' => $week['value'],
                 'coordinator_id' => $coordinatorId,
-                'sede' => $sede,
+                'sede' => $siteId,
             ],
             'weeks' => $this->weekOptions(),
             'coordinators' => $this->coordinatorOptions($coordinatorId),
@@ -73,7 +73,7 @@ class DriverBoardController extends Controller
     /**
      * @return Collection<string, array{license: string, coordinator: string|null}>
      */
-    private function drivers(?int $coordinatorId): Collection
+    private function drivers(?int $coordinatorId, ?int $siteId): Collection
     {
         $query = Unit::query()
             ->with([
@@ -85,6 +85,10 @@ class DriverBoardController extends Controller
             ->whereHas('period', fn ($builder) => $builder->where('status', 'active'))
             ->whereNotNull('driver_name')
             ->where('driver_name', '!=', '');
+
+        if ($siteId) {
+            $query->whereIn('coordinator_id', $this->coordinatorIdsForSite($siteId));
+        }
 
         if ($coordinatorId) {
             $query->where('coordinator_id', $coordinatorId);
@@ -121,7 +125,7 @@ class DriverBoardController extends Controller
     /**
      * @return Collection<int, Induction>
      */
-    private function sessions(array $week, ?string $sede): Collection
+    private function sessions(array $week): Collection
     {
         $query = Induction::query()
             ->with([
@@ -146,10 +150,6 @@ class DriverBoardController extends Controller
                             ]);
                     });
             });
-        }
-
-        if ($sede !== null) {
-            $query->whereRaw('lower(trim(sede)) = ?', [$this->normalize($sede)]);
         }
 
         return $query->get();
@@ -579,19 +579,38 @@ class DriverBoardController extends Controller
     }
 
     /**
-     * @return list<string>
+     * Sedes activas del catálogo de Lugares.
+     *
+     * @return list<array{id: int, name: string}>
      */
     private function sedeOptions(): array
     {
-        return Induction::query()
-            ->whereNotNull('sede')
-            ->where('sede', '!=', '')
-            ->pluck('sede')
-            ->map(fn ($sede) => trim((string) $sede))
-            ->filter()
-            ->unique(fn (string $sede) => $this->normalize($sede))
-            ->sort()
-            ->values()
+        return Site::query()
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (Site $site) => [
+                'id' => (int) $site->id,
+                'name' => (string) $site->name,
+            ])
+            ->all();
+    }
+
+    /**
+     * Coordinadores asignados a un lugar de esa sede.
+     *
+     * @return list<int>
+     */
+    private function coordinatorIdsForSite(int $siteId): array
+    {
+        return User::query()
+            ->where(function ($query) use ($siteId) {
+                $query
+                    ->whereHas('places', fn ($places) => $places->where('places.site_id', $siteId))
+                    ->orWhereHas('place', fn ($place) => $place->where('places.site_id', $siteId));
+            })
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
             ->all();
     }
 }

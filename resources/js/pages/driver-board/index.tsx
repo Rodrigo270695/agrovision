@@ -23,7 +23,7 @@ type Section = {
 type Filters = {
     week: string;
     coordinator_id: number | null;
-    sede: string | null;
+    sede: number | null;
 };
 
 type WeekOption = {
@@ -43,12 +43,11 @@ type PageProps = {
         week_label: string;
         week_number: number | null;
         coordinators: string[];
-        sede: string | null;
     };
     filters: Filters;
     weeks: WeekOption[];
     coordinators: CoordinatorOption[];
-    sedes: string[];
+    sedes: CoordinatorOption[];
     scoped: boolean;
 };
 
@@ -171,15 +170,17 @@ export default function DriverBoardPage() {
                                 />
                                 {sedes.length === 0 ? (
                                     <p className="px-2 text-xs text-[#6b8ead]">
-                                        Sin sedes en inducciones.
+                                        Sin sedes activas en Lugares.
                                     </p>
                                 ) : (
                                     sedes.map((sede) => (
                                         <FilterButton
-                                            key={sede}
-                                            active={filters.sede === sede}
-                                            onClick={() => visit({ sede })}
-                                            label={sede}
+                                            key={sede.id}
+                                            active={filters.sede === sede.id}
+                                            onClick={() =>
+                                                visit({ sede: sede.id })
+                                            }
+                                            label={sede.name}
                                         />
                                     ))
                                 )}
@@ -187,8 +188,8 @@ export default function DriverBoardPage() {
                         </div>
 
                         <p className="mt-4 text-[11px] text-[#6b8ead]">
-                            Estatus: periodo activo. La sede filtra las
-                            capacitaciones.
+                            Estatus: periodo activo. La sede es la de Lugares,
+                            por el lugar del coordinador.
                         </p>
                     </aside>
 
