@@ -23,6 +23,8 @@ use Illuminate\Support\Facades\Storage;
  */
 class InspectionBatch extends Model
 {
+    public const STATUS_DRAFT = 'draft';
+
     public const STATUS_SENT = 'sent';
 
     public const STATUS_SIGNED = 'signed';

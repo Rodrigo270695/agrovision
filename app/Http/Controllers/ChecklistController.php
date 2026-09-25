@@ -6,6 +6,7 @@ use App\Http\Requests\StoreUnitChecklistRequest;
 use App\Http\Requests\UpdateUnitChecklistRequest;
 use App\Models\ChecklistItem;
 use App\Models\ChecklistTemplate;
+use App\Models\InspectionBatch;
 use App\Models\Period;
 use App\Models\Unit;
 use App\Models\UnitChecklist;
@@ -46,9 +47,11 @@ class ChecklistController extends Controller
             'sort' => ['nullable', Rule::in(['plate_number', 'created_at', 'status', 'first_result'])],
             'direction' => ['nullable', Rule::in(['asc', 'desc'])],
             'per_page' => ['nullable', Rule::in([5, 10, 25, 50])],
+            'batch_id' => ['nullable', 'integer'],
         ]);
 
         PermissionCatalog::syncToDatabase();
+        $this->attachLooseChecklists();
 
         $search = trim((string) ($validated['search'] ?? ''));
         $templateType = $validated['template_type'] ?? null;
@@ -57,6 +60,24 @@ class ChecklistController extends Controller
         $direction = $validated['direction'] ?? 'desc';
         $perPage = (int) ($validated['per_page'] ?? 10);
 
+        $packageQuery = InspectionBatch::query()
+            ->with('coordinator:id,name')
+            ->withCount('checklists');
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $packageQuery->where('coordinator_id', Auth::id());
+        }
+
+        $packages = $packageQuery
+            ->orderByDesc('inspected_on')
+            ->orderBy('id')
+            ->get();
+
+        $requestedBatch = (int) ($validated['batch_id'] ?? 0);
+        $batchId = $packages->contains('id', $requestedBatch)
+            ? $requestedBatch
+            : (int) ($packages->first()->id ?? 0);
+
         $query = UnitChecklist::query()
             ->with([
                 'template:id,type,code,name',
@@ -64,6 +85,12 @@ class ChecklistController extends Controller
                 'unit:id,correlative,plate_number,period_id,coordinator_id',
             ])
             ->whereHas('period', fn ($q) => $q->where('status', 'active'));
+
+        if ($batchId > 0) {
+            $query->where('inspection_batch_id', $batchId);
+        } else {
+            $query->whereRaw('1 = 0');
+        }
 
         if (SystemRoles::currentIsScopedCoordinator()) {
             $query->whereHas('unit', fn ($q) => $q->where('coordinator_id', Auth::id()));
@@ -100,9 +127,14 @@ class ChecklistController extends Controller
         $statsQuery = UnitChecklist::query()
             ->whereHas('period', fn ($q) => $q->where('status', 'active'));
 
+        if ($batchId > 0) {
+            $statsQuery->where('inspection_batch_id', $batchId);
+        } else {
+            $statsQuery->whereRaw('1 = 0');
+        }
+
         if (SystemRoles::currentIsScopedCoordinator()) {
             $activeUnitsQuery->where('coordinator_id', Auth::id());
-            $statsQuery->whereHas('unit', fn ($q) => $q->where('coordinator_id', Auth::id()));
         }
 
         $templates = ChecklistTemplate::query()
@@ -122,7 +154,15 @@ class ChecklistController extends Controller
                 'sort' => $sort,
                 'direction' => $direction,
                 'per_page' => $perPage,
+                'batch_id' => $batchId > 0 ? $batchId : null,
             ],
+            'packages' => $packages->map(fn (InspectionBatch $batch) => [
+                'id' => $batch->id,
+                'inspected_on' => $batch->inspected_on->format('Y-m-d'),
+                'coordinator_name' => $batch->coordinator?->name,
+                'checklists_count' => $batch->checklists_count,
+                'status' => $batch->status,
+            ])->values(),
             'templates' => $templates->map(fn (ChecklistTemplate $template) => [
                 'id' => $template->id,
                 'type' => $template->type,
@@ -193,10 +233,38 @@ class ChecklistController extends Controller
         ]);
 
         $date = Carbon::parse($validated['date'])->toDateString();
+        $groups = $this->dayGroups($date)->keyBy('id');
+        $people = SystemRoles::coordinators();
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $people = $people->where('id', Auth::id())->values();
+        }
+
+        $coordinators = $people->map(function ($user) use ($groups) {
+            $group = $groups->get($user->id);
+
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'plates' => is_array($group) ? $group['plates'] : [],
+            ];
+        })->values();
+
+        $dates = UnitMovement::query()
+            ->whereNotNull('unit_id')
+            ->whereHas('period', fn ($builder) => $builder->where('status', 'active'))
+            ->select('service_date')
+            ->distinct()
+            ->orderByDesc('service_date')
+            ->limit(8)
+            ->pluck('service_date')
+            ->map(fn ($value) => Carbon::parse($value)->toDateString())
+            ->values();
 
         return response()->json([
             'date' => $date,
-            'coordinators' => $this->dayGroups($date)->values(),
+            'coordinators' => $coordinators,
+            'dates' => $dates,
         ]);
     }
 
@@ -238,8 +306,9 @@ class ChecklistController extends Controller
 
         $created = 0;
         $attached = 0;
+        $batch = null;
 
-        DB::transaction(function () use ($plates, $date, &$created, &$attached): void {
+        DB::transaction(function () use ($plates, $date, $coordinatorId, &$created, &$attached, &$batch): void {
             foreach ($plates as $plate) {
                 $result = $this->ensureChecklistForPlate($plate, $date);
 
@@ -249,6 +318,22 @@ class ChecklistController extends Controller
                     $attached++;
                 }
             }
+
+            $batch = InspectionBatch::query()->firstOrCreate(
+                [
+                    'coordinator_id' => $coordinatorId,
+                    'inspected_on' => $date,
+                ],
+                [
+                    'status' => InspectionBatch::STATUS_DRAFT,
+                    'sent_by' => Auth::id(),
+                ],
+            );
+
+            UnitChecklist::query()
+                ->whereIn('unit_id', $plates->pluck('unit_id'))
+                ->whereDate('first_inspected_on', $date)
+                ->update(['inspection_batch_id' => $batch->id]);
         });
 
         $label = Carbon::parse($date)->format('d/m/Y');
@@ -259,7 +344,7 @@ class ChecklistController extends Controller
         }
 
         return redirect()
-            ->route('checklists.index')
+            ->route('checklists.index', ['batch_id' => $batch?->id])
             ->with('toast', [
                 'type' => 'success',
                 'message' => $message,
@@ -1064,12 +1149,18 @@ class ChecklistController extends Controller
                 'unit:id,plate_number,correlative,driver_name,provider,category,vehicle_type,period_id,coordinator_id',
             ])
             ->whereDate('service_date', $date)
-            ->whereNotNull('coordinator_id')
             ->whereNotNull('unit_id')
+            ->where(function ($builder) {
+                $builder->whereNotNull('coordinator_id')
+                    ->orWhereHas('unit', fn ($unit) => $unit->whereNotNull('coordinator_id'));
+            })
             ->whereHas('period', fn ($builder) => $builder->where('status', 'active'));
 
         if (SystemRoles::currentIsScopedCoordinator()) {
-            $query->where('coordinator_id', Auth::id());
+            $query->where(function ($builder) {
+                $builder->where('coordinator_id', Auth::id())
+                    ->orWhereHas('unit', fn ($unit) => $unit->where('coordinator_id', Auth::id()));
+            });
         }
 
         $movements = $query
@@ -1085,7 +1176,11 @@ class ChecklistController extends Controller
         $byCoordinator = [];
 
         foreach ($movements as $movement) {
-            $coordinatorId = (int) $movement->coordinator_id;
+            $coordinatorId = (int) ($movement->coordinator_id ?: $movement->unit?->coordinator_id);
+
+            if ($coordinatorId === 0) {
+                continue;
+            }
 
             if (! isset($byCoordinator[$coordinatorId])) {
                 $byCoordinator[$coordinatorId] = [
@@ -1238,6 +1333,58 @@ class ChecklistController extends Controller
         }
 
         return 'tdp';
+    }
+
+    private function attachLooseChecklists(): void
+    {
+        $loose = UnitChecklist::query()
+            ->with('unit:id,coordinator_id')
+            ->whereNull('inspection_batch_id')
+            ->get();
+
+        foreach ($loose as $checklist) {
+            $coordinatorId = (int) ($checklist->unit?->coordinator_id ?? 0);
+
+            if ($coordinatorId === 0) {
+                $coordinatorId = (int) UnitMovement::query()
+                    ->where('unit_id', $checklist->unit_id)
+                    ->whereNotNull('coordinator_id')
+                    ->orderByDesc('service_date')
+                    ->value('coordinator_id');
+            }
+
+            if ($coordinatorId === 0) {
+                continue;
+            }
+
+            $date = $checklist->first_inspected_on?->toDateString();
+
+            if ($date === null) {
+                $movementDate = UnitMovement::query()
+                    ->where('unit_id', $checklist->unit_id)
+                    ->orderByDesc('service_date')
+                    ->value('service_date');
+                $date = $movementDate
+                    ? Carbon::parse($movementDate)->toDateString()
+                    : $checklist->created_at?->toDateString();
+            }
+
+            if ($date === null) {
+                continue;
+            }
+
+            $batch = InspectionBatch::query()->firstOrCreate(
+                [
+                    'coordinator_id' => $coordinatorId,
+                    'inspected_on' => $date,
+                ],
+                [
+                    'status' => InspectionBatch::STATUS_DRAFT,
+                ],
+            );
+
+            $checklist->update(['inspection_batch_id' => $batch->id]);
+        }
     }
 
     private function ensureCanAccessUnit(Unit $unit): void

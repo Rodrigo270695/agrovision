@@ -18,7 +18,7 @@ export function ChecklistsHeader({ stats, onCreate, onSendBatch }: Props) {
     return (
         <PageHeader
             title="Inspecciones"
-            description="Checklists TDP/TDC amarrados a la placa de unidades del periodo activo."
+            description="Cada paquete es una fecha y un coordinador. La tabla muestra solo las inspecciones de ese paquete."
             stats={[
                 {
                     label: 'Total',

@@ -51,6 +51,7 @@ type CoordinatorGroup = {
 type DayPreview = {
     date: string;
     coordinators: CoordinatorGroup[];
+    dates?: string[];
 };
 
 type Props = {
@@ -273,7 +274,7 @@ export function ChecklistCreateModal({
                             onChange={(event) =>
                                 chooseCoordinator(event.target.value)
                             }
-                            disabled={loading || !preview?.coordinators.length}
+                            disabled={loading || (preview?.coordinators.length ?? 0) === 0}
                             className="h-10 w-full cursor-pointer rounded-md border border-[#c5d5e6] bg-white px-3 text-sm text-[#1a2b4c] outline-none focus:border-[#2e5a9e]"
                         >
                             {preview?.coordinators.length ? (
@@ -294,11 +295,28 @@ export function ChecklistCreateModal({
                 ) : null}
                 {error ? <p className="text-xs text-red-600">{error}</p> : null}
 
-                {preview && !loading && preview.coordinators.length === 0 ? (
-                    <p className="rounded-lg bg-[#f8fafc] px-3 py-2 text-xs text-[#5a7390]">
-                        Ese día no hay unidades con coordinador. Revisa la fecha
-                        del Excel de unidades.
-                    </p>
+                {coordinator && !loading && coordinator.plates.length === 0 ? (
+                    <div className="rounded-lg bg-[#f8fafc] px-3 py-2 text-xs text-[#5a7390]">
+                        <p>
+                            {coordinator.name} no tiene unidades el {date.split('-').reverse().join('/')}.
+                        </p>
+                        {(preview?.dates ?? []).filter((item) => item !== date).length > 0 ? (
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                                {(preview?.dates ?? [])
+                                    .filter((item) => item !== date)
+                                    .map((item) => (
+                                        <button
+                                            key={item}
+                                            type="button"
+                                            onClick={() => setDate(item)}
+                                            className="cursor-pointer rounded-full bg-[#e8f1fa] px-2 py-0.5 font-medium text-[#1a2b4c]"
+                                        >
+                                            {item.split('-').reverse().join('/')}
+                                        </button>
+                                    ))}
+                            </div>
+                        ) : null}
+                    </div>
                 ) : null}
 
                 {coordinator ? (
