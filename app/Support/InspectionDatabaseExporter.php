@@ -6,6 +6,7 @@ use App\Models\Unit;
 use App\Models\UnitChecklist;
 use App\Models\UnitChecklistAnswer;
 use App\Models\UnitDocument;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
@@ -233,7 +234,7 @@ final class InspectionDatabaseExporter
                 $nokCells[] = $this->columnLetter($index + 1).$rowNumber;
             }
 
-            if ($value instanceof Carbon) {
+            if ($value instanceof \DateTimeInterface) {
                 $sheet->setCellValue($coordinate, ExcelDate::PHPToExcel($value));
                 $sheet->getStyle($coordinate)->getNumberFormat()->setFormatCode('DD/MM/YYYY');
 
@@ -428,14 +429,14 @@ final class InspectionDatabaseExporter
      * @param  Collection<int, UnitChecklistAnswer>  $answers
      * @param  list<string>  $needles
      */
-    private function answerDate(Collection $answers, array $needles): ?Carbon
+    private function answerDate(Collection $answers, array $needles): ?CarbonInterface
     {
         $text = trim((string) ($this->findAnswer($answers, $needles)?->observations ?? ''));
 
         return $this->parseDate($text);
     }
 
-    private function documentExpiry(?Unit $unit, string $type): ?Carbon
+    private function documentExpiry(?Unit $unit, string $type): ?CarbonInterface
     {
         if ($unit === null) {
             return null;
@@ -451,9 +452,9 @@ final class InspectionDatabaseExporter
     }
 
     /**
-     * @return array{date: ?Carbon, days: ?int, text: ?string}
+     * @return array{date: ?CarbonInterface, days: ?int, text: ?string}
      */
-    private function vigencia(string $label, ?Carbon $date): array
+    private function vigencia(string $label, ?CarbonInterface $date): array
     {
         if ($date === null) {
             return ['date' => null, 'days' => null, 'text' => null];
@@ -485,14 +486,18 @@ final class InspectionDatabaseExporter
         return $place?->site?->name ?: $place?->name;
     }
 
-    private function parseDate(string $text): ?Carbon
+    private function parseDate(string $text): ?CarbonInterface
     {
-        if (preg_match('/^(\d{4}-\d{2}-\d{2})/', $text, $match) === 1) {
-            return Carbon::parse($match[1]);
-        }
+        try {
+            if (preg_match('/^(\d{4}-\d{2}-\d{2})/', $text, $match) === 1) {
+                return Carbon::parse($match[1]);
+            }
 
-        if (preg_match('/^(\d{2})\/(\d{2})\/(\d{4})/', $text, $match) === 1) {
-            return Carbon::createFromFormat('d/m/Y', "{$match[1]}/{$match[2]}/{$match[3]}") ?: null;
+            if (preg_match('/^(\d{2})\/(\d{2})\/(\d{4})/', $text, $match) === 1) {
+                return Carbon::createFromFormat('d/m/Y', "{$match[1]}/{$match[2]}/{$match[3]}") ?: null;
+            }
+        } catch (\Throwable) {
+            return null;
         }
 
         return null;
