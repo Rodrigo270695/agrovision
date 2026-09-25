@@ -48,7 +48,7 @@ class ChecklistController extends Controller
             'status' => ['nullable', Rule::in(['draft', 'completed'])],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
-            'sort' => ['nullable', Rule::in(['plate_number', 'created_at', 'status', 'first_result'])],
+            'sort' => ['nullable', Rule::in(['plate_number', 'created_at', 'first_inspected_on', 'status', 'first_result'])],
             'direction' => ['nullable', Rule::in(['asc', 'desc'])],
             'per_page' => ['nullable', Rule::in([5, 10, 25, 50])],
             'batch_id' => ['nullable', 'integer'],
@@ -61,7 +61,14 @@ class ChecklistController extends Controller
         $templateType = $validated['template_type'] ?? null;
         $status = $validated['status'] ?? null;
         [$dateFrom, $dateTo] = $this->inspectionDateRange($validated);
-        $sort = $validated['sort'] ?? 'created_at';
+
+        if ($dateFrom === null && $dateTo === null) {
+            $today = now()->timezone(config('app.timezone'))->toDateString();
+            $dateFrom = $today;
+            $dateTo = $today;
+        }
+
+        $sort = $validated['sort'] ?? 'first_inspected_on';
         $direction = $validated['direction'] ?? 'desc';
         $perPage = (int) ($validated['per_page'] ?? 10);
 
@@ -96,7 +103,15 @@ class ChecklistController extends Controller
 
         $this->applyInspectionDateRange($query, $dateFrom, $dateTo);
 
-        $query->orderBy($sort, $direction);
+        if ($sort === 'first_inspected_on') {
+            $directionSql = $direction === 'asc' ? 'asc' : 'desc';
+            $query->orderByRaw("first_inspected_on {$directionSql} nulls last")
+                ->orderByRaw("first_inspected_time {$directionSql} nulls last");
+        } else {
+            $query->orderBy($sort, $direction);
+        }
+
+        $query->orderByDesc('id');
 
         $checklists = $query->paginate($perPage)->withQueryString();
 

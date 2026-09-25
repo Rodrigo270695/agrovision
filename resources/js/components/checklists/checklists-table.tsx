@@ -31,6 +31,8 @@ export type ChecklistItemRow = {
     second_result?: 'approved' | 'rejected' | null;
     coordinator_status?: 'observed' | 'reviewed' | null;
     created_at?: string | null;
+    first_inspected_on?: string | null;
+    first_inspected_time?: string | null;
     template?: {
         id: number;
         type: string;
@@ -61,7 +63,7 @@ export type ChecklistsFilters = {
     status?: 'draft' | 'completed' | null;
     date_from?: string | null;
     date_to?: string | null;
-    sort: 'plate_number' | 'created_at' | 'status' | 'first_result';
+    sort: 'plate_number' | 'created_at' | 'first_inspected_on' | 'status' | 'first_result';
     direction: 'asc' | 'desc';
     per_page: number;
     batch_id?: number | null;
@@ -84,7 +86,11 @@ function formatDate(value?: string | null): string {
         return '—';
     }
 
-    const date = new Date(value);
+    const day = value.slice(0, 10);
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+    const date = match
+        ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+        : new Date(value);
 
     if (Number.isNaN(date.getTime())) {
         return '—';
@@ -97,6 +103,16 @@ function formatDate(value?: string | null): string {
             year: 'numeric',
         })
         .replace('.', '');
+}
+
+function formatInspectionTime(value?: string | null): string | null {
+    if (!value) {
+        return null;
+    }
+
+    const match = /^(\d{2}):(\d{2})/.exec(value);
+
+    return match ? `${match[1]}:${match[2]}` : null;
 }
 
 function resultLabel(value?: string | null): string {
@@ -273,14 +289,19 @@ export function ChecklistsTable({
                     ),
             },
             {
-                key: 'created_at',
+                key: 'first_inspected_on',
                 header: 'Creado',
                 sortable: true,
-                cell: (item) => (
-                    <span className="text-xs text-muted-foreground">
-                        {formatDate(item.created_at)}
-                    </span>
-                ),
+                cell: (item) => {
+                    const time = formatInspectionTime(item.first_inspected_time);
+
+                    return (
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                            {formatDate(item.first_inspected_on ?? item.created_at)}
+                            {time ? ` · ${time}` : ''}
+                        </span>
+                    );
+                },
             },
             {
                 key: 'type',
@@ -375,7 +396,11 @@ export function ChecklistsTable({
             sort={sort}
             onSortChange={(next) => {
                 if (!next) {
-                    visit({ sort: 'created_at', direction: 'desc', page: 1 });
+                    visit({
+                        sort: 'first_inspected_on',
+                        direction: 'desc',
+                        page: 1,
+                    });
                     return;
                 }
 
