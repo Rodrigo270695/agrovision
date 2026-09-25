@@ -18,7 +18,7 @@ export function ChecklistsHeader({ stats, onCreate, onSendBatch }: Props) {
     return (
         <PageHeader
             title="Inspecciones"
-            description="Cada paquete es una fecha y un coordinador. La tabla muestra solo las inspecciones de ese paquete."
+            description="Crea las inspecciones con las unidades del periodo activo. La fecha es el día de la inspección."
             stats={[
                 {
                     label: 'Total',
@@ -69,9 +69,9 @@ export function ChecklistsHeader({ stats, onCreate, onSendBatch }: Props) {
                         >
                             <Plus className="size-4" strokeWidth={2.5} />
                             <span className="hidden sm:inline">
-                                Armar paquete
+                                Crear inspecciones
                             </span>
-                            <span className="sm:hidden">Armar</span>
+                            <span className="sm:hidden">Crear</span>
                         </Button>
                     ) : null}
                 </div>

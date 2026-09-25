@@ -193,7 +193,7 @@ export function ChecklistCreateModal({
         event.preventDefault();
 
         if (!isBrowserOnline()) {
-            toast.error('Armar el paquete del día necesita conexión.');
+            toast.error('Crear las inspecciones necesita conexión.');
 
             return;
         }
@@ -222,8 +222,8 @@ export function ChecklistCreateModal({
         <AppModal
             open={open}
             onClose={handleClose}
-            title="Paquete del día"
-            description="La fecha agrupa las inspecciones. Eliges el coordinador y, de sus unidades de ese día, las placas."
+            title="Crear inspecciones"
+            description="Elige la fecha y el coordinador. Salen las unidades del periodo activo, aunque ese día no se haya cargado el transporte."
             className="sm:max-w-xl"
             footer={
                 <>
@@ -298,24 +298,9 @@ export function ChecklistCreateModal({
                 {coordinator && !loading && coordinator.plates.length === 0 ? (
                     <div className="rounded-lg bg-[#f8fafc] px-3 py-2 text-xs text-[#5a7390]">
                         <p>
-                            {coordinator.name} no tiene unidades el {date.split('-').reverse().join('/')}.
+                            {coordinator.name} no tiene unidades en el periodo
+                            activo.
                         </p>
-                        {(preview?.dates ?? []).filter((item) => item !== date).length > 0 ? (
-                            <div className="mt-2 flex flex-wrap gap-1.5">
-                                {(preview?.dates ?? [])
-                                    .filter((item) => item !== date)
-                                    .map((item) => (
-                                        <button
-                                            key={item}
-                                            type="button"
-                                            onClick={() => setDate(item)}
-                                            className="cursor-pointer rounded-full bg-[#e8f1fa] px-2 py-0.5 font-medium text-[#1a2b4c]"
-                                        >
-                                            {item.split('-').reverse().join('/')}
-                                        </button>
-                                    ))}
-                            </div>
-                        ) : null}
                     </div>
                 ) : null}
 
@@ -365,7 +350,7 @@ export function ChecklistCreateModal({
                                     </span>
                                     {locked ? (
                                         <span className="shrink-0 text-[10px] font-medium text-emerald-700">
-                                            En el paquete
+                                            Ya creada
                                         </span>
                                     ) : null}
                                 </label>
@@ -375,8 +360,7 @@ export function ChecklistCreateModal({
                 ) : null}
 
                 <p className="text-[11px] text-[#5a7390]">
-                    Camioneta abre TDC. El resto abre TDP. El coordinador firma
-                    después, cuando envíes el paquete.
+                    Camioneta abre TDC. El resto abre TDP.
                 </p>
             </form>
         </AppModal>

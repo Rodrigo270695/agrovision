@@ -276,7 +276,7 @@ class ChecklistController extends Controller
             'unit_ids' => ['required', 'array', 'min:1'],
             'unit_ids.*' => ['integer'],
         ], [
-            'date.required' => 'Elige la fecha del paquete.',
+            'date.required' => 'Elige la fecha de la inspección.',
             'coordinator_id.required' => 'Elige el coordinador.',
             'unit_ids.required' => 'Elige al menos una placa.',
             'unit_ids.min' => 'Elige al menos una placa.',
@@ -289,7 +289,7 @@ class ChecklistController extends Controller
             SystemRoles::currentIsScopedCoordinator()
             && $coordinatorId !== (int) Auth::id()
         ) {
-            abort(403, 'Solo puedes armar el paquete de tus unidades.');
+            abort(403, 'Solo puedes crear inspecciones de tus unidades.');
         }
 
         $wanted = collect($validated['unit_ids'])->map(fn ($id) => (int) $id)->unique();
@@ -300,7 +300,7 @@ class ChecklistController extends Controller
         if ($plates->isEmpty()) {
             return back()->with('toast', [
                 'type' => 'error',
-                'message' => 'Esas placas ya están en el paquete de esa fecha.',
+                'message' => 'Esas placas ya tienen inspección en esa fecha.',
             ]);
         }
 
@@ -337,7 +337,7 @@ class ChecklistController extends Controller
         });
 
         $label = Carbon::parse($date)->format('d/m/Y');
-        $message = "Paquete del {$label}: {$created} inspecciones nuevas.";
+        $message = "{$created} inspecciones nuevas del {$label}.";
 
         if ($attached > 0) {
             $message .= " {$attached} ya existían y quedaron en esa fecha.";
@@ -1158,30 +1158,27 @@ class ChecklistController extends Controller
      */
     private function dayGroups(string $date): Collection
     {
-        $query = UnitMovement::query()
-            ->with([
-                'coordinator:id,name',
-                'unit:id,plate_number,correlative,driver_name,provider,category,vehicle_type,period_id,coordinator_id',
-            ])
-            ->whereDate('service_date', $date)
-            ->whereNotNull('unit_id')
-            ->where(function ($builder) {
-                $builder->whereNotNull('coordinator_id')
-                    ->orWhereHas('unit', fn ($unit) => $unit->whereNotNull('coordinator_id'));
-            })
+        $query = Unit::query()
+            ->with('coordinatorUser:id,name')
+            ->whereNotNull('coordinator_id')
             ->whereHas('period', fn ($builder) => $builder->where('status', 'active'));
 
         if (SystemRoles::currentIsScopedCoordinator()) {
-            $query->where(function ($builder) {
-                $builder->where('coordinator_id', Auth::id())
-                    ->orWhereHas('unit', fn ($unit) => $unit->where('coordinator_id', Auth::id()));
-            });
+            $query->where('coordinator_id', Auth::id());
         }
 
-        $movements = $query
+        $units = $query
             ->orderBy('plate_number')
             ->orderBy('id')
             ->get();
+
+        $movements = UnitMovement::query()
+            ->whereDate('service_date', $date)
+            ->whereIn('unit_id', $units->pluck('id'))
+            ->orderByDesc('id')
+            ->get()
+            ->unique('unit_id')
+            ->keyBy('unit_id');
 
         $templates = ChecklistTemplate::query()
             ->where('is_active', true)
@@ -1190,8 +1187,8 @@ class ChecklistController extends Controller
 
         $byCoordinator = [];
 
-        foreach ($movements as $movement) {
-            $coordinatorId = (int) ($movement->coordinator_id ?: $movement->unit?->coordinator_id);
+        foreach ($units as $unit) {
+            $coordinatorId = (int) $unit->coordinator_id;
 
             if ($coordinatorId === 0) {
                 continue;
@@ -1200,52 +1197,48 @@ class ChecklistController extends Controller
             if (! isset($byCoordinator[$coordinatorId])) {
                 $byCoordinator[$coordinatorId] = [
                     'id' => $coordinatorId,
-                    'name' => (string) ($movement->coordinator?->name ?? 'Coordinador'),
+                    'name' => (string) ($unit->coordinatorUser?->name ?? 'Coordinador'),
                     'rows' => [],
                 ];
             }
 
-            if (isset($byCoordinator[$coordinatorId]['rows'][$movement->unit_id])) {
-                continue;
-            }
-
-            $byCoordinator[$coordinatorId]['rows'][$movement->unit_id] = $movement;
+            $byCoordinator[$coordinatorId]['rows'][$unit->id] = $unit;
         }
 
-        $unitIds = $movements->pluck('unit_id')->unique()->filter()->values();
         $existing = UnitChecklist::query()
-            ->whereIn('unit_id', $unitIds)
+            ->whereIn('unit_id', $units->pluck('id'))
             ->get(['id', 'unit_id', 'template_id', 'period_id', 'first_inspected_on']);
 
         return collect($byCoordinator)
             ->sortBy('name')
-            ->map(function (array $group) use ($templates, $existing) {
+            ->map(function (array $group) use ($templates, $existing, $movements, $date) {
                 $plates = [];
 
-                foreach ($group['rows'] as $movement) {
-                    $type = $this->templateTypeForVehicle($movement->vehicle_type ?: $movement->unit?->vehicle_type);
+                foreach ($group['rows'] as $unit) {
+                    $movement = $movements->get($unit->id);
+                    $type = $this->templateTypeForVehicle($movement?->vehicle_type ?: $unit->vehicle_type);
                     $template = $templates->get($type);
 
-                    if (! $template || ! $movement->unit) {
+                    if (! $template) {
                         continue;
                     }
 
-                    $periodId = (int) $movement->period_id;
-                    $sameDay = $existing->first(function (UnitChecklist $checklist) use ($movement, $template, $periodId) {
-                        return (int) $checklist->unit_id === (int) $movement->unit_id
+                    $periodId = (int) $unit->period_id;
+                    $sameDay = $existing->first(function (UnitChecklist $checklist) use ($unit, $template, $periodId, $date) {
+                        return (int) $checklist->unit_id === (int) $unit->id
                             && (int) $checklist->template_id === (int) $template->id
                             && (int) $checklist->period_id === $periodId
-                            && $checklist->first_inspected_on?->toDateString() === $movement->service_date->toDateString();
+                            && $checklist->first_inspected_on?->toDateString() === $date;
                     });
 
                     $plates[] = [
-                        'unit_id' => (int) $movement->unit_id,
+                        'unit_id' => (int) $unit->id,
                         'period_id' => $periodId,
-                        'plate' => (string) ($movement->plate_number ?: $movement->unit->plate_number ?: $movement->unit->correlative),
-                        'driver' => $movement->driver_name ?: $movement->unit->driver_name,
-                        'provider' => $movement->provider ?: $movement->unit->provider,
-                        'vehicle_type' => $movement->vehicle_type ?: $movement->unit->vehicle_type,
-                        'category' => $movement->category ?: $movement->unit->category,
+                        'plate' => (string) ($movement?->plate_number ?: $unit->plate_number ?: $unit->correlative),
+                        'driver' => $movement?->driver_name ?: $unit->driver_name,
+                        'provider' => $movement?->provider ?: $unit->provider,
+                        'vehicle_type' => $movement?->vehicle_type ?: $unit->vehicle_type,
+                        'category' => $movement?->category ?: $unit->category,
                         'template_type' => $type,
                         'template_id' => (int) $template->id,
                         'status' => $sameDay ? 'exists' : 'new',
