@@ -6,6 +6,7 @@ use App\Models\Unit;
 use App\Models\UnitChecklist;
 use App\Models\UnitChecklistAnswer;
 use App\Support\SystemRoles;
+use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -306,10 +307,10 @@ class SstBoardController extends Controller
     /**
      * @return array{value: string, label: string, number: int, from: string, to: string}
      */
-    private function weekPayload(Carbon $monday): array
+    private function weekPayload(CarbonInterface $monday): array
     {
-        $start = $monday->copy()->startOfDay();
-        $end = $monday->copy()->addDays(6)->endOfDay();
+        $start = Carbon::parse($monday)->startOfDay();
+        $end = $start->copy()->addDays(6);
 
         return [
             'value' => $start->toDateString(),
