@@ -1,5 +1,5 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { ArrowLeft, FileDown } from 'lucide-react';
+import { ArrowLeft, Download, FileDown } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { SignaturePad } from '@/components/checklists/signature-pad';
@@ -107,13 +107,24 @@ export default function InspectionBatchShowPage() {
                                     asChild
                                     className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
                                 >
+                                    <a href={`/paquetes-inspeccion/${batch.id}/excel`}>
+                                        <Download className="size-4" />
+                                        Excel
+                                    </a>
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    asChild
+                                    className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                                >
                                     <a
                                         href={`/paquetes-inspeccion/${batch.id}/pdf`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                     >
                                         <FileDown className="size-4" />
-                                        Descargar reporte
+                                        PDF
                                     </a>
                                 </Button>
                             </div>

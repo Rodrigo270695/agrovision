@@ -7,6 +7,7 @@ use App\Models\UnitChecklist;
 use App\Models\UnitChecklistAnswer;
 use App\Models\User;
 use App\Services\PushNotificationService;
+use App\Support\InspectionDatabaseExporter;
 use App\Support\PdfLogo;
 use App\Support\SignatureImage;
 use App\Support\SystemRoles;
@@ -23,6 +24,7 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class InspectionBatchController extends Controller
 {
@@ -322,6 +324,26 @@ class InspectionBatchController extends Controller
             'type' => 'success',
             'message' => "Firma masiva aplicada a las {$total} inspecciones del paquete.",
         ]);
+    }
+
+    public function export(InspectionBatch $batch, InspectionDatabaseExporter $exporter): StreamedResponse
+    {
+        $this->ensureCanAccess($batch);
+
+        $checklists = $batch->checklists()
+            ->with([
+                'template:id,type',
+                'period:id,name,status',
+                'unit.coordinatorUser:id,name',
+                'unit.documents',
+                'answers.item',
+            ])
+            ->orderBy('plate_number')
+            ->get();
+
+        $name = 'paquete-'.$batch->inspected_on->format('Y-m-d');
+
+        return $exporter->download($checklists, $name.'.xlsx');
     }
 
     public function pdf(InspectionBatch $batch): HttpResponse

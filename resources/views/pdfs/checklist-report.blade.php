@@ -94,6 +94,7 @@
             border: 1px solid #e2eaf3;
         }
         .photo-img { max-width: 100%; max-height: 160px; }
+        .evidence-img { width: 92px; height: 70px; margin: 4px 6px 0 0; }
         .footer {
             margin-top: 14px;
             font-size: 8px;
@@ -277,6 +278,18 @@
                     <td class="{{ $row['is_child'] ? 'child' : '' }}">
                         <span class="num">{{ $row['item_number'] }}</span>
                         {{ $row['label'] }}
+                        @if (! empty($row['evidence_first']) || ! empty($row['evidence_second']))
+                            <div>
+                                @if (! empty($row['evidence_first']))
+                                    <div class="muted">1ra</div>
+                                    <img class="evidence-img" src="{{ $row['evidence_first'] }}" alt="Evidencia 1ra" width="92" height="70">
+                                @endif
+                                @if (! empty($row['evidence_second']))
+                                    <div class="muted">2da</div>
+                                    <img class="evidence-img" src="{{ $row['evidence_second'] }}" alt="Evidencia 2da" width="92" height="70">
+                                @endif
+                            </div>
+                        @endif
                     </td>
                     <td>
                         @if ($row['first_value'] === 'yes')

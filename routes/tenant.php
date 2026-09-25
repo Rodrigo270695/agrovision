@@ -256,6 +256,10 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:consolidations.respond')
             ->name('inspection-batches.sign');
 
+        Route::get('paquetes-inspeccion/{batch}/excel', [InspectionBatchController::class, 'export'])
+            ->middleware('permission:checklists.view')
+            ->name('inspection-batches.export');
+
         Route::get('paquetes-inspeccion/{batch}/pdf', [InspectionBatchController::class, 'pdf'])
             ->middleware('permission:checklists.view')
             ->name('inspection-batches.pdf');

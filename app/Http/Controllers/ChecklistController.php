@@ -1038,6 +1038,7 @@ class ChecklistController extends Controller
                 }
 
                 return [
+                    'checklist_item_id' => $item->id,
                     'item_number' => $item->item_number,
                     'label' => $item->label,
                     'is_child' => $item->parent_id !== null,
@@ -1091,16 +1092,35 @@ class ChecklistController extends Controller
                 ];
             });
 
-        $photos = $checklist->photos->map(function (UnitChecklistPhoto $photo) use ($toDataUri) {
-            $absolute = Storage::disk($photo->disk)->path($photo->path);
+        $evidenceByItem = [];
+        $photos = collect();
 
-            return (object) [
+        foreach ($checklist->photos as $photo) {
+            $absolute = Storage::disk($photo->disk)->path($photo->path);
+            $imageSrc = $toDataUri($absolute);
+
+            if ($photo->checklist_item_id) {
+                $pass = $photo->inspection_pass === 'second' ? 'second' : 'first';
+                $evidenceByItem[$photo->checklist_item_id][$pass] = $imageSrc;
+
+                continue;
+            }
+
+            $photos->push((object) [
                 'inspection_pass' => $photo->inspection_pass,
                 'captured_at' => $photo->captured_at,
                 'latitude' => $photo->latitude,
                 'longitude' => $photo->longitude,
-                'image_src' => $toDataUri($absolute),
-            ];
+                'image_src' => $imageSrc,
+            ]);
+        }
+
+        $rows = $rows->map(function (array $row) use ($evidenceByItem) {
+            $evidence = $evidenceByItem[$row['checklist_item_id']] ?? [];
+            $row['evidence_first'] = $evidence['first'] ?? null;
+            $row['evidence_second'] = $evidence['second'] ?? null;
+
+            return $row;
         });
 
         $paretoChart = ParetoPieChart::build($scored, $catalog > 0 ? $catalog : 100);
