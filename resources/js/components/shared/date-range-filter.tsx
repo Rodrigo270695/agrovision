@@ -186,20 +186,12 @@ export function DateRangeFilter({
                     variant="outline"
                     disabled={disabled}
                     className={cn(
-                        'h-10 min-w-36 cursor-pointer justify-start gap-2 rounded-lg border-[#c5d5e6] px-2.5 font-normal shadow-xs',
-                        hasRange
-                            ? 'bg-white text-[#1a2b4c] hover:bg-white'
-                            : 'text-[#6b8ead]',
+                        'h-10 min-w-40 cursor-pointer justify-start gap-2 rounded-lg border-[#1a2b4c] bg-[#1a2b4c] px-3 font-medium text-white shadow-sm hover:bg-[#122038] hover:text-white',
                         triggerClassName,
                     )}
                     aria-label="Filtrar por rango de fechas"
                 >
-                    <CalendarIcon
-                        className={cn(
-                            'size-3.5 shrink-0',
-                            hasRange ? 'text-[#2e5a9e]' : 'opacity-60',
-                        )}
-                    />
+                    <CalendarIcon className="size-4 shrink-0 text-white" />
                     <span className="min-w-0 flex-1 truncate text-left text-sm">
                         {triggerLabel}
                     </span>
@@ -207,7 +199,7 @@ export function DateRangeFilter({
                         <span
                             role="button"
                             tabIndex={0}
-                            className="inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-sm text-[#6b8ead] hover:bg-[#f8fafc] hover:text-[#1a2b4c]"
+                            className="inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-sm text-white/80 hover:bg-white/15 hover:text-white"
                             aria-label="Quitar filtro de fecha"
                             onClick={handleClear}
                             onKeyDown={(event) => {

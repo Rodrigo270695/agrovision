@@ -62,6 +62,7 @@ class UnitController extends Controller
                 'period_id' => $filters['period_id'],
                 'date_from' => $filters['date_from'],
                 'date_to' => $filters['date_to'],
+                'all_dates' => $filters['all_dates'],
                 'sort' => $filters['sort'],
                 'direction' => $filters['direction'],
                 'per_page' => $filters['per_page'],
@@ -316,7 +317,7 @@ class UnitController extends Controller
     }
 
     /**
-     * @return array{search: string, period_id: int|null, date_from: string|null, date_to: string|null, sort: string, direction: string, per_page: int}
+     * @return array{search: string, period_id: int|null, date_from: string|null, date_to: string|null, all_dates: bool, sort: string, direction: string, per_page: int}
      */
     private function validatedFilters(Request $request): array
     {
@@ -325,6 +326,7 @@ class UnitController extends Controller
             'period_id' => ['nullable', 'integer', 'exists:periods,id'],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
+            'all_dates' => ['nullable', 'boolean'],
             'sort' => ['nullable', Rule::in([
                 'correlative',
                 'provider',
@@ -338,10 +340,18 @@ class UnitController extends Controller
             'per_page' => ['nullable', Rule::in([5, 10, 25, 50])],
         ]);
 
+        $allDates = $request->boolean('all_dates');
         $dateFrom = $validated['date_from'] ?? null;
         $dateTo = $validated['date_to'] ?? null;
 
-        if ($dateFrom && $dateTo && $dateFrom > $dateTo) {
+        if ($allDates) {
+            $dateFrom = null;
+            $dateTo = null;
+        } elseif ($dateFrom === null && $dateTo === null) {
+            $today = now()->toDateString();
+            $dateFrom = $today;
+            $dateTo = $today;
+        } elseif ($dateFrom && $dateTo && $dateFrom > $dateTo) {
             [$dateFrom, $dateTo] = [$dateTo, $dateFrom];
         }
 
@@ -350,6 +360,7 @@ class UnitController extends Controller
             'period_id' => $validated['period_id'] ?? null,
             'date_from' => $dateFrom,
             'date_to' => $dateTo,
+            'all_dates' => $allDates,
             'sort' => $validated['sort'] ?? 'correlative',
             'direction' => $validated['direction'] ?? 'desc',
             'per_page' => (int) ($validated['per_page'] ?? 10),
@@ -371,7 +382,7 @@ class UnitController extends Controller
     }
 
     /**
-     * @param  array{search: string, period_id: int|null, date_from: string|null, date_to: string|null, sort: string, direction: string, per_page: int}  $filters
+     * @param  array{search: string, period_id: int|null, date_from: string|null, date_to: string|null, all_dates: bool, sort: string, direction: string, per_page: int}  $filters
      * @param  Builder<Unit>|null  $base
      * @return Builder<Unit>
      */

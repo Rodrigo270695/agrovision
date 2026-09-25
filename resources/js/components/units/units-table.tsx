@@ -84,6 +84,7 @@ export type UnitsFilters = {
     period_id?: number | null;
     date_from?: string | null;
     date_to?: string | null;
+    all_dates?: boolean;
     sort:
         | 'correlative'
         | 'provider'
@@ -219,12 +220,19 @@ export function UnitsTable({
             )
                 ? params.date_to
                 : filters.date_to;
+            const nextAllDates = Object.prototype.hasOwnProperty.call(
+                params,
+                'all_dates',
+            )
+                ? params.all_dates
+                : filters.all_dates;
 
             router.get(
                 '/unidades',
                 {
                     search: params.search ?? filters.search,
                     ...(nextPeriodId ? { period_id: nextPeriodId } : {}),
+                    ...(nextAllDates ? { all_dates: 1 } : {}),
                     ...(nextDateFrom ? { date_from: nextDateFrom } : {}),
                     ...(nextDateTo ? { date_to: nextDateTo } : {}),
                     sort: params.sort ?? filters.sort,
@@ -417,6 +425,7 @@ export function UnitsTable({
                             visit({
                                 date_from: dateFrom,
                                 date_to: dateTo,
+                                all_dates: false,
                                 page: 1,
                             })
                         }
@@ -424,6 +433,7 @@ export function UnitsTable({
                             visit({
                                 date_from: null,
                                 date_to: null,
+                                all_dates: true,
                                 page: 1,
                             })
                         }
@@ -442,6 +452,7 @@ export function UnitsTable({
                         period_id: filters.period_id ?? undefined,
                         date_from: filters.date_from || undefined,
                         date_to: filters.date_to || undefined,
+                        all_dates: filters.all_dates ? 1 : undefined,
                     }}
                 />
             }
