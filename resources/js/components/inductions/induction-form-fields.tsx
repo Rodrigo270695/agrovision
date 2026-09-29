@@ -9,6 +9,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { SearchableCombobox } from '@/components/shared/searchable-combobox';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 
@@ -28,10 +29,12 @@ export type InductionFormValues = {
     end_time: string;
     estimated_minutes: string;
     sede: string;
+    site_id: string;
     department: string;
     area: string;
     section: string;
     zone: string;
+    place_id: string;
     target_group: string;
     crop: string;
     org_unit: string;
@@ -51,11 +54,20 @@ export type PeriodOption = {
 
 export type FormOption = { value: string; label: string };
 
+export type SitePlaceOption = { id: number; name: string };
+
+export type SiteOption = {
+    id: number;
+    name: string;
+    places: SitePlaceOption[];
+};
+
 export type InductionFormOptions = {
     activities: FormOption[];
     modalities: FormOption[];
     schools: FormOption[];
     categories: FormOption[];
+    sites: SiteOption[];
 };
 
 type Props = {
@@ -95,6 +107,12 @@ export function InductionFormFields({
             : values.categories.filter((item) => item !== value);
         onChange('categories', next);
     };
+
+    const sites = formOptions.sites ?? [];
+    const selectedSite = sites.find((site) => String(site.id) === values.site_id) ?? null;
+    const places = selectedSite?.places ?? [];
+    const savedSede = values.site_id ? '' : values.sede.trim();
+    const savedPlace = values.place_id ? '' : values.zone.trim();
 
     return (
         <div className="space-y-5">
@@ -365,12 +383,27 @@ export function InductionFormFields({
                     </div>
                     <div className="grid gap-1.5">
                         <Label className="text-xs text-[#1a2b4c]">Sede</Label>
-                        <Input
-                            value={values.sede}
-                            onChange={(e) => onChange('sede', e.target.value)}
-                            placeholder="Ej. OLMOS C5"
-                            className={inputClass}
+                        <SearchableCombobox
+                            value={values.site_id || null}
+                            options={sites.map((site) => ({
+                                value: String(site.id),
+                                label: site.name,
+                            }))}
+                            onChange={(value) => {
+                                const site = sites.find((item) => String(item.id) === value);
+                                onChange('site_id', value ?? '');
+                                onChange('sede', site?.name ?? '');
+                                onChange('place_id', '');
+                                onChange('zone', '');
+                            }}
+                            placeholder="Selecciona la sede"
+                            emptyMessage="No hay sedes"
+                            menuMinWidth={320}
                         />
+                        {savedSede ? (
+                            <p className="text-xs text-[#6b8ead]">Texto guardado: {savedSede}</p>
+                        ) : null}
+                        <InputError message={errors.site_id} />
                     </div>
                     <div className="grid gap-1.5">
                         <Label className="text-xs text-[#1a2b4c]">Departamento</Label>
@@ -397,12 +430,27 @@ export function InductionFormFields({
                         />
                     </div>
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">Zona</Label>
-                        <Input
-                            value={values.zone}
-                            onChange={(e) => onChange('zone', e.target.value)}
-                            className={inputClass}
+                        <Label className="text-xs text-[#1a2b4c]">Lugar</Label>
+                        <SearchableCombobox
+                            value={values.place_id || null}
+                            options={places.map((place) => ({
+                                value: String(place.id),
+                                label: place.name,
+                            }))}
+                            onChange={(value) => {
+                                const place = places.find((item) => String(item.id) === value);
+                                onChange('place_id', value ?? '');
+                                onChange('zone', place?.name ?? '');
+                            }}
+                            placeholder={values.site_id ? 'Selecciona el lugar' : 'Primero elige la sede'}
+                            emptyMessage="Esta sede no tiene lugares"
+                            disabled={!values.site_id}
+                            menuMinWidth={320}
                         />
+                        {savedPlace ? (
+                            <p className="text-xs text-[#6b8ead]">Texto guardado: {savedPlace}</p>
+                        ) : null}
+                        <InputError message={errors.place_id} />
                     </div>
                     <div className="grid gap-1.5">
                         <Label className="text-xs text-[#1a2b4c]">Grupo objetivo</Label>

@@ -158,7 +158,7 @@
         <td class="cell"><span class="label">Sección</span><br>{{ $induction->section ?: '—' }}</td>
     </tr>
     <tr>
-        <td class="cell"><span class="label">Zona</span><br>{{ $induction->zone ?: '—' }}</td>
+        <td class="cell"><span class="label">Lugar</span><br>{{ $induction->zone ?: '—' }}</td>
         <td class="cell"><span class="label">Grupo objetivo</span><br>{{ $induction->target_group ?: '—' }}</td>
         <td class="cell"><span class="label">Cultivo</span><br>{{ $induction->crop ?: '—' }}</td>
         <td class="cell"><span class="label">Unidad</span><br>{{ $induction->org_unit ?: '—' }}</td>

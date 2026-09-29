@@ -18,6 +18,53 @@ type Props = {
     onClose: () => void;
 };
 
+function sameName(left?: string | null, right?: string | null): boolean {
+    const a = (left ?? '').trim().toLocaleLowerCase();
+    const b = (right ?? '').trim().toLocaleLowerCase();
+
+    return a !== '' && a === b;
+}
+
+function matchedSiteId(
+    induction: InductionItem | null | undefined,
+    sites: InductionFormOptions['sites'],
+): string {
+    if (!induction) {
+        return '';
+    }
+
+    if (induction.site_id && sites.some((site) => site.id === induction.site_id)) {
+        return String(induction.site_id);
+    }
+
+    const site = sites.find((item) => sameName(item.name, induction.sede ?? induction.location));
+
+    return site ? String(site.id) : '';
+}
+
+function matchedPlaceId(
+    induction: InductionItem | null | undefined,
+    sites: InductionFormOptions['sites'],
+): string {
+    if (!induction) {
+        return '';
+    }
+
+    const site = sites.find((item) => String(item.id) === matchedSiteId(induction, sites));
+
+    if (!site) {
+        return '';
+    }
+
+    if (induction.place_id && site.places.some((place) => place.id === induction.place_id)) {
+        return String(induction.place_id);
+    }
+
+    const place = site.places.find((item) => sameName(item.name, induction.zone));
+
+    return place ? String(place.id) : '';
+}
+
 const emptyValues = {
     title: '',
     document_code: 'GH-GD-FO-0609',
@@ -34,10 +81,12 @@ const emptyValues = {
     end_time: '',
     estimated_minutes: '60',
     sede: '',
+    site_id: '',
     department: '',
     area: '',
     section: '',
     zone: '',
+    place_id: '',
     target_group: '',
     crop: '',
     org_unit: '',
@@ -109,10 +158,12 @@ export function InductionFormModal({
                 ? String(induction.estimated_minutes)
                 : '60',
             sede: induction?.sede ?? induction?.location ?? '',
+            site_id: matchedSiteId(induction, formOptions.sites ?? []),
             department: induction?.department ?? '',
             area: induction?.area ?? '',
             section: induction?.section ?? '',
             zone: induction?.zone ?? '',
+            place_id: matchedPlaceId(induction, formOptions.sites ?? []),
             target_group: induction?.target_group ?? '',
             crop: induction?.crop ?? '',
             org_unit: induction?.org_unit ?? '',
@@ -164,6 +215,8 @@ export function InductionFormModal({
                     ? null
                     : Number(data.estimated_minutes),
             corrective_action: Boolean(data.corrective_action),
+            site_id: data.site_id === '' ? null : Number(data.site_id),
+            place_id: data.place_id === '' ? null : Number(data.place_id),
             ...(regulationFiles.length > 0 ? { regulations: regulationFiles } : {}),
         }));
 

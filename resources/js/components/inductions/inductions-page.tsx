@@ -95,6 +95,7 @@ export function InductionsPage() {
                             modalities: [],
                             schools: [],
                             categories: [],
+                            sites: [],
                         }
                     }
                     onClose={() => {

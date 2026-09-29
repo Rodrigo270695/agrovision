@@ -95,7 +95,7 @@
 
 <div class="fields">
     <div class="row"><strong>Hora:</strong> {{ $hora }}</div>
-    <div class="row"><strong>Zona:</strong> {{ $induction->zone ?: ($induction->location ?: '—') }}</div>
+    <div class="row"><strong>Lugar:</strong> {{ $induction->zone ?: ($induction->location ?: '—') }}</div>
     <div class="row"><strong>Cultivo:</strong> {{ $induction->crop ?: '—' }}</div>
     <div class="row"><strong>Tema:</strong> {{ $induction->title ?: '—' }}</div>
     <div class="row"><strong>Temario:</strong> {{ $induction->temario ?: '—' }}</div>

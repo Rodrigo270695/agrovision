@@ -57,10 +57,12 @@ export type InductionItem = {
     end_time?: string | null;
     estimated_minutes?: number | null;
     sede?: string | null;
+    site_id?: number | null;
     department?: string | null;
     area?: string | null;
     section?: string | null;
     zone?: string | null;
+    place_id?: number | null;
     target_group?: string | null;
     crop?: string | null;
     org_unit?: string | null;

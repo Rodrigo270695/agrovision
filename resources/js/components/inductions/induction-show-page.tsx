@@ -71,6 +71,7 @@ type InductionDetail = {
     start_time?: string | null;
     end_time?: string | null;
     sede?: string | null;
+    zone?: string | null;
     location?: string | null;
     speaker_name?: string | null;
     status: string;
@@ -507,6 +508,7 @@ export function InductionShowPage() {
                             {induction.sede || induction.location
                                 ? ` · ${induction.sede || induction.location}`
                                 : ''}
+                            {induction.zone ? ` · ${induction.zone}` : ''}
                             {induction.period?.name
                                 ? ` · ${induction.period.name}`
                                 : ''}

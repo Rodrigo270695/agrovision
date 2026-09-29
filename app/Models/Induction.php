@@ -70,10 +70,12 @@ class Induction extends Model
         'end_time',
         'estimated_minutes',
         'sede',
+        'site_id',
         'department',
         'area',
         'section',
         'zone',
+        'place_id',
         'target_group',
         'crop',
         'org_unit',
@@ -109,6 +111,8 @@ class Induction extends Model
             'corrective_action' => 'boolean',
             'categories' => 'array',
             'estimated_minutes' => 'integer',
+            'site_id' => 'integer',
+            'place_id' => 'integer',
         ];
     }
 
@@ -132,6 +136,16 @@ class Induction extends Model
     public function period(): BelongsTo
     {
         return $this->belongsTo(Period::class);
+    }
+
+    public function site(): BelongsTo
+    {
+        return $this->belongsTo(Site::class);
+    }
+
+    public function place(): BelongsTo
+    {
+        return $this->belongsTo(Place::class);
     }
 
     public function creator(): BelongsTo

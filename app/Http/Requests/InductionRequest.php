@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Place;
 use App\Support\InductionFormOptions;
 use App\Support\InductionStatuses;
 use Illuminate\Foundation\Http\FormRequest;
@@ -38,10 +39,12 @@ class InductionRequest extends FormRequest
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
             'estimated_minutes' => ['nullable', 'integer', 'min:1', 'max:1440'],
             'sede' => ['nullable', 'string', 'max:255'],
+            'site_id' => ['nullable', 'integer', 'exists:sites,id'],
             'department' => ['nullable', 'string', 'max:255'],
             'area' => ['nullable', 'string', 'max:255'],
             'section' => ['nullable', 'string', 'max:255'],
             'zone' => ['nullable', 'string', 'max:255'],
+            'place_id' => ['nullable', 'integer', 'exists:places,id'],
             'target_group' => ['nullable', 'string', 'max:255'],
             'crop' => ['nullable', 'string', 'max:255'],
             'org_unit' => ['nullable', 'string', 'max:255'],
@@ -72,6 +75,7 @@ class InductionRequest extends FormRequest
             'start_time.required' => 'La hora de inicio es obligatoria.',
             'end_time.required' => 'La hora de término es obligatoria.',
             'end_time.after' => 'La hora de término debe ser posterior al inicio.',
+            'place_id.exists' => 'El lugar no existe.',
         ];
     }
 
@@ -97,6 +101,24 @@ class InductionRequest extends FormRequest
             'sede' => 'sede',
             'speaker_name' => 'nombre del expositor',
         ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator): void {
+            $siteId = $this->input('site_id');
+            $placeId = $this->input('place_id');
+
+            if ($placeId && ! $siteId) {
+                $validator->errors()->add('place_id', 'Elige la sede antes del lugar.');
+
+                return;
+            }
+
+            if ($placeId && $siteId && ! Place::query()->whereKey($placeId)->where('site_id', $siteId)->exists()) {
+                $validator->errors()->add('place_id', 'Ese lugar no pertenece a la sede elegida.');
+            }
+        });
     }
 
     protected function prepareForValidation(): void
@@ -139,6 +161,8 @@ class InductionRequest extends FormRequest
             'speaker_name' => trim((string) $this->input('speaker_name', '')) ?: null,
             'speaker_institution' => trim((string) $this->input('speaker_institution', '')) ?: null,
             'notes' => trim((string) $this->input('notes', '')) ?: null,
+            'site_id' => $this->filled('site_id') ? (int) $this->input('site_id') : null,
+            'place_id' => $this->filled('place_id') ? (int) $this->input('place_id') : null,
             'period_id' => $this->input('period_id') === '' || $this->input('period_id') === null
                 ? null
                 : (int) $this->input('period_id'),

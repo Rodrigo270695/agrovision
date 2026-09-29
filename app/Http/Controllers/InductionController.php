@@ -7,6 +7,8 @@ use App\Models\Induction;
 use App\Models\InductionAttendee;
 use App\Models\InductionRegulation;
 use App\Models\Period;
+use App\Models\Place;
+use App\Models\Site;
 use App\Models\Unit;
 use App\Support\IndexedRedirect;
 use App\Support\InductionAttendeeStatuses;
@@ -1041,10 +1043,29 @@ class InductionController extends Controller
         }
 
         unset($data['regulations']);
+
+        $site = ! empty($data['site_id']) ? Site::query()->find($data['site_id']) : null;
+        $place = ! empty($data['place_id']) ? Place::query()->find($data['place_id']) : null;
+
+        if ($site) {
+            $data['site_id'] = $site->id;
+            $data['sede'] = $site->name;
+            $data['location'] = $site->name;
+        } else {
+            $data['site_id'] = null;
+            $data['location'] = $data['sede'] ?? null;
+        }
+
+        if ($site && $place && (int) $place->site_id === (int) $site->id) {
+            $data['place_id'] = $place->id;
+            $data['zone'] = $place->name;
+        } else {
+            $data['place_id'] = null;
+        }
+
         $data['scheduled_at'] = $scheduledAt;
         $data['start_time'] = strlen($start) === 5 ? "{$start}:00" : $start;
         $data['end_time'] = strlen($end) === 5 ? "{$end}:00" : $end;
-        $data['location'] = $data['sede'] ?? null;
         $data['notes'] = $data['temario'] ?? null;
         // Un solo código/revisión para acta y comprobante; fechas = sesión
         $data['document_date'] = $date;
@@ -1077,6 +1098,19 @@ class InductionController extends Controller
             'modalities' => $map(InductionFormOptions::modalities()),
             'schools' => $map(InductionFormOptions::schools()),
             'categories' => $map(InductionFormOptions::categories()),
+            'sites' => Site::query()
+                ->with(['places' => fn ($query) => $query->orderBy('name')])
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn (Site $site) => [
+                    'id' => $site->id,
+                    'name' => $site->name,
+                    'places' => $site->places->map(fn (Place $place) => [
+                        'id' => $place->id,
+                        'name' => $place->name,
+                    ])->values(),
+                ])
+                ->values(),
         ];
     }
 }
