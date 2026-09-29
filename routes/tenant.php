@@ -400,6 +400,10 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:certificates.create')
             ->name('inductions.certificates.issue');
 
+        Route::post('certificados/plantillas/{template}/enviar', [CertificateTemplateController::class, 'emailDrivers'])
+            ->middleware('permission:certificates.create')
+            ->name('inductions.certificates.email');
+
         Route::get('certificados/{certificate}/pdf', [CertificateTemplateController::class, 'pdf'])
             ->middleware('permission:certificates.view')
             ->name('inductions.certificates.pdf');
@@ -431,6 +435,18 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
         Route::post('inducciones/{induction}/asistentes', [InductionController::class, 'pullAttendees'])
             ->middleware('permission:inductions.update')
             ->name('inductions.attendees.pull');
+
+        Route::post('inducciones/{induction}/reglamentos', [InductionController::class, 'storeRegulations'])
+            ->middleware('permission:inductions.update')
+            ->name('inductions.regulations.store');
+
+        Route::post('inducciones/{induction}/reglamentos/enviar', [InductionController::class, 'sendRegulations'])
+            ->middleware('permission:inductions.update')
+            ->name('inductions.regulations.send');
+
+        Route::delete('inducciones/{induction}/reglamentos/{regulation}', [InductionController::class, 'destroyRegulation'])
+            ->middleware('permission:inductions.update')
+            ->name('inductions.regulations.destroy');
 
         Route::patch('inducciones/{induction}/asistentes/{attendee}', [InductionController::class, 'updateAttendee'])
             ->middleware('permission:inductions.update')

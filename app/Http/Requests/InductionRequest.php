@@ -21,6 +21,8 @@ class InductionRequest extends FormRequest
     {
         return [
             'title' => ['required', 'string', 'max:255'],
+            'regulations' => ['nullable', 'array', 'max:10'],
+            'regulations.*' => ['file', 'mimes:pdf', 'max:20480'],
             'document_code' => ['required', 'string', 'max:50'],
             'document_revision' => ['required', 'string', 'max:20'],
             'temario' => ['nullable', 'string', 'max:5000'],

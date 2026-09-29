@@ -7,17 +7,15 @@ use App\Models\CertificateTemplate;
 use App\Models\Induction;
 use App\Models\InductionAttendee;
 use App\Support\CertificateFonts;
-use App\Support\CertificateQr;
+use App\Support\CertificateMailer;
+use App\Support\CertificatePdf;
 use App\Support\CertificateRenderer;
 use App\Support\CertificateVariables;
 use App\Support\InductionAttendeeStatuses;
-use App\Support\PdfLogo;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -128,58 +126,7 @@ class CertificateTemplateController extends Controller
             ->whereIn('id', $data['attendee_ids'])
             ->get();
 
-        $created = 0;
-        $issuedOn = CarbonImmutable::now()->startOfDay();
-        $expiresOn = $issuedOn->addMonths(max(1, (int) $template->validity_months));
-
-        DB::transaction(function () use ($attendees, $template, $induction, $issuedOn, $expiresOn, &$created): void {
-            foreach ($attendees as $attendee) {
-                $exists = Certificate::query()
-                    ->where('certificate_template_id', $template->id)
-                    ->where('induction_attendee_id', $attendee->id)
-                    ->exists();
-
-                if ($exists) {
-                    continue;
-                }
-
-                $code = $this->uniqueCode();
-                $custom = collect($template->custom_variables ?? [])
-                    ->mapWithKeys(fn (array $item) => [($item['key'] ?? '') => (string) ($item['value'] ?? '')])
-                    ->filter(fn ($value, $key) => $key !== '')
-                    ->all();
-
-                $values = CertificateRenderer::variables(
-                    $template,
-                    $induction,
-                    $attendee,
-                    $issuedOn,
-                    $expiresOn,
-                    $code,
-                    $custom,
-                );
-
-                Certificate::query()->create([
-                    'certificate_template_id' => $template->id,
-                    'induction_id' => $induction->id,
-                    'induction_attendee_id' => $attendee->id,
-                    'code' => $code,
-                    'token' => Str::lower(Str::random(40)),
-                    'participant_name' => $values['nombre'],
-                    'participant_dni' => $attendee->driver_dni,
-                    'course_title' => $values['curso'],
-                    'session_on' => $induction->session_date ?? $induction->scheduled_at,
-                    'hours' => $values['horas'],
-                    'issued_on' => $issuedOn->toDateString(),
-                    'expires_on' => $expiresOn->toDateString(),
-                    'issuer_name' => $template->issuer_name,
-                    'issuer_title' => $template->issuer_title,
-                    'variables' => $values,
-                ]);
-
-                $created++;
-            }
-        });
+        $created = CertificateMailer::issue($template, $attendees);
 
         return back()->with('toast', [
             'type' => $created > 0 ? 'success' : 'error',
@@ -189,9 +136,19 @@ class CertificateTemplateController extends Controller
         ]);
     }
 
+    public function emailDrivers(CertificateTemplate $template): RedirectResponse
+    {
+        $result = CertificateMailer::sendToDrivers($template);
+
+        return back()->with('toast', [
+            'type' => $result['sent'] > 0 ? 'success' : 'error',
+            'message' => CertificateMailer::message($result),
+        ]);
+    }
+
     public function pdf(Certificate $certificate): HttpResponse
     {
-        return $this->pdfResponse($certificate);
+        return CertificatePdf::response($certificate);
     }
 
     public function verify(string $token): HttpResponse
@@ -215,28 +172,7 @@ class CertificateTemplateController extends Controller
     {
         $certificate = Certificate::query()->where('token', $token)->firstOrFail();
 
-        return $this->pdfResponse($certificate);
-    }
-
-    private function pdfResponse(Certificate $certificate): HttpResponse
-    {
-        $certificate->load('template');
-        $template = $certificate->template;
-        $values = is_array($certificate->variables) ? $certificate->variables : [];
-        $layout = $template->resolvedLayout();
-        $verifyUrl = route('certificates.verify', $certificate->token);
-
-        $pdf = Pdf::loadView('pdfs.certificate', [
-            'blocks' => CertificateRenderer::blocks($template, $values),
-            'background' => CertificateRenderer::dataUri($template->background_path),
-            'signature' => CertificateRenderer::dataUri($template->signature_path),
-            'qr' => CertificateQr::dataUri($verifyUrl),
-            'qrBox' => $layout['qr'],
-            'signatureBox' => $layout['signature'],
-            'logoSrc' => PdfLogo::dataUri(),
-        ])->setPaper('a4', 'landscape');
-
-        return $pdf->stream('certificado-'.$certificate->code.'.pdf');
+        return CertificatePdf::response($certificate);
     }
 
     /**
@@ -266,6 +202,7 @@ class CertificateTemplateController extends Controller
         if ($template?->induction) {
             $byAttendee = $template->certificates->keyBy('induction_attendee_id');
             $attendees = $template->induction->attendees()
+                ->with('unit:id,email')
                 ->orderBy('driver_name')
                 ->get()
                 ->map(function (InductionAttendee $attendee) use ($byAttendee) {
@@ -275,6 +212,7 @@ class CertificateTemplateController extends Controller
                         'id' => $attendee->id,
                         'name' => $attendee->driver_name,
                         'dni' => $attendee->driver_dni,
+                        'email' => $attendee->unit?->email,
                         'status' => $attendee->status,
                         'status_label' => InductionAttendeeStatuses::label($attendee->status),
                         'certificate_id' => $certificate?->id,
@@ -499,14 +437,5 @@ class CertificateTemplateController extends Controller
         }
 
         $template->save();
-    }
-
-    private function uniqueCode(): string
-    {
-        do {
-            $code = 'CODA-'.now()->year.'-'.random_int(1000, 9999);
-        } while (Certificate::query()->where('code', $code)->exists());
-
-        return $code;
     }
 }

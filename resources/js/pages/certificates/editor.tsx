@@ -31,6 +31,7 @@ type Attendee = {
     id: number;
     name: string;
     dni: string | null;
+    email: string | null;
     status: string;
     status_label: string;
     certificate_id: number | null;
@@ -202,6 +203,7 @@ export default function CertificateEditor({
     const [customs, setCustoms] = useState<CustomVariable[]>(initialCustom);
     const [customDraft, setCustomDraft] = useState({ key: '', label: '', value: '' });
     const [selected, setSelected] = useState<string | null>(blocks[0]?.id ?? null);
+    const [sendingCertificates, setSendingCertificates] = useState(false);
     const [backgroundPreview, setBackgroundPreview] = useState<string | null>(template?.background_url ?? null);
     const [signaturePreview, setSignaturePreview] = useState<string | null>(template?.signature_url ?? null);
 
@@ -342,6 +344,18 @@ export default function CertificateEditor({
         }
 
         router.post(`/certificados/plantillas/${template.id}/emitir`, { attendee_ids: ids }, { preserveScroll: true });
+    };
+
+    const sendCertificates = () => {
+        if (!template || sendingCertificates) {
+            return;
+        }
+
+        setSendingCertificates(true);
+        router.post(`/certificados/plantillas/${template.id}/enviar`, {}, {
+            preserveScroll: true,
+            onFinish: () => setSendingCertificates(false),
+        });
     };
 
     const attendedIds = attendees.filter((attendee) => attendee.status === 'attended' && !attendee.certificate_id).map((attendee) => attendee.id);
@@ -665,16 +679,26 @@ export default function CertificateEditor({
                     <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <h2 className="text-sm font-semibold text-[#1a2b4c]">Emitir certificados</h2>
-                            <p className="text-xs text-[#5a7390]">Solo de los participantes de esta inducción. El QR abre la verificación de esa persona.</p>
+                            <p className="text-xs text-[#5a7390]">Quienes asistieron y firmaron reciben el PDF en el correo de su unidad. El QR abre la verificación de esa persona.</p>
                         </div>
-                        <Button
-                            type="button"
-                            disabled={attendedIds.length === 0}
-                            onClick={() => emit(attendedIds)}
-                            className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
-                        >
-                            Emitir a quienes asistieron
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            <Button
+                                type="button"
+                                disabled={attendedIds.length === 0}
+                                onClick={() => emit(attendedIds)}
+                                className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                            >
+                                Emitir a quienes asistieron
+                            </Button>
+                            <Button
+                                type="button"
+                                disabled={sendingCertificates || attendees.length === 0}
+                                onClick={sendCertificates}
+                                className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c]"
+                            >
+                                {sendingCertificates ? 'Enviando…' : 'Enviar a los conductores'}
+                            </Button>
+                        </div>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm">
@@ -682,6 +706,7 @@ export default function CertificateEditor({
                                 <tr>
                                     <th className="py-2 pr-3">Participante</th>
                                     <th className="py-2 pr-3">DNI</th>
+                                    <th className="py-2 pr-3">Correo</th>
                                     <th className="py-2 pr-3">Estado</th>
                                     <th className="py-2 pr-3">Certificado</th>
                                     <th className="py-2" />
@@ -692,6 +717,7 @@ export default function CertificateEditor({
                                     <tr key={attendee.id} className="border-t border-[#e2eaf3]">
                                         <td className="py-2 pr-3">{attendee.name}</td>
                                         <td className="py-2 pr-3">{attendee.dni || '—'}</td>
+                                        <td className="py-2 pr-3">{attendee.email || 'Sin correo'}</td>
                                         <td className="py-2 pr-3">{attendee.status_label}</td>
                                         <td className="py-2 pr-3">{attendee.code || '—'}</td>
                                         <td className="py-2 text-right">

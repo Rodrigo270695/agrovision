@@ -5,14 +5,17 @@ namespace App\Http\Controllers;
 use App\Http\Requests\InductionRequest;
 use App\Models\Induction;
 use App\Models\InductionAttendee;
+use App\Models\InductionRegulation;
 use App\Models\Period;
 use App\Models\Unit;
 use App\Support\IndexedRedirect;
 use App\Support\InductionAttendeeStatuses;
 use App\Support\InductionDocumentPackage;
 use App\Support\InductionFormOptions;
+use App\Support\InductionRegulationMailer;
 use App\Support\InductionStatuses;
 use App\Support\PermissionCatalog;
+use App\Support\PublicDisk;
 use App\Support\SignatureImage;
 use App\Support\SystemRoles;
 use Carbon\Carbon;
@@ -120,10 +123,16 @@ class InductionController extends Controller
         $induction->update([
             'acta_number' => str_pad((string) $induction->id, 6, '0', STR_PAD_LEFT),
         ]);
+        $stored = $this->storeRegulationFiles($request, $induction);
+        $message = 'Inducción creada correctamente.';
+
+        if ($stored > 0) {
+            $message .= ' Los reglamentos se enviarán al correo de cada coordinador cuando jales los conductores.';
+        }
 
         return IndexedRedirect::toIndex($request, 'inductions.index', [
             'type' => 'success',
-            'message' => 'Inducción creada correctamente.',
+            'message' => $message,
         ]);
     }
 
@@ -268,6 +277,8 @@ class InductionController extends Controller
         $induction->load([
             'period:id,name,status,date',
             'creator:id,name',
+            'regulations',
+            'certificateTemplates:id,induction_id,name',
             'attendees' => fn ($q) => $q->orderBy('driver_name'),
         ]);
 
@@ -323,6 +334,15 @@ class InductionController extends Controller
         $inductionPayload['can_finalize'] = $induction->canFinalize();
         $inductionPayload['can_start'] = $induction->canStartNow();
         $inductionPayload['can_manage_attendance'] = $induction->allowsAttendanceActions();
+        $inductionPayload['regulations'] = $induction->regulations->map(fn (InductionRegulation $file) => [
+            'id' => $file->id,
+            'name' => $file->original_name,
+            'url' => PublicDisk::url($file->path),
+        ])->values();
+        $inductionPayload['certificate_templates'] = $induction->certificateTemplates->map(fn ($template) => [
+            'id' => $template->id,
+            'name' => $template->name,
+        ])->values();
 
         return Inertia::render('inductions/show', [
             'induction' => $inductionPayload,
@@ -382,8 +402,9 @@ class InductionController extends Controller
 
         $added = 0;
         $skipped = 0;
+        $coordinatorIds = [];
 
-        DB::transaction(function () use ($induction, $units, &$added, &$skipped) {
+        DB::transaction(function () use ($induction, $units, &$added, &$skipped, &$coordinatorIds) {
             foreach ($units as $unit) {
                 if (! $unit->driver_name) {
                     $skipped++;
@@ -429,6 +450,10 @@ class InductionController extends Controller
                 ]);
 
                 $added++;
+
+                if ($unit->coordinator_id) {
+                    $coordinatorIds[] = (int) $unit->coordinator_id;
+                }
             }
         });
 
@@ -436,9 +461,16 @@ class InductionController extends Controller
             $induction->update(['status' => InductionStatuses::SCHEDULED]);
         }
 
+        $message = "Se agregaron {$added} conductor(es)".($skipped > 0 ? " ({$skipped} omitidos)." : '.');
+
+        if ($added > 0) {
+            $mail = InductionRegulationMailer::send($induction, array_values(array_unique($coordinatorIds)));
+            $message .= InductionRegulationMailer::sentence($mail, true);
+        }
+
         return back()->with('toast', [
             'type' => 'success',
-            'message' => "Se agregaron {$added} conductor(es)".($skipped > 0 ? " ({$skipped} omitidos)." : '.'),
+            'message' => $message,
         ]);
     }
 
@@ -867,6 +899,125 @@ class InductionController extends Controller
         }
     }
 
+    public function storeRegulations(Request $request, Induction $induction): RedirectResponse
+    {
+        $this->ensureCanAccess($induction);
+
+        if ($induction->status === InductionStatuses::CANCELLED) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'No se pueden subir reglamentos a una inducción cancelada.',
+            ]);
+        }
+
+        $request->validate([
+            'regulations' => ['required', 'array', 'min:1', 'max:10'],
+            'regulations.*' => ['file', 'mimes:pdf', 'max:20480'],
+        ], [
+            'regulations.required' => 'Selecciona al menos un PDF.',
+            'regulations.*.mimes' => 'Los reglamentos deben ser PDF.',
+            'regulations.*.max' => 'Cada PDF puede pesar hasta 20 MB.',
+        ]);
+
+        $stored = $this->storeRegulationFiles($request, $induction);
+
+        if ($stored === 0) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'No se pudo guardar el PDF.',
+            ]);
+        }
+
+        $message = $stored === 1
+            ? 'Reglamento guardado.'
+            : "Se guardaron {$stored} reglamentos.";
+
+        if ($induction->attendees()->exists()) {
+            $mail = InductionRegulationMailer::send($induction);
+            $message .= InductionRegulationMailer::sentence($mail);
+        } else {
+            $message .= ' El correo se envía al jalar los conductores.';
+        }
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => $message,
+        ]);
+    }
+
+    public function destroyRegulation(Induction $induction, InductionRegulation $regulation): RedirectResponse
+    {
+        $this->ensureCanAccess($induction);
+
+        if ((int) $regulation->induction_id !== (int) $induction->id) {
+            abort(404);
+        }
+
+        $regulation->delete();
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => 'Reglamento eliminado.',
+        ]);
+    }
+
+    public function sendRegulations(Induction $induction): RedirectResponse
+    {
+        $this->ensureCanAccess($induction);
+
+        if ($induction->regulations()->doesntExist()) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Sube al menos un reglamento en PDF.',
+            ]);
+        }
+
+        if ($induction->attendees()->doesntExist()) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Jala los conductores para saber a qué coordinadores escribir.',
+            ]);
+        }
+
+        $mail = InductionRegulationMailer::send($induction);
+
+        return back()->with('toast', [
+            'type' => $mail['sent'] > 0 ? 'success' : 'error',
+            'message' => trim(InductionRegulationMailer::sentence($mail)),
+        ]);
+    }
+
+    private function storeRegulationFiles(Request $request, Induction $induction): int
+    {
+        $files = $request->file('regulations', []);
+
+        if (! is_array($files)) {
+            return 0;
+        }
+
+        $stored = 0;
+
+        foreach ($files as $file) {
+            if (! $file) {
+                continue;
+            }
+
+            $path = $file->store('inductions/regulations/'.$induction->id, 'public');
+            $name = trim((string) $file->getClientOriginalName());
+
+            InductionRegulation::query()->create([
+                'induction_id' => $induction->id,
+                'original_name' => $name !== '' ? mb_substr($name, 0, 180) : 'reglamento.pdf',
+                'path' => $path,
+                'uploaded_by' => Auth::id(),
+            ]);
+
+            $stored++;
+        }
+
+        return $stored;
+    }
+
     /**
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
@@ -889,6 +1040,7 @@ class InductionController extends Controller
             }
         }
 
+        unset($data['regulations']);
         $data['scheduled_at'] = $scheduledAt;
         $data['start_time'] = strlen($start) === 5 ? "{$start}:00" : $start;
         $data['end_time'] = strlen($end) === 5 ? "{$end}:00" : $end;

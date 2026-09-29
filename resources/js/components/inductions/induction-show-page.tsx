@@ -13,6 +13,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { SignaturePad } from '@/components/checklists/signature-pad';
 import { FingerprintCameraCapture } from '@/components/inductions/fingerprint-camera-capture';
+import { InductionMailPanels } from '@/components/inductions/induction-mail-panels';
 import { VerificationPhotoCapture } from '@/components/inductions/verification-photo-capture';
 import { AppModal } from '@/components/shared/app-modal';
 import { TableSearchFilter } from '@/components/shared/table-search-filter';
@@ -83,6 +84,8 @@ type InductionDetail = {
     can_finalize?: boolean;
     can_start?: boolean;
     can_manage_attendance?: boolean;
+    regulations?: { id: number; name: string; url: string | null }[];
+    certificate_templates?: { id: number; name: string }[];
 };
 
 type StatusOption = { value: string; label: string };
@@ -608,6 +611,13 @@ export function InductionShowPage() {
                     ) : null}
                 </div>
             </div>
+
+            <InductionMailPanels
+                inductionId={induction.id}
+                status={induction.status}
+                regulations={induction.regulations ?? []}
+                templates={induction.certificate_templates ?? []}
+            />
 
             <div className="grid shrink-0 gap-4 xl:grid-cols-2">
                 <section className="overflow-hidden rounded-2xl border border-[#d7e3f0] bg-white shadow-sm">

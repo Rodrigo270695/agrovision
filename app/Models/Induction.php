@@ -124,6 +124,8 @@ class Induction extends Model
             if ($induction->verification_photo_path) {
                 $disk->delete($induction->verification_photo_path);
             }
+
+            $induction->regulations->each->delete();
         });
     }
 
@@ -140,6 +142,16 @@ class Induction extends Model
     public function attendees(): HasMany
     {
         return $this->hasMany(InductionAttendee::class);
+    }
+
+    public function regulations(): HasMany
+    {
+        return $this->hasMany(InductionRegulation::class);
+    }
+
+    public function certificateTemplates(): HasMany
+    {
+        return $this->hasMany(CertificateTemplate::class);
     }
 
     public function isLocked(): bool

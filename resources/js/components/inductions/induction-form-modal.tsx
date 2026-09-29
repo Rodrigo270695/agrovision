@@ -1,5 +1,5 @@
 import { useForm } from '@inertiajs/react';
-import { useEffect, useMemo, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
     InductionFormFields,
     type InductionFormOptions,
@@ -73,6 +73,7 @@ export function InductionFormModal({
 }: Props) {
     const isEditing = Boolean(induction);
     const form = useForm(emptyValues);
+    const [regulationFiles, setRegulationFiles] = useState<File[]>([]);
 
     useEffect(() => {
         if (!open) {
@@ -144,6 +145,7 @@ export function InductionFormModal({
         form.reset();
         form.clearErrors();
         form.setData(emptyValues);
+        setRegulationFiles([]);
         onClose();
     };
 
@@ -162,6 +164,7 @@ export function InductionFormModal({
                     ? null
                     : Number(data.estimated_minutes),
             corrective_action: Boolean(data.corrective_action),
+            ...(regulationFiles.length > 0 ? { regulations: regulationFiles } : {}),
         }));
 
         if (isEditing && induction) {
@@ -174,6 +177,7 @@ export function InductionFormModal({
         }
 
         form.post('/inducciones', {
+            forceFormData: regulationFiles.length > 0,
             preserveScroll: true,
             onSuccess: () => handleClose(),
             onFinish: () => form.transform((data) => data),
@@ -219,6 +223,28 @@ export function InductionFormModal({
                     formOptions={formOptions}
                     isEditing={isEditing}
                 />
+                {isEditing ? null : (
+                    <div className="mt-5 grid gap-1.5">
+                        <p className="border-b border-[#e2eaf3] pb-1 text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
+                            Reglamentos
+                        </p>
+                        <p className="text-xs text-[#5a6f8c]">
+                            PDF que se envían al correo del coordinador de cada conductor cuando los jales a esta inducción.
+                        </p>
+                        <input
+                            type="file"
+                            accept="application/pdf,.pdf"
+                            multiple
+                            onChange={(event) => setRegulationFiles(Array.from(event.target.files ?? []))}
+                            className="text-sm text-[#1a2b4c] file:mr-3 file:rounded-lg file:border file:border-[#c5d5e6] file:bg-white file:px-3 file:py-1.5"
+                        />
+                        {regulationFiles.length > 0 ? (
+                            <p className="text-xs text-[#5a6f8c]">
+                                {regulationFiles.map((file) => file.name).join(', ')}
+                            </p>
+                        ) : null}
+                    </div>
+                )}
             </form>
         </AppModal>
     );
