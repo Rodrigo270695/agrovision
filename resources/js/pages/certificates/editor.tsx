@@ -2,6 +2,7 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { FormEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
+import { CertificatePreviewModal } from '@/components/certificates/certificate-preview-modal';
 import { SearchableCombobox } from '@/components/shared/searchable-combobox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -204,6 +205,8 @@ export default function CertificateEditor({
     const [customDraft, setCustomDraft] = useState({ key: '', label: '', value: '' });
     const [selected, setSelected] = useState<string | null>(blocks[0]?.id ?? null);
     const [sendingCertificates, setSendingCertificates] = useState(false);
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const [previewAttendeeId, setPreviewAttendeeId] = useState<number | null>(null);
     const [backgroundPreview, setBackgroundPreview] = useState<string | null>(template?.background_url ?? null);
     const [signaturePreview, setSignaturePreview] = useState<string | null>(template?.signature_url ?? null);
 
@@ -684,6 +687,17 @@ export default function CertificateEditor({
                         <div className="flex flex-wrap gap-2">
                             <Button
                                 type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    setPreviewAttendeeId(attendees[0]?.id ?? null);
+                                    setPreviewOpen(true);
+                                }}
+                                className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                            >
+                                Previsualizar
+                            </Button>
+                            <Button
+                                type="button"
                                 disabled={attendedIds.length === 0}
                                 onClick={() => emit(attendedIds)}
                                 className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
@@ -721,6 +735,16 @@ export default function CertificateEditor({
                                         <td className="py-2 pr-3">{attendee.status_label}</td>
                                         <td className="py-2 pr-3">{attendee.code || '—'}</td>
                                         <td className="py-2 text-right">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setPreviewAttendeeId(attendee.id);
+                                                    setPreviewOpen(true);
+                                                }}
+                                                className="mr-3 cursor-pointer font-medium text-[#2e5a9e] hover:underline"
+                                            >
+                                                Vista previa
+                                            </button>
                                             {attendee.certificate_id ? (
                                                 <a href={`/certificados/${attendee.certificate_id}/pdf`} target="_blank" rel="noopener noreferrer" className="font-medium text-[#2e5a9e] hover:underline">
                                                     PDF
@@ -749,6 +773,15 @@ export default function CertificateEditor({
                         </ul>
                     ) : null}
                 </section>
+            ) : null}
+            {template ? (
+                <CertificatePreviewModal
+                    open={previewOpen}
+                    onClose={() => setPreviewOpen(false)}
+                    templateId={template.id}
+                    attendees={attendees.map((attendee) => ({ id: attendee.id, name: attendee.name }))}
+                    attendeeId={previewAttendeeId}
+                />
             ) : null}
             </div>
         </>

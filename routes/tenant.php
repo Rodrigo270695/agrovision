@@ -404,6 +404,10 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:certificates.create')
             ->name('inductions.certificates.email');
 
+        Route::get('certificados/plantillas/{template}/previsualizar', [CertificateTemplateController::class, 'preview'])
+            ->middleware('permission:certificates.view')
+            ->name('inductions.certificates.preview');
+
         Route::get('certificados/{certificate}/pdf', [CertificateTemplateController::class, 'pdf'])
             ->middleware('permission:certificates.view')
             ->name('inductions.certificates.pdf');

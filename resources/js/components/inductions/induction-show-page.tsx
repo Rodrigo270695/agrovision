@@ -617,6 +617,10 @@ export function InductionShowPage() {
                 status={induction.status}
                 regulations={induction.regulations ?? []}
                 templates={induction.certificate_templates ?? []}
+                attendees={induction.attendees.map((attendee) => ({
+                    id: attendee.id,
+                    name: attendee.driver_name,
+                }))}
             />
 
             <div className="grid shrink-0 gap-4 xl:grid-cols-2">

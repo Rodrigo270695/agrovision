@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/react';
 import { FileText, Mail, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { CertificatePreviewModal } from '@/components/certificates/certificate-preview-modal';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { useCan } from '@/hooks/use-can';
@@ -8,11 +9,14 @@ import { useCan } from '@/hooks/use-can';
 type Regulation = { id: number; name: string; url: string | null };
 type Template = { id: number; name: string };
 
+type Person = { id: number; name: string };
+
 type Props = {
     inductionId: number;
     status: string;
     regulations: Regulation[];
     templates: Template[];
+    attendees: Person[];
 };
 
 export function InductionMailPanels({
@@ -20,14 +24,17 @@ export function InductionMailPanels({
     status,
     regulations,
     templates,
+    attendees,
 }: Props) {
     const { can } = useCan();
     const canUpdate = can('inductions.update');
     const canIssue = can('certificates.create');
+    const canPreview = can('certificates.view') || canIssue;
     const inputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
     const [sendingRegulations, setSendingRegulations] = useState(false);
     const [sendingTemplate, setSendingTemplate] = useState<number | null>(null);
+    const [previewTemplateId, setPreviewTemplateId] = useState<number | null>(null);
     const cancelled = status === 'cancelled';
 
     const upload = (files: FileList | null) => {
@@ -150,28 +157,50 @@ export function InductionMailPanels({
                                 <a href={`/certificados/plantillas/${template.id}`} className="text-sm font-medium text-[#1a2b4c] hover:underline">
                                     {template.name}
                                 </a>
-                                {canIssue ? (
-                                    <Button
-                                        type="button"
-                                        disabled={sendingTemplate === template.id}
-                                        onClick={() => {
-                                            setSendingTemplate(template.id);
-                                            router.post(`/certificados/plantillas/${template.id}/enviar`, {}, {
-                                                preserveScroll: true,
-                                                onFinish: () => setSendingTemplate(null),
-                                            });
-                                        }}
-                                        className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
-                                    >
-                                        {sendingTemplate === template.id ? <Spinner /> : <Mail className="size-4" />}
-                                        Enviar a conductores
-                                    </Button>
+                                {canPreview || canIssue ? (
+                                    <div className="flex flex-wrap gap-2">
+                                        {canPreview ? (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={() => setPreviewTemplateId(template.id)}
+                                                className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                                            >
+                                                Previsualizar
+                                            </Button>
+                                        ) : null}
+                                        {canIssue ? (
+                                            <Button
+                                                type="button"
+                                                disabled={sendingTemplate === template.id}
+                                                onClick={() => {
+                                                    setSendingTemplate(template.id);
+                                                    router.post(`/certificados/plantillas/${template.id}/enviar`, {}, {
+                                                        preserveScroll: true,
+                                                        onFinish: () => setSendingTemplate(null),
+                                                    });
+                                                }}
+                                                className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                                            >
+                                                {sendingTemplate === template.id ? <Spinner /> : <Mail className="size-4" />}
+                                                Enviar a conductores
+                                            </Button>
+                                        ) : null}
+                                    </div>
                                 ) : null}
                             </li>
                         ))}
                     </ul>
                 )}
             </section>
+            {previewTemplateId ? (
+                <CertificatePreviewModal
+                    open
+                    onClose={() => setPreviewTemplateId(null)}
+                    templateId={previewTemplateId}
+                    attendees={attendees}
+                />
+            ) : null}
         </div>
     );
 }

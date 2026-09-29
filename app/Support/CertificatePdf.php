@@ -12,10 +12,20 @@ final class CertificatePdf
     public static function output(Certificate $certificate): string
     {
         $certificate->loadMissing('template');
-        $template = $certificate->template;
-        $values = is_array($certificate->variables) ? $certificate->variables : [];
+
+        return self::binary(
+            $certificate->template,
+            is_array($certificate->variables) ? $certificate->variables : [],
+            route('certificates.verify', $certificate->token),
+        );
+    }
+
+    /**
+     * @param  array<string, string>  $values
+     */
+    public static function binary(CertificateTemplate $template, array $values, string $verifyUrl): string
+    {
         $layout = $template->resolvedLayout();
-        $verifyUrl = route('certificates.verify', $certificate->token);
 
         return Pdf::loadView('pdfs.certificate', [
             'blocks' => CertificateRenderer::blocks($template, $values),
@@ -30,12 +40,14 @@ final class CertificatePdf
 
     public static function response(Certificate $certificate): Response
     {
-        $binary = self::output($certificate);
-        $name = 'certificado-'.$certificate->code.'.pdf';
+        return self::inline(self::output($certificate), 'certificado-'.$certificate->code.'.pdf');
+    }
 
+    public static function inline(string $binary, string $filename): Response
+    {
         return response($binary, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.$name.'"',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
         ]);
     }
 }

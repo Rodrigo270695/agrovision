@@ -146,6 +146,62 @@ class CertificateTemplateController extends Controller
         ]);
     }
 
+    public function preview(Request $request, CertificateTemplate $template): HttpResponse
+    {
+        $template->load('induction');
+        $induction = $template->induction;
+        $attendee = null;
+
+        if ($induction) {
+            $attendeeId = (int) $request->query('attendee', 0);
+            $attendees = fn () => $induction->attendees()->orderBy('driver_name');
+
+            if ($attendeeId > 0) {
+                $attendee = $attendees()->whereKey($attendeeId)->first();
+            }
+
+            $attendee ??= $attendees()->where('status', InductionAttendeeStatuses::ATTENDED)->first()
+                ?? $attendees()->first();
+        }
+
+        if ($attendee) {
+            $existing = Certificate::query()
+                ->where('certificate_template_id', $template->id)
+                ->where('induction_attendee_id', $attendee->id)
+                ->first();
+
+            if ($existing) {
+                return CertificatePdf::response($existing);
+            }
+        }
+
+        $issuedOn = CarbonImmutable::now()->startOfDay();
+        $expiresOn = $issuedOn->addMonths(max(1, (int) $template->validity_months));
+        $custom = collect($template->custom_variables ?? [])
+            ->mapWithKeys(fn (array $item) => [($item['key'] ?? '') => (string) ($item['value'] ?? '')])
+            ->filter(fn ($value, $key) => $key !== '')
+            ->all();
+
+        if ($induction && $attendee) {
+            $values = CertificateRenderer::variables(
+                $template,
+                $induction,
+                $attendee,
+                $issuedOn,
+                $expiresOn,
+                'VISTA-PREVIA',
+                $custom,
+            );
+        } else {
+            $values = $this->sample($template);
+            $values['codigo'] = 'VISTA-PREVIA';
+        }
+
+        $binary = CertificatePdf::binary($template, $values, 'Vista previa. El código de verificación se asigna al enviar el certificado.');
+
+        return CertificatePdf::inline($binary, 'vista-previa-certificado.pdf');
+    }
+
     public function pdf(Certificate $certificate): HttpResponse
     {
         return CertificatePdf::response($certificate);
