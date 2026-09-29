@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AlcoholTestController;
+use App\Http\Controllers\CertificateTemplateController;
 use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\ConsolidationController;
 use App\Http\Controllers\DashboardController;
@@ -35,6 +36,11 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
     Route::post('impersonate/salir', ImpersonationLeaveController::class)
         ->middleware('auth')
         ->name('tenants.impersonate.leave');
+
+    Route::get('certificados/verificar/{token}/pdf', [CertificateTemplateController::class, 'verifyPdf'])
+        ->name('certificates.verify.pdf');
+    Route::get('certificados/verificar/{token}', [CertificateTemplateController::class, 'verify'])
+        ->name('certificates.verify');
 
     Route::middleware(['auth', 'verified', EnsureTenantModule::class])->group(function () {
         Route::post('push/subscribe', [PushSubscriptionController::class, 'store'])
@@ -365,6 +371,38 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:alcoholtests.view')
             ->whereNumber('alcoholimetro')
             ->name('alcohol-tests.packages.pdf');
+
+        Route::get('certificados', [CertificateTemplateController::class, 'index'])
+            ->middleware('permission:certificates.view')
+            ->name('inductions.certificates.index');
+
+        Route::get('certificados/plantillas/nueva', [CertificateTemplateController::class, 'create'])
+            ->middleware('permission:certificates.create')
+            ->name('inductions.certificates.create');
+
+        Route::post('certificados/plantillas', [CertificateTemplateController::class, 'store'])
+            ->middleware('permission:certificates.create')
+            ->name('inductions.certificates.store');
+
+        Route::get('certificados/plantillas/{template}', [CertificateTemplateController::class, 'edit'])
+            ->middleware('permission:certificates.view')
+            ->name('inductions.certificates.edit');
+
+        Route::put('certificados/plantillas/{template}', [CertificateTemplateController::class, 'update'])
+            ->middleware('permission:certificates.update')
+            ->name('inductions.certificates.update');
+
+        Route::delete('certificados/plantillas/{template}', [CertificateTemplateController::class, 'destroy'])
+            ->middleware('permission:certificates.delete')
+            ->name('inductions.certificates.destroy');
+
+        Route::post('certificados/plantillas/{template}/emitir', [CertificateTemplateController::class, 'issue'])
+            ->middleware('permission:certificates.create')
+            ->name('inductions.certificates.issue');
+
+        Route::get('certificados/{certificate}/pdf', [CertificateTemplateController::class, 'pdf'])
+            ->middleware('permission:certificates.view')
+            ->name('inductions.certificates.pdf');
 
         Route::get('inducciones', [InductionController::class, 'index'])
             ->middleware('permission:inductions.view')

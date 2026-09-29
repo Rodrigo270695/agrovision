@@ -1,4 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { ReportPeriodFilter, type ReportView } from '@/components/reports/report-period-filter';
 import { dashboard } from '@/routes';
 import { cn } from '@/lib/utils';
 
@@ -32,6 +33,7 @@ type Summary = {
 };
 
 type Filters = {
+    view: ReportView;
     week: string;
     coordinator_id: number | null;
 };
@@ -42,7 +44,7 @@ type PageProps = {
     full_coverage: string[];
     exceptions: ExceptionRow[];
     filters: Filters;
-    weeks: { value: string; label: string }[];
+    periods: { value: string; label: string }[];
     coordinators: { id: number; name: string }[];
     scoped: boolean;
 };
@@ -52,7 +54,7 @@ const BAJA = '#94a3b8';
 const PENDIENTE = '#f59e0b';
 
 export default function SecurityReportPage() {
-    const { fleet, summary, full_coverage, exceptions, filters, weeks, coordinators, scoped } =
+    const { fleet, summary, full_coverage, exceptions, filters, periods, coordinators, scoped } =
         usePage<PageProps>().props;
 
     const visit = (next: Partial<Filters>) => {
@@ -61,7 +63,8 @@ export default function SecurityReportPage() {
         router.get(
             '/reporte-sst',
             {
-                week: merged.week,
+                view: merged.view,
+                week: merged.week || undefined,
                 coordinator_id: merged.coordinator_id ?? undefined,
             },
             { preserveState: true, preserveScroll: true, replace: true },
@@ -84,23 +87,15 @@ export default function SecurityReportPage() {
                                 : ''}
                         </p>
                     </div>
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                        <label className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
-                            Semana
-                            <select
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                        <div className="sm:w-64 [&>div]:mt-0">
+                            <ReportPeriodFilter
+                                view={filters.view}
                                 value={filters.week}
-                                onChange={(event) =>
-                                    visit({ week: event.target.value })
-                                }
-                                className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c] normal-case sm:w-64"
-                            >
-                                {weeks.map((week) => (
-                                    <option key={week.value} value={week.value}>
-                                        {week.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
+                                options={periods}
+                                onChange={(next) => visit(next)}
+                            />
+                        </div>
                         <label className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
                             Coordinador
                             <select

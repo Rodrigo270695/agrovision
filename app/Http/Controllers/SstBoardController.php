@@ -5,10 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Unit;
 use App\Models\UnitChecklist;
 use App\Models\UnitChecklistAnswer;
+use App\Support\ReportPeriod;
 use App\Support\SystemRoles;
-use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -20,6 +19,7 @@ class SstBoardController extends Controller
     public function __invoke(Request $request): Response
     {
         $validated = $request->validate([
+            'view' => ['nullable', 'string', 'max:10'],
             'week' => ['nullable', 'string', 'max:20'],
             'coordinator_id' => ['nullable', 'integer'],
             'vehicle_types' => ['nullable', 'array'],
@@ -30,7 +30,8 @@ class SstBoardController extends Controller
 
         $template = $validated['template'] ?? 'tdp';
         $inspection = $validated['inspection'] ?? 'actual';
-        $week = $this->resolveWeek($validated['week'] ?? null);
+        $view = ReportPeriod::view($validated['view'] ?? null);
+        $week = ReportPeriod::resolve($view, $validated['week'] ?? null, 'Todas las semanas');
         $coordinatorId = isset($validated['coordinator_id'])
             ? (int) $validated['coordinator_id']
             : null;
@@ -80,13 +81,21 @@ class SstBoardController extends Controller
                 'template_label' => $template === 'tdc' ? 'TDC' : 'TDP',
             ],
             'filters' => [
+                'view' => $view,
                 'week' => $week['value'],
                 'coordinator_id' => $coordinatorId,
                 'vehicle_types' => $vehicleTypes->all(),
                 'template' => $template,
                 'inspection' => $inspection,
             ],
-            'weeks' => $this->weekOptions(),
+            'periods' => ReportPeriod::options(
+                $view,
+                UnitChecklist::query()
+                    ->whereNotNull('first_inspected_on')
+                    ->whereHas('period', fn ($builder) => $builder->where('status', 'active'))
+                    ->pluck('first_inspected_on'),
+                'Todas las semanas',
+            ),
             'coordinators' => $this->coordinatorOptions($coordinatorId),
             'vehicle_options' => $this->vehicleOptions(),
             'scoped' => SystemRoles::currentIsScopedCoordinator(),
@@ -248,90 +257,6 @@ class SstBoardController extends Controller
                 'items' => $otros,
             ],
         ];
-    }
-
-    /**
-     * @return array{value: string, label: string, number: int|null, from: string|null, to: string|null}
-     */
-    private function resolveWeek(?string $requested): array
-    {
-        if ($requested === 'all') {
-            return [
-                'value' => 'all',
-                'label' => 'Todas las semanas',
-                'number' => null,
-                'from' => null,
-                'to' => null,
-            ];
-        }
-
-        $monday = $this->mondayOf($requested) ?? now()->startOfWeek(Carbon::MONDAY);
-
-        return $this->weekPayload($monday);
-    }
-
-    /**
-     * @return list<array{value: string, label: string}>
-     */
-    private function weekOptions(): array
-    {
-        $dates = UnitChecklist::query()
-            ->whereNotNull('first_inspected_on')
-            ->whereHas('period', fn ($builder) => $builder->where('status', 'active'))
-            ->pluck('first_inspected_on');
-
-        $mondays = $dates
-            ->map(fn ($date) => Carbon::parse($date)->startOfWeek(Carbon::MONDAY)->toDateString())
-            ->push(now()->startOfWeek(Carbon::MONDAY)->toDateString())
-            ->unique()
-            ->sortDesc()
-            ->take(16)
-            ->values();
-
-        $options = [[
-            'value' => 'all',
-            'label' => 'Todas las semanas',
-        ]];
-
-        foreach ($mondays as $monday) {
-            $payload = $this->weekPayload(Carbon::parse($monday));
-            $options[] = [
-                'value' => $payload['value'],
-                'label' => $payload['label'],
-            ];
-        }
-
-        return $options;
-    }
-
-    /**
-     * @return array{value: string, label: string, number: int, from: string, to: string}
-     */
-    private function weekPayload(CarbonInterface $monday): array
-    {
-        $start = Carbon::parse($monday)->startOfDay();
-        $end = $start->copy()->addDays(6);
-
-        return [
-            'value' => $start->toDateString(),
-            'label' => 'Semana '.$start->isoWeek().' · '.$start->format('d/m').' al '.$end->format('d/m'),
-            'number' => $start->isoWeek(),
-            'from' => $start->toDateString(),
-            'to' => $end->toDateString(),
-        ];
-    }
-
-    private function mondayOf(?string $value): ?Carbon
-    {
-        if ($value === null || $value === '' || $value === 'all') {
-            return null;
-        }
-
-        try {
-            return Carbon::parse($value)->startOfWeek(Carbon::MONDAY);
-        } catch (\Throwable) {
-            return null;
-        }
     }
 
     /**

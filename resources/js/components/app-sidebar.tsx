@@ -8,6 +8,7 @@ import {
     ClipboardCheck,
     FileStack,
     Gauge,
+    Award,
     GraduationCap,
     LayoutGrid,
     Layers,
@@ -144,6 +145,19 @@ const mainNavItems: NavItem[] = [
                 href: '/inducciones',
                 icon: Settings2,
                 permission: 'inductions.view',
+                module: 'inductions',
+            },
+        ],
+    },
+    {
+        title: 'Certificados',
+        icon: Award,
+        items: [
+            {
+                title: 'Plantillas',
+                href: '/certificados',
+                icon: Award,
+                permission: 'certificates.view',
                 module: 'inductions',
             },
         ],

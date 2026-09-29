@@ -98,6 +98,16 @@ const accents: Record<string, Accent> = {
         chip: 'bg-[#fef3c7]',
         activeChip: 'bg-[#b45309]/15 text-[#92400e]',
     },
+    Certificados: {
+        icon: 'text-[#9f1239]',
+        chip: 'bg-[#ffe4e6]',
+        activeChip: 'bg-[#fecdd3] text-[#9f1239]',
+    },
+    Plantillas: {
+        icon: 'text-[#9f1239]',
+        chip: 'bg-[#ffe4e6]',
+        activeChip: 'bg-[#9f1239]/15 text-[#881337]',
+    },
     Inducción: {
         icon: 'text-[#047857]',
         chip: 'bg-[#d1fae5]',

@@ -8,9 +8,9 @@ use App\Models\Site;
 use App\Models\Unit;
 use App\Models\UnitDocument;
 use App\Models\User;
+use App\Support\ReportPeriod;
 use App\Support\SystemRoles;
 use App\Support\UnitDocumentTypes;
-use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -23,12 +23,14 @@ class DriverBoardController extends Controller
     public function __invoke(Request $request): Response
     {
         $validated = $request->validate([
+            'view' => ['nullable', 'string', 'max:10'],
             'week' => ['nullable', 'string', 'max:20'],
             'coordinator_id' => ['nullable', 'integer'],
             'sede' => ['nullable', 'integer'],
         ]);
 
-        $week = $this->resolveWeek($validated['week'] ?? null);
+        $view = ReportPeriod::view($validated['view'] ?? null);
+        $week = ReportPeriod::resolve($view, $validated['week'] ?? null, 'Todas las semanas');
         $coordinatorId = isset($validated['coordinator_id'])
             ? (int) $validated['coordinator_id']
             : null;
@@ -59,11 +61,12 @@ class DriverBoardController extends Controller
                 'coordinators' => $coordinatorNames,
             ],
             'filters' => [
+                'view' => $view,
                 'week' => $week['value'],
                 'coordinator_id' => $coordinatorId,
                 'sede' => $siteId,
             ],
-            'weeks' => $this->weekOptions(),
+            'periods' => ReportPeriod::options($view, $this->sessionDates(), 'Todas las semanas'),
             'coordinators' => $this->coordinatorOptions($coordinatorId),
             'sedes' => $this->sedeOptions(),
             'scoped' => SystemRoles::currentIsScopedCoordinator(),
@@ -467,31 +470,11 @@ class DriverBoardController extends Controller
     }
 
     /**
-     * @return array{value: string, label: string, number: int|null, from: string|null, to: string|null}
+     * @return Collection<int, string>
      */
-    private function resolveWeek(?string $requested): array
+    private function sessionDates(): Collection
     {
-        if ($requested === 'all') {
-            return [
-                'value' => 'all',
-                'label' => 'Todas las semanas',
-                'number' => null,
-                'from' => null,
-                'to' => null,
-            ];
-        }
-
-        $monday = $this->mondayOf($requested) ?? now()->startOfWeek(Carbon::MONDAY);
-
-        return $this->weekPayload($monday);
-    }
-
-    /**
-     * @return list<array{value: string, label: string}>
-     */
-    private function weekOptions(): array
-    {
-        $dates = Induction::query()
+        return Induction::query()
             ->where(function ($builder) {
                 $builder
                     ->whereNull('period_id')
@@ -503,60 +486,8 @@ class DriverBoardController extends Controller
 
                 return $date ? Carbon::parse($date)->toDateString() : null;
             })
-            ->filter();
-
-        $mondays = $dates
-            ->map(fn ($date) => Carbon::parse($date)->startOfWeek(Carbon::MONDAY)->toDateString())
-            ->push(now()->startOfWeek(Carbon::MONDAY)->toDateString())
-            ->unique()
-            ->sortDesc()
-            ->take(16)
+            ->filter()
             ->values();
-
-        $options = [[
-            'value' => 'all',
-            'label' => 'Todas las semanas',
-        ]];
-
-        foreach ($mondays as $monday) {
-            $payload = $this->weekPayload(Carbon::parse($monday));
-            $options[] = [
-                'value' => $payload['value'],
-                'label' => $payload['label'],
-            ];
-        }
-
-        return $options;
-    }
-
-    /**
-     * @return array{value: string, label: string, number: int, from: string, to: string}
-     */
-    private function weekPayload(CarbonInterface $monday): array
-    {
-        $start = Carbon::parse($monday)->startOfDay();
-        $end = $start->copy()->addDays(6);
-
-        return [
-            'value' => $start->toDateString(),
-            'label' => 'Semana '.$start->isoWeek().' · '.$start->format('d/m').' al '.$end->format('d/m'),
-            'number' => $start->isoWeek(),
-            'from' => $start->toDateString(),
-            'to' => $end->toDateString(),
-        ];
-    }
-
-    private function mondayOf(?string $value): ?Carbon
-    {
-        if ($value === null || $value === '' || $value === 'all') {
-            return null;
-        }
-
-        try {
-            return Carbon::parse($value)->startOfWeek(Carbon::MONDAY);
-        } catch (\Throwable) {
-            return null;
-        }
     }
 
     /**

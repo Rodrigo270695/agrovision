@@ -1,4 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { ReportPeriodFilter, type ReportView } from '@/components/reports/report-period-filter';
 import { dashboard } from '@/routes';
 import { cn } from '@/lib/utils';
 
@@ -19,6 +20,7 @@ type Section = {
 };
 
 type Filters = {
+    view: ReportView;
     week: string;
     coordinator_id: number | null;
     vehicle_types: string[];
@@ -47,7 +49,7 @@ type PageProps = {
         template_label: string;
     };
     filters: Filters;
-    weeks: WeekOption[];
+    periods: WeekOption[];
     coordinators: CoordinatorOption[];
     vehicle_options: string[];
     scoped: boolean;
@@ -62,7 +64,7 @@ export default function SstBoardPage() {
         sections,
         summary,
         filters,
-        weeks,
+        periods,
         coordinators,
         vehicle_options: vehicleOptions,
         scoped,
@@ -74,7 +76,8 @@ export default function SstBoardPage() {
         router.get(
             '/tablero-sst',
             {
-                week: merged.week,
+                view: merged.view,
+                week: merged.week || undefined,
                 coordinator_id: merged.coordinator_id ?? undefined,
                 vehicle_types:
                     merged.vehicle_types.length > 0
@@ -152,22 +155,12 @@ export default function SstBoardPage() {
                             {summary.week_label}
                         </p>
 
-                        <label className="mt-4 block text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
-                            Semana
-                            <select
-                                value={filters.week}
-                                onChange={(event) =>
-                                    visit({ week: event.target.value })
-                                }
-                                className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c] normal-case"
-                            >
-                                {weeks.map((week) => (
-                                    <option key={week.value} value={week.value}>
-                                        {week.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
+                        <ReportPeriodFilter
+                            view={filters.view}
+                            value={filters.week}
+                            options={periods}
+                            onChange={(next) => visit(next)}
+                        />
 
                         <div className="mt-4">
                             <p className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
