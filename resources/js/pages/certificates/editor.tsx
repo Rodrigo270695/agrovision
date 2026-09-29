@@ -1,6 +1,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, PointerEvent as ReactPointerEvent } from 'react';
+import { SearchableCombobox } from '@/components/shared/searchable-combobox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +16,7 @@ type Block = {
     size: number;
     align: 'left' | 'center' | 'right';
     weight: 'normal' | 'bold';
+    font: 'sans' | 'serif' | 'mono';
     color: string;
 };
 
@@ -72,6 +74,16 @@ function clamp(value: number, min: number, max: number): number {
     return Math.min(max, Math.max(min, value));
 }
 
+const FONTS: { id: Block['font']; label: string; family: string }[] = [
+    { id: 'sans', label: 'Sans', family: 'Arial, Helvetica, sans-serif' },
+    { id: 'serif', label: 'Serif', family: 'Georgia, "Times New Roman", serif' },
+    { id: 'mono', label: 'Monoespacio', family: 'ui-monospace, "Courier New", monospace' },
+];
+
+function fontFamily(font?: Block['font']): string {
+    return FONTS.find((item) => item.id === font)?.family ?? FONTS[0].family;
+}
+
 export default function CertificateEditor({
     template,
     layout,
@@ -83,7 +95,13 @@ export default function CertificateEditor({
     sample,
 }: PageProps) {
     const canvasRef = useRef<HTMLDivElement>(null);
-    const [blocks, setBlocks] = useState<Block[]>(layout.blocks);
+    const [canvasWidth, setCanvasWidth] = useState(900);
+    const [blocks, setBlocks] = useState<Block[]>(
+        layout.blocks.map((block) => ({
+            ...block,
+            font: block.font === 'serif' || block.font === 'mono' ? block.font : 'sans',
+        })),
+    );
     const [qr, setQr] = useState({ x: layout.qr.x, y: layout.qr.y, size: layout.qr.size ?? 12 });
     const [signatureBox, setSignatureBox] = useState({
         x: layout.signature.x,
@@ -105,6 +123,21 @@ export default function CertificateEditor({
         background: null as File | null,
         signature: null as File | null,
     });
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+
+        if (!canvas) {
+            return;
+        }
+
+        const update = () => setCanvasWidth(canvas.clientWidth);
+        update();
+        const observer = new ResizeObserver(update);
+        observer.observe(canvas);
+
+        return () => observer.disconnect();
+    }, []);
 
     const selectedBlock = blocks.find((block) => block.id === selected) ?? null;
 
@@ -152,9 +185,10 @@ export default function CertificateEditor({
             x: 10,
             y: clamp(18 + blocks.length * 6, 8, 70),
             w: 80,
-            size: 14,
+            size: 16,
             align: 'center',
             weight: 'normal',
+            font: 'serif',
             color: '#1a1a1a',
         };
         setBlocks((current) => [...current, block]);
@@ -230,19 +264,18 @@ export default function CertificateEditor({
                         <section className="space-y-3 rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
                             <div className="grid gap-1.5">
                                 <Label className="text-xs text-[#1a2b4c]">Inducción</Label>
-                                <select
-                                    value={form.data.induction_id}
-                                    onChange={(event) => form.setData('induction_id', event.target.value)}
-                                    className="h-10 rounded-lg border border-[#c5d5e6] bg-white px-2 text-sm"
-                                >
-                                    <option value="">Elegir inducción</option>
-                                    {inductions.map((induction) => (
-                                        <option key={induction.id} value={induction.id}>
-                                            {induction.title}
-                                            {induction.session_on ? ` · ${induction.session_on}` : ''}
-                                        </option>
-                                    ))}
-                                </select>
+                                <SearchableCombobox
+                                    value={form.data.induction_id || null}
+                                    options={inductions.map((induction) => ({
+                                        value: String(induction.id),
+                                        label: induction.title,
+                                        description: induction.session_on ?? undefined,
+                                    }))}
+                                    onChange={(value) => form.setData('induction_id', value ?? '')}
+                                    placeholder="Buscar inducción"
+                                    emptyMessage="No hay inducciones"
+                                    menuMinWidth={420}
+                                />
                                 {form.errors.induction_id ? <p className="text-xs text-red-600">{form.errors.induction_id}</p> : null}
                             </div>
                             <div className="grid gap-1.5">
@@ -371,24 +404,60 @@ export default function CertificateEditor({
                                     rows={4}
                                     className="w-full rounded-lg border border-[#c5d5e6] p-2 text-sm"
                                 />
+                                <div className="grid gap-1.5">
+                                    <Label className="text-xs text-[#1a2b4c]">Tamaño</Label>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => patchBlock(selectedBlock.id, { size: clamp(selectedBlock.size - 2, 8, 96) })}
+                                            className="h-9 w-9 cursor-pointer rounded-lg border border-[#c5d5e6] text-lg text-[#1a2b4c]"
+                                        >
+                                            −
+                                        </button>
+                                        <Input
+                                            type="number"
+                                            min={8}
+                                            max={96}
+                                            value={selectedBlock.size}
+                                            onChange={(event) => patchBlock(selectedBlock.id, { size: clamp(Number(event.target.value) || 8, 8, 96) })}
+                                            className="h-9 border-[#c5d5e6]"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => patchBlock(selectedBlock.id, { size: clamp(selectedBlock.size + 2, 8, 96) })}
+                                            className="h-9 w-9 cursor-pointer rounded-lg border border-[#c5d5e6] text-lg text-[#1a2b4c]"
+                                        >
+                                            +
+                                        </button>
+                                    </div>
+                                </div>
                                 <div className="grid grid-cols-2 gap-2">
-                                    <Input
-                                        type="number"
-                                        min={8}
-                                        max={48}
-                                        value={selectedBlock.size}
-                                        onChange={(event) => patchBlock(selectedBlock.id, { size: Number(event.target.value) })}
-                                        className="h-9 border-[#c5d5e6]"
-                                    />
-                                    <select
-                                        value={selectedBlock.align}
-                                        onChange={(event) => patchBlock(selectedBlock.id, { align: event.target.value as Block['align'] })}
-                                        className="h-9 rounded-lg border border-[#c5d5e6] px-2 text-sm"
-                                    >
-                                        <option value="left">Izquierda</option>
-                                        <option value="center">Centro</option>
-                                        <option value="right">Derecha</option>
-                                    </select>
+                                    <div className="grid gap-1.5">
+                                        <Label className="text-xs text-[#1a2b4c]">Fuente</Label>
+                                        <select
+                                            value={selectedBlock.font}
+                                            onChange={(event) => patchBlock(selectedBlock.id, { font: event.target.value as Block['font'] })}
+                                            className="h-9 rounded-lg border border-[#c5d5e6] bg-white px-2 text-sm"
+                                        >
+                                            {FONTS.map((font) => (
+                                                <option key={font.id} value={font.id}>
+                                                    {font.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="grid gap-1.5">
+                                        <Label className="text-xs text-[#1a2b4c]">Alineación</Label>
+                                        <select
+                                            value={selectedBlock.align}
+                                            onChange={(event) => patchBlock(selectedBlock.id, { align: event.target.value as Block['align'] })}
+                                            className="h-9 rounded-lg border border-[#c5d5e6] bg-white px-2 text-sm"
+                                        >
+                                            <option value="left">Izquierda</option>
+                                            <option value="center">Centro</option>
+                                            <option value="right">Derecha</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <label className="flex items-center gap-2 text-xs text-[#1a2b4c]">
                                     <input
@@ -435,7 +504,8 @@ export default function CertificateEditor({
                                         top: `${block.y}%`,
                                         width: `${block.w}%`,
                                         textAlign: block.align,
-                                        fontSize: `${Math.max(11, block.size)}px`,
+                                        fontSize: `${Math.max(8, (block.size * canvasWidth) / 842)}px`,
+                                        fontFamily: fontFamily(block.font),
                                         fontWeight: block.weight,
                                         color: block.color,
                                         outline: selected === block.id ? '1px dashed #2e5a9e' : undefined,

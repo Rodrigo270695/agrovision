@@ -145,7 +145,7 @@ final class CertificateRenderer
 
     /**
      * @param  array<string, string>  $values
-     * @return list<array{text: string, x: float, y: float, w: float, size: int, align: string, weight: string, color: string}>
+     * @return list<array{text: string, x: float, y: float, w: float, size: int, align: string, weight: string, font: string, color: string}>
      */
     public static function blocks(CertificateTemplate $template, array $values): array
     {
@@ -161,9 +161,10 @@ final class CertificateRenderer
                 'x' => self::percent($block['x'] ?? 0),
                 'y' => self::percent($block['y'] ?? 0),
                 'w' => self::percent($block['w'] ?? 40),
-                'size' => max(8, min(48, (int) ($block['size'] ?? 12))),
+                'size' => max(8, min(96, (int) ($block['size'] ?? 12))),
                 'align' => in_array($block['align'] ?? '', ['left', 'center', 'right'], true) ? $block['align'] : 'left',
                 'weight' => ($block['weight'] ?? '') === 'bold' ? 'bold' : 'normal',
+                'font' => self::fontFamily((string) ($block['font'] ?? 'sans')),
                 'color' => self::color((string) ($block['color'] ?? '#1a1a1a')),
             ];
         }
@@ -174,6 +175,15 @@ final class CertificateRenderer
     public static function percent(mixed $value): float
     {
         return max(0, min(100, (float) $value));
+    }
+
+    public static function fontFamily(string $font): string
+    {
+        return match ($font) {
+            'serif' => 'DejaVu Serif, serif',
+            'mono' => 'DejaVu Sans Mono, monospace',
+            default => 'DejaVu Sans, sans-serif',
+        };
     }
 
     public static function color(string $value): string

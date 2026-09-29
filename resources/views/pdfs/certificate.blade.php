@@ -51,7 +51,7 @@
         @foreach ($blocks as $block)
             <div
                 class="block"
-                style="left: {{ $block['x'] }}%; top: {{ $block['y'] }}%; width: {{ $block['w'] }}%; text-align: {{ $block['align'] }}; font-size: {{ $block['size'] }}pt; font-weight: {{ $block['weight'] }}; color: {{ $block['color'] }}; font-family: DejaVu Sans, sans-serif;"
+                style="left: {{ $block['x'] }}%; top: {{ $block['y'] }}%; width: {{ $block['w'] }}%; text-align: {{ $block['align'] }}; font-size: {{ $block['size'] }}pt; font-weight: {{ $block['weight'] }}; color: {{ $block['color'] }}; font-family: {{ $block['font'] }};"
             >{{ $block['text'] }}</div>
         @endforeach
 

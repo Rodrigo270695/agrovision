@@ -415,9 +415,10 @@ class CertificateTemplateController extends Controller
                 'x' => CertificateRenderer::percent($block['x'] ?? 8),
                 'y' => CertificateRenderer::percent($block['y'] ?? 8),
                 'w' => max(8, CertificateRenderer::percent($block['w'] ?? 40)),
-                'size' => max(8, min(48, (int) ($block['size'] ?? 12))),
+                'size' => max(8, min(96, (int) ($block['size'] ?? 12))),
                 'align' => in_array($block['align'] ?? '', ['left', 'center', 'right'], true) ? $block['align'] : 'left',
                 'weight' => ($block['weight'] ?? '') === 'bold' ? 'bold' : 'normal',
+                'font' => in_array($block['font'] ?? '', ['sans', 'serif', 'mono'], true) ? $block['font'] : 'sans',
                 'color' => CertificateRenderer::color((string) ($block['color'] ?? '#1a1a1a')),
             ];
         }

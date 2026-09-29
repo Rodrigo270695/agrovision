@@ -27,6 +27,7 @@ type Props = {
     disabled?: boolean;
     allowClear?: boolean;
     className?: string;
+    menuMinWidth?: number;
     id?: string;
     compact?: boolean;
     onCreate?: (name: string) => void;
@@ -55,6 +56,7 @@ export function SearchableCombobox({
     disabled = false,
     allowClear = true,
     className,
+    menuMinWidth,
     id,
     compact = false,
     onCreate,
@@ -136,8 +138,11 @@ export function SearchableCombobox({
                 Math.min(220, openUp ? spaceAbove : spaceBelow),
             );
 
-            list.style.left = `${rect.left}px`;
-            list.style.width = `${rect.width}px`;
+            const width = Math.max(rect.width, menuMinWidth ?? 0);
+            const maxLeft = Math.max(8, window.innerWidth - width - 8);
+
+            list.style.left = `${Math.min(rect.left, maxLeft)}px`;
+            list.style.width = `${width}px`;
             list.style.maxHeight = `${maxHeight}px`;
 
             if (openUp) {
@@ -222,7 +227,7 @@ export function SearchableCombobox({
             window.removeEventListener('resize', updatePanel);
             window.removeEventListener('scroll', updatePanel, true);
         };
-    }, [open]);
+    }, [open, menuMinWidth]);
 
     useEffect(() => {
         if (!open || !listRef.current) {
