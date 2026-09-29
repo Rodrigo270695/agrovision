@@ -179,11 +179,7 @@ final class CertificateRenderer
 
     public static function fontFamily(string $font): string
     {
-        return match ($font) {
-            'serif' => 'DejaVu Serif, serif',
-            'mono' => 'DejaVu Sans Mono, monospace',
-            default => 'DejaVu Sans, sans-serif',
-        };
+        return CertificateFonts::pdfFamily($font);
     }
 
     public static function color(string $value): string

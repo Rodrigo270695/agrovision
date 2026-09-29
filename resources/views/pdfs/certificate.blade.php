@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <style>
         @page { margin: 0; }
+        {!! \App\Support\CertificateFonts::pdfFaceCss() !!}
         html, body { margin: 0; padding: 0; }
         .sheet {
             position: relative;

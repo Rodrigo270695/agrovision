@@ -1,6 +1,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { FormEvent, PointerEvent as ReactPointerEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { SearchableCombobox } from '@/components/shared/searchable-combobox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +17,7 @@ type Block = {
     size: number;
     align: 'left' | 'center' | 'right';
     weight: 'normal' | 'bold';
-    font: 'sans' | 'serif' | 'mono';
+    font: string;
     color: string;
 };
 
@@ -46,6 +47,8 @@ type Issued = {
     verify_url: string;
 };
 
+type FontOption = { id: string; label: string; family: string; url: string | null };
+
 type PageProps = {
     template: {
         id: number;
@@ -64,6 +67,7 @@ type PageProps = {
     attendees: Attendee[];
     issued: Issued[];
     sample: Record<string, string>;
+    fonts: FontOption[];
 };
 
 function fill(text: string, sample: Record<string, string>): string {
@@ -74,14 +78,100 @@ function clamp(value: number, min: number, max: number): number {
     return Math.min(max, Math.max(min, value));
 }
 
-const FONTS: { id: Block['font']; label: string; family: string }[] = [
-    { id: 'sans', label: 'Sans', family: 'Arial, Helvetica, sans-serif' },
-    { id: 'serif', label: 'Serif', family: 'Georgia, "Times New Roman", serif' },
-    { id: 'mono', label: 'Monoespacio', family: 'ui-monospace, "Courier New", monospace' },
-];
+function fontFamily(fonts: FontOption[], font?: string): string {
+    return fonts.find((item) => item.id === font)?.family ?? fonts[0]?.family ?? 'Arial, Helvetica, sans-serif';
+}
 
-function fontFamily(font?: Block['font']): string {
-    return FONTS.find((item) => item.id === font)?.family ?? FONTS[0].family;
+function FontPicker({
+    fonts,
+    value,
+    onChange,
+}: {
+    fonts: FontOption[];
+    value: string;
+    onChange: (id: string) => void;
+}) {
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+    const [open, setOpen] = useState(false);
+    const [box, setBox] = useState({ top: 0, left: 0, width: 280 });
+    const current = fonts.find((item) => item.id === value) ?? fonts[0];
+
+    useLayoutEffect(() => {
+        if (!open || !buttonRef.current) {
+            return;
+        }
+
+        const rect = buttonRef.current.getBoundingClientRect();
+        const width = Math.max(rect.width, 280);
+        const left = Math.min(rect.left, window.innerWidth - width - 8);
+
+        setBox({ top: rect.bottom + 4, left: Math.max(8, left), width });
+    }, [open]);
+
+    useEffect(() => {
+        if (!open) {
+            return;
+        }
+
+        const close = (event: MouseEvent) => {
+            const target = event.target as Node;
+            if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) {
+                return;
+            }
+            setOpen(false);
+        };
+
+        document.addEventListener('mousedown', close);
+        return () => document.removeEventListener('mousedown', close);
+    }, [open]);
+
+    if (!current) {
+        return null;
+    }
+
+    return (
+        <>
+            <button
+                ref={buttonRef}
+                type="button"
+                onClick={() => setOpen((currentOpen) => !currentOpen)}
+                className="flex h-9 w-full cursor-pointer items-center justify-between rounded-lg border border-[#c5d5e6] bg-white px-2 text-left text-sm text-[#1a2b4c]"
+                style={{ fontFamily: current.family }}
+            >
+                <span className="truncate">{current.label}</span>
+                <span className="text-[#6b8ead]">▾</span>
+            </button>
+            {open
+                ? createPortal(
+                      <div
+                          ref={menuRef}
+                          className="max-h-80 overflow-auto rounded-lg border border-[#c5d5e6] bg-white py-1 shadow-lg"
+                          style={{ position: 'fixed', top: box.top, left: box.left, width: box.width, zIndex: 200 }}
+                      >
+                          {fonts.map((font) => (
+                              <button
+                                  key={font.id}
+                                  type="button"
+                                  onClick={() => {
+                                      onChange(font.id);
+                                      setOpen(false);
+                                  }}
+                                  className="block w-full cursor-pointer px-3 py-2 text-left text-lg leading-tight text-[#1a2b4c] hover:bg-[#e8f0fb]"
+                                  style={{
+                                      fontFamily: font.family,
+                                      background: font.id === value ? '#dbe7f8' : undefined,
+                                  }}
+                              >
+                                  {font.label}
+                              </button>
+                          ))}
+                      </div>,
+                      document.body,
+                  )
+                : null}
+        </>
+    );
 }
 
 export default function CertificateEditor({
@@ -93,13 +183,14 @@ export default function CertificateEditor({
     attendees,
     issued,
     sample,
+    fonts,
 }: PageProps) {
     const canvasRef = useRef<HTMLDivElement>(null);
     const [canvasWidth, setCanvasWidth] = useState(900);
     const [blocks, setBlocks] = useState<Block[]>(
         layout.blocks.map((block) => ({
             ...block,
-            font: block.font === 'serif' || block.font === 'mono' ? block.font : 'sans',
+            font: fonts.some((item) => item.id === block.font) ? block.font : 'sans',
         })),
     );
     const [qr, setQr] = useState({ x: layout.qr.x, y: layout.qr.y, size: layout.qr.size ?? 12 });
@@ -123,6 +214,27 @@ export default function CertificateEditor({
         background: null as File | null,
         signature: null as File | null,
     });
+
+    useEffect(() => {
+        const styleId = 'certificate-font-faces';
+        const rules = fonts
+            .filter((font) => font.url)
+            .map((font) => {
+                const face = font.family.split(',')[0].trim();
+
+                return `@font-face{font-family:${face};src:url('${font.url}') format('truetype');font-weight:normal;font-style:normal;font-display:swap;}@font-face{font-family:${face};src:url('${font.url}') format('truetype');font-weight:bold;font-style:normal;font-display:swap;}`;
+            })
+            .join('');
+        let style = document.getElementById(styleId) as HTMLStyleElement | null;
+
+        if (!style) {
+            style = document.createElement('style');
+            style.id = styleId;
+            document.head.appendChild(style);
+        }
+
+        style.textContent = rules;
+    }, [fonts]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -434,17 +546,11 @@ export default function CertificateEditor({
                                 <div className="grid grid-cols-2 gap-2">
                                     <div className="grid gap-1.5">
                                         <Label className="text-xs text-[#1a2b4c]">Fuente</Label>
-                                        <select
+                                        <FontPicker
+                                            fonts={fonts}
                                             value={selectedBlock.font}
-                                            onChange={(event) => patchBlock(selectedBlock.id, { font: event.target.value as Block['font'] })}
-                                            className="h-9 rounded-lg border border-[#c5d5e6] bg-white px-2 text-sm"
-                                        >
-                                            {FONTS.map((font) => (
-                                                <option key={font.id} value={font.id}>
-                                                    {font.label}
-                                                </option>
-                                            ))}
-                                        </select>
+                                            onChange={(font) => patchBlock(selectedBlock.id, { font })}
+                                        />
                                     </div>
                                     <div className="grid gap-1.5">
                                         <Label className="text-xs text-[#1a2b4c]">Alineación</Label>
@@ -505,7 +611,7 @@ export default function CertificateEditor({
                                         width: `${block.w}%`,
                                         textAlign: block.align,
                                         fontSize: `${Math.max(8, (block.size * canvasWidth) / 842)}px`,
-                                        fontFamily: fontFamily(block.font),
+                                        fontFamily: fontFamily(fonts, block.font),
                                         fontWeight: block.weight,
                                         color: block.color,
                                         outline: selected === block.id ? '1px dashed #2e5a9e' : undefined,

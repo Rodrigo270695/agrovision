@@ -6,6 +6,7 @@ use App\Models\Certificate;
 use App\Models\CertificateTemplate;
 use App\Models\Induction;
 use App\Models\InductionAttendee;
+use App\Support\CertificateFonts;
 use App\Support\CertificateQr;
 use App\Support\CertificateRenderer;
 use App\Support\CertificateVariables;
@@ -316,6 +317,7 @@ class CertificateTemplateController extends Controller
             'attendees' => $attendees,
             'issued' => $issued,
             'sample' => $this->sample($template),
+            'fonts' => CertificateFonts::forFrontend(),
         ];
     }
 
@@ -418,7 +420,7 @@ class CertificateTemplateController extends Controller
                 'size' => max(8, min(96, (int) ($block['size'] ?? 12))),
                 'align' => in_array($block['align'] ?? '', ['left', 'center', 'right'], true) ? $block['align'] : 'left',
                 'weight' => ($block['weight'] ?? '') === 'bold' ? 'bold' : 'normal',
-                'font' => in_array($block['font'] ?? '', ['sans', 'serif', 'mono'], true) ? $block['font'] : 'sans',
+                'font' => CertificateFonts::id((string) ($block['font'] ?? 'sans')),
                 'color' => CertificateRenderer::color((string) ($block['color'] ?? '#1a1a1a')),
             ];
         }
