@@ -20,7 +20,7 @@ export default function CertificatesIndex({ templates }: PageProps) {
     return (
         <>
             <Head title="Certificados" />
-            <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
+            <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                         <h1 className="text-xl font-semibold text-[#1a2b4c]">

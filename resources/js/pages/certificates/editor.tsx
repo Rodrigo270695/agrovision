@@ -209,7 +209,8 @@ export default function CertificateEditor({
     return (
         <>
             <Head title={template ? template.name : 'Nueva plantilla'} />
-            <form onSubmit={submit} className="mx-auto flex w-full max-w-6xl flex-col gap-4">
+            <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
+            <form onSubmit={submit} className="flex w-full flex-col gap-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                         <Link href="/certificados" className="text-xs font-medium text-[#2e5a9e] hover:underline">
@@ -484,7 +485,7 @@ export default function CertificateEditor({
             </form>
 
             {template ? (
-                <section className="mx-auto mt-4 w-full max-w-6xl rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
+                <section className="w-full rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
                     <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <h2 className="text-sm font-semibold text-[#1a2b4c]">Emitir certificados</h2>
@@ -547,6 +548,7 @@ export default function CertificateEditor({
                     ) : null}
                 </section>
             ) : null}
+            </div>
         </>
     );
 }
