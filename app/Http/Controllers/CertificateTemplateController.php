@@ -178,8 +178,15 @@ class CertificateTemplateController extends Controller
         $issuedOn = CarbonImmutable::now()->startOfDay();
         $expiresOn = $issuedOn->addMonths(max(1, (int) $template->validity_months));
         $custom = collect($template->custom_variables ?? [])
-            ->mapWithKeys(fn (array $item) => [($item['key'] ?? '') => (string) ($item['value'] ?? '')])
-            ->filter(fn ($value, $key) => $key !== '')
+            ->mapWithKeys(function ($item) {
+                if (! is_array($item)) {
+                    return [];
+                }
+
+                $key = (string) ($item['key'] ?? '');
+
+                return $key === '' ? [] : [$key => (string) ($item['value'] ?? '')];
+            })
             ->all();
 
         if ($induction && $attendee) {
@@ -352,7 +359,15 @@ class CertificateTemplateController extends Controller
             $issued->addMonths($months),
             'CODA-'.$issued->year.'-0000',
             collect($template->custom_variables ?? [])
-                ->mapWithKeys(fn (array $item) => [($item['key'] ?? '') => (string) ($item['value'] ?? '')])
+                ->mapWithKeys(function ($item) {
+                    if (! is_array($item)) {
+                        return [];
+                    }
+
+                    $key = (string) ($item['key'] ?? '');
+
+                    return $key === '' ? [] : [$key => (string) ($item['value'] ?? '')];
+                })
                 ->all(),
         );
     }

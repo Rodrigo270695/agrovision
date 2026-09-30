@@ -32,7 +32,6 @@
         .sig img,
         .logo img {
             width: 100%;
-            height: 100%;
         }
         .qr {
             position: absolute;
@@ -44,8 +43,15 @@
     </style>
 </head>
 <body>
+    @php
+        $signatureBox = $signatureBox ?? ['x' => 38, 'y' => 72, 'w' => 24, 'h' => 12];
+        $logoBox = $logoBox ?? ['x' => 4, 'y' => 4, 'w' => 16, 'h' => 12];
+        $qrBox = $qrBox ?? ['x' => 84, 'y' => 74, 'size' => 12];
+        $signatureHeight = ((float) ($signatureBox['h'] ?? 12)) * 2.1;
+        $logoHeight = ((float) ($logoBox['h'] ?? 12)) * 2.1;
+    @endphp
     <div class="sheet">
-        @if ($background)
+        @if (! empty($background))
             <img class="bg" src="{{ $background }}" alt="">
         @endif
 
@@ -56,20 +62,20 @@
             >{{ $block['text'] }}</div>
         @endforeach
 
-        @if ($logo)
-            <div class="logo" style="left: {{ $logoBox['x'] }}%; top: {{ $logoBox['y'] }}%; width: {{ $logoBox['w'] }}%; height: {{ $logoBox['h'] * 2.1 }}mm;">
-                <img src="{{ $logo }}" alt="Logo">
+        @if (! empty($logo))
+            <div class="logo" style="left: {{ $logoBox['x'] ?? 4 }}%; top: {{ $logoBox['y'] ?? 4 }}%; width: {{ $logoBox['w'] ?? 16 }}%; height: {{ $logoHeight }}mm;">
+                <img src="{{ $logo }}" alt="Logo" style="height: {{ $logoHeight }}mm;">
             </div>
         @endif
 
-        @if ($signature)
-            <div class="sig" style="left: {{ $signatureBox['x'] }}%; top: {{ $signatureBox['y'] }}%; width: {{ $signatureBox['w'] }}%; height: {{ $signatureBox['h'] * 2.1 }}mm;">
-                <img src="{{ $signature }}" alt="Firma">
+        @if (! empty($signature))
+            <div class="sig" style="left: {{ $signatureBox['x'] ?? 38 }}%; top: {{ $signatureBox['y'] ?? 72 }}%; width: {{ $signatureBox['w'] ?? 24 }}%; height: {{ $signatureHeight }}mm;">
+                <img src="{{ $signature }}" alt="Firma" style="height: {{ $signatureHeight }}mm;">
             </div>
         @endif
 
-        @if ($qr)
-            <div class="qr" style="left: {{ $qrBox['x'] }}%; top: {{ $qrBox['y'] }}%; width: {{ $qrBox['size'] }}%; height: {{ $qrBox['size'] * 1.414 }}%;">
+        @if (! empty($qr))
+            <div class="qr" style="left: {{ $qrBox['x'] ?? 84 }}%; top: {{ $qrBox['y'] ?? 74 }}%; width: {{ $qrBox['size'] ?? 12 }}%; height: {{ ((float) ($qrBox['size'] ?? 12)) * 2.97 }}mm;">
                 <img src="{{ $qr }}" alt="QR">
             </div>
         @endif

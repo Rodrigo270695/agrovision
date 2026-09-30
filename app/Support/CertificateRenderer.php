@@ -132,6 +132,18 @@ final class CertificateRenderer
             return null;
         }
 
+        $info = @getimagesize($absolute);
+
+        if ($info === false) {
+            return null;
+        }
+
+        $type = $info[2] ?? 0;
+
+        if (! in_array($type, [IMAGETYPE_GIF, IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP, IMAGETYPE_BMP], true)) {
+            return null;
+        }
+
         $binary = file_get_contents($absolute);
 
         if ($binary === false || $binary === '') {
@@ -139,6 +151,11 @@ final class CertificateRenderer
         }
 
         $mime = mime_content_type($absolute) ?: 'image/png';
+        [$binary, $mime] = self::pdfImage($binary, $mime);
+
+        if ($binary === '') {
+            return null;
+        }
 
         return 'data:'.$mime.';base64,'.base64_encode($binary);
     }
@@ -185,5 +202,51 @@ final class CertificateRenderer
     public static function color(string $value): string
     {
         return preg_match('/^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/', $value) ? $value : '#1a1a1a';
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private static function pdfImage(string $binary, string $mime): array
+    {
+        if (! function_exists('imagecreatefromstring')) {
+            return [$binary, $mime];
+        }
+
+        $image = @imagecreatefromstring($binary);
+
+        if (! $image) {
+            return [$binary, $mime];
+        }
+
+        $width = imagesx($image);
+        $height = imagesy($image);
+        $max = 2000;
+        $tooBig = $width > $max || $height > $max;
+        $webp = $mime === 'image/webp';
+
+        if (! $tooBig && ! $webp) {
+            imagedestroy($image);
+
+            return [$binary, $mime];
+        }
+
+        $scale = min($max / max($width, 1), $max / max($height, 1), 1);
+        $newWidth = max(1, (int) round($width * $scale));
+        $newHeight = max(1, (int) round($height * $scale));
+        $canvas = imagecreatetruecolor($newWidth, $newHeight);
+        imagealphablending($canvas, false);
+        imagesavealpha($canvas, true);
+        $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
+        imagefilledrectangle($canvas, 0, 0, $newWidth, $newHeight, $transparent);
+        imagecopyresampled($canvas, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+        imagedestroy($image);
+
+        ob_start();
+        imagepng($canvas);
+        $encoded = (string) ob_get_clean();
+        imagedestroy($canvas);
+
+        return [$encoded !== '' ? $encoded : $binary, $encoded !== '' ? 'image/png' : $mime];
     }
 }

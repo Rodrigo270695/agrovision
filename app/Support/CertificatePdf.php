@@ -25,18 +25,62 @@ final class CertificatePdf
      */
     public static function binary(CertificateTemplate $template, array $values, string $verifyUrl): string
     {
-        $layout = $template->resolvedLayout();
+        $fontDir = storage_path('fonts');
 
-        return Pdf::loadView('pdfs.certificate', [
+        if (! is_dir($fontDir)) {
+            mkdir($fontDir, 0775, true);
+        }
+
+        $layout = $template->resolvedLayout();
+        $payload = [
             'blocks' => CertificateRenderer::blocks($template, $values),
             'background' => CertificateRenderer::dataUri($template->background_path),
             'signature' => ($layout['signature']['visible'] ?? true) ? CertificateRenderer::dataUri($template->signature_path) : null,
             'logo' => ($layout['logo']['visible'] ?? true) ? CertificateRenderer::dataUri($template->logo_path) : null,
-            'qr' => ($layout['qr']['visible'] ?? true) ? CertificateQr::dataUri($verifyUrl) : null,
+            'qr' => self::qr($layout, $verifyUrl),
             'qrBox' => $layout['qr'],
             'signatureBox' => $layout['signature'],
             'logoBox' => $layout['logo'],
-        ])->setPaper('a4', 'landscape')->output();
+        ];
+
+        try {
+            return Pdf::loadView('pdfs.certificate', $payload)->setPaper('a4', 'landscape')->output();
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            $payload['background'] = null;
+            $payload['signature'] = null;
+            $payload['logo'] = null;
+
+            try {
+                return Pdf::loadView('pdfs.certificate', $payload)->setPaper('a4', 'landscape')->output();
+            } catch (\Throwable $again) {
+                report($again);
+                $payload['qr'] = null;
+
+                return Pdf::loadView('pdfs.certificate', $payload)->setPaper('a4', 'landscape')->output();
+            }
+        }
+    }
+
+    /**
+     * @param  array{qr: array<string, mixed>}  $layout
+     */
+    private static function qr(array $layout, string $verifyUrl): ?string
+    {
+        if (! ($layout['qr']['visible'] ?? true)) {
+            return null;
+        }
+
+        try {
+            $qr = CertificateQr::dataUri($verifyUrl);
+
+            return $qr !== '' ? $qr : null;
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return null;
+        }
     }
 
     public static function response(Certificate $certificate): Response
