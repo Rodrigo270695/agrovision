@@ -96,7 +96,7 @@ function FontPicker({
     const buttonRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
-    const [box, setBox] = useState({ top: 0, left: 0, width: 280 });
+    const [box, setBox] = useState({ top: 0, left: 0, width: 280, maxHeight: 320 });
     const current = fonts.find((item) => item.id === value) ?? fonts[0];
 
     useLayoutEffect(() => {
@@ -104,11 +104,33 @@ function FontPicker({
             return;
         }
 
-        const rect = buttonRef.current.getBoundingClientRect();
-        const width = Math.max(rect.width, 280);
-        const left = Math.min(rect.left, window.innerWidth - width - 8);
+        const place = () => {
+            if (!buttonRef.current) {
+                return;
+            }
 
-        setBox({ top: rect.bottom + 4, left: Math.max(8, left), width });
+            const rect = buttonRef.current.getBoundingClientRect();
+            const width = Math.max(rect.width, 280);
+            const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+            const gap = 4;
+            const margin = 8;
+            const spaceBelow = window.innerHeight - rect.bottom - gap - margin;
+            const spaceAbove = rect.top - gap - margin;
+            const openBelow = spaceBelow >= 180 || spaceBelow >= spaceAbove;
+            const maxHeight = Math.max(140, Math.min(320, openBelow ? spaceBelow : spaceAbove));
+            const top = openBelow ? rect.bottom + gap : Math.max(margin, rect.top - gap - maxHeight);
+
+            setBox({ top, left, width, maxHeight });
+        };
+
+        place();
+        window.addEventListener('resize', place);
+        window.addEventListener('scroll', place, true);
+
+        return () => {
+            window.removeEventListener('resize', place);
+            window.removeEventListener('scroll', place, true);
+        };
     }, [open]);
 
     useEffect(() => {
@@ -148,8 +170,8 @@ function FontPicker({
                 ? createPortal(
                       <div
                           ref={menuRef}
-                          className="max-h-80 overflow-auto rounded-lg border border-[#c5d5e6] bg-white py-1 shadow-lg"
-                          style={{ position: 'fixed', top: box.top, left: box.left, width: box.width, zIndex: 200 }}
+                          className="overflow-auto rounded-lg border border-[#c5d5e6] bg-white py-1 shadow-lg"
+                          style={{ position: 'fixed', top: box.top, left: box.left, width: box.width, maxHeight: box.maxHeight, zIndex: 200 }}
                       >
                           {fonts.map((font) => (
                               <button
