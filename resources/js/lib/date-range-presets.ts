@@ -36,12 +36,6 @@ export function rangeLast7Days(): { from: Date; to: Date } {
     return { from: subDays(today, 6), to: today };
 }
 
-export function rangeNext7Days(): { from: Date; to: Date } {
-    const today = startOfDay(new Date());
-
-    return { from: today, to: addDays(today, 6) };
-}
-
 export function rangeThisWeek(): { from: Date; to: Date } {
     const n = new Date();
 

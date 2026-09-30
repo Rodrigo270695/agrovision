@@ -26,7 +26,6 @@ import {
     rangeLast7Days,
     rangeLastMonth,
     rangeLastWeek,
-    rangeNext7Days,
     rangeThisMonth,
     rangeThisWeek,
     rangeThisYear,
@@ -50,7 +49,6 @@ type PresetId =
     | 'tomorrow'
     | 'yesterday'
     | 'last_7'
-    | 'next_7'
     | 'this_week'
     | 'last_week'
     | 'this_month'
@@ -316,7 +314,6 @@ export function DateRangeFilter({
             build('yesterday', 'Ayer', rangeYesterday()),
             build('tomorrow', 'Mañana', rangeTomorrow()),
             build('last_7', 'Últimos 7 días', rangeLast7Days()),
-            build('next_7', 'Próximos 7 días', rangeNext7Days()),
             build('this_week', 'Esta semana', rangeThisWeek()),
             build('last_week', 'Semana pasada', rangeLastWeek()),
             build('this_month', 'Este mes', rangeThisMonth()),
