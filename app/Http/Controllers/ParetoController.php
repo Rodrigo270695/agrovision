@@ -34,21 +34,37 @@ class ParetoController extends Controller
         $direction = $validated['direction'] ?? 'asc';
         $perPage = (int) ($validated['per_page'] ?? 50);
 
-        $query = Pareto::query()->with('parent:id,item_number,label');
+        $query = Pareto::query()
+            ->select('pareto.*')
+            ->with('parent:id,item_number,label,sort_order')
+            ->leftJoin('pareto as pareto_parents', 'pareto.parent_id', '=', 'pareto_parents.id');
 
         if ($templateType !== 'all') {
-            $query->where('template_type', $templateType);
+            $query->where('pareto.template_type', $templateType);
         }
 
         if ($search !== '') {
             $query->where(function ($builder) use ($search) {
                 $builder
-                    ->where('label', 'ilike', "%{$search}%")
-                    ->orWhere('item_number', 'ilike', "%{$search}%");
+                    ->where('pareto.label', 'ilike', "%{$search}%")
+                    ->orWhere('pareto.item_number', 'ilike', "%{$search}%");
             });
         }
 
-        $query->orderBy($sort, $direction)->orderBy('id');
+        $directionSql = $direction === 'desc' ? 'desc' : 'asc';
+        $familySort = match ($sort) {
+            'label' => 'COALESCE(pareto_parents.label, pareto.label)',
+            'item_number' => 'COALESCE(pareto_parents.item_number, pareto.item_number)',
+            'weight' => 'COALESCE(pareto_parents.weight, pareto.weight)',
+            'created_at' => 'COALESCE(pareto_parents.created_at, pareto.created_at)',
+            default => 'COALESCE(pareto_parents.sort_order, pareto.sort_order)',
+        };
+
+        $query
+            ->orderByRaw($familySort.' '.$directionSql)
+            ->orderByRaw('CASE WHEN pareto.parent_id IS NULL THEN 0 ELSE 1 END')
+            ->orderBy('pareto.sort_order')
+            ->orderBy('pareto.id');
 
         $items = $query->paginate($perPage)->withQueryString();
 
@@ -91,9 +107,15 @@ class ParetoController extends Controller
     {
         $data = $request->validated();
         if (! isset($data['sort_order']) || $data['sort_order'] === null) {
-            $data['sort_order'] = (int) Pareto::query()
-                ->where('template_type', $data['template_type'])
-                ->max('sort_order') + 1;
+            $siblingQuery = Pareto::query()->where('template_type', $data['template_type']);
+
+            if (! empty($data['parent_id'])) {
+                $siblingQuery->where('parent_id', $data['parent_id']);
+            } else {
+                $siblingQuery->whereNull('parent_id');
+            }
+
+            $data['sort_order'] = (int) $siblingQuery->max('sort_order') + 1;
         }
 
         Pareto::query()->create($data);

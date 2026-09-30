@@ -167,14 +167,15 @@ export function ParetoFormModal({
             }
         >
             <form id="pareto-form" className="space-y-4" onSubmit={handleSubmit}>
-                <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="grid gap-1.5">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="grid min-w-0 gap-1.5">
                         <Label className="text-xs text-[#1a2b4c]">
                             Plantilla <span className="text-red-500">*</span>
                         </Label>
                         <SearchableCombobox
                             compact
                             allowClear={false}
+                            className="w-full min-w-0"
                             value={form.data.template_type}
                             options={[
                                 { value: 'tdp', label: 'TDP' },
@@ -194,7 +195,7 @@ export function ParetoFormModal({
                         />
                         <InputError message={form.errors.template_type} />
                     </div>
-                    <div className="grid gap-1.5">
+                    <div className="grid min-w-0 gap-1.5">
                         <Label className="text-xs text-[#1a2b4c]">
                             Número <span className="text-red-500">*</span>
                         </Label>
@@ -223,14 +224,15 @@ export function ParetoFormModal({
                     <InputError message={form.errors.label} />
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="grid gap-1.5">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="grid min-w-0 gap-1.5">
                         <Label className="text-xs text-[#1a2b4c]">
                             Tipo de check <span className="text-red-500">*</span>
                         </Label>
                         <SearchableCombobox
                             compact
                             allowClear={false}
+                            className="w-full min-w-0"
                             value={form.data.check_type}
                             options={checkTypeOptions.map((option) => ({
                                 value: option.value,
@@ -244,7 +246,7 @@ export function ParetoFormModal({
                         />
                         <InputError message={form.errors.check_type} />
                     </div>
-                    <div className="grid gap-1.5">
+                    <div className="grid min-w-0 gap-1.5">
                         <Label className="text-xs text-[#1a2b4c]">
                             Peso % <span className="text-red-500">*</span>
                         </Label>
@@ -263,34 +265,32 @@ export function ParetoFormModal({
                     </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">Padre</Label>
-                        <SearchableCombobox
-                            compact
-                            allowClear
-                            value={form.data.parent_id || null}
-                            placeholder="Sin padre"
-                            menuMinWidth={280}
-                            options={parentsForTemplate.map((option) => ({
-                                value: String(option.id),
-                                label: `${option.item_number}. ${option.label}`,
-                            }))}
-                            onChange={(value) => form.setData('parent_id', value ?? '')}
-                        />
-                    </div>
-                    <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">Orden</Label>
-                        <Input
-                            type="number"
-                            min={0}
-                            value={form.data.sort_order}
-                            onChange={(e) =>
-                                form.setData('sort_order', e.target.value)
-                            }
-                            className="h-9 border-[#c5d5e6]"
-                        />
-                    </div>
+                <div className="grid min-w-0 gap-1.5">
+                    <Label className="text-xs text-[#1a2b4c]">Padre</Label>
+                    <SearchableCombobox
+                        compact
+                        allowClear
+                        className="w-full min-w-0"
+                        value={form.data.parent_id || null}
+                        placeholder="Sin padre"
+                        options={parentsForTemplate.map((option) => ({
+                            value: String(option.id),
+                            label: `${option.item_number}. ${option.label}`,
+                        }))}
+                        onChange={(value) => form.setData('parent_id', value ?? '')}
+                    />
+                </div>
+                <div className="grid min-w-0 gap-1.5 sm:max-w-[10rem]">
+                    <Label className="text-xs text-[#1a2b4c]">Orden</Label>
+                    <Input
+                        type="number"
+                        min={0}
+                        value={form.data.sort_order}
+                        onChange={(e) =>
+                            form.setData('sort_order', e.target.value)
+                        }
+                        className="h-9 w-full border-[#c5d5e6]"
+                    />
                 </div>
 
                 <label className="flex cursor-pointer items-center gap-2 text-sm text-[#1a2b4c]">
