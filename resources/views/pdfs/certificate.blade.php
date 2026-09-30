@@ -4,7 +4,9 @@
     <meta charset="utf-8">
     <style>
         @page { margin: 0; }
-        {!! \App\Support\CertificateFonts::pdfFaceCss() !!}
+        @if (! empty($embedFonts))
+            {!! \App\Support\CertificateFonts::pdfFaceCss() !!}
+        @endif
         html, body { margin: 0; padding: 0; }
         .sheet {
             position: relative;
@@ -38,7 +40,6 @@
         }
         .qr img {
             width: 100%;
-            height: 100%;
         }
     </style>
 </head>
@@ -76,7 +77,7 @@
 
         @if (! empty($qr))
             <div class="qr" style="left: {{ $qrBox['x'] ?? 84 }}%; top: {{ $qrBox['y'] ?? 74 }}%; width: {{ $qrBox['size'] ?? 12 }}%; height: {{ ((float) ($qrBox['size'] ?? 12)) * 2.97 }}mm;">
-                <img src="{{ $qr }}" alt="QR">
+                <img src="{{ $qr }}" alt="QR" style="width: {{ ((float) ($qrBox['size'] ?? 12)) * 2.97 }}mm; height: {{ ((float) ($qrBox['size'] ?? 12)) * 2.97 }}mm;">
             </div>
         @endif
     </div>

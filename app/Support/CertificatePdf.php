@@ -25,41 +25,90 @@ final class CertificatePdf
      */
     public static function binary(CertificateTemplate $template, array $values, string $verifyUrl): string
     {
-        $fontDir = storage_path('fonts');
+        $layout = $template->resolvedLayout();
+        $fontDir = self::fontDirectory();
+        $last = null;
 
-        if (! is_dir($fontDir)) {
-            mkdir($fontDir, 0775, true);
+        try {
+            return self::render($template, $values, $verifyUrl, $layout, $fontDir, true, true);
+        } catch (\Throwable $exception) {
+            self::remember($exception);
+            $last = $exception;
         }
 
-        $layout = $template->resolvedLayout();
-        $payload = [
-            'blocks' => CertificateRenderer::blocks($template, $values),
-            'background' => CertificateRenderer::dataUri($template->background_path),
-            'signature' => ($layout['signature']['visible'] ?? true) ? CertificateRenderer::dataUri($template->signature_path) : null,
-            'logo' => ($layout['logo']['visible'] ?? true) ? CertificateRenderer::dataUri($template->logo_path) : null,
-            'qr' => self::qr($layout, $verifyUrl),
+        try {
+            return self::render($template, $values, $verifyUrl, $layout, $fontDir, false, false);
+        } catch (\Throwable $exception) {
+            self::remember($exception);
+            $last = $exception;
+        }
+
+        throw $last ?? new \RuntimeException('No se pudo generar el certificado.');
+    }
+
+    /**
+     * @param  array{blocks: list<array<string, mixed>>, qr: array<string, mixed>, signature: array<string, mixed>, logo: array<string, mixed>}  $layout
+     */
+    private static function render(
+        CertificateTemplate $template,
+        array $values,
+        string $verifyUrl,
+        array $layout,
+        string $fontDir,
+        bool $embedFonts,
+        bool $withImages,
+    ): string {
+        $blocks = CertificateRenderer::blocks($template, $values);
+
+        if (! $embedFonts) {
+            foreach ($blocks as $index => $block) {
+                $blocks[$index]['font'] = 'DejaVu Sans, sans-serif';
+            }
+        }
+
+        $pdf = Pdf::loadView('pdfs.certificate', [
+            'embedFonts' => $embedFonts,
+            'blocks' => $blocks,
+            'background' => $withImages ? CertificateRenderer::dataUri($template->background_path) : null,
+            'signature' => $withImages && ($layout['signature']['visible'] ?? true) ? CertificateRenderer::dataUri($template->signature_path) : null,
+            'logo' => $withImages && ($layout['logo']['visible'] ?? true) ? CertificateRenderer::dataUri($template->logo_path) : null,
+            'qr' => $withImages ? self::qr($layout, $verifyUrl) : null,
             'qrBox' => $layout['qr'],
             'signatureBox' => $layout['signature'],
             'logoBox' => $layout['logo'],
+        ])->setPaper('a4', 'landscape');
+
+        $pdf->setOption('fontDir', $fontDir);
+        $pdf->setOption('fontCache', $fontDir);
+
+        return $pdf->output();
+    }
+
+    private static function fontDirectory(): string
+    {
+        $candidates = [
+            storage_path('framework/cache/dompdf'),
+            storage_path('fonts'),
         ];
 
-        try {
-            return Pdf::loadView('pdfs.certificate', $payload)->setPaper('a4', 'landscape')->output();
-        } catch (\Throwable $exception) {
-            report($exception);
-
-            $payload['background'] = null;
-            $payload['signature'] = null;
-            $payload['logo'] = null;
-
-            try {
-                return Pdf::loadView('pdfs.certificate', $payload)->setPaper('a4', 'landscape')->output();
-            } catch (\Throwable $again) {
-                report($again);
-                $payload['qr'] = null;
-
-                return Pdf::loadView('pdfs.certificate', $payload)->setPaper('a4', 'landscape')->output();
+        foreach ($candidates as $dir) {
+            if (! is_dir($dir)) {
+                @mkdir($dir, 0775, true);
             }
+
+            if (is_dir($dir) && is_writable($dir)) {
+                return $dir;
+            }
+        }
+
+        return sys_get_temp_dir();
+    }
+
+    private static function remember(\Throwable $exception): void
+    {
+        try {
+            report($exception);
+        } catch (\Throwable) {
         }
     }
 

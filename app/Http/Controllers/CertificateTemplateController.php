@@ -148,6 +148,24 @@ class CertificateTemplateController extends Controller
 
     public function preview(Request $request, CertificateTemplate $template): HttpResponse
     {
+        try {
+            return $this->previewResponse($request, $template);
+        } catch (\Throwable $exception) {
+            try {
+                report($exception);
+            } catch (\Throwable) {
+            }
+
+            return response(
+                '<!DOCTYPE html><html lang="es"><body style="font-family:sans-serif;padding:24px;color:#1a2b4c"><h1 style="font-size:18px">No se pudo generar la vista previa</h1><p>'.e($exception->getMessage()).'</p></body></html>',
+                200,
+                ['Content-Type' => 'text/html; charset=UTF-8'],
+            );
+        }
+    }
+
+    private function previewResponse(Request $request, CertificateTemplate $template): HttpResponse
+    {
         $template->load('induction');
         $induction = $template->induction;
         $attendee = null;
