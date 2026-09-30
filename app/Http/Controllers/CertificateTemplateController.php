@@ -303,6 +303,7 @@ class CertificateTemplateController extends Controller
                 'validity_months' => $template->validity_months,
                 'background_url' => $template->backgroundUrl(),
                 'signature_url' => $template->signatureUrl(),
+                'logo_url' => $template->logoUrl(),
             ] : null,
             'layout' => $layout,
             'custom_variables' => array_values($template?->custom_variables ?? []),
@@ -369,19 +370,20 @@ class CertificateTemplateController extends Controller
             'validity_months' => ['required', 'integer', 'min:1', 'max:120'],
             'background' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:8192'],
             'signature' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:4096'],
+            'logo' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:4096'],
         ], [
             'induction_id.required' => 'Elige la inducción de esta plantilla.',
             'name.required' => 'Ponle un nombre a la plantilla.',
             'issuer_name.required' => 'Escribe el nombre de quien firma el certificado.',
         ]);
 
-        unset($data['background'], $data['signature']);
+        unset($data['background'], $data['signature'], $data['logo']);
 
         return $data;
     }
 
     /**
-     * @return array{blocks: list<array<string, mixed>>, qr: array<string, float>, signature: array<string, float>}
+     * @return array{blocks: list<array<string, mixed>>, qr: array<string, float>, signature: array<string, float>, logo: array<string, float>}
      */
     private function layout(Request $request): array
     {
@@ -421,18 +423,26 @@ class CertificateTemplateController extends Controller
 
         $qr = is_array($decoded['qr'] ?? null) ? $decoded['qr'] : [];
         $signature = is_array($decoded['signature'] ?? null) ? $decoded['signature'] : [];
+        $logo = is_array($decoded['logo'] ?? null) ? $decoded['logo'] : [];
 
         return [
             'blocks' => $blocks === [] ? $defaults['blocks'] : $blocks,
             'qr' => [
                 'x' => CertificateRenderer::percent($qr['x'] ?? $defaults['qr']['x']),
                 'y' => CertificateRenderer::percent($qr['y'] ?? $defaults['qr']['y']),
-                'size' => max(6, min(30, (float) ($qr['size'] ?? $defaults['qr']['size']))),
+                'size' => max(6, min(40, (float) ($qr['size'] ?? $defaults['qr']['size']))),
             ],
             'signature' => [
                 'x' => CertificateRenderer::percent($signature['x'] ?? $defaults['signature']['x']),
                 'y' => CertificateRenderer::percent($signature['y'] ?? $defaults['signature']['y']),
-                'w' => max(8, min(50, (float) ($signature['w'] ?? $defaults['signature']['w']))),
+                'w' => max(8, min(70, (float) ($signature['w'] ?? $defaults['signature']['w']))),
+                'h' => max(4, min(45, (float) ($signature['h'] ?? $defaults['signature']['h']))),
+            ],
+            'logo' => [
+                'x' => CertificateRenderer::percent($logo['x'] ?? $defaults['logo']['x']),
+                'y' => CertificateRenderer::percent($logo['y'] ?? $defaults['logo']['y']),
+                'w' => max(6, min(50, (float) ($logo['w'] ?? $defaults['logo']['w']))),
+                'h' => max(4, min(45, (float) ($logo['h'] ?? $defaults['logo']['h']))),
             ],
         ];
     }
@@ -490,6 +500,14 @@ class CertificateTemplateController extends Controller
             }
 
             $template->signature_path = $request->file('signature')->store('certificates/signatures', 'public');
+        }
+
+        if ($request->hasFile('logo')) {
+            if ($template->logo_path) {
+                $disk->delete($template->logo_path);
+            }
+
+            $template->logo_path = $request->file('logo')->store('certificates/logos', 'public');
         }
 
         $template->save();

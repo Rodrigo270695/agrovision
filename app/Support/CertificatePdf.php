@@ -31,10 +31,11 @@ final class CertificatePdf
             'blocks' => CertificateRenderer::blocks($template, $values),
             'background' => CertificateRenderer::dataUri($template->background_path),
             'signature' => CertificateRenderer::dataUri($template->signature_path),
+            'logo' => CertificateRenderer::dataUri($template->logo_path),
             'qr' => CertificateQr::dataUri($verifyUrl),
             'qrBox' => $layout['qr'],
             'signatureBox' => $layout['signature'],
-            'logoSrc' => PdfLogo::dataUri(),
+            'logoBox' => $layout['logo'],
         ])->setPaper('a4', 'landscape')->output();
     }
 

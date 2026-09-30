@@ -22,7 +22,7 @@ type Block = {
     color: string;
 };
 
-type Box = { x: number; y: number; w?: number; size?: number };
+type Box = { x: number; y: number; w?: number; h?: number; size?: number };
 
 type Variable = { key: string; label: string };
 
@@ -61,8 +61,9 @@ type PageProps = {
         validity_months: number;
         background_url: string | null;
         signature_url: string | null;
+        logo_url: string | null;
     } | null;
-    layout: { blocks: Block[]; qr: Box; signature: Box };
+    layout: { blocks: Block[]; qr: Box; signature: Box; logo?: Box };
     custom_variables: CustomVariable[];
     variables: Variable[];
     inductions: { id: number; title: string; session_on: string | null }[];
@@ -78,6 +79,31 @@ function fill(text: string, sample: Record<string, string>): string {
 
 function clamp(value: number, min: number, max: number): number {
     return Math.min(max, Math.max(min, value));
+}
+
+function ImageSizeControl({ label, value, onChange }: { label: string; value: number; onChange: (delta: number) => void }) {
+    return (
+        <div className="grid gap-1.5">
+            <Label className="text-xs text-[#1a2b4c]">{label}</Label>
+            <div className="flex items-center gap-2">
+                <button
+                    type="button"
+                    onClick={() => onChange(-2)}
+                    className="h-9 w-9 cursor-pointer rounded-lg border border-[#c5d5e6] text-lg text-[#1a2b4c]"
+                >
+                    −
+                </button>
+                <span className="min-w-12 text-sm text-[#1a2b4c]">{value}%</span>
+                <button
+                    type="button"
+                    onClick={() => onChange(2)}
+                    className="h-9 w-9 cursor-pointer rounded-lg border border-[#c5d5e6] text-lg text-[#1a2b4c]"
+                >
+                    +
+                </button>
+            </div>
+        </div>
+    );
 }
 
 function fontFamily(fonts: FontOption[], font?: string): string {
@@ -222,6 +248,13 @@ export default function CertificateEditor({
         x: layout.signature.x,
         y: layout.signature.y,
         w: layout.signature.w ?? 24,
+        h: layout.signature.h ?? 12,
+    });
+    const [logoBox, setLogoBox] = useState({
+        x: layout.logo?.x ?? 4,
+        y: layout.logo?.y ?? 4,
+        w: layout.logo?.w ?? 16,
+        h: layout.logo?.h ?? 12,
     });
     const [customs, setCustoms] = useState<CustomVariable[]>(initialCustom);
     const [customDraft, setCustomDraft] = useState({ key: '', label: '', value: '' });
@@ -231,6 +264,7 @@ export default function CertificateEditor({
     const [previewAttendeeId, setPreviewAttendeeId] = useState<number | null>(null);
     const [backgroundPreview, setBackgroundPreview] = useState<string | null>(template?.background_url ?? null);
     const [signaturePreview, setSignaturePreview] = useState<string | null>(template?.signature_url ?? null);
+    const [logoPreview, setLogoPreview] = useState<string | null>(template?.logo_url ?? null);
 
     const form = useForm({
         induction_id: template?.induction_id ? String(template.induction_id) : '',
@@ -240,6 +274,7 @@ export default function CertificateEditor({
         validity_months: template?.validity_months ?? 12,
         background: null as File | null,
         signature: null as File | null,
+        logo: null as File | null,
     });
 
     useEffect(() => {
@@ -339,7 +374,7 @@ export default function CertificateEditor({
         form.transform((data) => {
             const next: Record<string, unknown> = {
                 ...data,
-                layout: JSON.stringify({ blocks, qr, signature: signatureBox }),
+                layout: JSON.stringify({ blocks, qr, signature: signatureBox, logo: logoBox }),
                 custom_variables: JSON.stringify(customs),
             };
 
@@ -349,6 +384,10 @@ export default function CertificateEditor({
 
             if (!(data.signature instanceof File)) {
                 delete next.signature;
+            }
+
+            if (!(data.logo instanceof File)) {
+                delete next.logo;
             }
 
             return next;
@@ -458,6 +497,30 @@ export default function CertificateEditor({
                                     className="h-10 border-[#c5d5e6]"
                                 />
                             </div>
+                            <div className="grid gap-1.5">
+                                <Label className="text-xs text-[#1a2b4c]">Logo</Label>
+                                <Input
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    onChange={(event) => {
+                                        const file = event.target.files?.[0] ?? null;
+                                        form.setData('logo', file);
+                                        setLogoPreview(file ? URL.createObjectURL(file) : template?.logo_url ?? null);
+                                    }}
+                                    className="h-10 border-[#c5d5e6]"
+                                />
+                                <ImageSizeControl
+                                    label="Tamaño del logo"
+                                    value={logoBox.w}
+                                    onChange={(delta) =>
+                                        setLogoBox((current) => ({
+                                            ...current,
+                                            w: clamp(current.w + delta, 6, 50),
+                                            h: clamp(current.h + delta, 4, 45),
+                                        }))
+                                    }
+                                />
+                            </div>
                         </section>
 
                         <section className="space-y-3 rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
@@ -483,7 +546,23 @@ export default function CertificateEditor({
                                     }}
                                     className="h-10 border-[#c5d5e6]"
                                 />
+                                <ImageSizeControl
+                                    label="Tamaño de la firma"
+                                    value={signatureBox.w}
+                                    onChange={(delta) =>
+                                        setSignatureBox((current) => ({
+                                            ...current,
+                                            w: clamp(current.w + delta, 8, 70),
+                                            h: clamp(current.h + delta, 4, 45),
+                                        }))
+                                    }
+                                />
                             </div>
+                            <ImageSizeControl
+                                label="Tamaño del QR"
+                                value={qr.size}
+                                onChange={(delta) => setQr((current) => ({ ...current, size: clamp(current.size + delta, 6, 40) }))}
+                            />
                         </section>
 
                         <section className="space-y-3 rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
@@ -636,6 +715,26 @@ export default function CertificateEditor({
                             {backgroundPreview ? (
                                 <img src={backgroundPreview} alt="" className="absolute inset-0 h-full w-full object-cover" />
                             ) : null}
+                            <div
+                                onPointerDown={(event) => {
+                                    setSelected('logo');
+                                    drag(event, logoBox, (x, y) => setLogoBox((current) => ({ ...current, x, y })));
+                                }}
+                                className="absolute cursor-move"
+                                style={{
+                                    left: `${logoBox.x}%`,
+                                    top: `${logoBox.y}%`,
+                                    width: `${logoBox.w}%`,
+                                    height: `${logoBox.h}%`,
+                                    outline: selected === 'logo' ? '1px dashed #2e5a9e' : undefined,
+                                }}
+                            >
+                                {logoPreview ? (
+                                    <img src={logoPreview} alt="Logo" className="h-full w-full object-contain" />
+                                ) : (
+                                    <p className="flex h-full items-center justify-center rounded border border-dashed border-[#6b8ead] text-center text-[10px] text-[#6b8ead]">Logo</p>
+                                )}
+                            </div>
                             {blocks.map((block) => (
                                 <div
                                     key={block.id}
@@ -669,13 +768,14 @@ export default function CertificateEditor({
                                     left: `${signatureBox.x}%`,
                                     top: `${signatureBox.y}%`,
                                     width: `${signatureBox.w}%`,
+                                    height: `${signatureBox.h}%`,
                                     outline: selected === 'signature' ? '1px dashed #2e5a9e' : undefined,
                                 }}
                             >
                                 {signaturePreview ? (
-                                    <img src={signaturePreview} alt="Firma" className="h-10 w-full object-contain" />
+                                    <img src={signaturePreview} alt="Firma" className="h-full w-full object-contain" />
                                 ) : (
-                                    <p className="text-center text-[10px] text-[#6b8ead]">Firma</p>
+                                    <p className="flex h-full items-center justify-center text-center text-[10px] text-[#6b8ead]">Firma</p>
                                 )}
                             </div>
                             <div

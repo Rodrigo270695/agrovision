@@ -60,14 +60,15 @@ final class CertificateVariables
     }
 
     /**
-     * @return array{blocks: list<array<string, mixed>>, qr: array{x: float, y: float, size: float}, signature: array{x: float, y: float, w: float}}
+     * @return array{blocks: list<array<string, mixed>>, qr: array{x: float, y: float, size: float}, signature: array{x: float, y: float, w: float, h: float}, logo: array{x: float, y: float, w: float, h: float}}
      */
     public static function defaultLayout(): array
     {
         return [
             'blocks' => self::defaultBlocks(),
             'qr' => ['x' => 84, 'y' => 74, 'size' => 12],
-            'signature' => ['x' => 38, 'y' => 72, 'w' => 24],
+            'signature' => ['x' => 38, 'y' => 72, 'w' => 24, 'h' => 12],
+            'logo' => ['x' => 4, 'y' => 4, 'w' => 16, 'h' => 12],
         ];
     }
 

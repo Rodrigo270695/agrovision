@@ -26,13 +26,13 @@
             line-height: 1.25;
             white-space: pre-wrap;
         }
-        .sig {
+        .sig, .logo {
             position: absolute;
         }
-        .sig img {
+        .sig img,
+        .logo img {
             width: 100%;
-            height: 18mm;
-            object-fit: contain;
+            height: 100%;
         }
         .qr {
             position: absolute;
@@ -56,8 +56,14 @@
             >{{ $block['text'] }}</div>
         @endforeach
 
+        @if ($logo)
+            <div class="logo" style="left: {{ $logoBox['x'] }}%; top: {{ $logoBox['y'] }}%; width: {{ $logoBox['w'] }}%; height: {{ $logoBox['h'] * 2.1 }}mm;">
+                <img src="{{ $logo }}" alt="Logo">
+            </div>
+        @endif
+
         @if ($signature)
-            <div class="sig" style="left: {{ $signatureBox['x'] }}%; top: {{ $signatureBox['y'] }}%; width: {{ $signatureBox['w'] }}%;">
+            <div class="sig" style="left: {{ $signatureBox['x'] }}%; top: {{ $signatureBox['y'] }}%; width: {{ $signatureBox['w'] }}%; height: {{ $signatureBox['h'] * 2.1 }}mm;">
                 <img src="{{ $signature }}" alt="Firma">
             </div>
         @endif

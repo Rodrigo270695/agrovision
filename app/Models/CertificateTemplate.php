@@ -18,6 +18,7 @@ class CertificateTemplate extends Model
         'validity_months',
         'background_path',
         'signature_path',
+        'logo_path',
         'layout',
         'custom_variables',
         'created_by',
@@ -47,6 +48,10 @@ class CertificateTemplate extends Model
             if ($template->signature_path) {
                 $disk->delete($template->signature_path);
             }
+
+            if ($template->logo_path) {
+                $disk->delete($template->logo_path);
+            }
         });
     }
 
@@ -61,7 +66,7 @@ class CertificateTemplate extends Model
     }
 
     /**
-     * @return array{blocks: list<array<string, mixed>>, qr: array{x: float, y: float, size: float}, signature: array{x: float, y: float, w: float}}
+     * @return array{blocks: list<array<string, mixed>>, qr: array{x: float, y: float, size: float}, signature: array{x: float, y: float, w: float, h: float}, logo: array{x: float, y: float, w: float, h: float}}
      */
     public function resolvedLayout(): array
     {
@@ -72,6 +77,7 @@ class CertificateTemplate extends Model
             'blocks' => is_array($layout['blocks'] ?? null) ? $layout['blocks'] : $defaults['blocks'],
             'qr' => array_merge($defaults['qr'], is_array($layout['qr'] ?? null) ? $layout['qr'] : []),
             'signature' => array_merge($defaults['signature'], is_array($layout['signature'] ?? null) ? $layout['signature'] : []),
+            'logo' => array_merge($defaults['logo'], is_array($layout['logo'] ?? null) ? $layout['logo'] : []),
         ];
     }
 
@@ -86,6 +92,13 @@ class CertificateTemplate extends Model
     {
         return $this->signature_path
             ? Storage::disk('public')->url($this->signature_path)
+            : null;
+    }
+
+    public function logoUrl(): ?string
+    {
+        return $this->logo_path
+            ? Storage::disk('public')->url($this->logo_path)
             : null;
     }
 }
