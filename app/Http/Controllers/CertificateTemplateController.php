@@ -426,25 +426,40 @@ class CertificateTemplateController extends Controller
         $logo = is_array($decoded['logo'] ?? null) ? $decoded['logo'] : [];
 
         return [
-            'blocks' => $blocks === [] ? $defaults['blocks'] : $blocks,
+            'blocks' => array_key_exists('blocks', $decoded) ? $blocks : $defaults['blocks'],
             'qr' => [
                 'x' => CertificateRenderer::percent($qr['x'] ?? $defaults['qr']['x']),
                 'y' => CertificateRenderer::percent($qr['y'] ?? $defaults['qr']['y']),
                 'size' => max(6, min(40, (float) ($qr['size'] ?? $defaults['qr']['size']))),
+                'visible' => self::isShown($qr),
             ],
             'signature' => [
                 'x' => CertificateRenderer::percent($signature['x'] ?? $defaults['signature']['x']),
                 'y' => CertificateRenderer::percent($signature['y'] ?? $defaults['signature']['y']),
                 'w' => max(8, min(70, (float) ($signature['w'] ?? $defaults['signature']['w']))),
                 'h' => max(4, min(45, (float) ($signature['h'] ?? $defaults['signature']['h']))),
+                'visible' => self::isShown($signature),
             ],
             'logo' => [
                 'x' => CertificateRenderer::percent($logo['x'] ?? $defaults['logo']['x']),
                 'y' => CertificateRenderer::percent($logo['y'] ?? $defaults['logo']['y']),
                 'w' => max(6, min(50, (float) ($logo['w'] ?? $defaults['logo']['w']))),
                 'h' => max(4, min(45, (float) ($logo['h'] ?? $defaults['logo']['h']))),
+                'visible' => self::isShown($logo),
             ],
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $box
+     */
+    private static function isShown(array $box): bool
+    {
+        if (! array_key_exists('visible', $box)) {
+            return true;
+        }
+
+        return filter_var($box['visible'], FILTER_VALIDATE_BOOLEAN);
     }
 
     /**
@@ -492,6 +507,9 @@ class CertificateTemplateController extends Controller
             }
 
             $template->background_path = $request->file('background')->store('certificates/backgrounds', 'public');
+        } elseif ($request->boolean('remove_background') && $template->background_path) {
+            $disk->delete($template->background_path);
+            $template->background_path = null;
         }
 
         if ($request->hasFile('signature')) {

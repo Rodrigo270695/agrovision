@@ -30,9 +30,9 @@ final class CertificatePdf
         return Pdf::loadView('pdfs.certificate', [
             'blocks' => CertificateRenderer::blocks($template, $values),
             'background' => CertificateRenderer::dataUri($template->background_path),
-            'signature' => CertificateRenderer::dataUri($template->signature_path),
-            'logo' => CertificateRenderer::dataUri($template->logo_path),
-            'qr' => CertificateQr::dataUri($verifyUrl),
+            'signature' => ($layout['signature']['visible'] ?? true) ? CertificateRenderer::dataUri($template->signature_path) : null,
+            'logo' => ($layout['logo']['visible'] ?? true) ? CertificateRenderer::dataUri($template->logo_path) : null,
+            'qr' => ($layout['qr']['visible'] ?? true) ? CertificateQr::dataUri($verifyUrl) : null,
             'qrBox' => $layout['qr'],
             'signatureBox' => $layout['signature'],
             'logoBox' => $layout['logo'],

@@ -22,7 +22,7 @@ type Block = {
     color: string;
 };
 
-type Box = { x: number; y: number; w?: number; h?: number; size?: number };
+type Box = { x: number; y: number; w?: number; h?: number; size?: number; visible?: boolean };
 
 type Variable = { key: string; label: string };
 
@@ -79,6 +79,23 @@ function fill(text: string, sample: Record<string, string>): string {
 
 function clamp(value: number, min: number, max: number): number {
     return Math.min(max, Math.max(min, value));
+}
+
+function RemoveButton({ onRemove }: { onRemove: () => void }) {
+    return (
+        <button
+            type="button"
+            aria-label="Quitar"
+            onPointerDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onRemove();
+            }}
+            className="absolute top-0 right-0 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-red-600 text-sm leading-none text-white"
+        >
+            ×
+        </button>
+    );
 }
 
 function ImageSizeControl({ label, value, onChange }: { label: string; value: number; onChange: (delta: number) => void }) {
@@ -265,6 +282,10 @@ export default function CertificateEditor({
     const [backgroundPreview, setBackgroundPreview] = useState<string | null>(template?.background_url ?? null);
     const [signaturePreview, setSignaturePreview] = useState<string | null>(template?.signature_url ?? null);
     const [logoPreview, setLogoPreview] = useState<string | null>(template?.logo_url ?? null);
+    const [showLogo, setShowLogo] = useState(layout.logo?.visible !== false);
+    const [showSignature, setShowSignature] = useState(layout.signature.visible !== false);
+    const [showQr, setShowQr] = useState(layout.qr.visible !== false);
+    const [removeBackground, setRemoveBackground] = useState(false);
 
     const form = useForm({
         induction_id: template?.induction_id ? String(template.induction_id) : '',
@@ -374,7 +395,12 @@ export default function CertificateEditor({
         form.transform((data) => {
             const next: Record<string, unknown> = {
                 ...data,
-                layout: JSON.stringify({ blocks, qr, signature: signatureBox, logo: logoBox }),
+                layout: JSON.stringify({
+                    blocks,
+                    qr: { ...qr, visible: showQr },
+                    signature: { ...signatureBox, visible: showSignature },
+                    logo: { ...logoBox, visible: showLogo },
+                }),
                 custom_variables: JSON.stringify(customs),
             };
 
@@ -388,6 +414,10 @@ export default function CertificateEditor({
 
             if (!(data.logo instanceof File)) {
                 delete next.logo;
+            }
+
+            if (removeBackground && !(data.background instanceof File)) {
+                next.remove_background = '1';
             }
 
             return next;
@@ -493,9 +523,25 @@ export default function CertificateEditor({
                                         const file = event.target.files?.[0] ?? null;
                                         form.setData('background', file);
                                         setBackgroundPreview(file ? URL.createObjectURL(file) : template?.background_url ?? null);
+                                        if (file) {
+                                            setRemoveBackground(false);
+                                        }
                                     }}
                                     className="h-10 border-[#c5d5e6]"
                                 />
+                                {backgroundPreview ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setBackgroundPreview(null);
+                                            setRemoveBackground(true);
+                                            form.setData('background', null);
+                                        }}
+                                        className="cursor-pointer text-left text-xs font-medium text-red-600"
+                                    >
+                                        Quitar fondo
+                                    </button>
+                                ) : null}
                             </div>
                             <div className="grid gap-1.5">
                                 <Label className="text-xs text-[#1a2b4c]">Logo</Label>
@@ -506,6 +552,9 @@ export default function CertificateEditor({
                                         const file = event.target.files?.[0] ?? null;
                                         form.setData('logo', file);
                                         setLogoPreview(file ? URL.createObjectURL(file) : template?.logo_url ?? null);
+                                        if (file) {
+                                            setShowLogo(true);
+                                        }
                                     }}
                                     className="h-10 border-[#c5d5e6]"
                                 />
@@ -520,6 +569,15 @@ export default function CertificateEditor({
                                         }))
                                     }
                                 />
+                                {showLogo ? (
+                                    <button type="button" onClick={() => setShowLogo(false)} className="cursor-pointer text-left text-xs font-medium text-red-600">
+                                        Quitar logo
+                                    </button>
+                                ) : (
+                                    <button type="button" onClick={() => setShowLogo(true)} className="cursor-pointer text-left text-xs font-medium text-[#2e5a9e]">
+                                        Poner logo
+                                    </button>
+                                )}
                             </div>
                         </section>
 
@@ -543,6 +601,9 @@ export default function CertificateEditor({
                                         const file = event.target.files?.[0] ?? null;
                                         form.setData('signature', file);
                                         setSignaturePreview(file ? URL.createObjectURL(file) : template?.signature_url ?? null);
+                                        if (file) {
+                                            setShowSignature(true);
+                                        }
                                     }}
                                     className="h-10 border-[#c5d5e6]"
                                 />
@@ -557,12 +618,30 @@ export default function CertificateEditor({
                                         }))
                                     }
                                 />
+                                {showSignature ? (
+                                    <button type="button" onClick={() => setShowSignature(false)} className="cursor-pointer text-left text-xs font-medium text-red-600">
+                                        Quitar firma
+                                    </button>
+                                ) : (
+                                    <button type="button" onClick={() => setShowSignature(true)} className="cursor-pointer text-left text-xs font-medium text-[#2e5a9e]">
+                                        Poner firma
+                                    </button>
+                                )}
                             </div>
                             <ImageSizeControl
                                 label="Tamaño del QR"
                                 value={qr.size}
                                 onChange={(delta) => setQr((current) => ({ ...current, size: clamp(current.size + delta, 6, 40) }))}
                             />
+                            {showQr ? (
+                                <button type="button" onClick={() => setShowQr(false)} className="cursor-pointer text-left text-xs font-medium text-red-600">
+                                    Quitar QR
+                                </button>
+                            ) : (
+                                <button type="button" onClick={() => setShowQr(true)} className="cursor-pointer text-left text-xs font-medium text-[#2e5a9e]">
+                                    Poner QR
+                                </button>
+                            )}
                         </section>
 
                         <section className="space-y-3 rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
@@ -706,7 +785,7 @@ export default function CertificateEditor({
                     </div>
 
                     <div className="rounded-2xl border border-[#d7e3f0] bg-[#eef3f8] p-3 shadow-sm">
-                        <p className="mb-2 text-xs text-[#5a7390]">Arrastra los textos, la firma y el QR. La vista usa un participante de muestra.</p>
+                        <p className="mb-2 text-xs text-[#5a7390]">Arrastra los elementos. La × los quita. La vista usa un participante de muestra.</p>
                         <div
                             ref={canvasRef}
                             className="relative aspect-[297/210] w-full overflow-hidden rounded-lg border border-[#d7e3f0] bg-white"
@@ -715,6 +794,7 @@ export default function CertificateEditor({
                             {backgroundPreview ? (
                                 <img src={backgroundPreview} alt="" className="absolute inset-0 h-full w-full object-cover" />
                             ) : null}
+                            {showLogo ? (
                             <div
                                 onPointerDown={(event) => {
                                     setSelected('logo');
@@ -729,12 +809,14 @@ export default function CertificateEditor({
                                     outline: selected === 'logo' ? '1px dashed #2e5a9e' : undefined,
                                 }}
                             >
+                                <RemoveButton onRemove={() => { setShowLogo(false); setSelected(null); }} />
                                 {logoPreview ? (
                                     <img src={logoPreview} alt="Logo" className="h-full w-full object-contain" />
                                 ) : (
                                     <p className="flex h-full items-center justify-center rounded border border-dashed border-[#6b8ead] text-center text-[10px] text-[#6b8ead]">Logo</p>
                                 )}
                             </div>
+                            ) : null}
                             {blocks.map((block) => (
                                 <div
                                     key={block.id}
@@ -756,8 +838,17 @@ export default function CertificateEditor({
                                     }}
                                 >
                                     {fill(block.text, previewValues)}
+                                    {selected === block.id ? (
+                                        <RemoveButton
+                                            onRemove={() => {
+                                                setBlocks((current) => current.filter((item) => item.id !== block.id));
+                                                setSelected(null);
+                                            }}
+                                        />
+                                    ) : null}
                                 </div>
                             ))}
+                            {showSignature ? (
                             <div
                                 onPointerDown={(event) => {
                                     setSelected('signature');
@@ -772,12 +863,15 @@ export default function CertificateEditor({
                                     outline: selected === 'signature' ? '1px dashed #2e5a9e' : undefined,
                                 }}
                             >
+                                <RemoveButton onRemove={() => { setShowSignature(false); setSelected(null); }} />
                                 {signaturePreview ? (
                                     <img src={signaturePreview} alt="Firma" className="h-full w-full object-contain" />
                                 ) : (
                                     <p className="flex h-full items-center justify-center text-center text-[10px] text-[#6b8ead]">Firma</p>
                                 )}
                             </div>
+                            ) : null}
+                            {showQr ? (
                             <div
                                 onPointerDown={(event) => {
                                     setSelected('qr');
@@ -792,8 +886,10 @@ export default function CertificateEditor({
                                     outline: selected === 'qr' ? '1px dashed #2e5a9e' : undefined,
                                 }}
                             >
+                                <RemoveButton onRemove={() => { setShowQr(false); setSelected(null); }} />
                                 QR
                             </div>
+                            ) : null}
                         </div>
                     </div>
                 </div>
