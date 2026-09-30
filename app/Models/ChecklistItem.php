@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property bool $has_expiry
  * @property string|null $check_type
  * @property string|null $weight
+ * @property bool $allows_photo
  */
 class ChecklistItem extends Model
 {
@@ -30,6 +31,7 @@ class ChecklistItem extends Model
         'has_expiry',
         'check_type',
         'weight',
+        'allows_photo',
     ];
 
     /**
@@ -40,6 +42,7 @@ class ChecklistItem extends Model
         return [
             'has_expiry' => 'boolean',
             'weight' => 'decimal:2',
+            'allows_photo' => 'boolean',
         ];
     }
 

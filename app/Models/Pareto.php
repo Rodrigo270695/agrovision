@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $check_type
  * @property string $weight
  * @property bool $is_active
+ * @property bool $allows_photo
  */
 class Pareto extends Model
 {
@@ -30,6 +31,7 @@ class Pareto extends Model
         'check_type',
         'weight',
         'is_active',
+        'allows_photo',
     ];
 
     /**
@@ -41,6 +43,7 @@ class Pareto extends Model
             'sort_order' => 'integer',
             'weight' => 'decimal:2',
             'is_active' => 'boolean',
+            'allows_photo' => 'boolean',
         ];
     }
 

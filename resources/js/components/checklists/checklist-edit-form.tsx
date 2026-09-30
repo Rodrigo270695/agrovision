@@ -34,6 +34,7 @@ export type ChecklistFormItem = {
     has_expiry: boolean;
     check_type: 'observation' | 'expiry' | string;
     weight: number | null;
+    allows_photo: boolean;
     first_value: 'yes' | 'no' | null;
     second_value: 'yes' | 'no' | null;
     observations: string | null;
@@ -106,7 +107,9 @@ export type ChecklistFormData = {
     photos: ChecklistPhoto[];
 };
 
-const TDP_EVIDENCE_ITEMS = new Set(['13', '14', '19', '21', '26', '30']);
+function itemAllowsEvidence(item: ChecklistFormItem): boolean {
+    return item.allows_photo === true;
+}
 
 function toDateInputValue(value: string): string {
     const trimmed = value.trim();
@@ -122,17 +125,6 @@ function toDateInputValue(value: string): string {
     }
 
     return '';
-}
-
-function itemAllowsEvidence(
-    templateType: string,
-    itemNumber: string | null,
-): boolean {
-    return (
-        templateType === 'tdp' &&
-        itemNumber !== null &&
-        TDP_EVIDENCE_ITEMS.has(itemNumber)
-    );
 }
 
 async function compressEvidence(file: File): Promise<File> {
@@ -1095,10 +1087,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                         const expiryDate = toDateInputValue(
                             answer?.observations ?? '',
                         );
-                        const allowsEvidence = itemAllowsEvidence(
-                            checklist.template.type,
-                            item.item_number,
-                        );
+                        const allowsEvidence = itemAllowsEvidence(item);
                         const evidencePhoto = allowsEvidence
                             ? (evidencePhotos.find(
                                   (photo) =>

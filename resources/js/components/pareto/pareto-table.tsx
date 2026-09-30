@@ -25,6 +25,7 @@ export type ParetoItem = {
     check_type: string;
     weight: number | string;
     is_active: boolean;
+    allows_photo: boolean;
     parent?: { id: number; item_number: string; label: string } | null;
 };
 
@@ -136,6 +137,21 @@ export function ParetoTable({
                 cell: (item) => (
                     <span className="text-xs uppercase text-muted-foreground">
                         {item.template_type}
+                    </span>
+                ),
+            },
+            {
+                key: 'allows_photo',
+                header: 'Foto',
+                cell: (item) => (
+                    <span
+                        className={
+                            item.allows_photo
+                                ? 'text-xs font-medium text-[#1a7f4b]'
+                                : 'text-xs text-[#6b8ead]'
+                        }
+                    >
+                        {item.allows_photo ? 'Sí' : 'No'}
                     </span>
                 ),
             },

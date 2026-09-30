@@ -20,6 +20,7 @@ export type OfflineCatalogItem = {
     has_expiry: boolean;
     check_type: string;
     weight: number | null;
+    allows_photo: boolean;
 };
 
 export type OfflineCatalogTemplate = {

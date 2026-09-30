@@ -357,6 +357,7 @@ export function buildLocalDraft(input: {
             has_expiry: item.has_expiry,
             check_type: item.check_type,
             weight: item.weight,
+            allows_photo: item.allows_photo,
             first_value: null,
             second_value: null,
             observations: null,

@@ -191,6 +191,7 @@ class ChecklistController extends Controller
                             'has_expiry' => $item->resolvedCheckType() === ParetoCheckTypes::EXPIRY,
                             'check_type' => $item->resolvedCheckType(),
                             'weight' => $item->weight !== null ? (float) $item->weight : null,
+                            'allows_photo' => (bool) $item->allows_photo,
                         ]),
                     'signatureRoles' => $template->signatureRoles
                         ->sortBy('sort_order')
@@ -563,6 +564,7 @@ class ChecklistController extends Controller
                     'has_expiry' => $checkType === ParetoCheckTypes::EXPIRY,
                     'check_type' => $checkType,
                     'weight' => $item->weight !== null ? (float) $item->weight : null,
+                    'allows_photo' => (bool) $item->allows_photo,
                     'first_value' => $answer->first_value,
                     'second_value' => $answer->second_value,
                     'observations' => $answer->observations,
@@ -995,14 +997,11 @@ class ChecklistController extends Controller
         }
 
         $item = ChecklistItem::query()->find($request->integer('checklist_item_id'));
-        $checklist->loadMissing('template');
-        $allowed = ['13', '14', '19', '21', '26', '30'];
 
         if (
             ! $item
             || (int) $item->template_id !== (int) $checklist->template_id
-            || $checklist->template?->type !== 'tdp'
-            || ! in_array((string) $item->item_number, $allowed, true)
+            || ! $item->allows_photo
         ) {
             return false;
         }

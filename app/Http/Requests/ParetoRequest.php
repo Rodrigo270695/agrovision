@@ -27,6 +27,7 @@ class ParetoRequest extends FormRequest
             'check_type' => ['required', 'string', Rule::in(ParetoCheckTypes::keys())],
             'weight' => ['required', 'numeric', 'min:0', 'max:100'],
             'is_active' => ['nullable', 'boolean'],
+            'allows_photo' => ['nullable', 'boolean'],
         ];
     }
 
@@ -56,6 +57,7 @@ class ParetoRequest extends FormRequest
                 ? null
                 : (int) $this->input('sort_order'),
             'is_active' => filter_var($this->input('is_active', true), FILTER_VALIDATE_BOOLEAN),
+            'allows_photo' => filter_var($this->input('allows_photo', false), FILTER_VALIDATE_BOOLEAN),
         ]);
     }
 }

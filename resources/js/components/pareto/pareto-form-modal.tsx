@@ -3,17 +3,11 @@ import { useEffect, useMemo, type FormEvent } from 'react';
 import InputError from '@/components/input-error';
 import type { ParetoItem, ParentOption } from '@/components/pareto/pareto-table';
 import { AppModal } from '@/components/shared/app-modal';
+import { SearchableCombobox } from '@/components/shared/searchable-combobox';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 
 type Props = {
@@ -43,6 +37,7 @@ export function ParetoFormModal({
         check_type: 'observation',
         weight: '0',
         is_active: true,
+        allows_photo: false,
     });
 
     useEffect(() => {
@@ -59,6 +54,7 @@ export function ParetoFormModal({
             check_type: item?.check_type ?? 'observation',
             weight: item?.weight != null ? String(item.weight) : '0',
             is_active: item?.is_active ?? true,
+            allows_photo: item?.allows_photo ?? false,
         });
         form.clearErrors();
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -117,6 +113,7 @@ export function ParetoFormModal({
             check_type: form.data.check_type,
             weight: Number(form.data.weight),
             is_active: Boolean(form.data.is_active),
+            allows_photo: Boolean(form.data.allows_photo),
         };
 
         const options = {
@@ -175,27 +172,26 @@ export function ParetoFormModal({
                         <Label className="text-xs text-[#1a2b4c]">
                             Plantilla <span className="text-red-500">*</span>
                         </Label>
-                        <Select
+                        <SearchableCombobox
+                            compact
+                            allowClear={false}
                             value={form.data.template_type}
-                            onValueChange={(value) =>
-                                form.setData(
-                                    'template_type',
-                                    value as 'tdp' | 'tdc',
-                                )
-                            }
-                        >
-                            <SelectTrigger className="h-9 w-full cursor-pointer border-[#c5d5e6]">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white">
-                                <SelectItem value="tdp" className="cursor-pointer">
-                                    TDP
-                                </SelectItem>
-                                <SelectItem value="tdc" className="cursor-pointer">
-                                    TDC
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
+                            options={[
+                                { value: 'tdp', label: 'TDP' },
+                                { value: 'tdc', label: 'TDC' },
+                            ]}
+                            onChange={(value) => {
+                                if (!value) {
+                                    return;
+                                }
+
+                                form.setData((current) => ({
+                                    ...current,
+                                    template_type: value as 'tdp' | 'tdc',
+                                    parent_id: '',
+                                }));
+                            }}
+                        />
                         <InputError message={form.errors.template_type} />
                     </div>
                     <div className="grid gap-1.5">
@@ -232,27 +228,20 @@ export function ParetoFormModal({
                         <Label className="text-xs text-[#1a2b4c]">
                             Tipo de check <span className="text-red-500">*</span>
                         </Label>
-                        <Select
+                        <SearchableCombobox
+                            compact
+                            allowClear={false}
                             value={form.data.check_type}
-                            onValueChange={(value) =>
-                                form.setData('check_type', value)
-                            }
-                        >
-                            <SelectTrigger className="h-9 w-full cursor-pointer border-[#c5d5e6]">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white">
-                                {checkTypeOptions.map((option) => (
-                                    <SelectItem
-                                        key={option.value}
-                                        value={option.value}
-                                        className="cursor-pointer"
-                                    >
-                                        {option.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            options={checkTypeOptions.map((option) => ({
+                                value: option.value,
+                                label: option.label,
+                            }))}
+                            onChange={(value) => {
+                                if (value) {
+                                    form.setData('check_type', value);
+                                }
+                            }}
+                        />
                         <InputError message={form.errors.check_type} />
                     </div>
                     <div className="grid gap-1.5">
@@ -277,36 +266,18 @@ export function ParetoFormModal({
                 <div className="grid gap-3 sm:grid-cols-2">
                     <div className="grid gap-1.5">
                         <Label className="text-xs text-[#1a2b4c]">Padre</Label>
-                        <Select
-                            value={form.data.parent_id || '__none'}
-                            onValueChange={(value) =>
-                                form.setData(
-                                    'parent_id',
-                                    value === '__none' ? '' : value,
-                                )
-                            }
-                        >
-                            <SelectTrigger className="h-9 w-full cursor-pointer border-[#c5d5e6]">
-                                <SelectValue placeholder="Sin padre" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white">
-                                <SelectItem
-                                    value="__none"
-                                    className="cursor-pointer"
-                                >
-                                    Sin padre
-                                </SelectItem>
-                                {parentsForTemplate.map((option) => (
-                                    <SelectItem
-                                        key={option.id}
-                                        value={String(option.id)}
-                                        className="cursor-pointer"
-                                    >
-                                        {option.item_number}. {option.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <SearchableCombobox
+                            compact
+                            allowClear
+                            value={form.data.parent_id || null}
+                            placeholder="Sin padre"
+                            menuMinWidth={280}
+                            options={parentsForTemplate.map((option) => ({
+                                value: String(option.id),
+                                label: `${option.item_number}. ${option.label}`,
+                            }))}
+                            onChange={(value) => form.setData('parent_id', value ?? '')}
+                        />
                     </div>
                     <div className="grid gap-1.5">
                         <Label className="text-xs text-[#1a2b4c]">Orden</Label>
@@ -322,6 +293,16 @@ export function ParetoFormModal({
                     </div>
                 </div>
 
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-[#1a2b4c]">
+                    <Checkbox
+                        checked={form.data.allows_photo}
+                        onCheckedChange={(checked) =>
+                            form.setData('allows_photo', Boolean(checked))
+                        }
+                        className="border-[#c5d5e6] data-[state=checked]:border-[#2e5a9e] data-[state=checked]:bg-[#2e5a9e] data-[state=checked]:text-white"
+                    />
+                    Se sube imagen
+                </label>
                 <label className="flex cursor-pointer items-center gap-2 text-sm text-[#1a2b4c]">
                     <Checkbox
                         checked={form.data.is_active}

@@ -100,6 +100,7 @@ class ParetoChecklistSync
                     'has_expiry' => $pareto->check_type === ParetoCheckTypes::EXPIRY,
                     'check_type' => $pareto->check_type,
                     'weight' => $pareto->weight,
+                    'allows_photo' => (bool) $pareto->allows_photo,
                 ];
 
                 if ($existing) {
