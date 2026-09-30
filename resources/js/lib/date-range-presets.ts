@@ -1,4 +1,5 @@
 import {
+    addDays,
     endOfMonth,
     endOfWeek,
     endOfYear,
@@ -9,6 +10,7 @@ import {
     subDays,
     subMonths,
     subWeeks,
+    subYears,
 } from 'date-fns';
 
 export function rangeToday(): { from: Date; to: Date } {
@@ -21,6 +23,24 @@ export function rangeYesterday(): { from: Date; to: Date } {
     const n = startOfDay(subDays(new Date(), 1));
 
     return { from: n, to: n };
+}
+
+export function rangeTomorrow(): { from: Date; to: Date } {
+    const n = startOfDay(addDays(new Date(), 1));
+
+    return { from: n, to: n };
+}
+
+export function rangeLast7Days(): { from: Date; to: Date } {
+    const today = startOfDay(new Date());
+
+    return { from: subDays(today, 6), to: today };
+}
+
+export function rangeNext7Days(): { from: Date; to: Date } {
+    const today = startOfDay(new Date());
+
+    return { from: today, to: addDays(today, 6) };
 }
 
 export function rangeThisWeek(): { from: Date; to: Date } {
@@ -57,4 +77,10 @@ export function rangeThisYear(): { from: Date; to: Date } {
     const n = new Date();
 
     return { from: startOfYear(n), to: endOfYear(n) };
+}
+
+export function rangeLastYear(): { from: Date; to: Date } {
+    const ref = subYears(new Date(), 1);
+
+    return { from: startOfYear(ref), to: endOfYear(ref) };
 }
