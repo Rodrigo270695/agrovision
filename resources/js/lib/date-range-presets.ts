@@ -10,7 +10,6 @@ import {
     subDays,
     subMonths,
     subWeeks,
-    subYears,
 } from 'date-fns';
 
 export function rangeToday(): { from: Date; to: Date } {
@@ -77,10 +76,4 @@ export function rangeThisYear(): { from: Date; to: Date } {
     const n = new Date();
 
     return { from: startOfYear(n), to: endOfYear(n) };
-}
-
-export function rangeLastYear(): { from: Date; to: Date } {
-    const ref = subYears(new Date(), 1);
-
-    return { from: startOfYear(ref), to: endOfYear(ref) };
 }

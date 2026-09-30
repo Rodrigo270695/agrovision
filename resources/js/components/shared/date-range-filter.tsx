@@ -26,7 +26,6 @@ import {
     rangeLast7Days,
     rangeLastMonth,
     rangeLastWeek,
-    rangeLastYear,
     rangeNext7Days,
     rangeThisMonth,
     rangeThisWeek,
@@ -56,8 +55,7 @@ type PresetId =
     | 'last_week'
     | 'this_month'
     | 'last_month'
-    | 'this_year'
-    | 'last_year';
+    | 'this_year';
 
 type PresetOption = {
     id: PresetId;
@@ -324,7 +322,6 @@ export function DateRangeFilter({
             build('this_month', 'Este mes', rangeThisMonth()),
             build('last_month', 'Mes anterior', rangeLastMonth()),
             build('this_year', 'Este año', rangeThisYear()),
-            build('last_year', 'Año anterior', rangeLastYear()),
         ];
     }, []);
 
