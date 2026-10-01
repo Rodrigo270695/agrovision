@@ -1,5 +1,5 @@
 import {
-    FileDown,
+    FileText,
     GraduationCap,
     Lock,
     Pencil,
@@ -200,9 +200,10 @@ function UnitActions({
                 induction.status === 'closed'
                     ? {
                           key: 'pdf',
-                          label: 'Descargar documentos',
-                          icon: FileDown,
+                          label: 'Ver documentos',
+                          icon: FileText,
                           href: `/inducciones/${induction.id}/pdf`,
+                          target: '_blank',
                       }
                     : null,
                 canUpdate && !locked

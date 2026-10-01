@@ -5,14 +5,14 @@ namespace App\Support;
 use App\Models\Induction;
 use App\Models\InductionAttendee;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use ZipArchive;
+use setasign\Fpdi\Fpdi;
+use setasign\Fpdi\PdfParser\StreamReader;
 
 final class InductionDocumentPackage
 {
-    public static function download(Induction $induction): BinaryFileResponse
+    public static function download(Induction $induction): Response
     {
         $induction->load([
             'attendees' => fn ($q) => $q->orderBy('driver_name'),
@@ -97,58 +97,64 @@ final class InductionDocumentPackage
             'categoryLabels' => InductionFormOptions::categories(),
         ])->setPaper('a4', 'landscape');
 
-        $acta = $induction->acta_number ?: str_pad((string) $induction->id, 6, '0', STR_PAD_LEFT);
-        $zipPath = storage_path('app/tmp/induccion_'.$acta.'_'.Str::random(8).'.zip');
-        $zipDir = dirname($zipPath);
+        $documents = [
+            $reportPdf->output(),
+            $registerPdf->output(),
+        ];
 
-        if (! is_dir($zipDir)) {
-            mkdir($zipDir, 0775, true);
-        }
-
-        $zip = new ZipArchive;
-
-        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-            throw new \RuntimeException('No se pudo crear el archivo ZIP.');
-        }
-
-        $zip->addFromString(
-            '00_informe_sst_'.$acta.'.pdf',
-            $reportPdf->output()
-        );
-
-        $zip->addFromString(
-            '01_registro_induccion_'.$acta.'.pdf',
-            $registerPdf->output()
-        );
-
-        foreach ($attendanceRows as $index => $row) {
+        foreach ($attendanceRows as $row) {
             /** @var InductionAttendee $attendee */
             $attendee = $row['attendee'];
 
-            $comprobante = Pdf::loadView('pdfs.induction-risst-receipt', [
+            $documents[] = Pdf::loadView('pdfs.induction-risst-receipt', [
                 'induction' => $induction,
                 'attendee' => $attendee,
                 'logoSrc' => $logoSrc,
                 'signatureSrc' => $row['signature_src'],
                 'fingerprintSrc' => $row['fingerprint_src'],
-            ])->setPaper('a4', 'portrait');
-
-            $safeName = Str::slug($attendee->driver_name ?: 'conductor', '_');
-            $safeDni = preg_replace('/\D+/', '', (string) $attendee->driver_dni) ?: 'sindni';
-            $fileIndex = str_pad((string) ($index + 2), 2, '0', STR_PAD_LEFT);
-
-            $zip->addFromString(
-                $fileIndex.'_comprobante_'.$safeDni.'_'.$safeName.'.pdf',
-                $comprobante->output()
-            );
+            ])->setPaper('a4', 'portrait')->output();
         }
 
-        $zip->close();
+        $acta = $induction->acta_number ?: str_pad((string) $induction->id, 6, '0', STR_PAD_LEFT);
+        $filename = 'induccion_'.$acta.'.pdf';
 
-        return response()
-            ->download($zipPath, 'induccion_'.$acta.'_documentos.zip', [
-                'Content-Type' => 'application/zip',
-            ])
-            ->deleteFileAfterSend(true);
+        return response(self::merge($documents), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+        ]);
+    }
+
+    /**
+     * @param  list<string>  $documents
+     */
+    private static function merge(array $documents): string
+    {
+        $pdf = new Fpdi;
+        $pdf->SetMargins(0, 0, 0);
+        $pdf->SetAutoPageBreak(false);
+
+        foreach ($documents as $binary) {
+            $pageCount = $pdf->setSourceFile(StreamReader::createByString($binary));
+
+            for ($page = 1; $page <= $pageCount; $page++) {
+                $template = $pdf->importPage($page);
+                $size = $pdf->getTemplateSize($template);
+
+                if (! is_array($size)) {
+                    throw new \RuntimeException('No se pudo leer una página del documento.');
+                }
+
+                $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+                $pdf->useTemplate($template, 0, 0, $size['width'], $size['height'], true);
+            }
+        }
+
+        $merged = $pdf->Output('S');
+
+        if (! is_string($merged) || $merged === '') {
+            throw new \RuntimeException('No se pudo unir el documento.');
+        }
+
+        return $merged;
     }
 }

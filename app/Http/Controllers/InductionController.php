@@ -30,7 +30,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class InductionController extends Controller
 {
@@ -263,7 +263,7 @@ class InductionController extends Controller
         return back()->with('toast', [
             'type' => 'success',
             'message' => match ($next) {
-                InductionStatuses::CLOSED => 'Inducción finalizada. Ya puedes descargar el paquete de documentos (ZIP).',
+                InductionStatuses::CLOSED => 'Inducción finalizada. Ya puedes ver el documento en otra pestaña.',
                 InductionStatuses::IN_PROGRESS => 'Inducción iniciada. Ya puedes marcar asistencia y capturar firmas.',
                 default => 'Estado actualizado: '.InductionStatuses::label($next).'.',
             },
@@ -774,7 +774,7 @@ class InductionController extends Controller
         ]);
     }
 
-    public function pdf(Induction $induction): BinaryFileResponse|RedirectResponse
+    public function pdf(Induction $induction): HttpResponse|RedirectResponse
     {
         $this->ensureCanAccess($induction);
 
@@ -783,7 +783,7 @@ class InductionController extends Controller
                 ->route('inductions.show', $induction)
                 ->with('toast', [
                     'type' => 'error',
-                    'message' => 'Solo se puede descargar el paquete cuando la inducción esté finalizada.',
+                    'message' => 'Solo se puede ver el documento cuando la inducción esté finalizada.',
                 ]);
         }
 
@@ -807,7 +807,7 @@ class InductionController extends Controller
                 ->route('inductions.show', $induction)
                 ->with('toast', [
                     'type' => 'error',
-                    'message' => 'No hay conductores que hayan asistido y firmado para generar el paquete.',
+                    'message' => 'No hay conductores que hayan asistido y firmado para generar el documento.',
                 ]);
         }
 
@@ -820,7 +820,7 @@ class InductionController extends Controller
                 ->route('inductions.show', $induction)
                 ->with('toast', [
                     'type' => 'error',
-                    'message' => 'No se pudo generar el ZIP. Revisa firmas/fotos e inténtalo de nuevo.',
+                    'message' => 'No se pudo generar el PDF. Revisa firmas/fotos e inténtalo de nuevo.',
                 ]);
         }
     }

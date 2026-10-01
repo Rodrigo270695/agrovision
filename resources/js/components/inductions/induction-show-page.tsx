@@ -3,7 +3,7 @@ import {
     ArrowLeft,
     Check,
     Download,
-    FileDown,
+    FileText,
     PenLine,
     UserMinus,
     Users,
@@ -177,7 +177,6 @@ export function InductionShowPage() {
     const [bulkBusy, setBulkBusy] = useState(false);
     const [savingVerificationPhoto, setSavingVerificationPhoto] =
         useState(false);
-    const [downloadingZip, setDownloadingZip] = useState(false);
     const [signing, setSigning] = useState<Attendee | null>(null);
     const [signingSpeaker, setSigningSpeaker] = useState(false);
     const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(
@@ -366,61 +365,6 @@ export function InductionShowPage() {
         });
     };
 
-    const downloadDocumentsZip = async () => {
-        if (!induction.id || downloadingZip) {
-            return;
-        }
-
-        setDownloadingZip(true);
-
-        try {
-            const response = await fetch(
-                `/inducciones/${induction.id}/pdf`,
-                {
-                    method: 'GET',
-                    credentials: 'same-origin',
-                    headers: {
-                        Accept: 'application/zip,application/octet-stream,*/*',
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                },
-            );
-
-            const contentType = response.headers.get('content-type') ?? '';
-
-            if (
-                !response.ok ||
-                contentType.includes('text/html') ||
-                contentType.includes('application/json')
-            ) {
-                toast.error(
-                    'No se pudo descargar el ZIP. Verifica firmas e inténtalo otra vez.',
-                );
-                router.reload({ only: ['induction', 'flash'] });
-
-                return;
-            }
-
-            const blob = await response.blob();
-            const acta =
-                induction.acta_number ||
-                String(induction.id).padStart(6, '0');
-            const objectUrl = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = objectUrl;
-            link.download = `induccion_${acta}_documentos.zip`;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            URL.revokeObjectURL(objectUrl);
-            toast.success('Paquete ZIP descargado.');
-        } catch {
-            toast.error('Error de red al descargar el paquete ZIP.');
-        } finally {
-            setDownloadingZip(false);
-        }
-    };
-
     const openSign = (attendee: Attendee) => {
         if (!canManageAttendance) {
             return;
@@ -581,20 +525,17 @@ export function InductionShowPage() {
                             {induction.status === 'closed' ? (
                                 <Button
                                     type="button"
-                                    disabled={downloadingZip}
                                     onClick={() => {
-                                        void downloadDocumentsZip();
+                                        window.open(
+                                            `/inducciones/${induction.id}/pdf`,
+                                            '_blank',
+                                            'noopener,noreferrer',
+                                        );
                                     }}
                                     className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
                                 >
-                                    {downloadingZip ? (
-                                        <Spinner />
-                                    ) : (
-                                        <FileDown className="size-4" />
-                                    )}
-                                    {downloadingZip
-                                        ? 'Generando ZIP…'
-                                        : 'Descargar documentos (ZIP)'}
+                                    <FileText className="size-4" />
+                                    Ver documentos
                                 </Button>
                             ) : null}
                             {canUpdate && locked ? (

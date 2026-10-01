@@ -21,6 +21,8 @@
         "laravel/wayfinder": "^0.1.14",
         "minishlink/web-push": "10.1",
         "phpoffice/phpspreadsheet": "^5.9",
+        "setasign/fpdf": "^1.8",
+        "setasign/fpdi": "^2.6",
         "spatie/laravel-permission": "^8.0",
         "stancl/tenancy": "^3.10"
     },
