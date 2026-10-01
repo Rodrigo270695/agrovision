@@ -81,6 +81,38 @@ class HandleInertiaRequests extends Middleware
                 'toast' => fn () => $request->session()->get('toast'),
                 'unit_import' => fn () => $request->session()->get('unit_import'),
             ],
+            'inspectionEditGrants' => function () use ($user, $isTenant) {
+                $empty = ['items' => []];
+
+                if (
+                    ! $isTenant
+                    || ! $user
+                    || ! Schema::hasTable('inspection_edit_requests')
+                ) {
+                    return $empty;
+                }
+
+                $rows = InspectionEditRequest::query()
+                    ->where('requested_by', $user->id)
+                    ->whereIn('status', [InspectionEditRequest::PENDING, InspectionEditRequest::APPROVED])
+                    ->whereNull('consumed_at')
+                    ->with('checklist:id,plate_number,driver_name')
+                    ->latest('id')
+                    ->limit(12)
+                    ->get();
+
+                return [
+                    'items' => $rows->map(fn (InspectionEditRequest $request) => [
+                        'id' => $request->id,
+                        'checklist_id' => $request->unit_checklist_id,
+                        'status' => $request->status,
+                        'pass' => $request->inspection_pass === 'second' ? 'second' : 'first',
+                        'pass_label' => $request->inspection_pass === 'second' ? '2da' : '1ra',
+                        'plate_number' => $request->checklist?->plate_number,
+                        'driver_name' => $request->checklist?->driver_name,
+                    ])->values(),
+                ];
+            },
             'inspectionApprovals' => function () use ($user, $isTenant) {
                 $empty = ['count' => 0, 'items' => []];
 

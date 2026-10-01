@@ -1,6 +1,9 @@
 import { usePage } from '@inertiajs/react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
-import { InspectionEditApprovals } from '@/components/checklists/inspection-edit-approvals';
+import {
+    InspectionEditApprovals,
+    InspectionEditGrants,
+} from '@/components/checklists/inspection-edit-approvals';
 import { PushNotificationPrompt } from '@/components/push/push-notification-prompt';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
@@ -23,6 +26,7 @@ export function AppSidebarHeader({
                 {isCentral ? null : (
                     <>
                         <InspectionEditApprovals />
+                        <InspectionEditGrants />
                         <PushNotificationPrompt />
                     </>
                 )}
