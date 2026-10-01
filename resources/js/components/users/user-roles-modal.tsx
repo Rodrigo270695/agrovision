@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import InputError from '@/components/input-error';
 import { AppModal } from '@/components/shared/app-modal';
-import { SearchableCombobox } from '@/components/shared/searchable-combobox';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -125,22 +124,15 @@ export function UserRolesModal({
         }
 
         form.transform((data) => {
-            const coordinator = data.roles.some(
-                (role) => role.toLowerCase() === 'coordinador',
-            );
-            const inspector = data.roles.some(
-                (role) => role.toLowerCase() === 'inspector',
+            const needsPlaces = data.roles.some((role) =>
+                ['coordinador', 'inspector'].includes(role.toLowerCase()),
             );
 
             return {
                 roles: data.roles,
-                place_ids: coordinator
+                place_ids: needsPlaces
                     ? data.place_ids.map((id) => Number(id))
                     : [],
-                place_id:
-                    !coordinator && inspector && data.place_id
-                        ? Number(data.place_id)
-                        : null,
             };
         });
 
@@ -206,58 +198,28 @@ export function UserRolesModal({
                     {needsPlace ? (
                         <div className="mb-2 grid gap-1.5">
                             <Label className="text-xs text-[#1a2b4c]">
-                                {isCoordinator ? 'Lugares' : 'Lugar'}{' '}
-                                <span className="text-red-500">*</span>
+                                Lugares <span className="text-red-500">*</span>
                             </Label>
-                            {isCoordinator ? (
-                                <>
-                                    <PlaceMultiPicker
-                                        places={places}
-                                        value={form.data.place_ids}
-                                        onChange={(placeIds) =>
-                                            form.setData('place_ids', placeIds)
-                                        }
-                                        disabled={form.processing}
-                                    />
-                                    <p className="text-[11px] text-[#6b8ead]">
-                                        {form.data.place_ids.length}{' '}
-                                        {form.data.place_ids.length === 1
-                                            ? 'lugar seleccionado'
-                                            : 'lugares seleccionados'}
-                                    </p>
-                                    <InputError
-                                        message={
-                                            form.errors.place_ids ??
-                                            form.errors['place_ids.0']
-                                        }
-                                    />
-                                </>
-                            ) : (
-                                <>
-                                    <SearchableCombobox
-                                        id="user-roles-place"
-                                        value={form.data.place_id || null}
-                                        options={places.map((place) => ({
-                                            value: String(place.id),
-                                            label: place.site_name
-                                                ? `${place.site_name} · ${place.name}`
-                                                : place.name,
-                                        }))}
-                                        onChange={(value) =>
-                                            form.setData('place_id', value ?? '')
-                                        }
-                                        placeholder="Buscar lugar..."
-                                        emptyMessage={
-                                            places.length === 0
-                                                ? 'No hay lugares activos. Créalos en Lugares.'
-                                                : 'Sin coincidencias'
-                                        }
-                                        allowClear={false}
-                                        disabled={form.processing}
-                                    />
-                                    <InputError message={form.errors.place_id} />
-                                </>
-                            )}
+                            <PlaceMultiPicker
+                                places={places}
+                                value={form.data.place_ids}
+                                onChange={(placeIds) =>
+                                    form.setData('place_ids', placeIds)
+                                }
+                                disabled={form.processing}
+                            />
+                            <p className="text-[11px] text-[#6b8ead]">
+                                {form.data.place_ids.length}{' '}
+                                {form.data.place_ids.length === 1
+                                    ? 'lugar seleccionado'
+                                    : 'lugares seleccionados'}
+                            </p>
+                            <InputError
+                                message={
+                                    form.errors.place_ids ??
+                                    form.errors['place_ids.0']
+                                }
+                            />
                         </div>
                     ) : null}
                     {filteredRoles.length === 0 ? (

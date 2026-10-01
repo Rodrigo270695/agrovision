@@ -359,7 +359,7 @@ export function UserFormFields({
                 />
                 <p className="text-xs text-[#6b8ead]">
                     {multiplePlaces
-                        ? 'Un coordinador puede tener varios lugares.'
+                        ? 'Puede tener varios lugares.'
                         : 'Obligatorio para coordinadores e inspectores.'}
                 </p>
             </div>

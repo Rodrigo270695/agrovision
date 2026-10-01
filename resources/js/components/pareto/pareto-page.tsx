@@ -35,7 +35,6 @@ export function ParetoPage() {
         <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
             <ParetoHeader
                 stats={stats}
-                templateType={filters.template_type}
                 onCreate={() => {
                     if (!can('pareto.create')) {
                         return;

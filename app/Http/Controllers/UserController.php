@@ -150,7 +150,7 @@ class UserController extends Controller
 
         $user->update($payload);
 
-        $placeIds = $user->hasRole(SystemRoles::COORDINADOR)
+        $placeIds = $user->hasAnyRole([SystemRoles::COORDINADOR, SystemRoles::INSPECTOR])
             ? ($data['place_ids'] ?? [])
             : (isset($data['place_id']) && $data['place_id']
                 ? [(int) $data['place_id']]
@@ -176,16 +176,16 @@ class UserController extends Controller
         $roles = $request->validated('roles');
         $user->syncRoles($roles);
 
-        $isCoordinator = in_array(SystemRoles::COORDINADOR, array_map(
+        $selected = array_map(
             static fn ($name) => mb_strtolower((string) $name),
             $roles,
-        ), true);
+        );
+        $needsPlaces = in_array(SystemRoles::COORDINADOR, $selected, true)
+            || in_array(SystemRoles::INSPECTOR, $selected, true);
 
-        $placeIds = $isCoordinator
+        $placeIds = $needsPlaces
             ? ($request->validated('place_ids') ?? [])
-            : ($request->validated('place_id')
-                ? [(int) $request->validated('place_id')]
-                : []);
+            : [];
 
         $this->syncPlaces($user, $placeIds);
 

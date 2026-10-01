@@ -23,8 +23,10 @@ class UserRequest extends FormRequest
         /** @var User|null $user */
         $user = $this->route('user');
         $isUpdate = $user !== null;
-        $isCoordinator = $user?->hasRole(SystemRoles::COORDINADOR) ?? false;
-        $requiresSinglePlace = ($user?->requiresPlace() ?? false) && ! $isCoordinator;
+        $needsManyPlaces = $user?->hasAnyRole([
+            SystemRoles::COORDINADOR,
+            SystemRoles::INSPECTOR,
+        ]) ?? false;
         $activePlace = Rule::exists('places', 'id')->where(
             fn ($query) => $query->where('status', 'active'),
         );
@@ -56,13 +58,13 @@ class UserRequest extends FormRequest
             'document_number' => $documentNumberRules,
             'phone' => ['required', 'string', 'regex:/^9\d{8}$/'],
             'place_ids' => [
-                $isCoordinator ? 'required' : 'nullable',
+                $needsManyPlaces ? 'required' : 'nullable',
                 'array',
-                $isCoordinator ? 'min:1' : 'max:0',
+                $needsManyPlaces ? 'min:1' : 'max:0',
             ],
             'place_ids.*' => ['integer', 'distinct', $activePlace],
             'place_id' => [
-                $requiresSinglePlace ? 'required' : 'nullable',
+                'nullable',
                 'integer',
                 Rule::exists('places', 'id'),
             ],
@@ -92,10 +94,9 @@ class UserRequest extends FormRequest
             'document_number.regex' => 'El número de documento no es válido (DNI: 8 dígitos).',
             'phone.required' => 'El celular es obligatorio.',
             'phone.regex' => 'El celular debe tener 9 dígitos y empezar con 9.',
-            'place_ids.required' => 'Selecciona al menos un lugar para el coordinador.',
-            'place_ids.min' => 'Selecciona al menos un lugar para el coordinador.',
+            'place_ids.required' => 'Selecciona al menos un lugar.',
+            'place_ids.min' => 'Selecciona al menos un lugar.',
             'place_ids.*.exists' => 'Selecciona lugares activos.',
-            'place_id.required' => 'El lugar es obligatorio para el inspector.',
             'place_id.exists' => 'El lugar seleccionado no existe.',
             'password.required' => 'La contraseña es obligatoria.',
             'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
@@ -137,9 +138,12 @@ class UserRequest extends FormRequest
 
         /** @var User|null $user */
         $user = $this->route('user');
-        $isCoordinator = $user?->hasRole(SystemRoles::COORDINADOR) ?? false;
+        $needsManyPlaces = $user?->hasAnyRole([
+            SystemRoles::COORDINADOR,
+            SystemRoles::INSPECTOR,
+        ]) ?? false;
 
-        $placeIds = $isCoordinator
+        $placeIds = $needsManyPlaces
             ? collect((array) $this->input('place_ids', []))
                 ->filter(fn ($id) => $id !== null && $id !== '')
                 ->map(fn ($id) => (int) $id)
@@ -155,7 +159,7 @@ class UserRequest extends FormRequest
             'document_number' => $number,
             'phone' => $phone,
             'place_ids' => $placeIds,
-            'place_id' => ! $isCoordinator && $this->filled('place_id')
+            'place_id' => ! $needsManyPlaces && $this->filled('place_id')
                 ? (int) $this->input('place_id')
                 : null,
         ]);

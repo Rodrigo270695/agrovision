@@ -34,8 +34,9 @@ export function UserFormModal({
 }: Props) {
     const isEditing = Boolean(user);
     const multiplePlaces =
-        user?.roles?.some((role) => role.name.toLowerCase() === 'coordinador') ??
-        false;
+        user?.roles?.some((role) =>
+            ['coordinador', 'inspector'].includes(role.name.toLowerCase()),
+        ) ?? false;
     const form = useForm(emptyValues);
 
     useEffect(() => {

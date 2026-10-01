@@ -29,8 +29,8 @@ class UserRolesRequest extends FormRequest
             static fn ($name) => mb_strtolower(trim((string) $name)),
             (array) $this->input('roles', []),
         );
-        $isCoordinator = in_array(SystemRoles::COORDINADOR, $selected, true);
-        $isInspector = in_array(SystemRoles::INSPECTOR, $selected, true);
+        $needsPlaces = in_array(SystemRoles::COORDINADOR, $selected, true)
+            || in_array(SystemRoles::INSPECTOR, $selected, true);
         $activePlace = Rule::exists('places', 'id')->where(
             fn ($query) => $query->where('status', 'active'),
         );
@@ -39,16 +39,11 @@ class UserRolesRequest extends FormRequest
             'roles' => ['present', 'array'],
             'roles.*' => ['string', Rule::in($roleNames)],
             'place_ids' => [
-                $isCoordinator ? 'required' : 'nullable',
+                $needsPlaces ? 'required' : 'nullable',
                 'array',
-                $isCoordinator ? 'min:1' : 'max:0',
+                $needsPlaces ? 'min:1' : 'max:0',
             ],
             'place_ids.*' => ['integer', 'distinct', $activePlace],
-            'place_id' => [
-                ! $isCoordinator && $isInspector ? 'required' : 'nullable',
-                'integer',
-                $activePlace,
-            ],
         ];
     }
 
@@ -61,11 +56,9 @@ class UserRolesRequest extends FormRequest
             'roles.present' => 'Debes enviar la lista de roles.',
             'roles.array' => 'El formato de roles no es válido.',
             'roles.*.in' => 'Uno de los roles seleccionados no es válido.',
-            'place_ids.required' => 'Selecciona al menos un lugar para el coordinador.',
-            'place_ids.min' => 'Selecciona al menos un lugar para el coordinador.',
+            'place_ids.required' => 'Selecciona al menos un lugar.',
+            'place_ids.min' => 'Selecciona al menos un lugar.',
             'place_ids.*.exists' => 'Selecciona lugares activos.',
-            'place_id.required' => 'El lugar es obligatorio para el inspector.',
-            'place_id.exists' => 'Selecciona un lugar activo.',
         ];
     }
 
@@ -75,9 +68,10 @@ class UserRolesRequest extends FormRequest
             static fn ($name) => mb_strtolower(trim((string) $name)),
             (array) $this->input('roles', []),
         );
-        $isCoordinator = in_array(SystemRoles::COORDINADOR, $selected, true);
+        $needsPlaces = in_array(SystemRoles::COORDINADOR, $selected, true)
+            || in_array(SystemRoles::INSPECTOR, $selected, true);
 
-        $placeIds = $isCoordinator
+        $placeIds = $needsPlaces
             ? collect((array) $this->input('place_ids', []))
                 ->filter(fn ($id) => $id !== null && $id !== '')
                 ->map(fn ($id) => (int) $id)
@@ -88,9 +82,6 @@ class UserRolesRequest extends FormRequest
 
         $this->merge([
             'place_ids' => $placeIds,
-            'place_id' => ! $isCoordinator && $this->filled('place_id')
-                ? (int) $this->input('place_id')
-                : null,
         ]);
     }
 }
