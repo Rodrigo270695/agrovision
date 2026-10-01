@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use FontLib\Font;
+
 class CertificateFonts
 {
     /**
@@ -104,6 +106,71 @@ class CertificateFonts
             'family' => $font['preview'],
             'url' => $font['file'] ? asset('fonts/certificates/'.$font['file']) : null,
         ], self::all());
+    }
+
+    /**
+     * DomPDF draws custom fonts below the CSS top and stretches line boxes.
+     * These values put the baseline and the line gap where the editor shows them.
+     *
+     * @return array{line_height: float, nudge_mm: float}
+     */
+    public static function pdfPlacement(string $pdfFamily, float $sizePt): array
+    {
+        [$ascender, $descender] = self::normalizedMetrics($pdfFamily);
+        $content = ($ascender - $descender) / 1000;
+        $ascenderEm = $ascender / 1000;
+        $browserHalf = max(0, (1.25 - $content) / 2);
+        $browserBaseline = $browserHalf + $ascenderEm;
+        $lineHeight = $content > 0 ? 1.25 / ($content * 1.1) : 1.25;
+        $nudgePt = (1.0 - $browserBaseline) * $sizePt;
+
+        return [
+            'line_height' => round($lineHeight, 4),
+            'nudge_mm' => $nudgePt * 25.4 / 72,
+        ];
+    }
+
+    /**
+     * @return array{0: float, 1: float}
+     */
+    private static function normalizedMetrics(string $pdfFamily): array
+    {
+        $face = trim(strtok($pdfFamily, ',') ?: $pdfFamily);
+
+        if (str_starts_with($face, 'DejaVu')) {
+            return [928.0, -236.0];
+        }
+
+        static $cache = [];
+
+        if (isset($cache[$face])) {
+            return $cache[$face];
+        }
+
+        $file = null;
+
+        foreach (self::all() as $font) {
+            if ($font['face'] === $face && $font['file'] !== null) {
+                $file = public_path('fonts/certificates/'.$font['file']);
+                break;
+            }
+        }
+
+        if ($file === null || ! is_file($file)) {
+            return $cache[$face] = [928.0, -236.0];
+        }
+
+        $font = Font::load($file);
+        $font->parse();
+        $head = $font->getData('head');
+        $hhea = $font->getData('hhea');
+        $em = max(1, (int) ($head['unitsPerEm'] ?? 1000));
+        $font->close();
+
+        return $cache[$face] = [
+            (float) $hhea['ascent'] / $em * 1000,
+            (float) $hhea['descent'] / $em * 1000,
+        ];
     }
 
     public static function pdfFaceCss(): string

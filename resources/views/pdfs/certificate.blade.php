@@ -25,7 +25,7 @@
         .block {
             position: absolute;
             margin: 0;
-            line-height: 1.25;
+            padding: 0;
             white-space: pre-wrap;
         }
         .sig, .logo {
@@ -57,9 +57,13 @@
         @endif
 
         @foreach ($blocks as $block)
+            @php
+                $placement = \App\Support\CertificateFonts::pdfPlacement((string) $block['font'], (float) $block['size']);
+                $top = ((float) $block['y'] / 100) * 210 - $placement['nudge_mm'];
+            @endphp
             <div
                 class="block"
-                style="left: {{ $block['x'] }}%; top: {{ $block['y'] }}%; width: {{ $block['w'] }}%; text-align: {{ $block['align'] }}; font-size: {{ $block['size'] }}pt; font-weight: {{ $block['weight'] }}; color: {{ $block['color'] }}; font-family: {{ $block['font'] }};"
+                style="left: {{ $block['x'] }}%; top: {{ $top }}mm; width: {{ $block['w'] }}%; text-align: {{ $block['align'] }}; font-size: {{ $block['size'] }}pt; line-height: {{ $placement['line_height'] }}; font-weight: {{ $block['weight'] }}; color: {{ $block['color'] }}; font-family: {{ $block['font'] }};"
             >{{ $block['text'] }}</div>
         @endforeach
 
