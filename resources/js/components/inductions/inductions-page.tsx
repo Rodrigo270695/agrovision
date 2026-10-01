@@ -25,6 +25,22 @@ type PageProps = {
     formOptions: InductionFormOptions;
 };
 
+function inductionExportHref(filters: InductionsFilters): string {
+    const params = new URLSearchParams();
+
+    if (filters.search) {
+        params.set('search', filters.search);
+    }
+
+    if (filters.status) {
+        params.set('status', filters.status);
+    }
+
+    const query = params.toString();
+
+    return query ? `/inducciones/exportar?${query}` : '/inducciones/exportar';
+}
+
 export function InductionsPage() {
     const {
         inductions,
@@ -48,6 +64,7 @@ export function InductionsPage() {
         <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
             <InductionsHeader
                 stats={stats}
+                exportHref={inductionExportHref(filters)}
                 onCreate={() => {
                     if (!can('inductions.create')) {
                         return;

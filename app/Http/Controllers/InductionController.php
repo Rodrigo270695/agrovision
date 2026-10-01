@@ -15,6 +15,7 @@ use App\Support\InductionAttendeeStatuses;
 use App\Support\InductionDocumentPackage;
 use App\Support\InductionFormOptions;
 use App\Support\InductionRegulationMailer;
+use App\Support\InductionReportExporter;
 use App\Support\InductionStatuses;
 use App\Support\PermissionCatalog;
 use App\Support\PublicDisk;
@@ -31,6 +32,7 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class InductionController extends Controller
 {
@@ -848,6 +850,38 @@ class InductionController extends Controller
     /**
      * @return Builder<Induction>
      */
+    public function export(Request $request, InductionReportExporter $exporter): StreamedResponse
+    {
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'status' => ['nullable', 'string', Rule::in(InductionStatuses::keys())],
+        ]);
+
+        $search = trim((string) ($validated['search'] ?? ''));
+        $status = $validated['status'] ?? null;
+
+        $query = $this->scopedInductionsQuery()
+            ->with([
+                'period:id,name',
+                'attendees',
+            ])
+            ->orderByDesc('scheduled_at');
+
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search) {
+                $builder
+                    ->where('title', 'ilike', "%{$search}%")
+                    ->orWhere('location', 'ilike', "%{$search}%");
+            });
+        }
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        return $exporter->download($query->get());
+    }
+
     private function scopedInductionsQuery(): Builder
     {
         $query = Induction::query();
