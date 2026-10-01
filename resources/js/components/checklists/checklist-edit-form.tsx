@@ -77,6 +77,7 @@ export type ChecklistFormData = {
     coordinator_action_plan?: string | null;
     can_send_to_coordinator?: boolean;
     can_start_second?: boolean;
+    unlocked_pass?: 'first' | 'second' | null;
     inspection_batch?: {
         id: number;
         inspected_on: string;
@@ -300,15 +301,24 @@ function StepPill({
 
 export function ChecklistEditForm({ checklist, onBack }: Props) {
     const sealed = checklist.is_sealed;
+    const grantedPass =
+        checklist.unlocked_pass === 'first' ||
+        checklist.unlocked_pass === 'second'
+            ? checklist.unlocked_pass
+            : null;
     const firstLocked =
         sealed ||
-        checklist.first_result === 'approved' ||
-        checklist.first_result === 'rejected';
+        ((checklist.first_result === 'approved' ||
+            checklist.first_result === 'rejected') &&
+            grantedPass !== 'first');
     const secondUnlocked = Boolean(checklist.can_start_second);
     const waitingCoordinator =
-        firstLocked && !secondUnlocked && !sealed;
+        firstLocked && !secondUnlocked && !sealed && !grantedPass;
+    const secondDecided =
+        checklist.second_result === 'approved' ||
+        checklist.second_result === 'rejected';
     const secondLocked =
-        sealed || checklist.second_result === 'approved';
+        sealed || (secondDecided && grantedPass !== 'second');
     const canSeal =
         checklist.first_result === 'approved' &&
         checklist.second_result === 'approved';
@@ -447,7 +457,11 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
         };
     }, [answers, checklist.items]);
 
-    const activePass: 'first' | 'second' = secondUnlocked ? 'second' : 'first';
+    const activePass: 'first' | 'second' =
+        grantedPass ?? (secondUnlocked ? 'second' : 'first');
+    const showFirstActions = !sealed && !firstLocked && grantedPass !== 'second';
+    const showSecondActions =
+        !sealed && secondUnlocked && !secondLocked && grantedPass !== 'first';
     const activeStats = activePass === 'first' ? firstStats : secondStats;
 
     const PARETO_PASS_THRESHOLD = 85;
@@ -625,6 +639,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
             second_result: secondResult || null,
             additional_observations: observations || null,
             answers,
+            edit_pass: grantedPass,
             signatures: signatures.map((signature) => ({
                 signature_role_id: signature.signature_role_id,
                 slot: signature.slot,
@@ -718,18 +733,20 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                     <div className="flex flex-wrap gap-2">
                         <StepPill
                             label="1ra"
-                            active={!secondUnlocked}
+                            active={activePass === 'first'}
                             done={
-                                checklist.first_result === 'approved' ||
-                                checklist.first_result === 'rejected'
+                                grantedPass !== 'first' &&
+                                (checklist.first_result === 'approved' ||
+                                    checklist.first_result === 'rejected')
                             }
                         />
                         <StepPill
                             label="2da"
-                            active={secondUnlocked && !secondLocked && !sealed}
+                            active={activePass === 'second'}
                             done={
-                                checklist.second_result === 'approved' ||
-                                checklist.second_result === 'rejected'
+                                grantedPass !== 'second' &&
+                                (checklist.second_result === 'approved' ||
+                                    checklist.second_result === 'rejected')
                             }
                             locked={!secondUnlocked}
                         />
@@ -785,7 +802,17 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                     </div>
                 ) : null}
 
-                {sealed ? (
+                {grantedPass ? (
+                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+                        Edición autorizada de la{' '}
+                        <strong>
+                            {grantedPass === 'first' ? '1ra' : '2da'}{' '}
+                            inspección
+                        </strong>
+                        . Al guardar, esta autorización se cierra y hay que
+                        pedir otra para volver a corregirla.
+                    </div>
+                ) : sealed ? (
                     <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
                             <ShieldCheck className="mt-0.5 size-4 shrink-0" />
@@ -1461,10 +1488,10 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                 className="h-11 cursor-pointer border-[#c5d5e6] text-[#1a2b4c] sm:h-10"
                             >
                                 {processing ? <Spinner /> : null}
-                                Guardar borrador
+                                {grantedPass ? 'Guardar cambios' : 'Guardar borrador'}
                             </Button>
 
-                            {!firstLocked ? (
+                            {showFirstActions ? (
                                 <Button
                                     type="button"
                                     disabled={processing || !canApproveActivePass}
@@ -1480,7 +1507,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                 </Button>
                             ) : null}
 
-                            {!firstLocked &&
+                            {showFirstActions &&
                             (firstStats.no > 0 || !livePareto.passes) ? (
                                 <Button
                                     type="button"
@@ -1498,7 +1525,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                 </Button>
                             ) : null}
 
-                            {secondUnlocked && !secondLocked ? (
+                            {showSecondActions ? (
                                 <Button
                                     type="button"
                                     disabled={processing || !canApproveActivePass}
@@ -1514,7 +1541,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                 </Button>
                             ) : null}
 
-                            {canSeal ? (
+                            {canSeal && !grantedPass ? (
                                 <Button
                                     type="button"
                                     disabled={processing}

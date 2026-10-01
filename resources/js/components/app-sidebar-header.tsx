@@ -1,5 +1,6 @@
 import { usePage } from '@inertiajs/react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
+import { InspectionEditApprovals } from '@/components/checklists/inspection-edit-approvals';
 import { PushNotificationPrompt } from '@/components/push/push-notification-prompt';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
@@ -19,7 +20,12 @@ export function AppSidebarHeader({
                 <Breadcrumbs breadcrumbs={breadcrumbs} />
             </div>
             <div className="ml-auto flex shrink-0 items-center gap-2">
-                {isCentral ? null : <PushNotificationPrompt />}
+                {isCentral ? null : (
+                    <>
+                        <InspectionEditApprovals />
+                        <PushNotificationPrompt />
+                    </>
+                )}
             </div>
         </header>
     );

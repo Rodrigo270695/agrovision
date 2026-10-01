@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\UnitChecklist;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -35,6 +36,7 @@ class UpdateUnitChecklistRequest extends FormRequest
             'additional_observations' => ['nullable', 'string', 'max:5000'],
             'status' => ['nullable', Rule::in(['draft', 'completed'])],
             'seal' => ['nullable', 'boolean'],
+            'edit_pass' => ['nullable', Rule::in(['first', 'second'])],
             'answers' => ['nullable', 'array'],
             'answers.*.checklist_item_id' => ['required', 'integer', 'exists:checklist_items,id'],
             'answers.*.first_value' => ['nullable', Rule::in(['yes', 'no'])],
@@ -59,7 +61,7 @@ class UpdateUnitChecklistRequest extends FormRequest
     {
         $checklist = $this->route('checklist');
 
-        if ($checklist instanceof \App\Models\UnitChecklist) {
+        if ($checklist instanceof UnitChecklist) {
             return route('checklists.edit', $checklist);
         }
 

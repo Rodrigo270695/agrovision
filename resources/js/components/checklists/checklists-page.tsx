@@ -159,7 +159,10 @@ export function ChecklistsPage() {
         };
     }, [localRows.length, stats]);
 
-    const openEditor = async (item: ChecklistItemRow) => {
+    const openEditor = async (
+        item: ChecklistItemRow,
+        pass?: 'first' | 'second',
+    ) => {
         if (isLocalChecklistId(item.id) || !isBrowserOnline()) {
             const snapshot = await getEditSnapshot(item.id);
 
@@ -176,7 +179,8 @@ export function ChecklistsPage() {
             return;
         }
 
-        router.visit(`/inspecciones/${item.id}/editar`);
+        const query = pass ? `?pass=${pass}` : '';
+        router.visit(`/inspecciones/${item.id}/editar${query}`);
     };
 
     if (localEditor) {
@@ -206,9 +210,9 @@ export function ChecklistsPage() {
             <ChecklistsTable
                 checklists={mergedChecklists}
                 filters={filters}
-                onEdit={(item) => {
+                onEdit={(item, pass) => {
                     if (can('checklists.update') || item.sealed_at) {
-                        void openEditor(item);
+                        void openEditor(item, pass);
                     }
                 }}
                 onPreviewPdf={(item) => {

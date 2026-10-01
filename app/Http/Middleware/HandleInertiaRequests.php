@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\InspectionEditRequest;
 use App\Models\TenantSetting;
 use App\Support\SystemRoles;
 use Illuminate\Http\Request;
@@ -80,6 +81,42 @@ class HandleInertiaRequests extends Middleware
                 'toast' => fn () => $request->session()->get('toast'),
                 'unit_import' => fn () => $request->session()->get('unit_import'),
             ],
+            'inspectionApprovals' => function () use ($user, $isTenant) {
+                $empty = ['count' => 0, 'items' => []];
+
+                if (
+                    ! $isTenant
+                    || ! $user
+                    || ! method_exists($user, 'hasRole')
+                    || ! $user->hasRole(SystemRoles::SUPERADMIN)
+                    || ! Schema::hasTable('inspection_edit_requests')
+                ) {
+                    return $empty;
+                }
+
+                $pending = InspectionEditRequest::query()
+                    ->where('status', InspectionEditRequest::PENDING)
+                    ->with([
+                        'requester:id,name',
+                        'checklist:id,plate_number,driver_name',
+                    ])
+                    ->latest('id')
+                    ->limit(12)
+                    ->get();
+
+                return [
+                    'count' => InspectionEditRequest::query()
+                        ->where('status', InspectionEditRequest::PENDING)
+                        ->count(),
+                    'items' => $pending->map(fn (InspectionEditRequest $request) => [
+                        'id' => $request->id,
+                        'pass' => $request->inspection_pass === 'second' ? '2da' : '1ra',
+                        'plate_number' => $request->checklist?->plate_number,
+                        'driver_name' => $request->checklist?->driver_name,
+                        'requester_name' => $request->requester?->name,
+                    ])->values(),
+                ];
+            },
             'push' => function () use ($user, $isTenant) {
                 $publicKey = config('webpush.vapid.public_key');
                 $canUse = $isTenant && $user && SystemRoles::currentCanUsePush();

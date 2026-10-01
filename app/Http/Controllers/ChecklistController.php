@@ -7,13 +7,14 @@ use App\Http\Requests\UpdateUnitChecklistRequest;
 use App\Models\ChecklistItem;
 use App\Models\ChecklistTemplate;
 use App\Models\InspectionBatch;
+use App\Models\InspectionEditRequest;
 use App\Models\Period;
 use App\Models\Unit;
 use App\Models\UnitChecklist;
-use App\Models\UnitMovement;
 use App\Models\UnitChecklistAnswer;
 use App\Models\UnitChecklistPhoto;
 use App\Models\UnitChecklistSignature;
+use App\Models\UnitMovement;
 use App\Services\ParetoChecklistSync;
 use App\Support\IndexedRedirect;
 use App\Support\InspectionDatabaseExporter;
@@ -22,21 +23,24 @@ use App\Support\ParetoPassThreshold;
 use App\Support\ParetoPieChart;
 use App\Support\PdfLogo;
 use App\Support\PermissionCatalog;
+use App\Support\SignatureImage;
 use App\Support\SystemRoles;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ChecklistController extends Controller
 {
@@ -114,6 +118,7 @@ class ChecklistController extends Controller
         $query->orderByDesc('id');
 
         $checklists = $query->paginate($perPage)->withQueryString();
+        $this->attachEditRequestState($checklists);
 
         $activePeriodIds = Period::query()->where('status', 'active')->pluck('id');
 
@@ -506,7 +511,7 @@ class ChecklistController extends Controller
             ]);
     }
 
-    public function edit(UnitChecklist $checklist): InertiaResponse|RedirectResponse
+    public function edit(Request $request, UnitChecklist $checklist): InertiaResponse|RedirectResponse
     {
         $checklist->load([
             'period:id,name,date,status',
@@ -609,6 +614,12 @@ class ChecklistController extends Controller
             ])
             ->values();
 
+        $unlockedPass = $this->unlockedPass($request, $checklist);
+
+        if ($unlockedPass instanceof RedirectResponse) {
+            return $unlockedPass;
+        }
+
         return Inertia::render('checklists/edit', [
             'checklist' => [
                 'id' => $checklist->id,
@@ -641,6 +652,7 @@ class ChecklistController extends Controller
                 'coordinator_action_plan' => $checklist->coordinator_action_plan,
                 'can_send_to_coordinator' => $checklist->canSendToCoordinator(),
                 'can_start_second' => $checklist->canStartSecondInspection(),
+                'unlocked_pass' => $unlockedPass,
                 'inspection_batch' => $checklist->inspectionBatch ? [
                     'id' => $checklist->inspectionBatch->id,
                     'inspected_on' => $checklist->inspectionBatch->inspected_on->format('Y-m-d'),
@@ -699,28 +711,38 @@ class ChecklistController extends Controller
         $shouldSeal = (bool) ($data['seal'] ?? false);
         $firstAlreadyDecided = $checklist->hasFirstInspectionDecision();
         $firstAlreadyApproved = $checklist->first_result === 'approved';
+        $secondAlreadyDecided = in_array($checklist->second_result, ['approved', 'rejected'], true);
         $secondAlreadyApproved = $checklist->second_result === 'approved';
+        $grant = null;
 
         try {
-            $this->assertApprovalPayload($checklist, $data, $firstAlreadyApproved, $secondAlreadyApproved);
+            $unlock = $this->resolvePassUnlock($checklist, $data['edit_pass'] ?? null);
+            $unlockFirst = $unlock['unlock_first'];
+            $unlockSecond = $unlock['unlock_second'];
+            $grant = $unlock['grant'];
 
-            DB::transaction(function () use ($checklist, $data, $shouldSeal, $firstAlreadyDecided, $firstAlreadyApproved, $secondAlreadyApproved): void {
+            $this->assertApprovalPayload(
+                $checklist,
+                $data,
+                $firstAlreadyApproved && ! $unlockFirst,
+                $secondAlreadyApproved && ! $unlockSecond,
+            );
+
+            DB::transaction(function () use ($checklist, $data, $shouldSeal, $firstAlreadyDecided, $secondAlreadyDecided, $unlockFirst, $unlockSecond): void {
                 $incomingFirstResult = $data['first_result'] ?? null;
                 $incomingSecondResult = $data['second_result'] ?? null;
 
-                // 1ra bloqueada al aprobar o desaprobar. La 2da sigue en la misma fecha.
-                $firstResult = $firstAlreadyDecided
-                    ? $checklist->first_result
-                    : $incomingFirstResult;
+                // 1ra bloqueada al aprobar o desaprobar, salvo autorización del superadmin.
+                $lockFirst = $firstAlreadyDecided && ! $unlockFirst;
+                $firstResult = $lockFirst ? $checklist->first_result : $incomingFirstResult;
                 $secondAllowed = in_array($firstResult, ['approved', 'rejected'], true)
                     && ! $checklist->isSealed();
-                $secondResult = ! $secondAllowed
-                    ? null
-                    : ($secondAlreadyApproved
-                        ? $checklist->second_result
-                        : $incomingSecondResult);
+                $touchSecond = $unlockSecond || ($secondAllowed && ! $secondAlreadyDecided && ! $unlockFirst);
+                $secondResult = $touchSecond
+                    ? $incomingSecondResult
+                    : $checklist->second_result;
 
-                if (($incomingSecondResult ?? null) && ! $secondAllowed) {
+                if (($incomingSecondResult ?? null) && ! $secondAllowed && ! $unlockSecond) {
                     throw new \RuntimeException(
                         'Cierra la 1ra inspección (aprobar o desaprobar) antes de la 2da.'
                     );
@@ -734,23 +756,19 @@ class ChecklistController extends Controller
                     'license_class' => $data['license_class'] ?? null,
                     'license_revalidation_on' => $data['license_revalidation_on'] ?? null,
                     'driver_name' => $data['driver_name'] ?? null,
-                    'first_inspected_on' => $firstAlreadyDecided
+                    'first_inspected_on' => $lockFirst
                         ? $checklist->first_inspected_on
                         : ($data['first_inspected_on'] ?? null),
-                    'first_inspected_time' => $firstAlreadyDecided
+                    'first_inspected_time' => $lockFirst
                         ? $checklist->first_inspected_time
                         : ($data['first_inspected_time'] ?? null),
-                    'second_inspected_on' => ! $secondAllowed
-                        ? null
-                        : ($secondAlreadyApproved
-                            ? $checklist->second_inspected_on
-                            : ($data['second_inspected_on'] ?? null)),
-                    'second_inspected_time' => ! $secondAllowed
-                        ? null
-                        : ($secondAlreadyApproved
-                            ? $checklist->second_inspected_time
-                            : ($data['second_inspected_time'] ?? null)),
-                    'first_result' => $firstResult,
+                    'second_inspected_on' => $touchSecond
+                        ? ($data['second_inspected_on'] ?? null)
+                        : $checklist->second_inspected_on,
+                    'second_inspected_time' => $touchSecond
+                        ? ($data['second_inspected_time'] ?? null)
+                        : $checklist->second_inspected_time,
+                    'first_result' => $lockFirst ? $checklist->first_result : $firstResult,
                     'second_result' => $secondResult,
                     'additional_observations' => $data['additional_observations'] ?? null,
                     'status' => $shouldSeal ? 'completed' : ($data['status'] ?? $checklist->status),
@@ -758,23 +776,14 @@ class ChecklistController extends Controller
                 ]);
 
                 foreach ($data['answers'] ?? [] as $answer) {
-                    // En standby (1ra cerrada, esperando coordinador) no se tocan respuestas.
-                    if ($firstAlreadyDecided && ! $secondAllowed) {
-                        continue;
-                    }
-
                     $payload = [];
 
-                    if (! $firstAlreadyDecided && array_key_exists('first_value', $answer)) {
+                    if (! $lockFirst && array_key_exists('first_value', $answer)) {
                         $payload['first_value'] = $answer['first_value'] ?? null;
                         $payload['observations'] = $answer['observations'] ?? null;
                     }
 
-                    if (
-                        $secondAllowed
-                        && ! $secondAlreadyApproved
-                        && array_key_exists('second_value', $answer)
-                    ) {
+                    if ($touchSecond && array_key_exists('second_value', $answer)) {
                         $payload['second_value'] = $answer['second_value'] ?? null;
                         $payload['observations'] = $answer['observations'] ?? null;
                     }
@@ -790,6 +799,16 @@ class ChecklistController extends Controller
                 }
 
                 foreach ($data['signatures'] ?? [] as $signatureData) {
+                    $signaturePass = $signatureData['inspection_pass'] ?? 'first';
+
+                    if ($signaturePass === 'first' && $lockFirst) {
+                        continue;
+                    }
+
+                    if ($signaturePass === 'second' && ! $touchSecond) {
+                        continue;
+                    }
+
                     $signatureQuery = UnitChecklistSignature::query()
                         ->where('unit_checklist_id', $checklist->id);
 
@@ -819,7 +838,7 @@ class ChecklistController extends Controller
                         $updates['signed_at'] = null;
                     } elseif (! empty($signatureData['signature_data_url'])) {
                         $signature->deleteSignatureFile();
-                        $updates['signature_path'] = \App\Support\SignatureImage::storeFromDataUrl(
+                        $updates['signature_path'] = SignatureImage::storeFromDataUrl(
                             $signatureData['signature_data_url'],
                             "checklists/{$checklist->id}/signatures",
                         );
@@ -844,11 +863,17 @@ class ChecklistController extends Controller
             ]);
         }
 
+        if ($grant) {
+            $grant->update(['consumed_at' => now()]);
+        }
+
         return back()->with('toast', [
             'type' => 'success',
             'message' => $shouldSeal
                 ? 'Inspección sellada correctamente. Ya no se puede editar.'
-                : 'Checklist guardado correctamente.',
+                : ($grant
+                    ? 'Cambios guardados. Para volver a editar esa inspección hay que pedir otra autorización.'
+                    : 'Checklist guardado correctamente.'),
         ]);
     }
 
@@ -891,6 +916,17 @@ class ChecklistController extends Controller
 
         if ($pass === 'second' && ! $checklist->canStartSecondInspection()) {
             return $this->checklistToast($request, $checklist, 'error', 'La 2da inspección se habilita cuando la 1ra está aprobada o desaprobada.');
+        }
+
+        if (! $this->passIsWritable($checklist, $pass)) {
+            return $this->checklistToast(
+                $request,
+                $checklist,
+                'error',
+                $pass === 'first'
+                    ? 'La 1ra inspección está cerrada. Pide autorización a un superadmin.'
+                    : 'La 2da inspección está cerrada. Pide autorización a un superadmin.',
+            );
         }
 
         if ($itemId !== null) {
@@ -970,6 +1006,17 @@ class ChecklistController extends Controller
                 'type' => 'error',
                 'message' => 'Esta inspección está sellada. No se pueden eliminar fotos.',
             ]);
+        }
+
+        $photoPass = $photo->inspection_pass === 'second' ? 'second' : 'first';
+
+        if (! $this->passIsWritable($checklist, $photoPass)) {
+            return $this->checklistToast(
+                request(),
+                $checklist,
+                'error',
+                'Esa inspección está cerrada. Pide autorización a un superadmin.',
+            );
         }
 
         Storage::disk($photo->disk)->delete($photo->path);
@@ -1246,7 +1293,7 @@ class ChecklistController extends Controller
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $answers
+     * @param  Collection<int, array<string, mixed>>  $answers
      */
     private function assertPassAnswersReady(
         UnitChecklist $checklist,
@@ -1636,6 +1683,115 @@ class ChecklistController extends Controller
         ]);
     }
 
+    public function requestEdit(Request $request, UnitChecklist $checklist): RedirectResponse
+    {
+        $checklist->loadMissing('unit');
+        $this->ensureCanAccessChecklist($checklist);
+
+        $validated = $request->validate([
+            'inspection_pass' => ['required', Rule::in(['first', 'second'])],
+        ]);
+
+        $pass = $validated['inspection_pass'];
+
+        if ($checklist->isSealed()) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'La inspección está sellada. No se puede pedir edición.',
+            ]);
+        }
+
+        $decided = $pass === 'first'
+            ? $checklist->hasFirstInspectionDecision()
+            : in_array($checklist->second_result, ['approved', 'rejected'], true);
+
+        if (! $decided) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => $pass === 'first'
+                    ? 'La 1ra inspección sigue abierta. Entra a editarla directo.'
+                    : 'La 2da inspección sigue abierta. Complétala desde el menú.',
+            ]);
+        }
+
+        $existing = InspectionEditRequest::query()
+            ->where('unit_checklist_id', $checklist->id)
+            ->where('inspection_pass', $pass)
+            ->where('requested_by', Auth::id())
+            ->whereIn('status', [InspectionEditRequest::PENDING, InspectionEditRequest::APPROVED])
+            ->whereNull('consumed_at')
+            ->exists();
+
+        if ($existing) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Ya hay una solicitud pendiente o autorizada para esa inspección.',
+            ]);
+        }
+
+        InspectionEditRequest::query()->create([
+            'unit_checklist_id' => $checklist->id,
+            'inspection_pass' => $pass,
+            'requested_by' => Auth::id(),
+            'status' => InspectionEditRequest::PENDING,
+        ]);
+
+        $label = $pass === 'first' ? '1ra' : '2da';
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => "Solicitud enviada. Un superadmin debe autorizar la edición de la {$label} inspección.",
+        ]);
+    }
+
+    public function approveEdit(InspectionEditRequest $editRequest): RedirectResponse
+    {
+        $this->ensureSuperadmin();
+
+        if ($editRequest->status !== InspectionEditRequest::PENDING) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Esa solicitud ya fue revisada.',
+            ]);
+        }
+
+        $editRequest->update([
+            'status' => InspectionEditRequest::APPROVED,
+            'reviewed_by' => Auth::id(),
+            'reviewed_at' => now(),
+        ]);
+
+        $label = $editRequest->inspection_pass === 'second' ? '2da' : '1ra';
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => "Autorizada la edición de la {$label} inspección. El inspector ya puede modificarla.",
+        ]);
+    }
+
+    public function rejectEdit(InspectionEditRequest $editRequest): RedirectResponse
+    {
+        $this->ensureSuperadmin();
+
+        if ($editRequest->status !== InspectionEditRequest::PENDING) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Esa solicitud ya fue revisada.',
+            ]);
+        }
+
+        $editRequest->update([
+            'status' => InspectionEditRequest::REJECTED,
+            'reviewed_by' => Auth::id(),
+            'reviewed_at' => now(),
+        ]);
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => 'Solicitud de edición rechazada.',
+        ]);
+    }
+
     private function ensureCanAccessUnit(Unit $unit): void
     {
         if (
@@ -1643,6 +1799,145 @@ class ChecklistController extends Controller
             && (int) $unit->coordinator_id !== (int) Auth::id()
         ) {
             abort(403, 'No tienes acceso a esta unidad.');
+        }
+    }
+
+    private function ensureSuperadmin(): void
+    {
+        $user = Auth::user();
+
+        if (! $user || ! method_exists($user, 'hasRole') || ! $user->hasRole(SystemRoles::SUPERADMIN)) {
+            abort(403, 'Solo un superadmin puede autorizar la edición.');
+        }
+    }
+
+    /**
+     * @return array{unlock_first: bool, unlock_second: bool, grant: InspectionEditRequest|null}
+     */
+    private function resolvePassUnlock(UnitChecklist $checklist, mixed $editPass): array
+    {
+        $empty = [
+            'unlock_first' => false,
+            'unlock_second' => false,
+            'grant' => null,
+        ];
+
+        if (! in_array($editPass, ['first', 'second'], true)) {
+            return $empty;
+        }
+
+        $user = Auth::user();
+        $isSuperadmin = $user && method_exists($user, 'hasRole') && $user->hasRole(SystemRoles::SUPERADMIN);
+
+        if ($isSuperadmin) {
+            return [
+                'unlock_first' => $editPass === 'first',
+                'unlock_second' => $editPass === 'second',
+                'grant' => null,
+            ];
+        }
+
+        $grant = InspectionEditRequest::openGrant($checklist->id, $editPass, (int) Auth::id());
+
+        if (! $grant) {
+            throw new \RuntimeException(
+                $editPass === 'first'
+                    ? 'La 1ra inspección está cerrada. Un superadmin debe autorizar la edición.'
+                    : 'La 2da inspección está cerrada. Un superadmin debe autorizar la edición.',
+            );
+        }
+
+        return [
+            'unlock_first' => $editPass === 'first',
+            'unlock_second' => $editPass === 'second',
+            'grant' => $grant,
+        ];
+    }
+
+    private function passIsWritable(UnitChecklist $checklist, string $pass): bool
+    {
+        $decided = $pass === 'first'
+            ? $checklist->hasFirstInspectionDecision()
+            : in_array($checklist->second_result, ['approved', 'rejected'], true);
+
+        if (! $decided || $checklist->isSealed()) {
+            return ! $checklist->isSealed();
+        }
+
+        $user = Auth::user();
+
+        if ($user && method_exists($user, 'hasRole') && $user->hasRole(SystemRoles::SUPERADMIN)) {
+            return true;
+        }
+
+        return InspectionEditRequest::openGrant($checklist->id, $pass, (int) Auth::id()) !== null;
+    }
+
+    private function unlockedPass(Request $request, UnitChecklist $checklist): string|RedirectResponse|null
+    {
+        $pass = $request->query('pass');
+
+        if (! in_array($pass, ['first', 'second'], true)) {
+            return null;
+        }
+
+        $decided = $pass === 'first'
+            ? $checklist->hasFirstInspectionDecision()
+            : in_array($checklist->second_result, ['approved', 'rejected'], true);
+
+        if (! $decided) {
+            return null;
+        }
+
+        if ($checklist->isSealed()) {
+            return redirect()
+                ->route('checklists.index')
+                ->with('toast', [
+                    'type' => 'error',
+                    'message' => 'La inspección está sellada y no se puede editar.',
+                ]);
+        }
+
+        if (! $this->passIsWritable($checklist, $pass)) {
+            $label = $pass === 'first' ? '1ra' : '2da';
+
+            return redirect()
+                ->route('checklists.index')
+                ->with('toast', [
+                    'type' => 'error',
+                    'message' => "La {$label} inspección está cerrada. Pide autorización a un superadmin.",
+                ]);
+        }
+
+        return $pass;
+    }
+
+    private function attachEditRequestState(LengthAwarePaginator $checklists): void
+    {
+        if (! Schema::hasTable('inspection_edit_requests')) {
+            return;
+        }
+
+        $ids = $checklists->getCollection()->pluck('id')->filter()->all();
+
+        if ($ids === []) {
+            return;
+        }
+
+        $rows = InspectionEditRequest::query()
+            ->whereIn('unit_checklist_id', $ids)
+            ->where('requested_by', Auth::id())
+            ->whereIn('status', [InspectionEditRequest::PENDING, InspectionEditRequest::APPROVED])
+            ->whereNull('consumed_at')
+            ->orderBy('id')
+            ->get()
+            ->keyBy(fn (InspectionEditRequest $row) => $row->unit_checklist_id.'|'.$row->inspection_pass);
+
+        foreach ($checklists->getCollection() as $checklist) {
+            $first = $rows->get($checklist->id.'|first');
+            $second = $rows->get($checklist->id.'|second');
+            $checklist->setAttribute('edit_first', $first?->status);
+            $checklist->setAttribute('edit_second', $second?->status);
         }
     }
 

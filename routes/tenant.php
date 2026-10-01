@@ -290,6 +290,16 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:checklists.update')
             ->name('checklists.update');
 
+        Route::post('inspecciones/{checklist}/solicitar-edicion', [ChecklistController::class, 'requestEdit'])
+            ->middleware('permission:checklists.update')
+            ->name('checklists.request-edit');
+
+        Route::post('inspecciones/solicitudes/{editRequest}/aprobar', [ChecklistController::class, 'approveEdit'])
+            ->name('checklists.approve-edit');
+
+        Route::post('inspecciones/solicitudes/{editRequest}/rechazar', [ChecklistController::class, 'rejectEdit'])
+            ->name('checklists.reject-edit');
+
         Route::post('inspecciones/{checklist}/fotos', [ChecklistController::class, 'storePhoto'])
             ->middleware('permission:checklists.update')
             ->name('checklists.photos.store');

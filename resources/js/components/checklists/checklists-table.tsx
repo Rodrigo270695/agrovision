@@ -1,4 +1,4 @@
-import { ClipboardCheck, FileDown, Pencil, Trash2 } from 'lucide-react';
+import { ClipboardCheck, Clock, FileDown, FilePenLine, Pencil, Trash2 } from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { useCallback, useMemo } from 'react';
 import { DateRangeFilter } from '@/components/shared/date-range-filter';
@@ -15,7 +15,10 @@ import {
     type FilterChip,
     type SortState,
 } from '@/components/data-page';
-import { RowActionsMenu } from '@/components/shared/row-actions-menu';
+import {
+    RowActionsMenu,
+    type RowActionItem,
+} from '@/components/shared/row-actions-menu';
 import { useCan } from '@/hooks/use-can';
 import { asPaginated } from '@/lib/paginated';
 
@@ -29,6 +32,8 @@ export type ChecklistItemRow = {
     sealed_at?: string | null;
     first_result?: 'approved' | 'rejected' | null;
     second_result?: 'approved' | 'rejected' | null;
+    edit_first?: 'pending' | 'approved' | null;
+    edit_second?: 'pending' | 'approved' | null;
     coordinator_status?: 'observed' | 'reviewed' | null;
     created_at?: string | null;
     first_inspected_on?: string | null;
@@ -72,7 +77,7 @@ export type ChecklistsFilters = {
 type Props = {
     checklists: ChecklistsPagination;
     filters: ChecklistsFilters;
-    onEdit: (item: ChecklistItemRow) => void;
+    onEdit: (item: ChecklistItemRow, pass?: 'first' | 'second') => void;
     onDelete: (item: ChecklistItemRow) => void;
     onPreviewPdf: (item: ChecklistItemRow) => void;
 };
@@ -164,6 +169,105 @@ function statusBadge(item: ChecklistItemRow) {
     return <StatBadge label="Borrador" value="" variant="warning" />;
 }
 
+function decided(result?: 'approved' | 'rejected' | null): boolean {
+    return result === 'approved' || result === 'rejected';
+}
+
+function closedPassAction(
+    item: ChecklistItemRow,
+    pass: 'first' | 'second',
+    isSuperAdmin: boolean,
+    onEdit: (item: ChecklistItemRow, pass?: 'first' | 'second') => void,
+): RowActionItem {
+    const label = pass === 'first' ? '1ra' : '2da';
+    const status = pass === 'first' ? item.edit_first : item.edit_second;
+
+    if (isSuperAdmin || status === 'approved') {
+        return {
+            key: `edit-${pass}`,
+            label: `Editar ${label}`,
+            icon: Pencil,
+            onSelect: () => onEdit(item, pass),
+        };
+    }
+
+    if (status === 'pending') {
+        return {
+            key: `wait-${pass}`,
+            label: `Esperando ${label}`,
+            icon: Clock,
+            disabled: true,
+            onSelect: () => undefined,
+        };
+    }
+
+    return {
+        key: `ask-${pass}`,
+        label: `Pedir editar ${label}`,
+        icon: FilePenLine,
+        onSelect: () => {
+            router.post(
+                `/inspecciones/${item.id}/solicitar-edicion`,
+                { inspection_pass: pass },
+                { preserveScroll: true },
+            );
+        },
+    };
+}
+
+function editActions(
+    item: ChecklistItemRow,
+    sealed: boolean,
+    canUpdate: boolean,
+    isSuperAdmin: boolean,
+    onEdit: (item: ChecklistItemRow, pass?: 'first' | 'second') => void,
+): RowActionItem[] {
+    if (!canUpdate && !sealed) {
+        return [];
+    }
+
+    if (sealed || typeof item.id !== 'number') {
+        return [
+            {
+                key: 'open',
+                label: 'Ver',
+                icon: Pencil,
+                onSelect: () => onEdit(item),
+            },
+        ];
+    }
+
+    const firstClosed = decided(item.first_result);
+    const secondClosed = decided(item.second_result);
+    const actions: RowActionItem[] = [];
+
+    if (!firstClosed) {
+        actions.push({
+            key: 'open',
+            label: 'Editar',
+            icon: Pencil,
+            onSelect: () => onEdit(item),
+        });
+
+        return actions;
+    }
+
+    actions.push(closedPassAction(item, 'first', isSuperAdmin, onEdit));
+
+    if (!secondClosed) {
+        actions.push({
+            key: 'continue-second',
+            label: 'Completar 2da',
+            icon: Pencil,
+            onSelect: () => onEdit(item),
+        });
+    } else {
+        actions.push(closedPassAction(item, 'second', isSuperAdmin, onEdit));
+    }
+
+    return actions;
+}
+
 export function ChecklistsTable({
     checklists,
     filters,
@@ -171,7 +275,7 @@ export function ChecklistsTable({
     onDelete,
     onPreviewPdf,
 }: Props) {
-    const { can } = useCan();
+    const { can, isSuperAdmin } = useCan();
 
     const visit = useCallback(
         (params: Partial<ChecklistsFilters> & { page?: number; batch_id?: number | null }) => {
@@ -349,14 +453,13 @@ export function ChecklistsTable({
                                                   onPreviewPdf(item),
                                           }
                                         : null,
-                                    can('checklists.update') || sealed
-                                        ? {
-                                              key: 'open',
-                                              label: sealed ? 'Ver' : 'Editar',
-                                              icon: Pencil,
-                                              onSelect: () => onEdit(item),
-                                          }
-                                        : null,
+                                    ...editActions(
+                                        item,
+                                        sealed,
+                                        can('checklists.update'),
+                                        isSuperAdmin,
+                                        onEdit,
+                                    ),
                                     can('checklists.delete') && !sealed
                                         ? {
                                               key: 'delete',
@@ -377,7 +480,7 @@ export function ChecklistsTable({
                 },
             },
         ],
-        [can, onDelete, onEdit, onPreviewPdf],
+        [can, isSuperAdmin, onDelete, onEdit, onPreviewPdf],
     );
 
     const hasFilters = Boolean(
