@@ -850,36 +850,26 @@ class InductionController extends Controller
     /**
      * @return Builder<Induction>
      */
-    public function export(Request $request, InductionReportExporter $exporter): StreamedResponse
+    public function export(InductionReportExporter $exporter): StreamedResponse
     {
-        $validated = $request->validate([
-            'search' => ['nullable', 'string', 'max:255'],
-            'status' => ['nullable', 'string', Rule::in(InductionStatuses::keys())],
-        ]);
+        $inductions = $this->scopedInductionsQuery()
+            ->with('attendees')
+            ->where('status', '!=', InductionStatuses::CANCELLED)
+            ->orderBy('scheduled_at')
+            ->get();
 
-        $search = trim((string) ($validated['search'] ?? ''));
-        $status = $validated['status'] ?? null;
-
-        $query = $this->scopedInductionsQuery()
+        $units = Unit::query()
             ->with([
-                'period:id,name',
-                'attendees',
-            ])
-            ->orderByDesc('scheduled_at');
+                'period:id,date,status',
+                'coordinatorUser:id,name',
+                'coordinatorUser.places.site:id,name',
+            ]);
 
-        if ($search !== '') {
-            $query->where(function ($builder) use ($search) {
-                $builder
-                    ->where('title', 'ilike', "%{$search}%")
-                    ->orWhere('location', 'ilike', "%{$search}%");
-            });
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $units->where('coordinator_id', Auth::id());
         }
 
-        if ($status) {
-            $query->where('status', $status);
-        }
-
-        return $exporter->download($query->get());
+        return $exporter->download($inductions, $units->get());
     }
 
     private function scopedInductionsQuery(): Builder

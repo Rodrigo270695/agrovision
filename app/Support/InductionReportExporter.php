@@ -3,7 +3,7 @@
 namespace App\Support;
 
 use App\Models\Induction;
-use App\Models\InductionAttendee;
+use App\Models\Unit;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
@@ -17,26 +17,17 @@ final class InductionReportExporter
 {
     /**
      * @param  Collection<int, Induction>  $inductions
+     * @param  Collection<int, Unit>  $units
      */
-    public function download(Collection $inductions): StreamedResponse
+    public function download(Collection $inductions, Collection $units): StreamedResponse
     {
-        foreach ($inductions as $induction) {
-            foreach ($induction->attendees as $attendee) {
-                $attendee->setRelation('induction', $induction);
-            }
-        }
-
         $spreadsheet = new Spreadsheet;
         $spreadsheet->getProperties()
             ->setCreator('Agrovision')
             ->setTitle('Reporte de capacitación')
-            ->setSubject('Participación de conductores en inducciones');
+            ->setSubject('Cumplimiento de capacitaciones por conductor');
 
-        $this->writeSummary($spreadsheet->getActiveSheet(), $inductions);
-        $this->writeInductions($spreadsheet->createSheet(), $inductions);
-        $this->writeParticipations($spreadsheet->createSheet(), $inductions);
-        $this->writeDrivers($spreadsheet->createSheet(), $inductions);
-        $spreadsheet->setActiveSheetIndex(0);
+        $this->writeMatrix($spreadsheet->getActiveSheet(), $inductions, $units);
 
         $filename = 'capacitacion_reporte_'.now()->timezone(config('app.timezone'))->format('Ymd_His').'.xlsx';
 
@@ -51,291 +42,278 @@ final class InductionReportExporter
 
     /**
      * @param  Collection<int, Induction>  $inductions
+     * @param  Collection<int, Unit>  $units
      */
-    private function writeSummary(Worksheet $sheet, Collection $inductions): void
-    {
-        $sheet->setTitle('Resumen');
-        $attendees = $inductions->flatMap(fn (Induction $induction) => $induction->attendees);
-        $attended = $attendees->where('status', InductionAttendeeStatuses::ATTENDED);
-        $absent = $attendees->where('status', InductionAttendeeStatuses::ABSENT);
-        $registered = $attendees->where('status', InductionAttendeeStatuses::REGISTERED);
-        $drivers = $this->groupDrivers($attendees);
-        $trained = $drivers->filter(fn (array $driver) => $driver['attended'] > 0);
-        $closed = $inductions->where('status', InductionStatuses::CLOSED);
-        $closedAttended = $closed->sum(fn (Induction $induction) => $induction->attendees
-            ->where('status', InductionAttendeeStatuses::ATTENDED)
-            ->count());
-
-        $sheet->setCellValue('A1', 'Reporte de capacitación');
-        $sheet->mergeCells('A1:B1');
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16)->getColor()->setRGB('1A2B4C');
-        $sheet->setCellValue('A2', 'Generado');
-        $sheet->setCellValue('B2', now()->timezone(config('app.timezone'))->format('d/m/Y H:i'));
-
-        $rows = [
-            ['Capacitaciones', $inductions->count()],
-            ['Programadas', $inductions->where('status', InductionStatuses::SCHEDULED)->count()],
-            ['En curso', $inductions->where('status', InductionStatuses::IN_PROGRESS)->count()],
-            ['Cerradas', $closed->count()],
-            ['Canceladas', $inductions->where('status', InductionStatuses::CANCELLED)->count()],
-            ['Convocados', $attendees->count()],
-            ['Asistieron', $attended->count()],
-            ['No asistieron', $absent->count()],
-            ['Aún inscritos', $registered->count()],
-            ['% de asistencia', $this->percent($attended->count(), $attendees->count())],
-            ['Conductores distintos', $drivers->count()],
-            ['Conductores con al menos una asistencia', $trained->count()],
-            ['Conductores sin ninguna asistencia', $drivers->count() - $trained->count()],
-            ['Firmas de conductores', $attendees->filter(fn (InductionAttendee $attendee) => $attendee->signed_at !== null)->count()],
-            ['Promedio de asistentes por capacitación cerrada', $closed->isEmpty() ? 0 : round($closedAttended / $closed->count(), 1)],
-        ];
-
-        $start = 4;
-        foreach ($rows as $index => $row) {
-            $sheet->setCellValue([1, $start + $index], $row[0]);
-            $sheet->setCellValue([2, $start + $index], $row[1]);
-        }
-        $sheet->getStyle('A4:A'.($start + count($rows) - 1))->getFont()->setBold(true);
-        $sheet->getStyle('A4:B'.($start + count($rows) - 1))->applyFromArray([
-            'borders' => [
-                'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D7E3F0']],
-            ],
-        ]);
-
-        $topicRow = $start + count($rows) + 2;
-        $sheet->setCellValue([1, $topicRow], 'Temas con más asistentes');
-        $sheet->getStyle([1, $topicRow])->getFont()->setBold(true)->setSize(13)->getColor()->setRGB('1A2B4C');
-        $headers = ['Capacitación', 'Fecha', 'Asistieron', 'Convocados', '% asistencia'];
-        $this->writeHeader($sheet, $headers, $topicRow + 1);
-
-        $ranked = $inductions
-            ->sortByDesc(fn (Induction $induction) => $induction->attendees
-                ->where('status', InductionAttendeeStatuses::ATTENDED)
-                ->count())
-            ->take(10)
-            ->values();
-
-        foreach ($ranked as $index => $induction) {
-            $row = $topicRow + 2 + $index;
-            $convoked = $induction->attendees->count();
-            $came = $induction->attendees->where('status', InductionAttendeeStatuses::ATTENDED)->count();
-            $sheet->setCellValue([1, $row], $induction->title);
-            $sheet->setCellValue([2, $row], $this->when($induction));
-            $sheet->setCellValue([3, $row], $came);
-            $sheet->setCellValue([4, $row], $convoked);
-            $sheet->setCellValue([5, $row], $this->percent($came, $convoked));
-        }
-
-        $sheet->getColumnDimension('A')->setWidth(52);
-        $sheet->getColumnDimension('B')->setWidth(28);
-        $sheet->getColumnDimension('C')->setWidth(16);
-        $sheet->getColumnDimension('D')->setWidth(16);
-        $sheet->getColumnDimension('E')->setWidth(16);
-    }
-
-    /**
-     * @param  Collection<int, Induction>  $inductions
-     */
-    private function writeInductions(Worksheet $sheet, Collection $inductions): void
+    private function writeMatrix(Worksheet $sheet, Collection $inductions, Collection $units): void
     {
         $sheet->setTitle('Capacitaciones');
-        $headers = [
-            'Acta', 'Título', 'Fecha', 'Estado', 'Sede', 'Lugar', 'Expositor', 'Periodo',
-            'Convocados', 'Asistieron', 'No asistieron', 'Inscritos', 'Firmados', '% asistencia',
-        ];
-        $this->writeHeader($sheet, $headers, 1);
 
-        foreach ($inductions->sortByDesc('scheduled_at')->values() as $index => $induction) {
-            $row = $index + 2;
-            $attendees = $induction->attendees;
-            $came = $attendees->where('status', InductionAttendeeStatuses::ATTENDED)->count();
-            $sheet->fromArray([
-                $induction->acta_number ?: str_pad((string) $induction->id, 6, '0', STR_PAD_LEFT),
-                $induction->title,
-                $this->when($induction),
-                InductionStatuses::label((string) $induction->status),
-                $induction->sede,
-                $induction->location,
-                $induction->speaker_name,
-                $induction->period?->name,
-                $attendees->count(),
-                $came,
-                $attendees->where('status', InductionAttendeeStatuses::ABSENT)->count(),
-                $attendees->where('status', InductionAttendeeStatuses::REGISTERED)->count(),
-                $attendees->filter(fn (InductionAttendee $attendee) => $attendee->signed_at !== null)->count(),
-                $this->percent($came, $attendees->count()),
-            ], null, 'A'.$row);
+        $topics = $this->topics($inductions);
+        $attended = $this->attendance($inductions);
+        $drivers = $this->drivers($units)->sortBy('name')->values();
+
+        $headers = [
+            'N°',
+            'FECHA DE INGRESO',
+            'DNI',
+            'CONDUCTOR',
+            'PLACA',
+            'PROVEEDOR',
+            'RESPONSABLE DEL COORDINADOR',
+            'SEDE',
+            'FECHA',
+            'ESTATUS',
+        ];
+
+        foreach ($topics as $topic) {
+            $headers[] = $topic['label'];
         }
 
-        $this->finishTable($sheet, count($headers), $inductions->count() + 1);
-    }
+        $headers[] = 'PORCENTAJE DE CUMPLIMIENTO';
+        $this->writeHeader($sheet, $headers);
 
-    /**
-     * @param  Collection<int, Induction>  $inductions
-     */
-    private function writeParticipations(Worksheet $sheet, Collection $inductions): void
-    {
-        $sheet->setTitle('Participaciones');
-        $headers = [
-            'Conductor', 'DNI', 'Placa', 'Proveedor', 'Capacitación', 'Acta', 'Fecha',
-            'Estado de la capacitación', 'Asistencia', 'Firmó',
-        ];
-        $this->writeHeader($sheet, $headers, 1);
-        $row = 2;
-
-        foreach ($inductions->sortByDesc('scheduled_at') as $induction) {
-            foreach ($induction->attendees->sortBy('driver_name') as $attendee) {
-                $sheet->fromArray([
-                    $attendee->driver_name,
-                    $attendee->driver_dni,
-                    $attendee->plate_number,
-                    $attendee->provider,
-                    $induction->title,
-                    $induction->acta_number ?: str_pad((string) $induction->id, 6, '0', STR_PAD_LEFT),
-                    $this->when($induction),
-                    InductionStatuses::label((string) $induction->status),
-                    InductionAttendeeStatuses::label((string) $attendee->status),
-                    $attendee->signed_at !== null ? 'Sí' : 'No',
-                ], null, 'A'.$row);
-                $row++;
-            }
-        }
-
-        $this->finishTable($sheet, count($headers), max(1, $row - 1));
-    }
-
-    /**
-     * @param  Collection<int, Induction>  $inductions
-     */
-    private function writeDrivers(Worksheet $sheet, Collection $inductions): void
-    {
-        $sheet->setTitle('Por conductor');
-        $headers = [
-            'Conductor', 'DNI', 'Placa', 'Proveedor', 'Convocado', 'Asistió', 'No asistió',
-            '% asistencia', 'Última asistencia', 'Capacitaciones a las que asistió',
-        ];
-        $this->writeHeader($sheet, $headers, 1);
-
-        $drivers = $this->groupDrivers($inductions->flatMap(fn (Induction $induction) => $induction->attendees))
-            ->sortBy('name')
-            ->values();
+        $topicCount = count($topics);
+        $firstTopicColumn = 11;
+        $percentColumn = $firstTopicColumn + $topicCount;
 
         foreach ($drivers as $index => $driver) {
+            $row = $index + 2;
+            $ok = 0;
+
             $sheet->fromArray([
-                $driver['name'],
+                $index + 1,
+                $driver['ingreso'],
                 $driver['dni'],
+                $driver['name'],
                 $driver['plate'],
                 $driver['provider'],
-                $driver['convoked'],
-                $driver['attended'],
-                $driver['absent'],
-                $this->percent($driver['attended'], $driver['convoked']),
-                $driver['last_attended'],
-                $driver['topics'],
-            ], null, 'A'.($index + 2));
+                $driver['coordinator'],
+                $driver['sede'],
+                $driver['fecha'],
+                $driver['status'],
+            ], null, 'A'.$row);
+
+            $this->paintStatus($sheet, $row, $driver['status']);
+
+            foreach (array_values($topics) as $topicIndex => $topic) {
+                $column = $firstTopicColumn + $topicIndex;
+                $didAttend = isset($attended[$driver['key']][$topic['key']]);
+                $sheet->setCellValue([$column, $row], $didAttend ? 'OK' : '');
+
+                if ($didAttend) {
+                    $ok++;
+                    $this->paintOk($sheet, $column, $row);
+                }
+            }
+
+            $sheet->setCellValue(
+                [$percentColumn, $row],
+                $topicCount === 0 ? '0%' : round(($ok / $topicCount) * 100).'%',
+            );
+            $sheet->getStyle([$percentColumn, $row])->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER);
         }
 
-        $this->finishTable($sheet, count($headers), $drivers->count() + 1);
-        $sheet->getColumnDimension('J')->setWidth(60);
+        $lastRow = max(1, $drivers->count() + 1);
+        $lastColumn = $this->columnLetter(count($headers));
+        $sheet->setAutoFilter("A1:{$lastColumn}{$lastRow}");
+        $sheet->getStyle("A1:{$lastColumn}{$lastRow}")->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
+
+        if ($drivers->isNotEmpty()) {
+            $sheet->getStyle("A2:{$lastColumn}{$lastRow}")->applyFromArray([
+                'borders' => [
+                    'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D7E3F0']],
+                ],
+            ]);
+        }
+
+        $widths = [6, 20, 14, 38, 14, 28, 34, 22, 16, 14];
+        foreach ($widths as $index => $width) {
+            $sheet->getColumnDimension($this->columnLetter($index + 1))->setWidth($width);
+        }
+
+        for ($column = $firstTopicColumn; $column <= $percentColumn; $column++) {
+            $sheet->getColumnDimension($this->columnLetter($column))->setWidth($column === $percentColumn ? 18 : 24);
+        }
     }
 
     /**
-     * @param  Collection<int, InductionAttendee>  $attendees
-     * @return Collection<string, array{name: string, dni: string, plate: string, provider: string, convoked: int, attended: int, absent: int, last_attended: string, topics: string}>
+     * @param  Collection<int, Induction>  $inductions
+     * @return array<string, array{key: string, label: string}>
      */
-    private function groupDrivers(Collection $attendees): Collection
+    private function topics(Collection $inductions): array
     {
-        /** @var Collection<string, array{name: string, dni: string, plate: string, provider: string, convoked: int, attended: int, absent: int, last_at: int, last_attended: string, topics: list<string>}> $grouped */
-        $grouped = collect();
+        $topics = [];
 
-        foreach ($attendees as $attendee) {
-            $dni = preg_replace('/\D+/', '', (string) $attendee->driver_dni) ?: '';
-            $key = $dni !== '' ? 'd:'.$dni : 'n:'.mb_strtoupper(trim($attendee->driver_name));
-            $current = $grouped->get($key, [
-                'name' => $attendee->driver_name,
-                'dni' => $attendee->driver_dni ?? '',
-                'plate' => $attendee->plate_number ?? '',
-                'provider' => $attendee->provider ?? '',
-                'convoked' => 0,
-                'attended' => 0,
-                'absent' => 0,
-                'last_at' => 0,
-                'last_attended' => '',
-                'topics' => [],
-            ]);
-            $current['convoked']++;
-
-            if ($attendee->status === InductionAttendeeStatuses::ATTENDED) {
-                $current['attended']++;
-                $title = trim((string) ($attendee->induction?->title ?? ''));
-                if ($title !== '' && ! in_array($title, $current['topics'], true)) {
-                    $current['topics'][] = $title;
-                }
-                $at = $attendee->induction?->scheduled_at?->getTimestamp() ?? 0;
-                if ($at >= $current['last_at']) {
-                    $current['last_at'] = $at;
-                    $current['last_attended'] = $this->when($attendee->induction);
-                }
-            } elseif ($attendee->status === InductionAttendeeStatuses::ABSENT) {
-                $current['absent']++;
+        foreach ($inductions->sortBy(fn (Induction $induction) => $induction->scheduled_at?->getTimestamp() ?? 0) as $induction) {
+            $label = trim((string) $induction->title);
+            if ($label === '') {
+                continue;
             }
 
-            $grouped->put($key, $current);
+            $key = mb_strtoupper($label);
+            if (! isset($topics[$key])) {
+                $topics[$key] = ['key' => $key, 'label' => mb_strtoupper($label)];
+            }
         }
 
-        return $grouped->map(function (array $driver) {
-            $driver['topics'] = implode(' · ', $driver['topics']);
-            unset($driver['last_at']);
-
-            return $driver;
-        });
+        return $topics;
     }
 
-    private function when(?Induction $induction): string
+    /**
+     * @param  Collection<int, Induction>  $inductions
+     * @return array<string, array<string, true>>
+     */
+    private function attendance(Collection $inductions): array
     {
-        return $induction?->scheduled_at
-            ?->timezone(config('app.timezone'))
-            ->format('d/m/Y H:i') ?? '';
-    }
+        $attended = [];
 
-    private function percent(int $part, int $total): string
-    {
-        if ($total === 0) {
-            return '0%';
+        foreach ($inductions as $induction) {
+            $topic = mb_strtoupper(trim((string) $induction->title));
+            if ($topic === '') {
+                continue;
+            }
+
+            foreach ($induction->attendees as $attendee) {
+                if ($attendee->status !== InductionAttendeeStatuses::ATTENDED) {
+                    continue;
+                }
+
+                $key = $this->driverKey($attendee->driver_dni, $attendee->driver_name);
+                if ($key === '') {
+                    continue;
+                }
+
+                $attended[$key][$topic] = true;
+            }
         }
 
-        return round(($part / $total) * 100, 1).'%';
+        return $attended;
+    }
+
+    /**
+     * @param  Collection<int, Unit>  $units
+     * @return Collection<string, array{key: string, name: string, dni: string, plate: string, provider: string, coordinator: string, sede: string, ingreso: string, fecha: string, status: string, stamp: int, ingreso_stamp: int}>
+     */
+    private function drivers(Collection $units): Collection
+    {
+        /** @var Collection<string, array{key: string, name: string, dni: string, plate: string, provider: string, coordinator: string, sede: string, ingreso: string, fecha: string, status: string, stamp: int, ingreso_stamp: int}> $drivers */
+        $drivers = collect();
+
+        foreach ($units as $unit) {
+            $key = $this->driverKey($unit->driver_dni, $unit->driver_name);
+            if ($key === '') {
+                continue;
+            }
+
+            $stamp = $unit->period?->date?->getTimestamp()
+                ?? $unit->service_date?->getTimestamp()
+                ?? $unit->created_at?->getTimestamp()
+                ?? 0;
+            $ingresoStamp = $unit->service_date?->getTimestamp()
+                ?? $unit->created_at?->getTimestamp()
+                ?? $stamp;
+            $ingresoLabel = $unit->service_date?->format('d/m/Y')
+                ?? $unit->created_at?->timezone(config('app.timezone'))->format('d/m/Y')
+                ?? '';
+            $current = $drivers->get($key);
+
+            if ($current === null || $stamp >= $current['stamp']) {
+                $drivers->put($key, [
+                    'key' => $key,
+                    'name' => trim((string) $unit->driver_name),
+                    'dni' => trim((string) $unit->driver_dni),
+                    'plate' => trim((string) $unit->plate_number),
+                    'provider' => trim((string) $unit->provider),
+                    'coordinator' => trim((string) ($unit->coordinatorUser?->name ?? '')),
+                    'sede' => $this->sede($unit),
+                    'ingreso' => $current === null || $ingresoStamp <= $current['ingreso_stamp']
+                        ? $ingresoLabel
+                        : $current['ingreso'],
+                    'fecha' => $unit->service_date?->format('d/m/Y') ?? '',
+                    'status' => $unit->period?->isActive() ? 'ACTIVO' : 'INACTIVO',
+                    'stamp' => $stamp,
+                    'ingreso_stamp' => $current === null
+                        ? $ingresoStamp
+                        : min($ingresoStamp, $current['ingreso_stamp']),
+                ]);
+
+                continue;
+            }
+
+            if ($ingresoStamp < $current['ingreso_stamp']) {
+                $current['ingreso'] = $ingresoLabel;
+                $current['ingreso_stamp'] = $ingresoStamp;
+                $drivers->put($key, $current);
+            }
+        }
+
+        return $drivers;
+    }
+
+    private function sede(Unit $unit): string
+    {
+        $sites = $unit->coordinatorUser?->places
+            ->map(fn ($place) => trim((string) ($place->site?->name ?? '')))
+            ->filter()
+            ->unique()
+            ->values() ?? collect();
+
+        return $sites->implode(' / ');
+    }
+
+    private function driverKey(?string $dni, ?string $name): string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $dni) ?: '';
+        if ($digits !== '') {
+            return 'd:'.$digits;
+        }
+
+        $normalized = mb_strtoupper(trim((string) $name));
+
+        return $normalized !== '' ? 'n:'.$normalized : '';
     }
 
     /**
      * @param  list<string>  $headers
      */
-    private function writeHeader(Worksheet $sheet, array $headers, int $row): void
+    private function writeHeader(Worksheet $sheet, array $headers): void
     {
         foreach ($headers as $index => $header) {
-            $sheet->setCellValue([$index + 1, $row], $header);
+            $sheet->setCellValue([$index + 1, 1], $header);
         }
 
         $last = $this->columnLetter(count($headers));
-        $sheet->getStyle("A{$row}:{$last}{$row}")->applyFromArray([
+        $sheet->getStyle("A1:{$last}1")->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1A2B4C']],
-            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'wrapText' => true,
+            ],
         ]);
-        $sheet->getRowDimension($row)->setRowHeight(22);
-        $sheet->freezePane('A'.($row + 1));
+        $sheet->getRowDimension(1)->setRowHeight(32);
+        $sheet->freezePane('A2');
     }
 
-    private function finishTable(Worksheet $sheet, int $columns, int $lastRow): void
+    private function paintOk(Worksheet $sheet, int $column, int $row): void
     {
-        $last = $this->columnLetter($columns);
-        $sheet->setAutoFilter("A1:{$last}{$lastRow}");
+        $sheet->getStyle([$column, $row])->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => '14532D']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '22C55E']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        ]);
+    }
 
-        for ($column = 1; $column <= $columns; $column++) {
-            $sheet->getColumnDimension($this->columnLetter($column))->setWidth(22);
-        }
-
-        $sheet->getColumnDimension('B')->setWidth(36);
+    private function paintStatus(Worksheet $sheet, int $row, string $status): void
+    {
+        $active = $status === 'ACTIVO';
+        $sheet->getStyle([10, $row])->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => $active ? '14532D' : '7F1D1D']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $active ? '22C55E' : 'FECACA']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        ]);
     }
 
     private function columnLetter(int $index): string
