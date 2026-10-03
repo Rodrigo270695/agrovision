@@ -7,10 +7,13 @@ use App\Models\Unit;
 use App\Models\UnitMovement;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
@@ -378,6 +381,8 @@ final class UnitExcelImporter
      */
     public function import(UploadedFile $file, Period $period): array
     {
+        set_time_limit(300);
+
         $spreadsheet = IOFactory::load($file->getRealPath());
         $sheet = $spreadsheet->getSheetByName('Unidades')
             ?? $spreadsheet->getActiveSheet();
@@ -549,6 +554,38 @@ final class UnitExcelImporter
         $updated = 0;
         $unitsCreated = 0;
 
+        try {
+            $this->allowRepeatedMovementCorrelatives();
+            $this->persistImport($pending, $period, $created, $updated, $unitsCreated);
+        } catch (QueryException $exception) {
+            report($exception);
+
+            return [
+                'imported' => 0,
+                'created' => 0,
+                'updated' => 0,
+                'units_created' => 0,
+                'errors' => [[
+                    'row' => 1,
+                    'messages' => [$this->databaseErrorMessage($exception)],
+                ]],
+            ];
+        }
+
+        return [
+            'imported' => $created + $updated,
+            'created' => $created,
+            'updated' => $updated,
+            'units_created' => $unitsCreated,
+            'errors' => [],
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $pending
+     */
+    private function persistImport(array $pending, Period $period, int &$created, int &$updated, int &$unitsCreated): void
+    {
         DB::transaction(function () use ($pending, $period, &$created, &$updated, &$unitsCreated): void {
             $createdUnitIds = [];
             $createdByCorrelative = [];
@@ -634,14 +671,40 @@ final class UnitExcelImporter
                 $created++;
             }
         });
+    }
 
-        return [
-            'imported' => $created + $updated,
-            'created' => $created,
-            'updated' => $updated,
-            'units_created' => $unitsCreated,
-            'errors' => [],
-        ];
+    private function allowRepeatedMovementCorrelatives(): void
+    {
+        $indexes = Schema::getIndexes('unit_movements');
+        $unique = collect($indexes)->first(function (array $index): bool {
+            return ($index['unique'] ?? false)
+                && ! ($index['primary'] ?? false)
+                && in_array('correlative', $index['columns'] ?? [], true);
+        });
+
+        if (! is_array($unique)) {
+            return;
+        }
+
+        Schema::table('unit_movements', function (Blueprint $table) use ($unique): void {
+            $table->dropUnique($unique['name']);
+            $table->index('correlative');
+        });
+    }
+
+    private function databaseErrorMessage(QueryException $exception): string
+    {
+        $state = (string) $exception->errorInfo[0];
+
+        if ($state === '23505') {
+            return 'Hay un correlativo que ya existe en otra unidad. El resto del archivo no se guardó.';
+        }
+
+        if ($state === '22001') {
+            return 'Un dato es más largo de lo que permite la base. Revisa celular, RUC, placa o DNI.';
+        }
+
+        return 'No se pudo guardar la importación. Vuelve a subir el archivo.';
     }
 
     /**

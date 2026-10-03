@@ -75,20 +75,22 @@ class UnitCatalog
             return null;
         }
 
-        $existing = VehicleType::query()
-            ->whereRaw('upper(name) = ?', [$normalized])
-            ->first();
+        return self::rememberCached(VehicleType::class, $normalized, function () use ($normalized) {
+            $existing = VehicleType::query()
+                ->whereRaw('upper(name) = ?', [$normalized])
+                ->first();
 
-        if ($existing) {
-            return $existing;
-        }
+            if ($existing) {
+                return $existing;
+            }
 
-        $sort = ((int) VehicleType::query()->max('sort')) + 10;
+            $sort = ((int) VehicleType::query()->max('sort')) + 10;
 
-        return VehicleType::query()->create([
-            'name' => $normalized,
-            'sort' => $sort,
-        ]);
+            return VehicleType::query()->create([
+                'name' => $normalized,
+                'sort' => $sort,
+            ]);
+        });
     }
 
     public static function rememberLicenseCategory(?string $name): ?LicenseCategory
@@ -99,20 +101,22 @@ class UnitCatalog
             return null;
         }
 
-        $existing = LicenseCategory::query()
-            ->whereRaw('lower(name) = ?', [mb_strtolower($trimmed)])
-            ->first();
+        return self::rememberCached(LicenseCategory::class, mb_strtolower($trimmed), function () use ($trimmed) {
+            $existing = LicenseCategory::query()
+                ->whereRaw('lower(name) = ?', [mb_strtolower($trimmed)])
+                ->first();
 
-        if ($existing) {
-            return $existing;
-        }
+            if ($existing) {
+                return $existing;
+            }
 
-        $sort = ((int) LicenseCategory::query()->max('sort')) + 10;
+            $sort = ((int) LicenseCategory::query()->max('sort')) + 10;
 
-        return LicenseCategory::query()->create([
-            'name' => $trimmed,
-            'sort' => $sort,
-        ]);
+            return LicenseCategory::query()->create([
+                'name' => $trimmed,
+                'sort' => $sort,
+            ]);
+        });
     }
 
     public static function rememberServiceType(?string $name): ?ServiceType
@@ -153,20 +157,42 @@ class UnitCatalog
             return null;
         }
 
-        $existing = $model::query()
-            ->whereRaw('upper(name) = ?', [$normalized])
-            ->first();
+        return self::rememberCached($model, $normalized, function () use ($model, $normalized) {
+            $existing = $model::query()
+                ->whereRaw('upper(name) = ?', [$normalized])
+                ->first();
 
-        if ($existing) {
-            return $existing;
+            if ($existing) {
+                return $existing;
+            }
+
+            $sort = ((int) $model::query()->max('sort')) + 10;
+
+            return $model::query()->create([
+                'name' => $normalized,
+                'sort' => $sort,
+            ]);
+        });
+    }
+
+    /**
+     * @template T of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  class-string<T>  $model
+     * @param  callable(): T  $resolve
+     * @return T
+     */
+    private static function rememberCached(string $model, string $key, callable $resolve): mixed
+    {
+        static $cache = [];
+
+        $cacheKey = $model.'|'.$key;
+
+        if (array_key_exists($cacheKey, $cache)) {
+            return $cache[$cacheKey];
         }
 
-        $sort = ((int) $model::query()->max('sort')) + 10;
-
-        return $model::query()->create([
-            'name' => $normalized,
-            'sort' => $sort,
-        ]);
+        return $cache[$cacheKey] = $resolve();
     }
 
     public static function normalizeVehicleType(?string $name): ?string
