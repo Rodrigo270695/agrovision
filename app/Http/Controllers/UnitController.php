@@ -8,11 +8,12 @@ use App\Models\Period;
 use App\Models\ResponsiblePerson;
 use App\Models\ServiceType;
 use App\Models\Unit;
+use App\Models\UnitMovement;
 use App\Models\VehicleType;
 use App\Support\IndexedRedirect;
-use App\Support\UnitCatalog;
 use App\Support\PermissionCatalog;
 use App\Support\SystemRoles;
+use App\Support\UnitCatalog;
 use App\Support\UnitDocumentTypes;
 use App\Support\UnitExcelImporter;
 use Illuminate\Database\Eloquent\Builder;
@@ -35,35 +36,60 @@ class UnitController extends Controller
         PermissionCatalog::syncToDatabase();
 
         $baseQuery = $this->scopedUnitsQuery();
+        $showingMovements = $filters['view'] === 'movements';
 
-        $units = $this->filteredUnitsQuery($filters, clone $baseQuery)
-            ->with([
-                'period:id,name,status,date',
-                'coordinatorUser:id,name,email',
-                'documents' => fn ($query) => $query
-                    ->latest()
-                    ->with('uploader:id,name'),
-            ])
-            ->withCount('documents')
-            ->paginate($filters['per_page'])
-            ->withQueryString()
-            ->through(function (Unit $unit) {
-                $unit->setAttribute(
-                    'documents_progress',
-                    UnitDocumentTypes::progress($unit->documents),
-                );
+        $units = $showingMovements
+            ? null
+            : ($this->filteredUnitsQuery($filters, clone $baseQuery)
+                ->with([
+                    'period:id,name,status,date',
+                    'coordinatorUser:id,name,email',
+                    'documents' => fn ($query) => $query
+                        ->latest()
+                        ->with('uploader:id,name'),
+                ])
+                ->withCount('documents')
+                ->paginate($filters['per_page'])
+                ->withQueryString()
+                ->through(function (Unit $unit) {
+                    $unit->setAttribute(
+                        'documents_progress',
+                        UnitDocumentTypes::progress($unit->documents),
+                    );
 
-                return $unit;
-            });
+                    return $unit;
+                }));
+
+        $movements = $showingMovements
+            ? $this->filteredMovementsQuery($filters)
+                ->with([
+                    'period:id,name,date',
+                    'coordinator:id,name',
+                ])
+                ->paginate($filters['per_page'])
+                ->withQueryString()
+            : null;
+
+        $activePage = $movements ?? $units;
 
         return Inertia::render('units/index', [
-            'units' => $units,
+            'units' => $units ?? [
+                'data' => [],
+                'current_page' => 1,
+                'last_page' => 1,
+                'per_page' => $filters['per_page'],
+                'total' => 0,
+                'from' => null,
+                'to' => null,
+            ],
+            'movements' => $movements,
             'filters' => [
                 'search' => $filters['search'],
                 'period_id' => $filters['period_id'],
                 'date_from' => $filters['date_from'],
                 'date_to' => $filters['date_to'],
                 'all_dates' => $filters['all_dates'],
+                'view' => $filters['view'],
                 'sort' => $filters['sort'],
                 'direction' => $filters['direction'],
                 'per_page' => $filters['per_page'],
@@ -108,9 +134,10 @@ class UnitController extends Controller
                 ->all(),
             'stats' => [
                 'units' => (clone $baseQuery)->count(),
+                'movements' => $this->filteredMovementsQuery($filters)->count(),
                 'providers' => (clone $baseQuery)->distinct()->count('provider'),
-                'page' => $units->currentPage().'/'.max($units->lastPage(), 1),
-                'on_screen' => $units->count(),
+                'page' => $activePage->currentPage().'/'.max($activePage->lastPage(), 1),
+                'on_screen' => $activePage->count(),
                 'without_plate' => (clone $baseQuery)
                     ->where(function ($query) {
                         $query->whereNull('plate_number')
@@ -344,13 +371,14 @@ class UnitController extends Controller
     }
 
     /**
-     * @return array{search: string, period_id: int|null, date_from: string|null, date_to: string|null, all_dates: bool, sort: string, direction: string, per_page: int}
+     * @return array{search: string, period_id: int|null, date_from: string|null, date_to: string|null, all_dates: bool, view: string, sort: string, direction: string, per_page: int}
      */
     private function validatedFilters(Request $request): array
     {
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:255'],
             'period_id' => ['nullable', 'integer', 'exists:periods,id'],
+            'view' => ['nullable', Rule::in(['units', 'movements'])],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
             'all_dates' => ['nullable', 'boolean'],
@@ -388,6 +416,7 @@ class UnitController extends Controller
             'date_from' => $dateFrom,
             'date_to' => $dateTo,
             'all_dates' => $allDates,
+            'view' => $validated['view'] ?? 'units',
             'sort' => $validated['sort'] ?? 'correlative',
             'direction' => $validated['direction'] ?? 'desc',
             'per_page' => (int) ($validated['per_page'] ?? 10),
@@ -465,6 +494,60 @@ class UnitController extends Controller
         }
 
         return $query->orderBy($filters['sort'], $filters['direction']);
+    }
+
+    /**
+     * @param  array{search: string, period_id: int|null, date_from: string|null, date_to: string|null, all_dates: bool, view: string, sort: string, direction: string, per_page: int}  $filters
+     * @return Builder<UnitMovement>
+     */
+    private function filteredMovementsQuery(array $filters): Builder
+    {
+        $query = UnitMovement::query();
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $query->where(function (Builder $builder) {
+                $builder
+                    ->where('coordinator_id', Auth::id())
+                    ->orWhereHas('unit', fn (Builder $unit) => $unit->where('coordinator_id', Auth::id()));
+            });
+        }
+
+        if ($filters['period_id']) {
+            $query->where('period_id', $filters['period_id']);
+        }
+
+        if ($filters['date_from']) {
+            $query->whereDate('service_date', '>=', $filters['date_from']);
+        }
+
+        if ($filters['date_to']) {
+            $query->whereDate('service_date', '<=', $filters['date_to']);
+        }
+
+        if ($filters['search'] !== '') {
+            $search = $filters['search'];
+            $query->where(function (Builder $builder) use ($search) {
+                $builder
+                    ->where('correlative', 'ilike', "%{$search}%")
+                    ->orWhere('provider', 'ilike', "%{$search}%")
+                    ->orWhere('plate_number', 'ilike', "%{$search}%")
+                    ->orWhere('driver_name', 'ilike', "%{$search}%")
+                    ->orWhere('route', 'ilike', "%{$search}%")
+                    ->orWhere('service_type', 'ilike', "%{$search}%");
+            });
+        }
+
+        $sort = in_array($filters['sort'], [
+            'correlative',
+            'provider',
+            'plate_number',
+            'driver_name',
+            'vehicle_type',
+            'service_date',
+            'created_at',
+        ], true) ? $filters['sort'] : 'service_date';
+
+        return $query->orderBy($sort, $filters['direction'])->orderByDesc('id');
     }
 
     /**

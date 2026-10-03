@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 
 export type UnitsStatsData = {
     units: number;
+    movements?: number;
     providers: number;
     page: string;
     on_screen: number;

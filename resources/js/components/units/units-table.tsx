@@ -68,6 +68,37 @@ export type UnitItem = {
     } | null;
 };
 
+export type MovementItem = {
+    id: number;
+    correlative: string;
+    service_date?: string | null;
+    plate_number?: string | null;
+    driver_name?: string | null;
+    route?: string | null;
+    service_type?: string | null;
+    provider?: string | null;
+    vehicle_type?: string | null;
+    coordinator?: {
+        id: number;
+        name: string;
+    } | null;
+    period?: {
+        id: number;
+        name: string;
+        date?: string;
+    } | null;
+};
+
+export type MovementsPagination = {
+    data: MovementItem[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+};
+
 export type UnitsPagination = {
     data: UnitItem[];
     current_page: number;
@@ -84,6 +115,7 @@ export type UnitsFilters = {
     date_from?: string | null;
     date_to?: string | null;
     all_dates?: boolean;
+    view?: 'units' | 'movements';
     sort:
         | 'correlative'
         | 'provider'
@@ -98,6 +130,7 @@ export type UnitsFilters = {
 
 type Props = {
     units: UnitsPagination;
+    movements?: MovementsPagination | null;
     filters: UnitsFilters;
     periodOptions: PeriodFilterOption[];
     onEdit: (unit: UnitItem) => void;
@@ -193,12 +226,14 @@ function UnitActions({
 
 export function UnitsTable({
     units,
+    movements = null,
     filters,
     periodOptions,
     onEdit,
     onDelete,
     onDocuments,
 }: Props) {
+    const showingHistory = filters.view === 'movements';
     const visit = useCallback(
         (params: Partial<UnitsFilters> & { page?: number }) => {
             const nextPeriodId = Object.prototype.hasOwnProperty.call(
@@ -234,6 +269,7 @@ export function UnitsTable({
                     ...(nextAllDates ? { all_dates: 1 } : {}),
                     ...(nextDateFrom ? { date_from: nextDateFrom } : {}),
                     ...(nextDateTo ? { date_to: nextDateTo } : {}),
+                    view: params.view ?? filters.view ?? 'units',
                     sort: params.sort ?? filters.sort,
                     direction: params.direction ?? filters.direction,
                     per_page: params.per_page ?? filters.per_page,
@@ -373,12 +409,240 @@ export function UnitsTable({
         [onDelete, onDocuments, onEdit],
     );
 
+    const historyColumns = useMemo<DataTableColumn<MovementItem>[]>(
+        () => [
+            {
+                key: 'service_date',
+                header: 'Fecha',
+                sortable: true,
+                cell: (movement) => (
+                    <span className="text-xs font-medium text-foreground">
+                        {formatDate(movement.service_date)}
+                    </span>
+                ),
+            },
+            {
+                key: 'correlative',
+                header: 'Correlativo',
+                sortable: true,
+                cell: (movement) => (
+                    <span className="text-xs font-semibold text-foreground">
+                        {movement.correlative}
+                    </span>
+                ),
+            },
+            {
+                key: 'plate_number',
+                header: 'Placa',
+                sortable: true,
+                cell: (movement) => (
+                    <span className="text-xs text-muted-foreground">
+                        {movement.plate_number || '—'}
+                    </span>
+                ),
+            },
+            {
+                key: 'driver_name',
+                header: 'Conductor',
+                sortable: true,
+                cell: (movement) => (
+                    <span className="text-xs text-muted-foreground">
+                        {movement.driver_name || '—'}
+                    </span>
+                ),
+            },
+            {
+                key: 'route',
+                header: 'Ruta',
+                cell: (movement) => (
+                    <span className="text-xs text-muted-foreground">
+                        {movement.route || '—'}
+                    </span>
+                ),
+            },
+            {
+                key: 'service_type',
+                header: 'Servicio',
+                cell: (movement) => (
+                    <span className="text-xs text-muted-foreground">
+                        {movement.service_type || '—'}
+                    </span>
+                ),
+            },
+            {
+                key: 'provider',
+                header: 'Proveedor',
+                sortable: true,
+                cell: (movement) => (
+                    <span className="text-xs text-muted-foreground">
+                        {movement.provider || '—'}
+                    </span>
+                ),
+            },
+            {
+                key: 'vehicle_type',
+                header: 'Vehículo',
+                sortable: true,
+                cell: (movement) => (
+                    <span className="text-xs text-muted-foreground">
+                        {movement.vehicle_type || '—'}
+                    </span>
+                ),
+            },
+        ],
+        [],
+    );
+
     const hasFilters = Boolean(
         filters.search ||
             filters.period_id ||
             filters.date_from ||
             filters.date_to,
     );
+
+    const viewToggle = (
+        <div className="flex rounded-lg border border-[#c5d5e6] bg-white p-0.5">
+            <button
+                type="button"
+                onClick={() =>
+                    visit({
+                        view: 'units',
+                        sort: 'correlative',
+                        direction: 'desc',
+                        page: 1,
+                    })
+                }
+                className={`cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium ${
+                    showingHistory
+                        ? 'text-[#5a7390]'
+                        : 'bg-[#1a2b4c] text-white'
+                }`}
+            >
+                Unidades
+            </button>
+            <button
+                type="button"
+                onClick={() =>
+                    visit({
+                        view: 'movements',
+                        sort: 'service_date',
+                        direction: 'desc',
+                        page: 1,
+                    })
+                }
+                className={`cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium ${
+                    showingHistory
+                        ? 'bg-[#1a2b4c] text-white'
+                        : 'text-[#5a7390]'
+                }`}
+            >
+                Historial
+            </button>
+        </div>
+    );
+
+    const historyRows = movements?.data ?? [];
+
+    if (showingHistory) {
+        return (
+            <DataTable
+                columns={historyColumns}
+                data={historyRows}
+                rowKey={(movement) => movement.id}
+                sort={sort}
+                onSortChange={(next) => {
+                    if (!next) {
+                        visit({
+                            sort: 'service_date',
+                            direction: 'desc',
+                            page: 1,
+                        });
+                        return;
+                    }
+
+                    visit({
+                        sort: next.key as SortKey,
+                        direction: next.direction,
+                        page: 1,
+                    });
+                }}
+                ariaLiveMessage={`${movements?.total ?? 0} movimientos encontrados`}
+                toolbar={
+                    <DataToolbar
+                        search={filters.search}
+                        onSearchChange={(search) => visit({ search, page: 1 })}
+                        placeholder="Buscar correlativo, placa, conductor..."
+                    >
+                        {viewToggle}
+                        <PeriodFilterSelect
+                            value={filters.period_id}
+                            options={periodOptions}
+                            onChange={(periodId) =>
+                                visit({ period_id: periodId, page: 1 })
+                            }
+                        />
+                        <DateRangeFilter
+                            desde={filters.date_from ?? null}
+                            hasta={filters.date_to ?? null}
+                            onApply={(dateFrom, dateTo) =>
+                                visit({
+                                    date_from: dateFrom,
+                                    date_to: dateTo,
+                                    all_dates: false,
+                                    page: 1,
+                                })
+                            }
+                            onClear={() =>
+                                visit({
+                                    date_from: null,
+                                    date_to: null,
+                                    all_dates: true,
+                                    page: 1,
+                                })
+                            }
+                        />
+                    </DataToolbar>
+                }
+                footer={
+                    <DataPagination
+                        meta={asPaginated(
+                            movements ?? {
+                                data: [],
+                                current_page: 1,
+                                last_page: 1,
+                                per_page: filters.per_page,
+                                total: 0,
+                                from: null,
+                                to: null,
+                            },
+                            '/unidades',
+                        )}
+                        onPerPageChange={(per_page) =>
+                            visit({ per_page, page: 1 })
+                        }
+                        preservedQuery={{
+                            search: filters.search || undefined,
+                            per_page: filters.per_page,
+                            sort: filters.sort,
+                            direction: filters.direction,
+                            view: 'movements',
+                            period_id: filters.period_id ?? undefined,
+                            date_from: filters.date_from || undefined,
+                            date_to: filters.date_to || undefined,
+                            all_dates: filters.all_dates ? 1 : undefined,
+                        }}
+                    />
+                }
+                emptyState={
+                    <EmptyState
+                        icon={Bus}
+                        title="Sin movimientos en este rango"
+                        description="Cambia las fechas o vuelve a importar el Excel. Cada fila del archivo es un día de esa unidad."
+                    />
+                }
+            />
+        );
+    }
 
     return (
         <DataTable
@@ -410,6 +674,7 @@ export function UnitsTable({
                     onSearchChange={(search) => visit({ search, page: 1 })}
                     placeholder="Buscar correlativo, placa, conductor..."
                 >
+                    {viewToggle}
                     <PeriodFilterSelect
                         value={filters.period_id}
                         options={periodOptions}
@@ -452,6 +717,7 @@ export function UnitsTable({
                         date_from: filters.date_from || undefined,
                         date_to: filters.date_to || undefined,
                         all_dates: filters.all_dates ? 1 : undefined,
+                        view: filters.view === 'movements' ? 'movements' : undefined,
                     }}
                 />
             }

@@ -3,6 +3,7 @@ import {
     Bus,
     Download,
     FileSpreadsheet,
+    History,
     Plus,
     TriangleAlert,
 } from 'lucide-react';
@@ -62,7 +63,7 @@ export function UnitsHeader({ stats, filters, onCreate, onImport }: Props) {
     return (
         <PageHeader
             title="Unidades"
-            description="Gestión de unidades de transporte y servicio."
+            description="Cada placa es una unidad. Historial muestra todos los días importados."
             stats={[
                 {
                     label: 'Unidades',
@@ -83,10 +84,10 @@ export function UnitsHeader({ stats, filters, onCreate, onImport }: Props) {
                     icon: TriangleAlert,
                 },
                 {
-                    label: 'En pantalla',
-                    value: stats.on_screen,
+                    label: 'Movimientos',
+                    value: stats.movements ?? 0,
                     variant: 'success',
-                    icon: Bus,
+                    icon: History,
                 },
             ]}
             action={

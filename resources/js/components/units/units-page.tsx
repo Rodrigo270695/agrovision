@@ -14,6 +14,7 @@ import { UnitsHeader } from '@/components/units/units-header';
 import type { UnitsStatsData } from '@/components/units/units-stats';
 import { UnitsTable } from '@/components/units/units-table';
 import type {
+    MovementsPagination,
     UnitItem,
     UnitsFilters,
     UnitsPagination,
@@ -22,6 +23,7 @@ import { useCan } from '@/hooks/use-can';
 
 type UnitsPageProps = {
     units: UnitsPagination;
+    movements?: MovementsPagination | null;
     stats: UnitsStatsData;
     filters: UnitsFilters;
     periodOptions: PeriodOption[];
@@ -45,6 +47,7 @@ type UnitsPageProps = {
 export function UnitsPage() {
     const {
         units,
+        movements,
         stats,
         filters,
         periodOptions,
@@ -149,6 +152,7 @@ export function UnitsPage() {
             />
             <UnitsTable
                 units={units}
+                movements={movements}
                 filters={filters}
                 periodOptions={periodOptions ?? []}
                 onEdit={openEdit}
