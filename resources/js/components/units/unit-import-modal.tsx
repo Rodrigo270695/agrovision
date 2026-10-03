@@ -283,9 +283,11 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
                         CORRELATIVO, Celular, PROVEEDOR, RUTA, T. VEHÍCULO, FECHA
                         (dd/mm/yyyy), CONDUCTOR, PLACA, RESPONSABLE, TIPO DE
                         SERVICIO, RUC, DNI CONDUCTOR, CATEGORIA, COORDINADOR.
-                        Cada fila es un movimiento. La misma placa puede repetirse
-                        el mismo día si cambia la ruta o el tipo de servicio. La
-                        unidad se crea solo con el primer registro.
+                        Cada fila es un movimiento. El correlativo puede repetirse:
+                        esas filas quedan como movimientos de la misma unidad. La
+                        misma placa puede repetirse el mismo día si cambia la ruta
+                        o el tipo de servicio. La unidad se crea solo con el primer
+                        registro.
                     </p>
                 </div>
 

@@ -134,9 +134,9 @@ function resultLabel(value?: string | null): string {
 
 function ResultChip({ value }: { value?: string | null }) {
     const variant =
-        value === 'approved'
+                value === 'approved'
             ? 'success'
-            : value === 'rejected'
+                    : value === 'rejected'
               ? 'danger'
               : 'muted';
 

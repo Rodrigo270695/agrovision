@@ -5,8 +5,10 @@ namespace App\Support;
 use App\Models\Period;
 use App\Models\Unit;
 use App\Models\UnitMovement;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -412,7 +414,6 @@ final class UnitExcelImporter
 
         $errors = [];
         $pending = [];
-        $seenCorrelatives = [];
         $coordinators = SystemRoles::coordinators();
 
         foreach ($rows as $index => $row) {
@@ -424,18 +425,6 @@ final class UnitExcelImporter
 
             $mapped = $this->mapRow($row, $excelRow, $coordinators);
             $rowErrors = $mapped['errors'];
-
-            if ($rowErrors === []) {
-                $correlative = $mapped['data']['correlative'] ?? null;
-
-                if (is_string($correlative) && $correlative !== '') {
-                    if (isset($seenCorrelatives[$correlative])) {
-                        $rowErrors[] = "El correlativo \"{$correlative}\" está duplicado en la fila {$seenCorrelatives[$correlative]} del Excel.";
-                    } else {
-                        $seenCorrelatives[$correlative] = $excelRow;
-                    }
-                }
-            }
 
             if ($rowErrors !== []) {
                 $errors[] = [
@@ -479,13 +468,14 @@ final class UnitExcelImporter
             : Unit::query()
                 ->whereIn('correlative', $correlatives)
                 ->pluck('id', 'correlative');
-        $movementsByCorrelative = $correlatives === []
+        $existingMovements = $correlatives === []
             ? collect()
             : UnitMovement::query()
+                ->where('period_id', $period->id)
                 ->whereIn('correlative', $correlatives)
-                ->get()
-                ->keyBy('correlative');
+                ->get();
         $firstNewPlateRow = [];
+        $identityOwners = [];
 
         foreach ($pending as $excelRow => $data) {
             $rowMessages = [];
@@ -500,23 +490,19 @@ final class UnitExcelImporter
             }
 
             $correlative = (string) ($data['correlative'] ?? '');
-            $movement = $correlative !== '' ? $movementsByCorrelative->get($correlative) : null;
 
-            if ($movement !== null && mb_strtoupper((string) $movement->plate_number) !== $plate) {
-                $rowMessages[] = "El correlativo \"{$correlative}\" ya pertenece a otra placa.";
+            if ($unitId === null && $correlative !== '' && $unitCorrelativeOwners->has($correlative)) {
+                $unitId = (int) $unitCorrelativeOwners->get($correlative);
             }
 
-            if ($movement !== null && (int) $movement->period_id !== (int) $period->id) {
-                $rowMessages[] = "El correlativo \"{$correlative}\" ya está en otro periodo.";
-            }
+            $identity = $this->movementIdentity($data);
+            $movement = $existingMovements->first(
+                fn (UnitMovement $movement) => $this->movementIdentity($movement) === $identity,
+            );
 
             if ($unitId === null && ! isset($firstNewPlateRow[$plate])) {
                 if (($data['provider'] ?? null) === null) {
                     $rowMessages[] = 'El proveedor es obligatorio en el primer registro de una placa nueva.';
-                }
-
-                if ($correlative !== '' && $unitCorrelativeOwners->has($correlative)) {
-                    $rowMessages[] = "Ya existe otra unidad con el correlativo \"{$correlative}\".";
                 }
             }
 
@@ -535,7 +521,11 @@ final class UnitExcelImporter
             }
 
             $pending[$excelRow]['unit_id'] = $unitId;
-            $pending[$excelRow]['movement_id'] = $movement?->id;
+            $pending[$excelRow]['movement_id'] = isset($identityOwners[$identity])
+                ? null
+                : $movement?->id;
+            $pending[$excelRow]['duplicate_of'] = $identityOwners[$identity] ?? null;
+            $identityOwners[$identity] ??= $excelRow;
         }
 
         if ($errors !== []) {
@@ -561,11 +551,15 @@ final class UnitExcelImporter
 
         DB::transaction(function () use ($pending, $period, &$created, &$updated, &$unitsCreated): void {
             $createdUnitIds = [];
+            $createdByCorrelative = [];
+            $movementIdByRow = [];
 
-            foreach ($pending as $data) {
+            foreach ($pending as $excelRow => $data) {
                 $movementId = $data['movement_id'] ?? null;
                 $unitId = $data['unit_id'] ?? null;
-                unset($data['movement_id'], $data['unit_id']);
+                $duplicateOf = $data['duplicate_of'] ?? null;
+                $correlative = (string) ($data['correlative'] ?? '');
+                unset($data['movement_id'], $data['unit_id'], $data['duplicate_of']);
 
                 $vehicleType = UnitCatalog::rememberVehicleType($data['vehicle_type'] ?? null);
                 $category = UnitCatalog::rememberLicenseCategory($data['category'] ?? null);
@@ -596,6 +590,10 @@ final class UnitExcelImporter
                     $unitId = $createdUnitIds[$plate];
                 }
 
+                if (! $unitId && $correlative !== '' && isset($createdByCorrelative[$correlative])) {
+                    $unitId = $createdByCorrelative[$correlative];
+                }
+
                 if (! $unitId) {
                     $unit = Unit::create([
                         ...$attributes,
@@ -604,6 +602,14 @@ final class UnitExcelImporter
                     $unitId = $unit->id;
                     $createdUnitIds[$plate] = $unitId;
                     $unitsCreated++;
+                }
+
+                if ($correlative !== '') {
+                    $createdByCorrelative[$correlative] = $unitId;
+                }
+
+                if ($duplicateOf !== null && isset($movementIdByRow[$duplicateOf])) {
+                    $movementId = $movementIdByRow[$duplicateOf];
                 }
 
                 $movementAttributes = [
@@ -617,12 +623,14 @@ final class UnitExcelImporter
                     $movement = UnitMovement::query()->findOrFail($movementId);
                     $movement->fill($movementAttributes);
                     $movement->save();
+                    $movementIdByRow[$excelRow] = $movement->id;
                     $updated++;
 
                     continue;
                 }
 
-                UnitMovement::create($movementAttributes);
+                $movement = UnitMovement::create($movementAttributes);
+                $movementIdByRow[$excelRow] = $movement->id;
                 $created++;
             }
         });
@@ -650,7 +658,7 @@ final class UnitExcelImporter
             $normalizedActual = mb_strtoupper($this->normalizeHeader($actual));
 
             if ($normalizedActual !== $normalizedExpected) {
-                $errors[] = "La columna ".($index + 1)." debe llamarse \"{$expected}\" (se recibió \"{$actual}\").";
+                $errors[] = 'La columna '.($index + 1)." debe llamarse \"{$expected}\" (se recibió \"{$actual}\").";
             }
         }
 
@@ -681,7 +689,7 @@ final class UnitExcelImporter
 
     /**
      * @param  array<int, mixed>  $row
-     * @param  \Illuminate\Support\Collection<int, \App\Models\User>  $coordinators
+     * @param  Collection<int, User>  $coordinators
      * @return array{data: array<string, mixed>, errors: list<string>}
      */
     private function mapRow(array $row, int $excelRow, $coordinators): array
@@ -797,9 +805,23 @@ final class UnitExcelImporter
     }
 
     /**
-     * @param  array<string, mixed>  $data
-     * @return array<string, mixed>
+     * @param  array<string, mixed>|UnitMovement  $row
      */
+    private function movementIdentity(array|UnitMovement $row): string
+    {
+        $date = $row instanceof UnitMovement
+            ? $row->service_date?->toDateString()
+            : (string) ($row['service_date'] ?? '');
+
+        return implode('|', [
+            mb_strtoupper(trim((string) ($row instanceof UnitMovement ? $row->correlative : ($row['correlative'] ?? '')))),
+            mb_strtoupper(trim((string) ($row instanceof UnitMovement ? $row->plate_number : ($row['plate_number'] ?? '')))),
+            (string) $date,
+            mb_strtoupper(trim((string) ($row instanceof UnitMovement ? $row->route : ($row['route'] ?? '')))),
+            mb_strtoupper(trim((string) ($row instanceof UnitMovement ? $row->service_type : ($row['service_type'] ?? '')))),
+        ]);
+    }
+
     private function presentAttributes(array $data): array
     {
         $attributes = [];
@@ -816,7 +838,7 @@ final class UnitExcelImporter
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, \App\Models\User>  $coordinators
+     * @param  Collection<int, User>  $coordinators
      * @return array{id: int|null, error: string|null}
      */
     private function resolveCoordinator(string $name, $coordinators): array
