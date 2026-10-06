@@ -50,6 +50,7 @@ type UnitOption = {
     driver_name?: string | null;
     driver_dni?: string | null;
     plate_number?: string | null;
+    period?: { id: number; name: string } | null;
 };
 
 type InductionDetail = {
@@ -573,11 +574,8 @@ export function InductionShowPage() {
                             Jalar conductores desde unidades
                         </h2>
                         <p className="mt-0.5 text-xs text-[#6b8ead]">
-                            Solo unidades del periodo de la inducción
-                            {induction.period?.name
-                                ? ` (${induction.period.name})`
-                                : ''}
-                            . Se toma DNI, nombres y cargo Conductor.
+                            Conductores de todos los periodos. Se toma DNI,
+                            nombres y cargo Conductor.
                         </p>
                     </div>
                     <div className="flex flex-col gap-2 border-b border-[#e2eaf3] px-3 py-2.5 sm:flex-row sm:items-center">
@@ -594,14 +592,9 @@ export function InductionShowPage() {
                         <p className="px-4 py-8 text-center text-sm text-[#6b8ead]">
                             La inducción está cerrada.
                         </p>
-                    ) : !induction.period ? (
-                        <p className="px-4 py-8 text-center text-sm text-[#6b8ead]">
-                            Asigna un periodo a la inducción para poder jalar
-                            conductores.
-                        </p>
                     ) : availableUnits.length === 0 ? (
                         <p className="px-4 py-8 text-center text-sm text-[#6b8ead]">
-                            No hay unidades disponibles en este periodo.
+                            No hay conductores disponibles.
                         </p>
                     ) : (
                         <>
@@ -673,6 +666,9 @@ export function InductionShowPage() {
                                                         : ''}
                                                     {unit.driver_dni
                                                         ? ` · DNI ${unit.driver_dni}`
+                                                        : ''}
+                                                    {unit.period?.name
+                                                        ? ` · ${unit.period.name}`
                                                         : ''}
                                                 </p>
                                             </div>

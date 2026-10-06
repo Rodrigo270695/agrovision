@@ -288,37 +288,40 @@ class InductionController extends Controller
 
         $search = trim((string) $request->input('unit_search', ''));
 
-        $availableUnits = collect();
+        $availableUnitsQuery = $this->availableUnitsQuery($induction);
 
-        if ($induction->period_id) {
-            $availableUnitsQuery = $this->availableUnitsQuery($induction)
-                ->where('period_id', $induction->period_id);
-
-            if ($search !== '') {
-                $availableUnitsQuery->where(function ($builder) use ($search) {
-                    $builder
-                        ->where('driver_name', 'ilike', "%{$search}%")
-                        ->orWhere('driver_dni', 'ilike', "%{$search}%")
-                        ->orWhere('plate_number', 'ilike', "%{$search}%")
-                        ->orWhere('correlative', 'ilike', "%{$search}%");
-                });
-            }
-
-            $availableUnits = $availableUnitsQuery
-                ->with('period:id,name')
-                ->orderBy('driver_name')
-                ->limit(100)
-                ->get([
-                    'id',
-                    'period_id',
-                    'correlative',
-                    'driver_name',
-                    'driver_dni',
-                    'plate_number',
-                    'phone',
-                    'provider',
-                ]);
+        if ($search !== '') {
+            $availableUnitsQuery->where(function ($builder) use ($search) {
+                $builder
+                    ->where('driver_name', 'ilike', "%{$search}%")
+                    ->orWhere('driver_dni', 'ilike', "%{$search}%")
+                    ->orWhere('plate_number', 'ilike', "%{$search}%")
+                    ->orWhere('correlative', 'ilike', "%{$search}%");
+            });
         }
+
+        $availableUnits = $availableUnitsQuery
+            ->with('period:id,name')
+            ->orderByDesc('id')
+            ->get([
+                'id',
+                'period_id',
+                'correlative',
+                'driver_name',
+                'driver_dni',
+                'plate_number',
+                'phone',
+                'provider',
+            ])
+            ->unique(function (Unit $unit) {
+                $dni = preg_replace('/\D+/', '', (string) $unit->driver_dni) ?: '';
+
+                return $dni !== ''
+                    ? 'd:'.$dni
+                    : 'n:'.mb_strtoupper(trim((string) $unit->driver_name));
+            })
+            ->sortBy(fn (Unit $unit) => mb_strtoupper((string) $unit->driver_name))
+            ->values();
 
         $inductionPayload = $induction->toArray();
         $inductionPayload['attendees'] = $induction->attendees->map(function (InductionAttendee $attendee) {
@@ -377,13 +380,6 @@ class InductionController extends Controller
             ]);
         }
 
-        if (! $induction->period_id) {
-            return back()->with('toast', [
-                'type' => 'error',
-                'message' => 'Debes asignar un periodo a la inducción para jalar conductores.',
-            ]);
-        }
-
         $validated = $request->validate([
             'unit_ids' => ['required', 'array', 'min:1'],
             'unit_ids.*' => ['integer', 'exists:units,id'],
@@ -393,14 +389,13 @@ class InductionController extends Controller
         ]);
 
         $units = $this->availableUnitsQuery($induction)
-            ->where('period_id', $induction->period_id)
             ->whereIn('id', $validated['unit_ids'])
             ->get();
 
         if ($units->isEmpty()) {
             return back()->with('toast', [
                 'type' => 'error',
-                'message' => 'Solo puedes jalar unidades del periodo de esta inducción.',
+                'message' => 'No se encontraron esos conductores.',
             ]);
         }
 
