@@ -6,13 +6,6 @@ import {
     ChevronsRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import type { Paginated } from '@/types';
 
@@ -179,38 +172,20 @@ export function DataPagination<T>({
                         >
                             Por página
                         </label>
-                        <Select
+                        <select
+                            id={perPageSelectId}
                             value={String(meta.per_page)}
-                            onValueChange={(value) =>
-                                onPerPageChange(Number(value))
+                            onChange={(event) =>
+                                onPerPageChange(Number(event.target.value))
                             }
+                            className="h-8 cursor-pointer rounded-md border border-input bg-background px-2 text-sm text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                         >
-                            <SelectTrigger
-                                id={perPageSelectId}
-                                size="sm"
-                                className="h-8 w-22 cursor-pointer"
-                            >
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent
-                                side="top"
-                                align="end"
-                                position="popper"
-                                collisionPadding={16}
-                                className="z-[200]"
-                                style={{ maxHeight: '16rem' }}
-                            >
-                                {perPageOptions.map((opt) => (
-                                    <SelectItem
-                                        key={opt}
-                                        value={String(opt)}
-                                        className="cursor-pointer"
-                                    >
-                                        {opt}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            {perPageOptions.map((opt) => (
+                                <option key={opt} value={opt}>
+                                    {opt}
+                                </option>
+                            ))}
+                        </select>
                     </div>
                 )}
             </div>

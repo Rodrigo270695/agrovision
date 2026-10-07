@@ -1,12 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 export type TablePaginationMeta = {
@@ -53,37 +46,19 @@ export function TablePagination({
             <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-2 text-xs text-[#5a7390]">
                     <span>Mostrar:</span>
-                    <Select
+                    <select
                         value={String(meta.per_page || 10)}
-                        onValueChange={(value) =>
-                            onPerPageChange(Number(value))
+                        onChange={(event) =>
+                            onPerPageChange(Number(event.target.value))
                         }
+                        className="h-8 cursor-pointer rounded-md border border-[#c5d5e6] bg-white px-2 text-xs text-[#1a2b4c] outline-none"
                     >
-                        <SelectTrigger
-                            size="sm"
-                            className="h-8 w-[4.5rem] cursor-pointer border-[#c5d5e6] bg-white text-[#1a2b4c] shadow-none"
-                        >
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent
-                            side="top"
-                            align="end"
-                            position="popper"
-                            collisionPadding={16}
-                            className="z-[200] border-[#d7e3f0] bg-white shadow-lg"
-                            style={{ maxHeight: '16rem' }}
-                        >
-                            {perPageOptions.map((option) => (
-                                <SelectItem
-                                    key={option}
-                                    value={String(option)}
-                                    className="cursor-pointer text-[#1a2b4c] focus:bg-[#e8f1fa] focus:text-[#1a2b4c]"
-                                >
-                                    {option}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                        {perPageOptions.map((option) => (
+                            <option key={option} value={option}>
+                                {option}
+                            </option>
+                        ))}
+                    </select>
                 </div>
 
                 <div className="flex items-center gap-1">
