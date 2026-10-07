@@ -238,6 +238,10 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:checklists.view')
             ->name('sst-board');
 
+        Route::get('reporte-sst/pdf', [SecurityReportController::class, 'pdf'])
+            ->middleware('permission:checklists.view')
+            ->name('checklists.security-report.pdf');
+
         Route::get('reporte-sst', SecurityReportController::class)
             ->middleware('permission:checklists.view')
             ->name('checklists.security-report');

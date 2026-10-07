@@ -6,18 +6,62 @@ use App\Models\Period;
 use App\Models\Unit;
 use App\Models\UnitChecklist;
 use App\Models\UnitDocument;
+use App\Support\PdfLogo;
 use App\Support\ReportPeriod;
 use App\Support\SystemRoles;
 use App\Support\UnitDocumentTypes;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class SecurityReportController extends Controller
 {
     public function __invoke(Request $request): Response
+    {
+        return Inertia::render('security-report/index', $this->report($request));
+    }
+
+    public function pdf(Request $request): HttpResponse
+    {
+        $report = $this->report($request);
+        $group = $request->string('group')->toString();
+
+        if (! in_array($group, ['ok', 'nok', 'pendiente'], true)) {
+            $group = 'all';
+        }
+
+        $rows = collect($report['exceptions']);
+
+        if ($group !== 'all') {
+            $rows = $rows->where('group', $group)->values();
+        }
+
+        $coordinatorId = $report['filters']['coordinator_id'];
+        $inspectorId = $report['filters']['inspector_id'];
+
+        $pdf = Pdf::loadView('pdfs.security-report', [
+            'logoSrc' => PdfLogo::dataUri(),
+            'company' => PdfLogo::companyName(),
+            'summary' => $report['summary'],
+            'fleet' => $report['fleet'],
+            'fullCoverage' => $report['full_coverage'],
+            'rows' => $rows,
+            'group' => $group,
+            'coordinatorName' => $this->personName($report['coordinators'], $coordinatorId),
+            'inspectorName' => $this->personName($report['inspectors'], $inspectorId),
+        ])->setPaper('a4', 'landscape');
+
+        return $pdf->stream('inspecciones-de-seguridad.pdf');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function report(Request $request): array
     {
         $validated = $request->validate([
             'date_from' => ['nullable', 'date'],
@@ -54,7 +98,7 @@ class SecurityReportController extends Controller
             ? $this->countsByType($this->units($coordinatorId, $previous->id))
             : [];
 
-        return Inertia::render('security-report/index', [
+        return [
             'fleet' => $this->fleet($rows, $previousCounts),
             'summary' => [
                 'total' => $total,
@@ -88,7 +132,25 @@ class SecurityReportController extends Controller
             'coordinators' => $this->coordinatorOptions($coordinatorId),
             'inspectors' => $this->personOptions(SystemRoles::inspectors()),
             'scoped' => SystemRoles::currentIsScopedCoordinator(),
-        ]);
+        ];
+    }
+
+    /**
+     * @param  list<array{id: int, name: string}>  $people
+     */
+    private function personName(array $people, ?int $id): string
+    {
+        if ($id === null) {
+            return 'Todos';
+        }
+
+        foreach ($people as $person) {
+            if ($person['id'] === $id) {
+                return $person['name'];
+            }
+        }
+
+        return '—';
     }
 
     /**

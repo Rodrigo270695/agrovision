@@ -164,6 +164,14 @@ export default function SecurityReportPage() {
                                 ))}
                             </select>
                         </label>
+                        <a
+                            href={pdfHref(filters, unitGroup)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex h-10 items-center rounded-lg bg-[#1a2b4c] px-4 text-xs font-semibold text-white"
+                        >
+                            Descargar PDF
+                        </a>
                     </div>
                 </div>
 
@@ -230,7 +238,6 @@ export default function SecurityReportPage() {
                             <table className="w-full text-center text-sm">
                                 <thead>
                                     <tr className="text-[11px] font-bold text-white uppercase">
-                                        <th className="bg-[#e8eef8] px-2 py-2 text-[#1a2b4c]" />
                                         <th className="bg-[#f59e0b] px-2 py-2">
                                             Pendientes
                                         </th>
@@ -247,9 +254,6 @@ export default function SecurityReportPage() {
                                 </thead>
                                 <tbody>
                                     <tr className="border-b border-[#e8eef5] font-semibold text-[#1a2b4c]">
-                                        <td className="px-2 py-2 text-left">
-                                            Total
-                                        </td>
                                         <td className="px-2 py-2">
                                             {summary.pendiente}
                                         </td>
@@ -265,24 +269,10 @@ export default function SecurityReportPage() {
                             </table>
                             <Donut summary={summary} />
                         </div>
-                        <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-                            <div className="rounded-lg border border-[#bbf7d0] bg-[#f0fdf4] px-3 py-2">
-                                <p className="text-[11px] font-semibold tracking-wide text-[#166534] uppercase">
-                                    Aprobadas
-                                </p>
-                                <p className="text-lg font-bold text-[#166534]">
-                                    {summary.approved}
-                                </p>
-                            </div>
-                            <div className="rounded-lg border border-[#fecaca] bg-[#fef2f2] px-3 py-2">
-                                <p className="text-[11px] font-semibold tracking-wide text-[#991b1b] uppercase">
-                                    Desaprobadas
-                                </p>
-                                <p className="text-lg font-bold text-[#991b1b]">
-                                    {summary.rejected}
-                                </p>
-                            </div>
-                        </div>
+                        <OutcomeChart
+                            approved={summary.approved}
+                            rejected={summary.rejected}
+                        />
                         <div className="mt-4 text-xs text-[#1a2b4c]">
                             {full_coverage.length === 0 ? (
                                 <p>
@@ -429,6 +419,92 @@ export default function SecurityReportPage() {
                 </section>
             </div>
         </>
+    );
+}
+
+function pdfHref(filters: Filters, group: UnitGroup): string {
+    const params = new URLSearchParams();
+
+    if (filters.date_from) {
+        params.set('date_from', filters.date_from);
+    }
+
+    if (filters.date_to) {
+        params.set('date_to', filters.date_to);
+    }
+
+    if (filters.coordinator_id) {
+        params.set('coordinator_id', String(filters.coordinator_id));
+    }
+
+    if (filters.inspector_id) {
+        params.set('inspector_id', String(filters.inspector_id));
+    }
+
+    params.set('group', group);
+
+    return `/reporte-sst/pdf?${params.toString()}`;
+}
+
+function OutcomeChart({
+    approved,
+    rejected,
+}: {
+    approved: number;
+    rejected: number;
+}) {
+    const total = approved + rejected;
+    const approvedWidth = total === 0 ? 0 : (approved / total) * 100;
+    const rejectedWidth = total === 0 ? 0 : (rejected / total) * 100;
+
+    return (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <OutcomeBar
+                label="Aprobadas"
+                value={approved}
+                width={approvedWidth}
+                barClass="bg-[#22c55e]"
+                textClass="text-[#166534]"
+            />
+            <OutcomeBar
+                label="Desaprobadas"
+                value={rejected}
+                width={rejectedWidth}
+                barClass="bg-[#ef4444]"
+                textClass="text-[#991b1b]"
+            />
+        </div>
+    );
+}
+
+function OutcomeBar({
+    label,
+    value,
+    width,
+    barClass,
+    textClass,
+}: {
+    label: string;
+    value: number;
+    width: number;
+    barClass: string;
+    textClass: string;
+}) {
+    return (
+        <div>
+            <div className="flex items-baseline justify-between gap-2">
+                <p className={`text-[11px] font-semibold tracking-wide uppercase ${textClass}`}>
+                    {label}
+                </p>
+                <p className={`text-lg font-bold ${textClass}`}>{value}</p>
+            </div>
+            <div className="mt-1 h-3 overflow-hidden rounded-full bg-[#e8eef5]">
+                <div
+                    className={`h-full rounded-full ${barClass}`}
+                    style={{ width: `${width}%` }}
+                />
+            </div>
+        </div>
     );
 }
 
