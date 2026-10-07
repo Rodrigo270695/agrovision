@@ -25,6 +25,7 @@ type UnitImportResult = {
     created?: number;
     updated?: number;
     units_created?: number;
+    deactivated?: number;
     errors: UnitImportError[];
 };
 
@@ -283,11 +284,10 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
                         CORRELATIVO, Celular, PROVEEDOR, RUTA, T. VEHÍCULO, FECHA
                         (dd/mm/yyyy), CONDUCTOR, PLACA, RESPONSABLE, TIPO DE
                         SERVICIO, RUC, DNI CONDUCTOR, CATEGORIA, COORDINADOR.
-                        Cada fila es un movimiento. El correlativo puede repetirse:
-                        esas filas quedan como movimientos de la misma unidad. La
-                        misma placa puede repetirse el mismo día si cambia la ruta
-                        o el tipo de servicio. La unidad se crea solo con el primer
-                        registro.
+                        Cada fila es un movimiento del historial, por fecha. El
+                        correlativo y la placa pueden repetirse. Si una placa de
+                        este periodo ya estaba cargada y no viene en el archivo,
+                        esa unidad queda inactiva.
                     </p>
                 </div>
 
@@ -322,7 +322,7 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
                     <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
                         {importResult.created !== undefined &&
                         importResult.updated !== undefined
-                            ? `Movimientos: ${importResult.created} nuevos y ${importResult.updated} ya registrados. Unidades nuevas: ${importResult.units_created ?? 0}.`
+                            ? `Movimientos: ${importResult.created} nuevos y ${importResult.updated} ya registrados. Unidades nuevas: ${importResult.units_created ?? 0}.${(importResult.deactivated ?? 0) > 0 ? ` Inactivas porque ya no vinieron: ${importResult.deactivated}.` : ''}`
                             : `Se procesaron ${importResult.imported} filas correctamente.`}
                     </div>
                 ) : null}

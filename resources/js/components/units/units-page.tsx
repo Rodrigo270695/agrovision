@@ -39,6 +39,7 @@ type UnitsPageProps = {
             created?: number;
             updated?: number;
             units_created?: number;
+            deactivated?: number;
             errors: Array<{ row: number; messages: string[] }>;
         } | null;
     };

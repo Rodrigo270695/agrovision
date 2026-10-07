@@ -377,7 +377,7 @@ final class UnitExcelImporter
     }
 
     /**
-     * @return array{imported: int, created: int, updated: int, units_created: int, errors: list<array{row: int, messages: list<string>}>}
+     * @return array{imported: int, created: int, updated: int, units_created: int, deactivated: int, errors: list<array{row: int, messages: list<string>}>}
      */
     public function import(UploadedFile $file, Period $period): array
     {
@@ -394,6 +394,7 @@ final class UnitExcelImporter
                 'created' => 0,
                 'updated' => 0,
                 'units_created' => 0,
+                'deactivated' => 0,
                 'errors' => [[
                     'row' => 1,
                     'messages' => ['El archivo está vacío.'],
@@ -410,6 +411,7 @@ final class UnitExcelImporter
                 'created' => 0,
                 'updated' => 0,
                 'units_created' => 0,
+                'deactivated' => 0,
                 'errors' => [[
                     'row' => 1,
                     'messages' => $headerErrors,
@@ -456,6 +458,7 @@ final class UnitExcelImporter
                 'created' => 0,
                 'updated' => 0,
                 'units_created' => 0,
+                'deactivated' => 0,
                 'errors' => $errors,
             ];
         }
@@ -485,16 +488,11 @@ final class UnitExcelImporter
         foreach ($pending as $excelRow => $data) {
             $rowMessages = [];
             $plate = (string) $data['plate_number'];
-            $matches = $unitsByPlate->get($plate, collect());
-            $unitId = null;
-
-            if ($matches->count() > 1) {
-                $rowMessages[] = "Hay más de una unidad con la placa \"{$plate}\" en este periodo.";
-            } elseif ($matches->count() === 1) {
-                $unitId = (int) $matches->first()->id;
-            }
-
             $correlative = (string) ($data['correlative'] ?? '');
+            $matches = $unitsByPlate->get($plate, collect());
+            $unitId = $matches->isNotEmpty()
+                ? $this->pickUnitForPlate($matches, $correlative)
+                : null;
 
             if ($unitId === null && $correlative !== '' && $unitCorrelativeOwners->has($correlative)) {
                 $unitId = (int) $unitCorrelativeOwners->get($correlative);
@@ -539,6 +537,7 @@ final class UnitExcelImporter
                 'created' => 0,
                 'updated' => 0,
                 'units_created' => 0,
+                'deactivated' => 0,
                 'errors' => array_values($errors),
             ];
         }
@@ -553,10 +552,12 @@ final class UnitExcelImporter
         $created = 0;
         $updated = 0;
         $unitsCreated = 0;
+        $deactivated = 0;
 
         try {
             $this->allowRepeatedMovementCorrelatives();
-            $this->persistImport($pending, $period, $created, $updated, $unitsCreated);
+            $this->ensureUnitStatusColumn();
+            $this->persistImport($pending, $period, $created, $updated, $unitsCreated, $deactivated);
         } catch (QueryException $exception) {
             report($exception);
 
@@ -565,6 +566,7 @@ final class UnitExcelImporter
                 'created' => 0,
                 'updated' => 0,
                 'units_created' => 0,
+                'deactivated' => 0,
                 'errors' => [[
                     'row' => 1,
                     'messages' => [$this->databaseErrorMessage($exception)],
@@ -577,19 +579,46 @@ final class UnitExcelImporter
             'created' => $created,
             'updated' => $updated,
             'units_created' => $unitsCreated,
+            'deactivated' => $deactivated,
             'errors' => [],
         ];
     }
 
     /**
+     * Si la placa ya tiene varias unidades en el periodo, se usa una sola
+     * para colgar el historial: primero la del mismo correlativo y, si no, la más reciente.
+     *
+     * @param  Collection<int, Unit>  $matches
+     */
+    private function pickUnitForPlate(Collection $matches, string $correlative): int
+    {
+        if ($correlative !== '') {
+            $same = $matches->first(
+                fn (Unit $unit) => (string) $unit->correlative === $correlative,
+            );
+
+            if ($same instanceof Unit) {
+                return (int) $same->id;
+            }
+        }
+
+        /** @var Unit $latest */
+        $latest = $matches->sortByDesc('id')->first();
+
+        return (int) $latest->id;
+    }
+
+    /**
      * @param  array<int, array<string, mixed>>  $pending
      */
-    private function persistImport(array $pending, Period $period, int &$created, int &$updated, int &$unitsCreated): void
+    private function persistImport(array $pending, Period $period, int &$created, int &$updated, int &$unitsCreated, int &$deactivated): void
     {
-        DB::transaction(function () use ($pending, $period, &$created, &$updated, &$unitsCreated): void {
+        DB::transaction(function () use ($pending, $period, &$created, &$updated, &$unitsCreated, &$deactivated): void {
             $createdUnitIds = [];
             $createdByCorrelative = [];
             $movementIdByRow = [];
+            $presentPlates = [];
+            $latestByUnit = [];
 
             foreach ($pending as $excelRow => $data) {
                 $movementId = $data['movement_id'] ?? null;
@@ -635,6 +664,7 @@ final class UnitExcelImporter
                     $unit = Unit::create([
                         ...$attributes,
                         'period_id' => $period->id,
+                        'status' => 'active',
                     ]);
                     $unitId = $unit->id;
                     $createdUnitIds[$plate] = $unitId;
@@ -662,14 +692,76 @@ final class UnitExcelImporter
                     $movement->save();
                     $movementIdByRow[$excelRow] = $movement->id;
                     $updated++;
-
-                    continue;
+                } else {
+                    $movement = UnitMovement::create($movementAttributes);
+                    $movementIdByRow[$excelRow] = $movement->id;
+                    $created++;
                 }
 
-                $movement = UnitMovement::create($movementAttributes);
-                $movementIdByRow[$excelRow] = $movement->id;
-                $created++;
+                $presentPlates[$plate] = true;
+                $serviceDate = (string) ($data['service_date'] ?? '');
+
+                if (
+                    ! isset($latestByUnit[$unitId])
+                    || $serviceDate >= (string) ($latestByUnit[$unitId]['service_date'] ?? '')
+                ) {
+                    $latestByUnit[$unitId] = $data;
+                }
             }
+
+            $deactivated = $this->syncImportedPresence($period, $presentPlates, $latestByUnit);
+        });
+    }
+
+    /**
+     * La unidad queda con los datos del día más reciente del archivo.
+     * Las placas del periodo que no vinieron en el Excel pasan a inactivas.
+     *
+     * @param  array<string, true>  $presentPlates
+     * @param  array<int, array<string, mixed>>  $latestByUnit
+     */
+    private function syncImportedPresence(Period $period, array $presentPlates, array $latestByUnit): int
+    {
+        foreach ($latestByUnit as $unitId => $data) {
+            $snapshot = $this->presentAttributes($data);
+            unset($snapshot['correlative'], $snapshot['coordinator_id']);
+            $snapshot['status'] = 'active';
+
+            if (isset($data['service_date'])) {
+                $snapshot['service_date'] = $data['service_date'];
+            }
+
+            Unit::query()->whereKey($unitId)->update($snapshot);
+        }
+
+        $plates = array_keys($presentPlates);
+
+        if ($plates === []) {
+            return 0;
+        }
+
+        $missing = Unit::query()
+            ->where('period_id', $period->id)
+            ->whereNotNull('plate_number')
+            ->where('plate_number', '!=', '')
+            ->whereNotIn(DB::raw('upper(plate_number)'), $plates);
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $missing->where('coordinator_id', Auth::id());
+        }
+
+        return $missing->update(['status' => 'inactive']);
+    }
+
+    private function ensureUnitStatusColumn(): void
+    {
+        if (Schema::hasColumn('units', 'status')) {
+            return;
+        }
+
+        Schema::table('units', function (Blueprint $table): void {
+            $table->string('status', 20)->default('active');
+            $table->index('status');
         });
     }
 

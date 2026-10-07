@@ -63,7 +63,7 @@ export function UnitsHeader({ stats, filters, onCreate, onImport }: Props) {
     return (
         <PageHeader
             title="Unidades"
-            description="Cada placa es una unidad. Historial muestra todos los días importados."
+            description="Cada placa es una unidad. Si al importar ya no viene, queda inactiva. Historial guarda cada fecha."
             stats={[
                 {
                     label: 'Unidades',

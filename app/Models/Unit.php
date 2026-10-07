@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Database\Factories\UnitFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,15 +28,16 @@ use Illuminate\Support\Carbon;
  * @property string|null $driver_dni
  * @property string|null $category
  * @property int|null $coordinator_id
+ * @property string $status
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Period $period
  * @property-read User|null $coordinatorUser
- * @property-read \Illuminate\Database\Eloquent\Collection<int, UnitDocument> $documents
+ * @property-read Collection<int, UnitDocument> $documents
  */
 class Unit extends Model
 {
-    /** @use HasFactory<\Database\Factories\UnitFactory> */
+    /** @use HasFactory<UnitFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -54,6 +57,7 @@ class Unit extends Model
         'driver_dni',
         'category',
         'coordinator_id',
+        'status',
     ];
 
     /**

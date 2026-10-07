@@ -6,6 +6,7 @@ import {
     DataTable,
     DataToolbar,
     EmptyState,
+    StatBadge,
     type DataTableColumn,
     type SortState,
 } from '@/components/data-page';
@@ -42,6 +43,7 @@ export type UnitItem = {
     driver_dni?: string | null;
     category?: string | null;
     coordinator_id?: number | null;
+    status?: string | null;
     coordinatorUser?: {
         id: number;
         name: string;
@@ -315,6 +317,16 @@ export function UnitsTable({
                         {unit.plate_number || '—'}
                     </span>
                 ),
+            },
+            {
+                key: 'status',
+                header: 'Estado',
+                cell: (unit) =>
+                    unit.status === 'inactive' ? (
+                        <StatBadge label="Inactivo" value="" variant="muted" />
+                    ) : (
+                        <StatBadge label="Activo" value="" variant="success" />
+                    ),
             },
             {
                 key: 'driver_name',

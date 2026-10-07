@@ -358,14 +358,21 @@ class UnitController extends Controller
             ]);
         }
 
+        $message = "Se guardaron {$result['created']} movimientos nuevos y {$result['updated']} ya registrados. Unidades nuevas: {$result['units_created']}.";
+
+        if ($result['deactivated'] > 0) {
+            $message .= " Unidades que ya no vinieron en el archivo: {$result['deactivated']}, quedaron inactivas.";
+        }
+
         return IndexedRedirect::toIndex($request, 'units.index', [
             'type' => 'success',
-            'message' => "Se guardaron {$result['created']} movimientos nuevos y {$result['updated']} ya registrados. Unidades nuevas: {$result['units_created']}.",
+            'message' => $message,
         ])->with('unit_import', [
             'imported' => $result['imported'],
             'created' => $result['created'],
             'updated' => $result['updated'],
             'units_created' => $result['units_created'],
+            'deactivated' => $result['deactivated'],
             'errors' => [],
         ]);
     }
