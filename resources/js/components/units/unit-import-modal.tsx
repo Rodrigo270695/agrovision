@@ -1,5 +1,5 @@
 import { useForm, usePage } from '@inertiajs/react';
-import { Download, FileSpreadsheet, Upload } from 'lucide-react';
+import { Check, Download, FileSpreadsheet, Upload } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { PeriodOption } from '@/components/units/unit-form-fields';
 import { AppModal } from '@/components/shared/app-modal';
@@ -74,12 +74,6 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
         form.clearErrors();
         setFileName('');
 
-        if (flash?.unit_import) {
-            setImportResult(flash.unit_import);
-        } else {
-            setImportResult(null);
-        }
-
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -125,6 +119,28 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
         });
     };
 
+    const loadedResult =
+        importResult &&
+        importResult.imported > 0 &&
+        importResult.errors.length === 0
+            ? importResult
+            : null;
+
+    const loadedDetail = loadedResult
+        ? [
+              loadedResult.created !== undefined &&
+              loadedResult.updated !== undefined
+                  ? `${loadedResult.created} movimientos nuevos y ${loadedResult.updated} ya registrados.`
+                  : `${loadedResult.imported} filas procesadas.`,
+              `Unidades nuevas: ${loadedResult.units_created ?? 0}.`,
+              (loadedResult.deactivated ?? 0) > 0
+                  ? `Inactivas porque ya no vinieron: ${loadedResult.deactivated}.`
+                  : null,
+          ]
+              .filter(Boolean)
+              .join(' ')
+        : '';
+
     const canSubmit =
         form.data.period_id.length > 0 &&
         Boolean(form.data.file) &&
@@ -136,6 +152,44 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
             : periodOptions[0]
               ? String(periodOptions[0].id)
               : 'none';
+
+    if (loadedResult) {
+        return (
+            <div
+                className="fixed inset-0 z-[80] flex items-center justify-center bg-[#22a84a] px-6 text-center text-white"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="unit-import-success-title"
+            >
+                <div className="flex max-w-sm flex-col items-center">
+                    <span className="flex size-16 items-center justify-center rounded-full border-2 border-white">
+                        <Check className="size-9" strokeWidth={2.5} />
+                    </span>
+                    <h2
+                        id="unit-import-success-title"
+                        className="mt-6 text-2xl font-bold"
+                    >
+                        ¡Datos cargados!
+                    </h2>
+                    <p className="mt-2 text-base text-white/95">
+                        Las unidades se cargaron correctamente.
+                    </p>
+                    {loadedDetail ? (
+                        <p className="mt-3 text-sm text-white/80">
+                            {loadedDetail}
+                        </p>
+                    ) : null}
+                    <Button
+                        type="button"
+                        onClick={handleClose}
+                        className="mt-8 cursor-pointer bg-white text-[#178a38] hover:bg-white/90"
+                    >
+                        Listo
+                    </Button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <AppModal
@@ -316,16 +370,6 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
                     </div>
                 ) : null}
 
-                {importResult &&
-                importResult.imported > 0 &&
-                importResult.errors.length === 0 ? (
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                        {importResult.created !== undefined &&
-                        importResult.updated !== undefined
-                            ? `Movimientos: ${importResult.created} nuevos y ${importResult.updated} ya registrados. Unidades nuevas: ${importResult.units_created ?? 0}.${(importResult.deactivated ?? 0) > 0 ? ` Inactivas porque ya no vinieron: ${importResult.deactivated}.` : ''}`
-                            : `Se procesaron ${importResult.imported} filas correctamente.`}
-                    </div>
-                ) : null}
             </div>
         </AppModal>
     );
