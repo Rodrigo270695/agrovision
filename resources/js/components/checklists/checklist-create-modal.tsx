@@ -10,7 +10,6 @@ import { Spinner } from '@/components/ui/spinner';
 import type { ChecklistFormData } from '@/components/checklists/checklist-edit-form';
 import type { OfflineCatalogTemplate } from '@/lib/offline/db';
 import { isBrowserOnline } from '@/lib/offline/ids';
-import { cn } from '@/lib/utils';
 
 export type ChecklistTemplateOption = {
     id: number;
@@ -70,6 +69,7 @@ export function ChecklistCreateModal({
 }: Props) {
     const [date, setDate] = useState(todayInput);
     const [unitId, setUnitId] = useState<string | null>(null);
+    const [templateId, setTemplateId] = useState<string | null>(null);
     const [sending, setSending] = useState(false);
 
     useEffect(() => {
@@ -79,17 +79,17 @@ export function ChecklistCreateModal({
 
         setDate(todayInput());
         setUnitId(null);
+        setTemplateId(null);
     }, [open]);
 
     const options = useMemo(
         () =>
             activeUnits.map((unit) => {
                 const plate = unit.plate_number || unit.correlative;
-                const kind = templateTypeForVehicle(unit.vehicle_type).toUpperCase();
 
                 return {
                     value: String(unit.id),
-                    label: `${plate} · ${kind}`,
+                    label: plate,
                     description: [
                         unit.driver_name || 'Sin conductor',
                         unit.vehicle_type || null,
@@ -101,7 +101,6 @@ export function ChecklistCreateModal({
                         unit.driver_name,
                         unit.vehicle_type,
                         unit.correlative,
-                        kind,
                     ]
                         .filter(Boolean)
                         .join(' '),
@@ -115,8 +114,39 @@ export function ChecklistCreateModal({
         [activeUnits, unitId],
     );
 
-    const templateType = unit ? templateTypeForVehicle(unit.vehicle_type) : null;
-    const template = templates.find((item) => item.type === templateType) ?? null;
+    const suggestedType = unit
+        ? templateTypeForVehicle(unit.vehicle_type)
+        : null;
+    const suggested = suggestedType
+        ? (templates.find((item) => item.type === suggestedType) ?? null)
+        : null;
+    const template =
+        templates.find((item) => String(item.id) === templateId) ?? null;
+    const templateOptions = useMemo(
+        () =>
+            templates.map((item) => ({
+                value: String(item.id),
+                label: item.label || item.type.toUpperCase(),
+            })),
+        [templates],
+    );
+
+    const selectUnit = (value: string | null) => {
+        setUnitId(value);
+
+        const next =
+            activeUnits.find((item) => String(item.id) === value) ?? null;
+
+        if (!next) {
+            setTemplateId(null);
+
+            return;
+        }
+
+        const type = templateTypeForVehicle(next.vehicle_type);
+        const match = templates.find((item) => item.type === type);
+        setTemplateId(match ? String(match.id) : null);
+    };
 
     const handleClose = () => {
         if (sending) {
@@ -160,7 +190,7 @@ export function ChecklistCreateModal({
             open={open}
             onClose={handleClose}
             title="Nueva inspección"
-            description="Elige la fecha y una sola unidad. Se abre esa inspección para completarla."
+            description="Elige la fecha, la unidad y el checklist. Se abre esa inspección para completarla."
             className="sm:max-w-lg"
             footer={
                 <>
@@ -208,56 +238,30 @@ export function ChecklistCreateModal({
                     <SearchableCombobox
                         value={unitId}
                         options={options}
-                        onChange={setUnitId}
+                        onChange={selectUnit}
                         placeholder="Buscar placa o conductor"
                         emptyMessage="No hay unidades en el periodo activo"
                     />
                 </div>
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">Checklist</Label>
-                    {unit && templateType ? (
-                        <div
-                            className={cn(
-                                'flex items-center justify-between gap-3 rounded-lg border px-3 py-2',
-                                templateType === 'tdc'
-                                    ? 'border-amber-200 bg-amber-50'
-                                    : 'border-[#c5d5e6] bg-[#e8f1fa]',
-                            )}
-                        >
-                            <div>
-                                <p className="text-sm font-bold text-[#1a2b4c]">
-                                    {templateType.toUpperCase()}
-                                </p>
-                                <p className="text-[11px] text-[#5a7390]">
-                                    {unit.vehicle_type || 'Sin tipo'}
-                                    {templateType === 'tdc'
-                                        ? ' · camioneta'
-                                        : ' · transporte de personal'}
-                                </p>
-                            </div>
-                            <span
-                                className={cn(
-                                    'rounded-full px-2.5 py-1 text-xs font-bold',
-                                    templateType === 'tdc'
-                                        ? 'bg-amber-200 text-amber-950'
-                                        : 'bg-[#1a2b4c] text-white',
-                                )}
-                            >
-                                {templateType.toUpperCase()}
-                            </span>
-                        </div>
-                    ) : (
-                        <p className="rounded-lg bg-[#f8fafc] px-3 py-2 text-[11px] text-[#5a7390]">
-                            Camioneta abre TDC. El resto abre TDP. Se ve al
-                            elegir la unidad.
+                    <Label className="text-xs text-[#1a2b4c]">
+                        Checklist <span className="text-red-500">*</span>
+                    </Label>
+                    <SearchableCombobox
+                        value={templateId}
+                        options={templateOptions}
+                        onChange={setTemplateId}
+                        placeholder="Elige el checklist"
+                        emptyMessage="No hay plantillas activas"
+                        allowClear={false}
+                    />
+                    {unit && suggested ? (
+                        <p className="text-[11px] text-[#5a7390]">
+                            Sugerido por el vehículo: {suggested.label || suggested.type.toUpperCase()}
+                            {unit.vehicle_type ? ` · ${unit.vehicle_type}` : ''}
                         </p>
-                    )}
+                    ) : null}
                 </div>
-                {unit && !template ? (
-                    <p className="text-xs text-red-600">
-                        No hay plantilla activa para este tipo de unidad.
-                    </p>
-                ) : null}
             </form>
         </AppModal>
     );
