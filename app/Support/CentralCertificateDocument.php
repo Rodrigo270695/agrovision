@@ -204,27 +204,60 @@ final class CentralCertificateDocument
         $boxH = max(1, ($hPct / 100) * 210);
         $left = ($xPct / 100) * 297;
         $top = ($yPct / 100) * 210;
-        $info = @getimagesize(Storage::disk('public')->path($path));
+        $absolute = Storage::disk('public')->path($path);
+        $info = @getimagesize($absolute);
         $pxW = (int) ($info[0] ?? 0);
         $pxH = (int) ($info[1] ?? 0);
 
-        if ($pxW > 0 && $pxH > 0) {
-            $scale = min($boxW / $pxW, $boxH / $pxH);
-            $imgW = $pxW * $scale;
-            $imgH = $pxH * $scale;
-            $left += ($boxW - $imgW) / 2;
-            $top += ($boxH - $imgH) / 2;
-        } else {
-            $imgW = $boxW;
-            $imgH = $boxH;
+        if ($pxW > 0 && $pxH > 0 && function_exists('imagecreatefromstring')) {
+            $binary = @file_get_contents($absolute);
+            $image = $binary !== false ? @imagecreatefromstring($binary) : false;
+
+            if ($image !== false) {
+                $dpi = 8;
+                $canvasW = max(1, (int) round($boxW * $dpi));
+                $canvasH = max(1, (int) round($boxH * $dpi));
+                $scale = min($canvasW / $pxW, $canvasH / $pxH);
+                $drawW = max(1, (int) round($pxW * $scale));
+                $drawH = max(1, (int) round($pxH * $scale));
+                $canvas = imagecreatetruecolor($canvasW, $canvasH);
+                imagealphablending($canvas, false);
+                imagesavealpha($canvas, true);
+                $clear = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
+                imagefilledrectangle($canvas, 0, 0, $canvasW, $canvasH, $clear);
+                imagealphablending($canvas, true);
+                imagecopyresampled(
+                    $canvas,
+                    $image,
+                    (int) round(($canvasW - $drawW) / 2),
+                    (int) round(($canvasH - $drawH) / 2),
+                    0,
+                    0,
+                    $drawW,
+                    $drawH,
+                    $pxW,
+                    $pxH,
+                );
+                imagedestroy($image);
+                imagealphablending($canvas, false);
+                imagesavealpha($canvas, true);
+                ob_start();
+                imagepng($canvas);
+                $png = ob_get_clean();
+                imagedestroy($canvas);
+
+                if (is_string($png) && $png !== '') {
+                    $src = 'data:image/png;base64,'.base64_encode($png);
+                }
+            }
         }
 
         return [
             'src' => $src,
             'left' => round($left, 2),
             'top' => round($top, 2),
-            'width' => round($imgW, 2),
-            'height' => round($imgH, 2),
+            'width' => round($boxW, 2),
+            'height' => round($boxH, 2),
         ];
     }
 }

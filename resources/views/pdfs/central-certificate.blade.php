@@ -40,17 +40,6 @@
             <img class="logo" src="{{ $logo['src'] }}" alt="" style="left: {{ $logo['left'] }}mm; top: {{ $logo['top'] }}mm; width: {{ $logo['width'] }}mm; height: {{ $logo['height'] }}mm;">
         @endforeach
 
-        @foreach ($blocks as $block)
-            @php
-                $placement = \App\Support\CertificateFonts::pdfPlacement((string) $block['font'], (float) $block['size']);
-                $top = ((float) $block['y'] / 100) * 210 - $placement['nudge_mm'];
-            @endphp
-            <div
-                class="block"
-                style="left: {{ $block['x'] }}%; top: {{ $top }}mm; width: {{ $block['w'] }}%; text-align: {{ $block['align'] }}; font-size: {{ $block['size'] }}pt; line-height: 1.2; font-weight: {{ $block['weight'] }}; color: {{ $block['color'] }}; font-family: {{ $block['font'] }};"
-            >{!! preg_replace('/\*\*(.+?)\*\*/s', '<strong>$1</strong>', e($block['text'])) !!}</div>
-        @endforeach
-
         @if (! empty($signature))
             <img class="sig" src="{{ $signature['src'] }}" alt="" style="left: {{ $signature['left'] }}mm; top: {{ $signature['top'] }}mm; width: {{ $signature['width'] }}mm; height: {{ $signature['height'] }}mm;">
         @endif
@@ -58,6 +47,13 @@
         @if (! empty($stamp))
             <img class="sig" src="{{ $stamp['src'] }}" alt="" style="left: {{ $stamp['left'] }}mm; top: {{ $stamp['top'] }}mm; width: {{ $stamp['width'] }}mm; height: {{ $stamp['height'] }}mm;">
         @endif
+
+        @foreach ($blocks as $block)
+            <div
+                class="block"
+                style="left: {{ $block['x'] }}%; top: {{ ((float) $block['y'] / 100) * 210 }}mm; width: {{ $block['w'] }}%; text-align: {{ $block['align'] }}; font-size: {{ $block['size'] }}pt; line-height: 1.2; font-weight: {{ $block['weight'] }}; color: {{ $block['color'] }}; font-family: {{ $block['font'] }};"
+            >{!! preg_replace('/\*\*(.+?)\*\*/s', '<strong>$1</strong>', e($block['text'])) !!}</div>
+        @endforeach
 
         @if (! empty($qr))
             @php
