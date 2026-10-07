@@ -120,12 +120,10 @@ class ChecklistController extends Controller
         $checklists = $query->paginate($perPage)->withQueryString();
         $this->attachEditRequestState($checklists);
 
-        $activePeriodIds = Period::query()->where('status', 'active')->pluck('id');
-
         $activeUnitsQuery = Unit::query()
-            ->whereIn('period_id', $activePeriodIds)
             ->with('period:id,name,status,date')
-            ->orderBy('plate_number');
+            ->orderBy('plate_number')
+            ->orderBy('id');
 
         $statsQuery = UnitChecklist::query()
             ->whereHas('period', fn ($q) => $q->where('status', 'active'));
@@ -418,13 +416,6 @@ class ChecklistController extends Controller
         $data = $request->validated();
         $unit = Unit::query()->with('period')->findOrFail($data['unit_id']);
         $this->ensureCanAccessUnit($unit);
-
-        if ($unit->period?->status !== 'active') {
-            return back()->with('toast', [
-                'type' => 'error',
-                'message' => 'Solo se pueden crear checklists de unidades en periodos activos.',
-            ]);
-        }
 
         $inspectedOn = Carbon::parse($data['inspected_on'])->toDateString();
 

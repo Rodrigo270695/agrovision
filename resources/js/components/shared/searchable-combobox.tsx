@@ -172,51 +172,69 @@ export function SearchableCombobox({
 
         updatePanel();
 
-        const list = listRef.current;
-
         const onWheel = (event: WheelEvent) => {
-            if (!list) {
+            const current = listRef.current;
+            const target = event.target;
+
+            if (
+                !current ||
+                !(target instanceof Node) ||
+                !current.contains(target)
+            ) {
                 return;
             }
 
-            // El Dialog bloquea la rueda en document (fase bubble). Cortamos
-            // aquí y movemos la lista a mano, igual que el Popover modal de VetSaas.
-            event.stopPropagation();
-
-            const delta =
-                event.deltaMode === 1
-                    ? event.deltaY * 16
-                    : event.deltaMode === 2
-                      ? event.deltaY * list.clientHeight
-                      : event.deltaY;
-            const maxScroll = list.scrollHeight - list.clientHeight;
+            const maxScroll = current.scrollHeight - current.clientHeight;
 
             if (maxScroll <= 0) {
                 return;
             }
 
+            const delta =
+                event.deltaMode === 1
+                    ? event.deltaY * 16
+                    : event.deltaMode === 2
+                      ? event.deltaY * current.clientHeight
+                      : event.deltaY;
             const next = Math.min(
                 maxScroll,
-                Math.max(0, list.scrollTop + delta),
+                Math.max(0, current.scrollTop + delta),
             );
 
-            if (next === list.scrollTop) {
-                return;
-            }
-
             event.preventDefault();
-            list.scrollTop = next;
+            event.stopPropagation();
+            current.scrollTop = next;
         };
 
         const onTouchMove = (event: TouchEvent) => {
-            event.stopPropagation();
+            const current = listRef.current;
+            const target = event.target;
+
+            if (
+                current &&
+                target instanceof Node &&
+                current.contains(target)
+            ) {
+                event.stopPropagation();
+            }
         };
 
-        list?.addEventListener('wheel', onWheel, {
+        const onWindowScroll = (event: Event) => {
+            if (event.target === listRef.current) {
+                return;
+            }
+
+            updatePanel();
+        };
+
+        window.addEventListener('wheel', onWheel, {
             capture: true,
             passive: false,
         });
-        list?.addEventListener('touchmove', onTouchMove, { passive: false });
+        window.addEventListener('touchmove', onTouchMove, {
+            capture: true,
+            passive: false,
+        });
 
         const onPointerDown = (event: MouseEvent) => {
             const target = event.target as Node;
@@ -234,14 +252,14 @@ export function SearchableCombobox({
 
         document.addEventListener('mousedown', onPointerDown);
         window.addEventListener('resize', updatePanel);
-        window.addEventListener('scroll', updatePanel, true);
+        window.addEventListener('scroll', onWindowScroll, true);
 
         return () => {
-            list?.removeEventListener('wheel', onWheel, true);
-            list?.removeEventListener('touchmove', onTouchMove);
+            window.removeEventListener('wheel', onWheel, true);
+            window.removeEventListener('touchmove', onTouchMove, true);
             document.removeEventListener('mousedown', onPointerDown);
             window.removeEventListener('resize', updatePanel);
-            window.removeEventListener('scroll', updatePanel, true);
+            window.removeEventListener('scroll', onWindowScroll, true);
         };
     }, [open, menuMinWidth, itemCount, renameValue]);
 

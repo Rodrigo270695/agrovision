@@ -93,6 +93,7 @@ export function ChecklistCreateModal({
                     description: [
                         unit.driver_name || 'Sin conductor',
                         unit.vehicle_type || null,
+                        unit.period?.name || null,
                     ]
                         .filter(Boolean)
                         .join(' · '),

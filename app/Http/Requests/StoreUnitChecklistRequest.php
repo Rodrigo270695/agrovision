@@ -22,13 +22,7 @@ class StoreUnitChecklistRequest extends FormRequest
             'unit_id' => [
                 'required',
                 'integer',
-                Rule::exists('units', 'id')->where(function ($query) {
-                    $query->whereIn('period_id', function ($sub) {
-                        $sub->select('id')
-                            ->from('periods')
-                            ->where('status', 'active');
-                    });
-                }),
+                Rule::exists('units', 'id'),
             ],
             'template_id' => [
                 'required',
@@ -46,7 +40,7 @@ class StoreUnitChecklistRequest extends FormRequest
     {
         return [
             'unit_id.required' => 'Debes seleccionar una unidad (placa).',
-            'unit_id.exists' => 'La unidad debe pertenecer a un periodo activo.',
+            'unit_id.exists' => 'La unidad seleccionada no existe.',
             'template_id.required' => 'Debes seleccionar el tipo de checklist.',
             'template_id.exists' => 'La plantilla seleccionada no es válida.',
             'inspected_on.required' => 'Elige la fecha de la inspección.',
