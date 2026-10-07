@@ -18,7 +18,7 @@
         .bg, .mark, .block, .sig, .logo, .qr { position: absolute; overflow: hidden; }
         .bg { left: 0; top: 0; width: 297mm; height: 210mm; overflow: hidden; }
         .mark { opacity: 0.18; }
-        .block { margin: 0; padding: 0; white-space: pre-wrap; overflow: visible; }
+        .block { margin: 0; padding: 0; white-space: pre-wrap; overflow: visible; line-height: 1.2; }
         .sig img, .logo img, .mark img, .qr img { display: block; }
     </style>
 </head>
@@ -33,23 +33,11 @@
         @endif
 
         @if (! empty($watermark))
-            @php
-                $markW = $widthMm($watermarkBox['w']);
-                $markH = $heightMm($watermarkBox['h']);
-            @endphp
-            <div class="mark" style="left: {{ $watermarkBox['x'] }}%; top: {{ $watermarkBox['y'] }}%; width: {{ $markW }}mm; height: {{ $markH }}mm;">
-                <img src="{{ $watermark }}" alt="" style="width: {{ $markW }}mm; height: {{ $markH }}mm;">
-            </div>
+            <img class="mark" src="{{ $watermark['src'] }}" alt="" style="left: {{ $watermark['left'] }}mm; top: {{ $watermark['top'] }}mm; width: {{ $watermark['width'] }}mm; height: {{ $watermark['height'] }}mm;">
         @endif
 
         @foreach ($logos as $logo)
-            @php
-                $logoW = $widthMm($logo['w']);
-                $logoH = $heightMm($logo['h']);
-            @endphp
-            <div class="logo" style="left: {{ $logo['x'] }}%; top: {{ $logo['y'] }}%; width: {{ $logoW }}mm; height: {{ $logoH }}mm;">
-                <img src="{{ $logo['src'] }}" alt="" style="width: {{ $logoW }}mm; height: {{ $logoH }}mm;">
-            </div>
+            <img class="logo" src="{{ $logo['src'] }}" alt="" style="left: {{ $logo['left'] }}mm; top: {{ $logo['top'] }}mm; width: {{ $logo['width'] }}mm; height: {{ $logo['height'] }}mm;">
         @endforeach
 
         @foreach ($blocks as $block)
@@ -59,28 +47,16 @@
             @endphp
             <div
                 class="block"
-                style="left: {{ $block['x'] }}%; top: {{ $top }}mm; width: {{ $block['w'] }}%; text-align: {{ $block['align'] }}; font-size: {{ $block['size'] }}pt; line-height: {{ $placement['line_height'] }}; font-weight: {{ $block['weight'] }}; color: {{ $block['color'] }}; font-family: {{ $block['font'] }};"
+                style="left: {{ $block['x'] }}%; top: {{ $top }}mm; width: {{ $block['w'] }}%; text-align: {{ $block['align'] }}; font-size: {{ $block['size'] }}pt; line-height: 1.2; font-weight: {{ $block['weight'] }}; color: {{ $block['color'] }}; font-family: {{ $block['font'] }};"
             >{!! preg_replace('/\*\*(.+?)\*\*/s', '<strong>$1</strong>', e($block['text'])) !!}</div>
         @endforeach
 
         @if (! empty($signature))
-            @php
-                $signW = $widthMm($signatureBox['w']);
-                $signH = $heightMm($signatureBox['h']);
-            @endphp
-            <div class="sig" style="left: {{ $signatureBox['x'] }}%; top: {{ $signatureBox['y'] }}%; width: {{ $signW }}mm; height: {{ $signH }}mm;">
-                <img src="{{ $signature }}" alt="" style="width: {{ $signW }}mm; height: {{ $signH }}mm;">
-            </div>
+            <img class="sig" src="{{ $signature['src'] }}" alt="" style="left: {{ $signature['left'] }}mm; top: {{ $signature['top'] }}mm; width: {{ $signature['width'] }}mm; height: {{ $signature['height'] }}mm;">
         @endif
 
         @if (! empty($stamp))
-            @php
-                $stampW = $widthMm($stampBox['w']);
-                $stampH = $heightMm($stampBox['h']);
-            @endphp
-            <div class="sig" style="left: {{ $stampBox['x'] }}%; top: {{ $stampBox['y'] }}%; width: {{ $stampW }}mm; height: {{ $stampH }}mm;">
-                <img src="{{ $stamp }}" alt="" style="width: {{ $stampW }}mm; height: {{ $stampH }}mm;">
-            </div>
+            <img class="sig" src="{{ $stamp['src'] }}" alt="" style="left: {{ $stamp['left'] }}mm; top: {{ $stamp['top'] }}mm; width: {{ $stamp['width'] }}mm; height: {{ $stamp['height'] }}mm;">
         @endif
 
         @if (! empty($qr))

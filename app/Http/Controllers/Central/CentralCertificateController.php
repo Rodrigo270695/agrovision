@@ -312,12 +312,29 @@ class CentralCertificateController extends Controller
 
     public function verify(string $token): \Illuminate\Contracts\View\View
     {
-        $certificate = CentralCertificate::query()->where('token', $token)->first();
+        $certificate = CentralCertificate::query()->with('template')->where('token', $token)->first();
+        $logos = [];
+        $template = $certificate?->template;
+
+        foreach ($template?->logos ?? [] as $logo) {
+            if (! is_array($logo)) {
+                continue;
+            }
+
+            $url = $template?->fileUrl($logo['path'] ?? null);
+
+            if ($url) {
+                $logos[] = $url;
+            }
+        }
 
         return view('certificates.central-verify', [
             'found' => $certificate !== null,
             'valid' => $certificate?->isValid() ?? false,
             'certificate' => $certificate,
+            'logos' => $logos,
+            'issuerName' => $template?->issuer_name,
+            'issuerTitle' => $template?->issuer_title,
         ]);
     }
 

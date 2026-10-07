@@ -7,6 +7,7 @@ use App\Models\CentralCertificateTemplate;
 use App\Models\CentralParticipant;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Facades\Storage;
 
 final class CentralCertificateDocument
 {
@@ -120,19 +121,17 @@ final class CentralCertificateDocument
 
             $id = (string) ($stored['id'] ?? '');
             $box = collect($layout['logos'])->first(fn ($item) => is_array($item) && ($item['id'] ?? '') === $id);
-            $uri = CertificateRenderer::dataUri($stored['path'] ?? null);
+            $placed = self::placed(
+                $stored['path'] ?? null,
+                is_array($box) ? (float) $box['x'] : 4,
+                is_array($box) ? (float) $box['y'] : 4,
+                is_array($box) ? (float) $box['w'] : 16,
+                is_array($box) ? (float) $box['h'] : 12,
+            );
 
-            if ($uri === null) {
-                continue;
+            if ($placed !== null) {
+                $logos[] = $placed;
             }
-
-            $logos[] = [
-                'src' => $uri,
-                'x' => is_array($box) ? $box['x'] : 4,
-                'y' => is_array($box) ? $box['y'] : 4,
-                'w' => is_array($box) ? $box['w'] : 16,
-                'h' => is_array($box) ? $box['h'] : 12,
-            ];
         }
 
         $qr = null;
@@ -151,17 +150,32 @@ final class CentralCertificateDocument
             'blocks' => $blocks,
             'background' => CertificateRenderer::dataUri($template->background_path),
             'watermark' => ($layout['watermark']['visible'] ?? true)
-                ? CertificateRenderer::dataUri($template->watermark_path)
+                ? self::placed(
+                    $template->watermark_path,
+                    (float) $layout['watermark']['x'],
+                    (float) $layout['watermark']['y'],
+                    (float) $layout['watermark']['w'],
+                    (float) $layout['watermark']['h'],
+                )
                 : null,
-            'watermarkBox' => $layout['watermark'],
             'signature' => ($layout['signature']['visible'] ?? true)
-                ? CertificateRenderer::dataUri($template->signature_path)
+                ? self::placed(
+                    $template->signature_path,
+                    (float) $layout['signature']['x'],
+                    (float) $layout['signature']['y'],
+                    (float) $layout['signature']['w'],
+                    (float) $layout['signature']['h'],
+                )
                 : null,
-            'signatureBox' => $layout['signature'],
             'stamp' => ($layout['stamp']['visible'] ?? true)
-                ? CertificateRenderer::dataUri($template->stamp_path)
+                ? self::placed(
+                    $template->stamp_path,
+                    (float) $layout['stamp']['x'],
+                    (float) $layout['stamp']['y'],
+                    (float) $layout['stamp']['w'],
+                    (float) $layout['stamp']['h'],
+                )
                 : null,
-            'stampBox' => $layout['stamp'],
             'logos' => $logos,
             'qr' => $qr,
             'qrBox' => $layout['qr'],
@@ -171,5 +185,46 @@ final class CentralCertificateDocument
         $pdf->setOption('fontCache', $fontDir);
 
         return $pdf->output();
+    }
+
+    /**
+     * Encaja la imagen dentro del recuadro, igual que object-contain en la pantalla.
+     *
+     * @return array{src: string, left: float, top: float, width: float, height: float}|null
+     */
+    private static function placed(?string $path, float $xPct, float $yPct, float $wPct, float $hPct): ?array
+    {
+        $src = CertificateRenderer::dataUri($path);
+
+        if ($src === null || $path === null) {
+            return null;
+        }
+
+        $boxW = max(1, ($wPct / 100) * 297);
+        $boxH = max(1, ($hPct / 100) * 210);
+        $left = ($xPct / 100) * 297;
+        $top = ($yPct / 100) * 210;
+        $info = @getimagesize(Storage::disk('public')->path($path));
+        $pxW = (int) ($info[0] ?? 0);
+        $pxH = (int) ($info[1] ?? 0);
+
+        if ($pxW > 0 && $pxH > 0) {
+            $scale = min($boxW / $pxW, $boxH / $pxH);
+            $imgW = $pxW * $scale;
+            $imgH = $pxH * $scale;
+            $left += ($boxW - $imgW) / 2;
+            $top += ($boxH - $imgH) / 2;
+        } else {
+            $imgW = $boxW;
+            $imgH = $boxH;
+        }
+
+        return [
+            'src' => $src,
+            'left' => round($left, 2),
+            'top' => round($top, 2),
+            'width' => round($imgW, 2),
+            'height' => round($imgH, 2),
+        ];
     }
 }
