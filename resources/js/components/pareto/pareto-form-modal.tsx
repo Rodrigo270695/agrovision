@@ -1,4 +1,5 @@
 import { router, useForm } from '@inertiajs/react';
+import { CircleHelp } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import InputError from '@/components/input-error';
 import type {
@@ -10,6 +11,11 @@ import { useCan } from '@/hooks/use-can';
 import { AppModal } from '@/components/shared/app-modal';
 import { SearchableCombobox } from '@/components/shared/searchable-combobox';
 import { Button } from '@/components/ui/button';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -187,9 +193,31 @@ export function ParetoFormModal({
             <form id="pareto-form" className="space-y-4" onSubmit={handleSubmit}>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="grid min-w-0 gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">
-                            Plantilla <span className="text-red-500">*</span>
-                        </Label>
+                        <div className="flex items-center gap-1">
+                            <Label className="text-xs text-[#1a2b4c]">
+                                Plantilla <span className="text-red-500">*</span>
+                            </Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <button
+                                        type="button"
+                                        aria-label="Cómo usar las plantillas"
+                                        className="rounded p-0.5 text-[#6b8ead] hover:bg-[#eef1f5] hover:text-[#1a2b4c]"
+                                    >
+                                        <CircleHelp className="size-3.5" />
+                                    </button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                    align="start"
+                                    className="z-[80] w-64 p-3 text-xs leading-relaxed text-[#1a2b4c]"
+                                >
+                                    Escribe un nombre para crear otra
+                                    plantilla. El lápiz cambia el nombre. El
+                                    basurero elimina la plantilla si no tiene
+                                    inspecciones.
+                                </PopoverContent>
+                            </Popover>
+                        </div>
                         <SearchableCombobox
                             compact
                             allowClear={false}
@@ -344,11 +372,6 @@ export function ParetoFormModal({
                             }
                             deleting={savingTemplate === 'delete'}
                         />
-                        <p className="text-[11px] leading-snug text-[#6b8ead]">
-                            Escribe un nombre para crear otra plantilla. El
-                            lápiz cambia el nombre. El basurero elimina la
-                            plantilla si no tiene inspecciones.
-                        </p>
                         <InputError message={form.errors.template_type} />
                     </div>
                     <div className="grid min-w-0 gap-1.5">
