@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ChecklistItem;
 use App\Models\ChecklistTemplate;
 use App\Models\Unit;
 use App\Models\UnitChecklist;
@@ -56,7 +57,7 @@ class SstBoardController extends Controller
             ->filter()
             ->values();
 
-        $sections = $this->sections($template, $latest, $inspection);
+        $items = $this->items($template, $latest, $inspection);
 
         $coordinatorNames = $latest
             ->map(fn (UnitChecklist $checklist) => $checklist->unit?->coordinatorUser?->name)
@@ -75,7 +76,7 @@ class SstBoardController extends Controller
             ->all();
 
         return Inertia::render('sst-board/index', [
-            'sections' => $sections,
+            'items' => $items,
             'summary' => [
                 'units' => $latest->count(),
                 'week_label' => $range['label'],
@@ -142,15 +143,22 @@ class SstBoardController extends Controller
      * @param  Collection<int, UnitChecklist>  $checklists
      * @return list<array<string, mixed>>
      */
-    private function sections(string $template, Collection $checklists, string $inspection): array
+    private function items(string $template, Collection $checklists, string $inspection): array
     {
+        $templateId = ChecklistTemplate::query()->where('type', $template)->value('id');
+        $parents = ChecklistItem::query()
+            ->where('template_id', $templateId)
+            ->whereNull('parent_id')
+            ->orderBy('sort_order')
+            ->get(['item_number', 'label']);
+
         $indexed = $checklists->map(function (UnitChecklist $checklist) use ($inspection) {
             $answers = [];
 
             foreach ($checklist->answers as $answer) {
                 $item = $answer->item;
 
-                if ($item === null || $item->parent_id !== null) {
+                if ($item === null || $item->parent_id !== null || $item->item_number === null) {
                     continue;
                 }
 
@@ -160,44 +168,39 @@ class SstBoardController extends Controller
             return $answers;
         });
 
-        return collect($this->groupDefinitions($template))
-            ->map(function (array $group) use ($indexed) {
-                $items = collect($group['items'])->map(function (array $item) use ($indexed) {
-                    $ok = 0;
-                    $falta = 0;
-                    $baja = 0;
+        return $parents
+            ->filter(fn (ChecklistItem $item) => filled($item->item_number))
+            ->map(function (ChecklistItem $item) use ($indexed) {
+                $number = (string) $item->item_number;
+                $ok = 0;
+                $falta = 0;
+                $baja = 0;
 
-                    foreach ($indexed as $answers) {
-                        $value = $answers[$item['number']] ?? null;
+                foreach ($indexed as $answers) {
+                    $value = $answers[$number] ?? null;
 
-                        if ($value === 'yes') {
-                            $ok++;
-                        } elseif ($value === 'no') {
-                            $falta++;
-                        } else {
-                            $baja++;
-                        }
+                    if ($value === 'yes') {
+                        $ok++;
+                    } elseif ($value === 'no') {
+                        $falta++;
+                    } else {
+                        $baja++;
                     }
+                }
 
-                    $total = $ok + $falta + $baja;
-
-                    return [
-                        'key' => $item['number'],
-                        'label' => $item['label'],
-                        'ok' => $ok,
-                        'baja' => $baja,
-                        'falta' => $falta,
-                        'total' => $total,
-                        'percent' => $total > 0 ? (int) round(($ok / $total) * 100) : 0,
-                    ];
-                })->all();
+                $total = $ok + $falta + $baja;
 
                 return [
-                    'key' => $group['key'],
-                    'title' => $group['title'],
-                    'items' => $items,
+                    'key' => $number,
+                    'label' => trim((string) $item->label),
+                    'ok' => $ok,
+                    'baja' => $baja,
+                    'falta' => $falta,
+                    'total' => $total,
+                    'percent' => $total > 0 ? (int) round(($ok / $total) * 100) : 0,
                 ];
             })
+            ->values()
             ->all();
     }
 
@@ -214,52 +217,6 @@ class SstBoardController extends Controller
         return $checklist->second_result !== null
             ? $answer->second_value
             : $answer->first_value;
-    }
-
-    /**
-     * @return list<array{key: string, title: string, items: list<array{number: string, label: string}>}>
-     */
-    private function groupDefinitions(string $template): array
-    {
-        $otros = $template === 'tdc'
-            ? [
-                ['number' => '3', 'label' => 'SCTR'],
-                ['number' => '8', 'label' => 'Llantas'],
-                ['number' => '9', 'label' => 'Llanta de repuesto'],
-                ['number' => '15', 'label' => 'Conos o triángulos'],
-            ]
-            : [
-                ['number' => '3', 'label' => 'SCTR'],
-                ['number' => '29', 'label' => 'Herramientas'],
-                ['number' => '30', 'label' => 'Productos químicos'],
-                ['number' => '20', 'label' => 'Martillos'],
-            ];
-
-        return [
-            [
-                'key' => 'mtc',
-                'title' => 'Requisitos solicitados por MTC',
-                'items' => [
-                    ['number' => '1', 'label' => 'Tarjeta de propiedad'],
-                    ['number' => '2', 'label' => 'SOAT'],
-                    ['number' => '4', 'label' => 'Inspección técnica vehicular'],
-                ],
-            ],
-            [
-                'key' => 'sst',
-                'title' => 'Requisitos de ley de SST',
-                'items' => [
-                    ['number' => '14', 'label' => 'Extintor'],
-                    ['number' => '18', 'label' => 'Cinturón'],
-                    ['number' => '13', 'label' => 'Botiquín'],
-                ],
-            ],
-            [
-                'key' => 'otros',
-                'title' => 'Otros requisitos',
-                'items' => $otros,
-            ],
-        ];
     }
 
     /**

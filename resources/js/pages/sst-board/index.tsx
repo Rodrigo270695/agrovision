@@ -13,12 +13,6 @@ type Ring = {
     percent: number;
 };
 
-type Section = {
-    key: string;
-    title: string;
-    items: Ring[];
-};
-
 type Filters = {
     date_from: string | null;
     date_to: string | null;
@@ -29,14 +23,14 @@ type Filters = {
     inspection: 'actual' | 'first' | 'second';
 };
 
-type CoordinatorOption = {
+type PersonOption = {
     id: number;
     name: string;
 };
 
 type PageProps = {
     templateOptions?: { value: string; label: string }[];
-    sections: Section[];
+    items: Ring[];
     summary: {
         units: number;
         week_label: string;
@@ -45,8 +39,8 @@ type PageProps = {
         template_label: string;
     };
     filters: Filters;
-    coordinators: CoordinatorOption[];
-    inspectors: CoordinatorOption[];
+    coordinators: PersonOption[];
+    inspectors: PersonOption[];
     vehicle_options: string[];
     scoped: boolean;
 };
@@ -55,9 +49,12 @@ const OK = '#22c55e';
 const BAJA = '#94a3b8';
 const FALTA = '#ef4444';
 
+const selectClass =
+    'mt-1 h-10 w-full cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c] normal-case';
+
 export default function SstBoardPage() {
     const {
-        sections,
+        items = [],
         summary,
         filters,
         coordinators,
@@ -88,16 +85,16 @@ export default function SstBoardPage() {
         );
     };
 
-    const selectedVehicles =
-        filters.vehicle_types.length > 0
-            ? filters.vehicle_types
-            : vehicleOptions;
-
     const toggleVehicle = (type: string) => {
-        const current = selectedVehicles;
-        const next = current.includes(type)
-            ? current.filter((item) => item !== type)
-            : [...current, type];
+        if (filters.vehicle_types.length === 0) {
+            visit({ vehicle_types: [type] });
+
+            return;
+        }
+
+        const next = filters.vehicle_types.includes(type)
+            ? filters.vehicle_types.filter((item) => item !== type)
+            : [...filters.vehicle_types, type];
 
         visit({
             vehicle_types:
@@ -107,87 +104,72 @@ export default function SstBoardPage() {
         });
     };
 
+    const templates =
+        templateOptions.length > 0
+            ? templateOptions
+            : [
+                  { value: 'tdp', label: 'TDP' },
+                  { value: 'tdc', label: 'TDC' },
+              ];
+
     return (
         <>
             <Head title="Tablero SST" />
             <div className="flex w-full flex-col gap-4 p-4 sm:p-6">
-                <div className="flex flex-col gap-3 border-b-2 border-[#1a2b4c] pb-3 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <h1 className="text-lg font-bold tracking-wide text-[#1a2b4c] uppercase sm:text-2xl">
-                            Tablero de mando SST {summary.template_label}
-                        </h1>
-                        <p className="mt-1 text-xs text-[#5a7390]">
-                            Cada anillo es el porcentaje en OK de las
-                            inspecciones del filtro. Verde cumple, gris sin
-                            marcar, rojo en NO.
-                        </p>
+                <div className="border-b-2 border-[#1a2b4c] pb-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <h1 className="text-lg font-bold tracking-wide text-[#1a2b4c] uppercase sm:text-2xl">
+                                Tablero de mando SST {summary.template_label}
+                            </h1>
+                            <p className="mt-1 text-xs text-[#5a7390]">
+                                {summary.units} inspecciones. {summary.week_label}.
+                                El anillo es el porcentaje en OK. Verde cumple,
+                                gris sin marcar, rojo en NO.
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {templates.map((template) => (
+                                <button
+                                    key={template.value}
+                                    type="button"
+                                    onClick={() =>
+                                        visit({ template: template.value })
+                                    }
+                                    className={cn(
+                                        'cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold',
+                                        filters.template === template.value
+                                            ? 'bg-[#1a2b4c] text-white'
+                                            : 'border border-[#c5d5e6] text-[#1a2b4c]',
+                                    )}
+                                >
+                                    {template.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        {(templateOptions.length > 0
-                            ? templateOptions
-                            : [
-                                  { value: 'tdp', label: 'TDP' },
-                                  { value: 'tdc', label: 'TDC' },
-                              ]
-                        ).map((template) => (
-                            <button
-                                key={template.value}
-                                type="button"
-                                onClick={() =>
-                                    visit({ template: template.value })
-                                }
-                                className={cn(
-                                    'cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold',
-                                    filters.template === template.value
-                                        ? 'bg-[#1a2b4c] text-white'
-                                        : 'border border-[#c5d5e6] text-[#1a2b4c]',
-                                )}
-                            >
-                                {template.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
 
-                <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)]">
-                    <aside className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
-                        <p className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
-                            Unidades
-                        </p>
-                        <p className="font-display text-4xl font-semibold text-[#1a2b4c]">
-                            {summary.units}
-                        </p>
-                        <p className="mt-1 text-xs text-[#5a7390]">
-                            {summary.week_label}
-                        </p>
-
-                        <div className="mt-4">
-                            <p className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                    <div className="mt-4 flex flex-wrap items-end gap-3">
+                        <div className="w-full sm:w-auto">
+                            <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
                                 Fecha
                             </p>
-                            <div className="mt-2">
-                                <DateRangeFilter
-                                    desde={filters.date_from}
-                                    hasta={filters.date_to}
-                                    align="start"
-                                    triggerClassName="w-full"
-                                    onApply={(dateFrom, dateTo) =>
-                                        visit({
-                                            date_from: dateFrom,
-                                            date_to: dateTo,
-                                        })
-                                    }
-                                    onClear={() =>
-                                        visit({
-                                            date_from: null,
-                                            date_to: null,
-                                        })
-                                    }
-                                />
-                            </div>
+                            <DateRangeFilter
+                                desde={filters.date_from}
+                                hasta={filters.date_to}
+                                align="start"
+                                onApply={(dateFrom, dateTo) =>
+                                    visit({
+                                        date_from: dateFrom,
+                                        date_to: dateTo,
+                                    })
+                                }
+                                onClear={() =>
+                                    visit({ date_from: null, date_to: null })
+                                }
+                            />
                         </div>
-
-                        <label className="mt-4 block text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                        <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-56">
                             Inspector
                             <select
                                 value={filters.inspector_id ?? ''}
@@ -199,126 +181,119 @@ export default function SstBoardPage() {
                                                 : Number(event.target.value),
                                     })
                                 }
-                                className="mt-2 h-10 w-full cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c] normal-case"
+                                className={selectClass}
                             >
                                 <option value="">Todos</option>
                                 {inspectors.map((inspector) => (
-                                    <option key={inspector.id} value={inspector.id}>
+                                    <option
+                                        key={inspector.id}
+                                        value={inspector.id}
+                                    >
                                         {inspector.name}
                                     </option>
                                 ))}
                             </select>
                         </label>
-
-                        <div className="mt-4">
-                            <p className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
-                                Coordinador
-                            </p>
-                            <div className="mt-2 flex flex-col gap-1">
-                                {scoped ? null : (
-                                    <FilterButton
-                                        active={filters.coordinator_id === null}
-                                        onClick={() =>
-                                            visit({ coordinator_id: null })
-                                        }
-                                        label="Todos"
-                                    />
+                        <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-64">
+                            Coordinador
+                            <select
+                                value={filters.coordinator_id ?? ''}
+                                onChange={(event) =>
+                                    visit({
+                                        coordinator_id:
+                                            event.target.value === ''
+                                                ? null
+                                                : Number(event.target.value),
+                                    })
+                                }
+                                disabled={scoped}
+                                className={cn(
+                                    selectClass,
+                                    'disabled:cursor-not-allowed disabled:opacity-60',
                                 )}
+                            >
+                                {scoped ? null : <option value="">Todos</option>}
                                 {coordinators.map((coordinator) => (
-                                    <FilterButton
+                                    <option
                                         key={coordinator.id}
-                                        active={
-                                            filters.coordinator_id ===
-                                            coordinator.id
-                                        }
-                                        onClick={() =>
-                                            visit({
-                                                coordinator_id: coordinator.id,
-                                            })
-                                        }
-                                        label={coordinator.name}
-                                    />
+                                        value={coordinator.id}
+                                    >
+                                        {coordinator.name}
+                                    </option>
                                 ))}
-                            </div>
-                        </div>
-
-                        <div className="mt-4">
-                            <p className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
-                                Tipo de vehículo
-                            </p>
-                            <div className="mt-2 flex flex-col gap-1">
-                                {vehicleOptions.length === 0 ? (
-                                    <p className="text-xs text-[#6b8ead]">
-                                        Sin tipos cargados.
-                                    </p>
-                                ) : (
-                                    vehicleOptions.map((type) => (
-                                        <FilterButton
-                                            key={type}
-                                            active={selectedVehicles.includes(
-                                                type,
-                                            )}
-                                            onClick={() => toggleVehicle(type)}
-                                            label={type}
-                                        />
-                                    ))
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="mt-4">
-                            <p className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                            </select>
+                        </label>
+                        <div>
+                            <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
                                 Inspección
                             </p>
-                            <div className="mt-2 flex flex-col gap-1">
+                            <div className="flex gap-1">
                                 {(
                                     [
                                         ['actual', 'Actual'],
-                                        ['first', 'Solo 1ra'],
-                                        ['second', 'Solo 2da'],
+                                        ['first', '1ra'],
+                                        ['second', '2da'],
                                     ] as const
                                 ).map(([value, label]) => (
-                                    <FilterButton
+                                    <button
                                         key={value}
-                                        active={filters.inspection === value}
+                                        type="button"
                                         onClick={() =>
                                             visit({ inspection: value })
                                         }
-                                        label={label}
-                                    />
+                                        className={cn(
+                                            'h-10 cursor-pointer rounded-lg px-3 text-xs font-semibold',
+                                            filters.inspection === value
+                                                ? 'bg-[#1a2b4c] text-white'
+                                                : 'border border-[#c5d5e6] text-[#1a2b4c]',
+                                        )}
+                                    >
+                                        {label}
+                                    </button>
                                 ))}
                             </div>
                         </div>
+                    </div>
 
-                        <p className="mt-4 text-[11px] text-[#6b8ead]">
-                            Estatus: periodo activo
+                    <div className="mt-3">
+                        <p className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                            Tipo de vehículo
                         </p>
-                    </aside>
-
-                    <div className="grid gap-4 lg:grid-cols-3">
-                        {sections.map((section) => (
-                            <section
-                                key={section.key}
-                                className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm"
-                            >
-                                <h2 className="border-b border-[#1a2b4c] pb-1 text-center text-[11px] font-bold tracking-wide text-[#1a2b4c] uppercase">
-                                    {section.title}
-                                </h2>
-                                <div className="mt-4 flex flex-col gap-6">
-                                    {section.items.map((item) => (
-                                        <RingCard key={item.key} ring={item} />
-                                    ))}
-                                </div>
-                            </section>
-                        ))}
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                            <FilterChip
+                                active={filters.vehicle_types.length === 0}
+                                label="Todos"
+                                onClick={() => visit({ vehicle_types: [] })}
+                            />
+                            {vehicleOptions.map((type) => (
+                                <FilterChip
+                                    key={type}
+                                    active={filters.vehicle_types.includes(type)}
+                                    label={type}
+                                    onClick={() => toggleVehicle(type)}
+                                />
+                            ))}
+                        </div>
                     </div>
                 </div>
+
+                {items.length === 0 ? (
+                    <section className="rounded-2xl border border-[#d7e3f0] bg-white p-8 text-center text-sm text-[#5a7390] shadow-sm">
+                        Esta plantilla no tiene requisitos para graficar.
+                    </section>
+                ) : (
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                        {items.map((item) => (
+                            <RingCard key={item.key} ring={item} />
+                        ))}
+                    </div>
+                )}
             </div>
         </>
     );
 }
 
-function FilterButton({
+function FilterChip({
     active,
     label,
     onClick,
@@ -332,10 +307,10 @@ function FilterButton({
             type="button"
             onClick={onClick}
             className={cn(
-                'cursor-pointer rounded-md px-2 py-1.5 text-left text-xs font-medium',
+                'cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium',
                 active
                     ? 'bg-[#1a2b4c] text-white'
-                    : 'text-[#1a2b4c] hover:bg-[#eef3f8]',
+                    : 'border border-[#c5d5e6] text-[#1a2b4c]',
             )}
         >
             {label}
@@ -344,7 +319,7 @@ function FilterButton({
 }
 
 function RingCard({ ring }: { ring: Ring }) {
-    const radius = 46;
+    const radius = 42;
     const circumference = 2 * Math.PI * radius;
     const parts = [
         { key: 'ok', value: ring.ok, color: OK },
@@ -370,11 +345,11 @@ function RingCard({ ring }: { ring: Ring }) {
               });
 
     return (
-        <div className="flex flex-col items-center">
-            <p className="mb-2 text-center text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
+        <article className="flex flex-col rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
+            <h2 className="line-clamp-2 min-h-10 text-center text-xs font-bold tracking-wide text-[#1a2b4c] uppercase">
                 {ring.label}
-            </p>
-            <div className="relative size-36">
+            </h2>
+            <div className="relative mx-auto mt-2 size-32">
                 <svg viewBox="0 0 120 120" className="size-full -rotate-90">
                     <circle
                         cx="60"
@@ -382,7 +357,7 @@ function RingCard({ ring }: { ring: Ring }) {
                         r={radius}
                         fill="none"
                         stroke="#e8eef5"
-                        strokeWidth="14"
+                        strokeWidth="12"
                     />
                     {arcs.map((arc) => (
                         <circle
@@ -392,7 +367,7 @@ function RingCard({ ring }: { ring: Ring }) {
                             r={radius}
                             fill="none"
                             stroke={arc.color}
-                            strokeWidth="14"
+                            strokeWidth="12"
                             strokeDasharray={`${arc.dash} ${arc.gap}`}
                             strokeDashoffset={-arc.offset}
                         />
@@ -404,32 +379,39 @@ function RingCard({ ring }: { ring: Ring }) {
                     </span>
                 </div>
             </div>
-            <div className="mt-2 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-[#5a7390]">
-                <Legend color={OK} label="OK" value={ring.ok} />
-                <Legend color={BAJA} label="Baja" value={ring.baja} />
-                <Legend color={FALTA} label="Falta" value={ring.falta} />
+            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-[#e8eef5] pt-3 text-center">
+                <Count label="OK" value={ring.ok} className="text-[#166534]" />
+                <Count
+                    label="Baja"
+                    value={ring.baja}
+                    className="text-[#64748b]"
+                />
+                <Count
+                    label="Falta"
+                    value={ring.falta}
+                    className="text-[#b91c1c]"
+                />
             </div>
-        </div>
+        </article>
     );
 }
 
-function Legend({
-    color,
+function Count({
     label,
     value,
+    className,
 }: {
-    color: string;
     label: string;
     value: number;
+    className: string;
 }) {
     return (
-        <span className="inline-flex items-center gap-1">
-            <span
-                className="size-2 rounded-full"
-                style={{ backgroundColor: color }}
-            />
-            {label} {value}
-        </span>
+        <div>
+            <p className="text-[10px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                {label}
+            </p>
+            <p className={cn('text-lg font-bold', className)}>{value}</p>
+        </div>
     );
 }
 
