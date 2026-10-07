@@ -10,6 +10,11 @@ import { Spinner } from '@/components/ui/spinner';
 import type { ChecklistFormData } from '@/components/checklists/checklist-edit-form';
 import type { OfflineCatalogTemplate } from '@/lib/offline/db';
 import { isBrowserOnline } from '@/lib/offline/ids';
+import {
+    buildLocalDraft,
+    queueCreate,
+    saveEditSnapshot,
+} from '@/lib/offline/store';
 
 export type ChecklistTemplateOption = {
     id: number;
@@ -65,7 +70,9 @@ export function ChecklistCreateModal({
     open,
     templates,
     activeUnits,
+    catalog = [],
     onClose,
+    onCreatedOffline,
 }: Props) {
     const [date, setDate] = useState(todayInput);
     const [unitId, setUnitId] = useState<string | null>(null);
@@ -160,13 +167,54 @@ export function ChecklistCreateModal({
     const handleSubmit = (event: FormEvent) => {
         event.preventDefault();
 
-        if (!isBrowserOnline()) {
-            toast.error('Crear la inspección necesita conexión.');
-
+        if (!unit || !template || sending) {
             return;
         }
 
-        if (!unit || !template || sending) {
+        if (!isBrowserOnline()) {
+            const templateCatalog = catalog.find(
+                (item) => item.id === template.id,
+            );
+
+            if (!templateCatalog) {
+                toast.error(
+                    'Abre Inspecciones con conexión una vez para poder crearlas sin internet.',
+                );
+
+                return;
+            }
+
+            setSending(true);
+            const draft = buildLocalDraft({
+                unit,
+                template,
+                catalog: templateCatalog,
+            });
+            draft.first_inspected_on = date;
+
+            void (async () => {
+                try {
+                    await saveEditSnapshot(draft);
+                    await queueCreate({
+                        unit_id: unit.id,
+                        template_id: template.id,
+                        inspected_on: date,
+                        checklistId: String(draft.id),
+                    });
+                    toast.success(
+                        'Guardado en este dispositivo. Se enviará al reconectar.',
+                    );
+                    onCreatedOffline?.(draft);
+                    onClose();
+                } catch {
+                    toast.error(
+                        'No se pudo guardar la inspección en el dispositivo.',
+                    );
+                } finally {
+                    setSending(false);
+                }
+            })();
+
             return;
         }
 

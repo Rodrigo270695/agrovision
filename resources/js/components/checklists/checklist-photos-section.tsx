@@ -346,7 +346,11 @@ function PhotoPassSection({
             }
 
             const views = pending
-                .filter((photo) => photo.inspectionPass === pass)
+                .filter(
+                    (photo) =>
+                        photo.inspectionPass === pass &&
+                        photo.checklistItemId == null,
+                )
                 .map((photo) => {
                     const view = photoToView(photo);
                     objectUrls.push(view.url);

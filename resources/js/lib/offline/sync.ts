@@ -1,5 +1,10 @@
+import { router } from '@inertiajs/react';
 import { getCsrfToken } from '@/lib/csrf';
-import { flushMutations, installOfflineRouter } from '@/lib/offline/mutations';
+import {
+    flushMutations,
+    installOfflineRouter,
+    MUTATIONS_EVENT,
+} from '@/lib/offline/mutations';
 import { editSnapshotKey, offlineDb, type OutboxItem } from '@/lib/offline/db';
 import { isLocalChecklistId } from '@/lib/offline/ids';
 import { refreshPendingCount } from '@/lib/offline/store';
@@ -87,6 +92,7 @@ async function syncCreate(item: OutboxItem): Promise<void> {
         body: JSON.stringify({
             unit_id: item.payload.unit_id,
             template_id: item.payload.template_id,
+            inspected_on: item.payload.inspected_on,
         }),
     });
 
@@ -156,6 +162,10 @@ async function syncPhoto(item: OutboxItem): Promise<void> {
 
     if (photo.accuracy !== null) {
         formData.append('accuracy', String(photo.accuracy));
+    }
+
+    if (photo.checklistItemId) {
+        formData.append('checklist_item_id', String(photo.checklistItemId));
     }
 
     const response = await fetch(`/inspecciones/${checklistId}/fotos`, {
@@ -228,6 +238,7 @@ export async function flushOutbox(): Promise<void> {
 
     flushing = true;
     setOfflineSyncing(true);
+    let synced = 0;
 
     try {
         const items = await db.outbox.orderBy('createdAt').toArray();
@@ -236,6 +247,7 @@ export async function flushOutbox(): Promise<void> {
             try {
                 await processItem(item);
                 await db.outbox.delete(item.id);
+                synced += 1;
                 setOfflineError(null);
             } catch (error) {
                 await db.outbox.update(item.id, {
@@ -266,6 +278,11 @@ export async function flushOutbox(): Promise<void> {
         flushing = false;
         setOfflineSyncing(false);
         await refreshPendingCount();
+
+        if (synced > 0) {
+            window.dispatchEvent(new Event(MUTATIONS_EVENT));
+            router.reload({ preserveScroll: true, preserveState: false });
+        }
     }
 }
 

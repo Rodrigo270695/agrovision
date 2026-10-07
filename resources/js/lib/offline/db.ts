@@ -80,6 +80,7 @@ export type OfflinePhoto = {
     id: string;
     checklistId: string;
     inspectionPass: 'first' | 'second';
+    checklistItemId?: number | null;
     blob: Blob;
     capturedAt: string;
     latitude: number | null;

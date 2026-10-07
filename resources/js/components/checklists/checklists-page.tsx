@@ -20,6 +20,7 @@ import {
 } from '@/components/checklists/checklists-table';
 import { useCan } from '@/hooks/use-can';
 import { isBrowserOnline, isLocalChecklistId } from '@/lib/offline/ids';
+import { MUTATIONS_EVENT } from '@/lib/offline/mutations';
 import type { OfflineCatalogTemplate } from '@/lib/offline/db';
 import {
     deleteLocalDraft,
@@ -74,20 +75,45 @@ function prefetchInspectionEdits(
         return;
     }
 
-    rows
-        .filter((row) => typeof row.id === 'number')
-        .slice(0, 8)
-        .forEach((row) => {
-            void fetch(`/inspecciones/${row.id}/editar`, {
-                credentials: 'same-origin',
-                headers: {
-                    Accept: 'text/html, application/xhtml+xml',
-                    'X-Inertia': 'true',
-                    'X-Inertia-Version': version ?? '',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            }).catch(() => undefined);
-        });
+    void (async () => {
+        for (const row of rows) {
+            if (typeof row.id !== 'number' || !navigator.onLine) {
+                continue;
+            }
+
+            try {
+                const response = await fetch(`/inspecciones/${row.id}/editar`, {
+                    credentials: 'same-origin',
+                    headers: {
+                        Accept: 'text/html, application/xhtml+xml',
+                        'X-Inertia': 'true',
+                        'X-Inertia-Version': version ?? '',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                if (!response.ok) {
+                    continue;
+                }
+
+                const type = response.headers.get('content-type') ?? '';
+
+                if (!type.includes('json')) {
+                    continue;
+                }
+
+                const payload = (await response.json()) as {
+                    props?: { checklist?: ChecklistFormData };
+                };
+
+                if (payload.props?.checklist) {
+                    await saveEditSnapshot(payload.props.checklist);
+                }
+            } catch {
+                // La siguiente fila sigue disponible para el caché.
+            }
+        }
+    })();
 }
 
 export function ChecklistsPage() {
@@ -122,14 +148,20 @@ export function ChecklistsPage() {
     useEffect(() => {
         let cancelled = false;
 
-        void listLocalDrafts().then((drafts) => {
-            if (!cancelled) {
-                setLocalRows(drafts.map(draftToRow));
-            }
-        });
+        const load = () => {
+            void listLocalDrafts().then((drafts) => {
+                if (!cancelled) {
+                    setLocalRows(drafts.map(draftToRow));
+                }
+            });
+        };
+
+        load();
+        window.addEventListener(MUTATIONS_EVENT, load);
 
         return () => {
             cancelled = true;
+            window.removeEventListener(MUTATIONS_EVENT, load);
         };
     }, [checklists, localEditor]);
 

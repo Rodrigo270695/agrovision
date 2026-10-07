@@ -146,6 +146,7 @@ export async function enqueueOutbox(
 export async function queueCreate(payload: {
     unit_id: number;
     template_id: number;
+    inspected_on: string;
     checklistId: string;
 }): Promise<void> {
     await enqueueOutbox({
@@ -154,6 +155,7 @@ export async function queueCreate(payload: {
         payload: {
             unit_id: payload.unit_id,
             template_id: payload.template_id,
+            inspected_on: payload.inspected_on,
         },
     });
 }
@@ -232,6 +234,7 @@ export function photoToView(photo: OfflinePhoto): ChecklistPhoto {
         id: photo.id,
         inspection_pass: photo.inspectionPass,
         url: URL.createObjectURL(photo.blob),
+        checklist_item_id: photo.checklistItemId ?? null,
         captured_at: photo.capturedAt.replace('T', ' '),
         latitude: photo.latitude,
         longitude: photo.longitude,
@@ -317,7 +320,7 @@ export function buildLocalDraft(input: {
         provider: input.unit.provider ?? null,
         location: null,
         transport_company: input.unit.provider ?? null,
-        vehicle_info: null,
+        vehicle_info: input.unit.vehicle_type ?? null,
         license_number: null,
         license_class: input.unit.category ?? null,
         license_revalidation_on: null,

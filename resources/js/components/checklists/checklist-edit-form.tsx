@@ -8,7 +8,7 @@ import {
     ShieldCheck,
     Trash2,
 } from 'lucide-react';
-import { useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import {
     ChecklistPhotosSection,
@@ -21,8 +21,16 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { getCsrfToken } from '@/lib/csrf';
-import { isBrowserOnline, isLocalChecklistId } from '@/lib/offline/ids';
-import { applyUpdateToChecklist, queueUpdate, saveEditSnapshot } from '@/lib/offline/store';
+import { isBrowserOnline, isLocalChecklistId, newLocalPhotoId } from '@/lib/offline/ids';
+import {
+    applyUpdateToChecklist,
+    listPendingPhotos,
+    photoToView,
+    queueDeletePhoto,
+    queuePhoto,
+    queueUpdate,
+    saveEditSnapshot,
+} from '@/lib/offline/store';
 import { cn } from '@/lib/utils';
 
 export type ChecklistFormItem = {
@@ -382,6 +390,44 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
     const [evidencePhotos, setEvidencePhotos] = useState<ChecklistPhoto[]>(
         checklist.photos ?? [],
     );
+
+    useEffect(() => {
+        let cancelled = false;
+        const objectUrls: string[] = [];
+
+        void listPendingPhotos(checklist.id).then((pending) => {
+            if (cancelled) {
+                return;
+            }
+
+            const views = pending
+                .filter((photo) => photo.checklistItemId != null)
+                .map((photo) => {
+                    const view = photoToView(photo);
+                    objectUrls.push(view.url);
+
+                    return view;
+                });
+
+            if (views.length === 0) {
+                return;
+            }
+
+            setEvidencePhotos((prev) => {
+                const ids = new Set(prev.map((photo) => photo.id));
+
+                return [
+                    ...prev,
+                    ...views.filter((photo) => !ids.has(photo.id)),
+                ];
+            });
+        });
+
+        return () => {
+            cancelled = true;
+            objectUrls.forEach((url) => URL.revokeObjectURL(url));
+        };
+    }, [checklist.id]);
     const [evidenceBusy, setEvidenceBusy] = useState<number | null>(null);
     const evidenceInputRef = useRef<HTMLInputElement>(null);
     const evidenceTargetRef = useRef<number | null>(null);
@@ -520,13 +566,65 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
             return;
         }
 
+        setEvidenceBusy(itemId);
+
         if (!isBrowserOnline() || isLocalChecklistId(checklist.id)) {
-            toast.error('Conéctate para subir la foto de evidencia.');
+            try {
+                const prepared = await compressEvidence(file);
+                const pending = await listPendingPhotos(checklist.id);
+
+                for (const photo of pending) {
+                    if (
+                        photo.checklistItemId === itemId &&
+                        photo.inspectionPass === activePass
+                    ) {
+                        await queueDeletePhoto(checklist.id, photo.id);
+                    }
+                }
+
+                const localId = newLocalPhotoId();
+                await queuePhoto({
+                    id: localId,
+                    checklistId: String(checklist.id),
+                    inspectionPass: activePass,
+                    checklistItemId: itemId,
+                    blob: prepared,
+                    capturedAt: new Date().toISOString(),
+                    latitude: null,
+                    longitude: null,
+                    accuracy: null,
+                });
+                const url = URL.createObjectURL(prepared);
+                setEvidencePhotos((prev) => [
+                    ...prev.filter(
+                        (photo) =>
+                            !(
+                                photo.checklist_item_id === itemId &&
+                                photo.inspection_pass === activePass
+                            ),
+                    ),
+                    {
+                        id: localId,
+                        checklist_item_id: itemId,
+                        inspection_pass: activePass,
+                        url,
+                        captured_at: null,
+                        latitude: null,
+                        longitude: null,
+                        accuracy: null,
+                    },
+                ]);
+                toast.success(
+                    'Foto guardada en el dispositivo. Se enviará al reconectar.',
+                );
+            } catch {
+                toast.error('No se pudo guardar la foto en el dispositivo.');
+            } finally {
+                setEvidenceBusy(null);
+            }
 
             return;
         }
-
-        setEvidenceBusy(itemId);
 
         try {
             const prepared = await compressEvidence(file);
@@ -583,7 +681,29 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
     };
 
     const removeEvidence = async (photo: ChecklistPhoto) => {
-        if (sealed || evidenceBusy || typeof photo.id !== 'number') {
+        if (sealed || evidenceBusy) {
+            return;
+        }
+
+        if (
+            typeof photo.id !== 'number' ||
+            !isBrowserOnline() ||
+            isLocalChecklistId(checklist.id)
+        ) {
+            setEvidenceBusy(photo.checklist_item_id ?? -1);
+
+            try {
+                await queueDeletePhoto(checklist.id, photo.id);
+                setEvidencePhotos((prev) =>
+                    prev.filter((item) => item.id !== photo.id),
+                );
+                toast.success('Foto quitada del dispositivo.');
+            } catch {
+                toast.error('No se pudo quitar la foto.');
+            } finally {
+                setEvidenceBusy(null);
+            }
+
             return;
         }
 
