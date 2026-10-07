@@ -197,6 +197,22 @@ const centralNavItems: NavItem[] = [
         href: '/plataforma/empresas',
         icon: Building2,
     },
+    {
+        title: 'Certificado',
+        icon: Award,
+        items: [
+            {
+                title: 'Participantes',
+                href: '/plataforma/certificados/participantes',
+                icon: Users,
+            },
+            {
+                title: 'Plantilla',
+                href: '/plataforma/certificados/plantillas',
+                icon: Award,
+            },
+        ],
+    },
 ];
 
 export function AppSidebar() {
