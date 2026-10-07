@@ -480,12 +480,12 @@ export default function CentralCertificateEditor({ template, trainings, particip
                         )}
                         </Accordion>
                         <Accordion title="Textos" hint="Variables del participante y textos libres" defaultOpen>
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="grid grid-cols-2 gap-2">
                                 {variables.map((key) => (
                                     <button
                                         key={key}
                                         type="button"
-                                        className="cursor-pointer rounded-full border border-[#bfd3ea] bg-[#f3f7fb] px-2.5 py-1 text-xs font-medium text-[#12355b]"
+                                        className="cursor-pointer rounded-lg border border-[#bfd3ea] bg-[#f3f7fb] px-2 py-1.5 text-center text-xs font-medium text-[#12355b]"
                                         onClick={() => addBlock(`{{${key}}}`)}
                                     >
                                         {`{{${key}}}`}
@@ -493,7 +493,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                 ))}
                                 <button
                                     type="button"
-                                    className="cursor-pointer rounded-full border border-[#99f6e4] bg-[#f0fdfa] px-2.5 py-1 text-xs font-medium text-[#0f766e]"
+                                    className="col-span-2 cursor-pointer rounded-lg border border-[#99f6e4] bg-[#f0fdfa] px-2 py-1.5 text-center text-xs font-medium text-[#0f766e]"
                                     onClick={() => addBlock('Texto')}
                                 >
                                     Texto libre
@@ -505,22 +505,22 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                     key={block.id}
                                     type="button"
                                     onClick={() => setSelected(block.id)}
-                                    className={`flex cursor-pointer items-center gap-2 rounded-lg border px-2 py-1.5 text-left text-xs ${
+                                    className={`flex w-full cursor-pointer items-start gap-2 rounded-lg border px-2.5 py-2 text-left text-xs ${
                                         selected === block.id ? 'border-[#12355b] bg-[#f3f7fb]' : 'border-[#e6eef6]'
                                     }`}
                                 >
-                                    <span className="size-3.5 shrink-0 rounded-full border border-black/10" style={{ background: block.color }} />
-                                    <span className="truncate text-[#1a2b4c]">{fill(block.text, sample) || 'Texto vacío'}</span>
+                                    <span className="mt-0.5 size-3.5 shrink-0 rounded-full border border-black/10" style={{ background: block.color }} />
+                                    <span className="min-w-0 flex-1 whitespace-pre-line text-[#1a2b4c] line-clamp-2">{fill(block.text, sample) || 'Texto vacío'}</span>
                                 </button>
                             ))}
                         </div>
-                        <div className="mt-4 grid gap-2">
+                        <div className="mt-4 grid gap-3">
                             <p className="text-xs font-medium text-[#1a2b4c]">Variables propias</p>
                             {custom.map((item, index) => (
-                                <div key={index} className="grid grid-cols-3 gap-1">
+                                <div key={index} className="grid gap-2 rounded-lg border border-[#e6eef6] p-2">
                                     <Input
                                         value={item.key}
-                                        placeholder="clave"
+                                        placeholder="Clave, por ejemplo horas"
                                         onChange={(event) =>
                                             setCustom((current) =>
                                                 current.map((row, rowIndex) =>
@@ -531,7 +531,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                     />
                                     <Input
                                         value={item.label}
-                                        placeholder="nombre"
+                                        placeholder="Nombre visible"
                                         onChange={(event) =>
                                             setCustom((current) =>
                                                 current.map((row, rowIndex) =>
@@ -542,7 +542,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                     />
                                     <Input
                                         value={item.value}
-                                        placeholder="valor"
+                                        placeholder="Valor"
                                         onChange={(event) =>
                                             setCustom((current) =>
                                                 current.map((row, rowIndex) =>
@@ -556,6 +556,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                             <Button
                                 type="button"
                                 variant="outline"
+                                className="w-full"
                                 onClick={() => setCustom((current) => [...current, { key: '', label: '', value: '' }])}
                             >
                                 Añadir variable
@@ -566,7 +567,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                     <button
                                         key={item.key}
                                         type="button"
-                                        className="cursor-pointer text-left text-xs text-[#0f766e]"
+                                        className="w-full cursor-pointer rounded-lg border border-[#99f6e4] bg-[#f0fdfa] px-2 py-1.5 text-center text-xs font-medium text-[#0f766e]"
                                         onClick={() => addBlock(`{{${item.key}}}`)}
                                     >
                                         Insertar {`{{${item.key}}}`}
@@ -735,15 +736,16 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                         </label>
                                     </div>
                                 </div>
-                                <div className="md:col-span-2">
+                                <div className="grid gap-3 md:col-span-2">
                                 <Field label="Texto">
                                     <textarea
                                         value={selectedBlock.text}
                                         rows={4}
                                         onChange={(event) => patchBlock(selectedBlock.id, { text: event.target.value })}
-                                        className="rounded-md border border-[#c5d5e6] px-2 py-1 text-sm"
+                                        className="w-full rounded-md border border-[#c5d5e6] px-2 py-1 text-sm"
                                     />
                                 </Field>
+                                <div className="grid grid-cols-2 gap-3">
                                 <Field label="Tamaño">
                                     <Input
                                         type="number"
@@ -764,7 +766,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                         onChange={(event) =>
                                             patchBlock(selectedBlock.id, { align: event.target.value as Block['align'] })
                                         }
-                                        className="h-9 rounded-md border border-[#c5d5e6] px-2 text-sm"
+                                        className="h-9 w-full rounded-md border border-[#c5d5e6] bg-white px-2 text-sm"
                                     >
                                         <option value="left">Izquierda</option>
                                         <option value="center">Centro</option>
@@ -775,7 +777,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                     <select
                                         value={selectedBlock.font}
                                         onChange={(event) => patchBlock(selectedBlock.id, { font: event.target.value })}
-                                        className="h-9 rounded-md border border-[#c5d5e6] px-2 text-sm"
+                                        className="h-9 w-full rounded-md border border-[#c5d5e6] bg-white px-2 text-sm"
                                     >
                                         {fonts.map((font) => (
                                             <option key={font.id} value={font.id}>
@@ -784,6 +786,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                         ))}
                                     </select>
                                 </Field>
+                                </div>
                                 <label className="flex items-center gap-2 text-sm text-[#1a2b4c]">
                                     <input
                                         type="checkbox"
