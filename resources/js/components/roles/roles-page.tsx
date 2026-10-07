@@ -1,5 +1,5 @@
 import { usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { RoleDeleteModal } from '@/components/roles/role-delete-modal';
 import { RoleFormModal } from '@/components/roles/role-form-modal';
 import {
@@ -15,6 +15,7 @@ import {
 } from '@/components/roles/roles-table';
 import type { RolesStatsData } from '@/components/roles/roles-stats';
 import { useCan } from '@/hooks/use-can';
+import { usePendingPosts } from '@/lib/offline/use-pending-posts';
 
 type RolesPageProps = {
     roles: RolesPagination;
@@ -99,12 +100,44 @@ export function RolesPage() {
         setPermissionsOpen(false);
         setPermissionsRole(null);
     };
+    const pendingRoles = usePendingPosts('/roles');
+    const localRoles = useMemo<RoleItem[]>(
+        () =>
+            pendingRoles.map((item) => ({
+                id: item.id,
+                pending_sync: true,
+                name: String(item.body.name ?? ''),
+                permissions_count: 0,
+            })),
+        [pendingRoles],
+    );
+    const mergedRoles = useMemo<RolesPagination>(() => {
+        if (localRoles.length === 0) {
+            return roles;
+        }
+
+        return {
+            ...roles,
+            data: [...localRoles, ...roles.data],
+            total: roles.total + localRoles.length,
+        };
+    }, [localRoles, roles]);
+    const mergedStats = useMemo(
+        () => ({
+            ...stats,
+            roles: stats.roles + localRoles.length,
+            on_screen: stats.on_screen + localRoles.length,
+            without_permissions:
+                stats.without_permissions + localRoles.length,
+        }),
+        [localRoles, stats],
+    );
 
     return (
         <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
-            <RolesHeader stats={stats} onCreate={openCreate} />
+            <RolesHeader stats={mergedStats} onCreate={openCreate} />
             <RolesTable
-                roles={roles}
+                roles={mergedRoles}
                 filters={filters}
                 onEdit={openEdit}
                 onDelete={openDelete}

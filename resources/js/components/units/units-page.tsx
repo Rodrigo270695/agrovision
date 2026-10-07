@@ -1,5 +1,5 @@
 import { usePage } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { UnitDeleteModal } from '@/components/units/unit-delete-modal';
 import { UnitDocumentsModal } from '@/components/units/unit-documents-modal';
 import type { UnitDocumentTypeOption } from '@/components/units/unit-documents-modal';
@@ -20,6 +20,7 @@ import type {
     UnitsPagination,
 } from '@/components/units/units-table';
 import { useCan } from '@/hooks/use-can';
+import { usePendingPosts } from '@/lib/offline/use-pending-posts';
 
 type UnitsPageProps = {
     units: UnitsPagination;
@@ -69,6 +70,53 @@ export function UnitsPage() {
     const [importOpen, setImportOpen] = useState(false);
     const [documentsOpen, setDocumentsOpen] = useState(false);
     const [documentsUnit, setDocumentsUnit] = useState<UnitItem | null>(null);
+    const pendingUnits = usePendingPosts('/unidades');
+    const localUnits = useMemo<UnitItem[]>(
+        () =>
+            pendingUnits.map((item) => ({
+                id: item.id,
+                pending_sync: true,
+                period_id: Number(item.body.period_id ?? 0),
+                correlative: String(item.body.correlative ?? ''),
+                phone: String(item.body.phone ?? ''),
+                provider: String(item.body.provider ?? ''),
+                route: String(item.body.route ?? ''),
+                vehicle_type: String(item.body.vehicle_type ?? ''),
+                service_date: String(item.body.service_date ?? ''),
+                driver_name: String(item.body.driver_name ?? ''),
+                plate_number: String(item.body.plate_number ?? ''),
+                responsible_person: String(item.body.responsible_person ?? ''),
+                service_type: String(item.body.service_type ?? ''),
+                ruc: String(item.body.ruc ?? ''),
+                driver_dni: String(item.body.driver_dni ?? ''),
+                category: String(item.body.category ?? ''),
+                status: 'active',
+                documents_count: 0,
+            })),
+        [pendingUnits],
+    );
+    const mergedUnits = useMemo<UnitsPagination>(() => {
+        if (localUnits.length === 0) {
+            return units;
+        }
+
+        return {
+            ...units,
+            data: [...localUnits, ...units.data],
+            total: units.total + localUnits.length,
+        };
+    }, [localUnits, units]);
+    const mergedStats = useMemo<UnitsStatsData>(
+        () => ({
+            ...stats,
+            units: stats.units + localUnits.length,
+            on_screen: stats.on_screen + localUnits.length,
+            without_plate:
+                stats.without_plate +
+                localUnits.filter((unit) => !unit.plate_number).length,
+        }),
+        [localUnits, stats],
+    );
 
     useEffect(() => {
         if (flash?.unit_import) {
@@ -142,7 +190,7 @@ export function UnitsPage() {
     return (
         <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
             <UnitsHeader
-                stats={stats}
+                stats={mergedStats}
                 filters={filters}
                 onCreate={openCreate}
                 onImport={() => {
@@ -152,7 +200,7 @@ export function UnitsPage() {
                 }}
             />
             <UnitsTable
-                units={units}
+                units={mergedUnits}
                 movements={movements}
                 filters={filters}
                 periodOptions={periodOptions ?? []}

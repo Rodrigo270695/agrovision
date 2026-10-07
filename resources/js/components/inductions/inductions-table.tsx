@@ -23,7 +23,9 @@ import {
 } from '@/components/data-page';
 import { RowActionsMenu } from '@/components/shared/row-actions-menu';
 import { useCan } from '@/hooks/use-can';
+import { isBrowserOnline } from '@/lib/offline/ids';
 import { asPaginated } from '@/lib/paginated';
+import { toast } from 'sonner';
 
 export type InductionAttendeePreview = {
     id: number;
@@ -34,7 +36,8 @@ export type InductionAttendeePreview = {
 };
 
 export type InductionItem = {
-    id: number;
+    id: number | string;
+    pending_sync?: boolean;
     acta_number?: string | null;
     document_code?: string | null;
     document_revision?: string | null;
@@ -186,6 +189,35 @@ function UnitActions({
         );
     };
 
+    if (induction.pending_sync) {
+        return (
+            <RowActionsMenu
+                label={`Acciones de ${induction.title}`}
+                items={[
+                    canUpdate
+                        ? {
+                              key: 'edit',
+                              label: 'Editar',
+                              icon: Pencil,
+                              onSelect: () => onEdit(induction),
+                          }
+                        : null,
+                    canDelete
+                        ? {
+                              key: 'delete',
+                              label: 'Eliminar',
+                              icon: Trash2,
+                              tone: 'danger' as const,
+                              onSelect: () => onDelete(induction),
+                          }
+                        : null,
+                ].filter((item): item is NonNullable<typeof item> =>
+                    Boolean(item),
+                )}
+            />
+        );
+    }
+
     return (
         <RowActionsMenu
             label={`Acciones de ${induction.title}`}
@@ -283,6 +315,14 @@ export function InductionsTable({
 }: Props) {
     const visit = useCallback(
         (params: Partial<InductionsFilters> & { page?: number }) => {
+            if (!isBrowserOnline()) {
+                toast.info(
+                    'Sin conexión. Los filtros se habilitan al reconectar.',
+                );
+
+                return;
+            }
+
             const nextStatus = Object.prototype.hasOwnProperty.call(
                 params,
                 'status',
@@ -360,9 +400,17 @@ export function InductionsTable({
                 sortable: true,
                 cell: (induction) => (
                     <StatBadge
-                        label={statusLabel(induction.status, statusOptions)}
+                        label={
+                            induction.pending_sync
+                                ? 'En dispositivo'
+                                : statusLabel(induction.status, statusOptions)
+                        }
                         value=""
-                        variant={statusVariant(induction.status)}
+                        variant={
+                            induction.pending_sync
+                                ? 'warning'
+                                : statusVariant(induction.status)
+                        }
                     />
                 ),
             },

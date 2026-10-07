@@ -1,5 +1,5 @@
 import { usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { InductionDeleteModal } from '@/components/inductions/induction-delete-modal';
 import { InductionAttendeesModal } from '@/components/inductions/induction-attendees-modal';
 import { InductionFormModal } from '@/components/inductions/induction-form-modal';
@@ -15,6 +15,7 @@ import {
 } from '@/components/inductions/inductions-table';
 import type { InductionStatsData } from '@/components/inductions/inductions-stats';
 import { useCan } from '@/hooks/use-can';
+import { usePendingPosts } from '@/lib/offline/use-pending-posts';
 
 type PageProps = {
     inductions: InductionsPagination;
@@ -59,11 +60,61 @@ export function InductionsPage() {
     const [attendeesOpen, setAttendeesOpen] = useState(false);
     const [viewingAttendees, setViewingAttendees] =
         useState<InductionItem | null>(null);
+    const pendingInductions = usePendingPosts('/inducciones');
+    const localInductions = useMemo<InductionItem[]>(
+        () =>
+            pendingInductions.map((item) => {
+                const date = String(item.body.session_date ?? '');
+                const time = String(item.body.start_time ?? '00:00').slice(0, 5);
+
+                return {
+                    id: item.id,
+                    pending_sync: true,
+                    title: String(item.body.title ?? 'Inducción'),
+                    document_code: String(item.body.document_code ?? ''),
+                    status: String(item.body.status ?? 'scheduled'),
+                    scheduled_at: date
+                        ? `${date}T${time || '00:00'}:00`
+                        : new Date().toISOString(),
+                    session_date: date,
+                    location: String(item.body.sede ?? item.body.zone ?? ''),
+                    attendees_count: 0,
+                    attended_count: 0,
+                };
+            }),
+        [pendingInductions],
+    );
+    const mergedInductions = useMemo<InductionsPagination>(() => {
+        if (localInductions.length === 0) {
+            return inductions;
+        }
+
+        return {
+            ...inductions,
+            data: [...localInductions, ...inductions.data],
+            total: inductions.total + localInductions.length,
+        };
+    }, [inductions, localInductions]);
+    const mergedStats = useMemo<InductionStatsData>(() => {
+        const scheduled = localInductions.filter(
+            (item) => item.status === 'scheduled',
+        ).length;
+
+        return {
+            ...stats,
+            total: stats.total + localInductions.length,
+            scheduled: stats.scheduled + scheduled,
+            in_progress:
+                stats.in_progress +
+                localInductions.filter((item) => item.status === 'in_progress')
+                    .length,
+        };
+    }, [localInductions, stats]);
 
     return (
         <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
             <InductionsHeader
-                stats={stats}
+                stats={mergedStats}
                 exportHref={inductionExportHref(filters)}
                 onCreate={() => {
                     if (!can('inductions.create')) {
@@ -76,7 +127,7 @@ export function InductionsPage() {
             />
 
             <InductionsTable
-                inductions={inductions}
+                inductions={mergedInductions}
                 filters={filters}
                 statusOptions={statusOptions ?? []}
                 onEdit={(item) => {

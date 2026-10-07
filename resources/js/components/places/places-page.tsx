@@ -19,6 +19,7 @@ import type { SiteItem, SitesPagination } from '@/components/places/sites-table'
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/hooks/use-can';
 import { isBrowserOnline } from '@/lib/offline/ids';
+import { usePendingPosts } from '@/lib/offline/use-pending-posts';
 
 type SelectedSite = {
     id: number;
@@ -46,6 +47,66 @@ export function PlacesPage() {
     const [editing, setEditing] = useState<PlaceItem | null>(null);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleting, setDeleting] = useState<PlaceItem | null>(null);
+    const pendingSites = usePendingPosts('/sedes');
+    const pendingPlaces = usePendingPosts('/lugares');
+    const localSites = useMemo<SiteItem[]>(
+        () =>
+            pendingSites.map((item) => ({
+                id: item.id,
+                pending_sync: true,
+                name: String(item.body.name ?? ''),
+                description: String(item.body.description ?? ''),
+                status: String(item.body.status ?? 'active'),
+                places_count: 0,
+            })),
+        [pendingSites],
+    );
+    const localPlaces = useMemo<PlaceItem[]>(
+        () =>
+            pendingPlaces
+                .filter((item) => {
+                    if (!selectedSite) {
+                        return true;
+                    }
+
+                    return (
+                        String(item.body.site_id ?? '') ===
+                        String(selectedSite.id)
+                    );
+                })
+                .map((item) => ({
+                    id: item.id,
+                    pending_sync: true,
+                    name: String(item.body.name ?? ''),
+                    description: String(item.body.description ?? ''),
+                    status: String(item.body.status ?? 'active'),
+                    users_count: 0,
+                    alcohol_tests_count: 0,
+                })),
+        [pendingPlaces, selectedSite],
+    );
+    const mergedSites = useMemo<SitesPagination>(() => {
+        if (localSites.length === 0) {
+            return sites;
+        }
+
+        return {
+            ...sites,
+            data: [...localSites, ...sites.data],
+            total: sites.total + localSites.length,
+        };
+    }, [localSites, sites]);
+    const mergedPlaces = useMemo<PlacesPagination>(() => {
+        if (localPlaces.length === 0) {
+            return places;
+        }
+
+        return {
+            ...places,
+            data: [...localPlaces, ...places.data],
+            total: places.total + localPlaces.length,
+        };
+    }, [localPlaces, places]);
 
     const placeCarry = useMemo(
         () => ({
@@ -127,7 +188,7 @@ export function PlacesPage() {
                     ) : null}
                 </div>
                 <SitesTable
-                    sites={sites}
+                    sites={mergedSites}
                     filters={siteFilters}
                     selectedId={selectedSite?.id ?? null}
                     carry={siteCarry}
@@ -176,7 +237,7 @@ export function PlacesPage() {
                     ) : null}
                 </div>
                 <PlacesTable
-                    places={places}
+                    places={mergedPlaces}
                     filters={filters}
                     carry={placeCarry}
                     locked={!selectedSite}

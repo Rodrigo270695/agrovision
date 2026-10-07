@@ -6,12 +6,15 @@ import {
     DataTable,
     DataToolbar,
     EmptyState,
+    StatBadge,
     type DataTableColumn,
     type SortState,
 } from '@/components/data-page';
 import { RowActionsMenu } from '@/components/shared/row-actions-menu';
 import { useCan } from '@/hooks/use-can';
+import { isBrowserOnline } from '@/lib/offline/ids';
 import { asPaginated } from '@/lib/paginated';
+import { toast } from 'sonner';
 import type { Auth } from '@/types';
 
 export type UserRoleRef = {
@@ -20,7 +23,8 @@ export type UserRoleRef = {
 };
 
 export type UserItem = {
-    id: number;
+    id: number | string;
+    pending_sync?: boolean;
     name: string;
     email: string;
     document_type?: string | null;
@@ -154,6 +158,14 @@ export function UsersTable({
 
     const visit = useCallback(
         (params: Partial<UsersFilters> & { page?: number }) => {
+            if (!isBrowserOnline()) {
+                toast.info(
+                    'Sin conexión. Los filtros se habilitan al reconectar.',
+                );
+
+                return;
+            }
+
             router.get(
                 '/usuarios',
                 {
@@ -185,8 +197,15 @@ export function UsersTable({
                 sortable: true,
                 cell: (user) => (
                     <div className="flex min-w-0 flex-col leading-tight">
-                        <span className="truncate text-sm font-semibold text-foreground">
+                        <span className="flex items-center gap-2 truncate text-sm font-semibold text-foreground">
                             {user.name}
+                            {user.pending_sync ? (
+                                <StatBadge
+                                    label="En dispositivo"
+                                    value=""
+                                    variant="warning"
+                                />
+                            ) : null}
                         </span>
                         <span className="truncate text-xs text-muted-foreground">
                             {user.email}

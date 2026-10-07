@@ -18,6 +18,7 @@ import { asPaginated } from '@/lib/paginated';
 
 export type SiteItem = {
     id: number | string;
+    pending_sync?: boolean;
     name: string;
     description?: string | null;
     status: string;
@@ -109,7 +110,13 @@ export function SitesTable({
                 header: 'Estado',
                 sortable: true,
                 cell: (site) =>
-                    site.status === 'active' ? (
+                    site.pending_sync ? (
+                        <StatBadge
+                            label="En dispositivo"
+                            value=""
+                            variant="warning"
+                        />
+                    ) : site.status === 'active' ? (
                         <StatBadge label="Activo" value="" variant="success" />
                     ) : (
                         <StatBadge label="Inactivo" value="" variant="muted" />

@@ -24,10 +24,13 @@ import {
     getWorstDocumentExpiry,
     unitExpiryRowClass,
 } from '@/lib/document-expiry';
+import { isBrowserOnline } from '@/lib/offline/ids';
 import { asPaginated } from '@/lib/paginated';
+import { toast } from 'sonner';
 
 export type UnitItem = {
-    id: number;
+    id: number | string;
+    pending_sync?: boolean;
     period_id: number;
     correlative: string;
     phone?: string | null;
@@ -238,6 +241,14 @@ export function UnitsTable({
     const showingHistory = filters.view === 'movements';
     const visit = useCallback(
         (params: Partial<UnitsFilters> & { page?: number }) => {
+            if (!isBrowserOnline()) {
+                toast.info(
+                    'Sin conexión. Los filtros se habilitan al reconectar.',
+                );
+
+                return;
+            }
+
             const nextPeriodId = Object.prototype.hasOwnProperty.call(
                 params,
                 'period_id',
@@ -322,7 +333,13 @@ export function UnitsTable({
                 key: 'status',
                 header: 'Estado',
                 cell: (unit) =>
-                    unit.status === 'inactive' ? (
+                    unit.pending_sync ? (
+                        <StatBadge
+                            label="En dispositivo"
+                            value=""
+                            variant="warning"
+                        />
+                    ) : unit.status === 'inactive' ? (
                         <StatBadge label="Inactivo" value="" variant="muted" />
                     ) : (
                         <StatBadge label="Activo" value="" variant="success" />

@@ -13,7 +13,9 @@ import {
 } from '@/components/data-page';
 import { RowActionsMenu } from '@/components/shared/row-actions-menu';
 import { useCan } from '@/hooks/use-can';
+import { isBrowserOnline } from '@/lib/offline/ids';
 import { asPaginated } from '@/lib/paginated';
+import { toast } from 'sonner';
 
 export type ParetoTemplateOption = {
     id?: number;
@@ -23,7 +25,8 @@ export type ParetoTemplateOption = {
 };
 
 export type ParetoItem = {
-    id: number;
+    id: number | string;
+    pending_sync?: boolean;
     template_type: string;
     parent_id?: number | null;
     item_number: string;
@@ -92,6 +95,14 @@ export function ParetoTable({
 
     const visit = useCallback(
         (params: Partial<ParetoFilters> & { page?: number }) => {
+            if (!isBrowserOnline()) {
+                toast.info(
+                    'Sin conexión. Los filtros se habilitan al reconectar.',
+                );
+
+                return;
+            }
+
             router.get(
                 '/pareto',
                 {
@@ -151,7 +162,16 @@ export function ParetoTable({
                 key: 'label',
                 header: 'Exigencia',
                 cell: (item) => (
-                    <span className="text-sm text-foreground">{item.label}</span>
+                    <span className="flex items-center gap-2 text-sm text-foreground">
+                        {item.label}
+                        {item.pending_sync ? (
+                            <StatBadge
+                                label="En dispositivo"
+                                value=""
+                                variant="warning"
+                            />
+                        ) : null}
+                    </span>
                 ),
             },
             {

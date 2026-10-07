@@ -6,12 +6,15 @@ import {
     DataTable,
     DataToolbar,
     EmptyState,
+    StatBadge,
     type DataTableColumn,
     type SortState,
 } from '@/components/data-page';
 import { RowActionsMenu } from '@/components/shared/row-actions-menu';
 import { useCan } from '@/hooks/use-can';
+import { isBrowserOnline } from '@/lib/offline/ids';
 import { asPaginated } from '@/lib/paginated';
+import { toast } from 'sonner';
 
 export type RolePermissionRef = {
     id: number;
@@ -19,7 +22,8 @@ export type RolePermissionRef = {
 };
 
 export type RoleItem = {
-    id: number;
+    id: number | string;
+    pending_sync?: boolean;
     name: string;
     permissions_count: number;
     permissions?: RolePermissionRef[];
@@ -151,6 +155,14 @@ export function RolesTable({
 }: Props) {
     const visit = useCallback(
         (params: Partial<RolesFilters> & { page?: number }) => {
+            if (!isBrowserOnline()) {
+                toast.info(
+                    'Sin conexión. Los filtros se habilitan al reconectar.',
+                );
+
+                return;
+            }
+
             router.get(
                 '/roles',
                 {
@@ -181,8 +193,15 @@ export function RolesTable({
                 header: 'Nombre',
                 sortable: true,
                 cell: (role) => (
-                    <span className="text-sm font-semibold text-foreground">
+                    <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
                         {role.name}
+                        {role.pending_sync ? (
+                            <StatBadge
+                                label="En dispositivo"
+                                value=""
+                                variant="warning"
+                            />
+                        ) : null}
                     </span>
                 ),
             },

@@ -17,6 +17,7 @@ import { asPaginated } from '@/lib/paginated';
 
 export type PlaceItem = {
     id: number | string;
+    pending_sync?: boolean;
     name: string;
     description?: string | null;
     status: string;
@@ -120,7 +121,13 @@ export function PlacesTable({
                 header: 'Estado',
                 sortable: true,
                 cell: (place) =>
-                    place.status === 'active' ? (
+                    place.pending_sync ? (
+                        <StatBadge
+                            label="En dispositivo"
+                            value=""
+                            variant="warning"
+                        />
+                    ) : place.status === 'active' ? (
                         <StatBadge label="Activo" value="" variant="success" />
                     ) : (
                         <StatBadge label="Inactivo" value="" variant="muted" />

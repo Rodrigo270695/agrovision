@@ -1,5 +1,5 @@
 import { usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { AlcoholPackageDeleteModal } from '@/components/alcohol-tests/alcohol-package-delete-modal';
 import { AlcoholPackageFormModal } from '@/components/alcohol-tests/alcohol-package-form-modal';
 import { AlcoholTestsHeader } from '@/components/alcohol-tests/alcohol-tests-header';
@@ -10,6 +10,7 @@ import {
     type AlcoholPackagesPagination,
 } from '@/components/alcohol-tests/alcohol-packages-table';
 import { useCan } from '@/hooks/use-can';
+import { usePendingPosts } from '@/lib/offline/use-pending-posts';
 
 type Stats = {
     total: number;
@@ -41,11 +42,52 @@ export function AlcoholTestsPage() {
     const [deleting, setDeleting] = useState<AlcoholPackageItem | null>(null);
     const coordinatorView = Boolean(isCoordinatorView);
     const canManage = can('alcoholtests.create') && !coordinatorView;
+    const pendingPackages = usePendingPosts('/alcoholimetro');
+    const localPackages = useMemo<AlcoholPackageItem[]>(
+        () =>
+            pendingPackages.map((item) => {
+                const place = (placeOptions ?? []).find(
+                    (option) => String(option.id) === String(item.body.place_id),
+                );
+
+                return {
+                    id: item.id,
+                    pending_sync: true,
+                    title: String(item.body.title ?? ''),
+                    session_date: String(item.body.session_date ?? ''),
+                    notes: String(item.body.notes ?? ''),
+                    place: place ? { id: place.id, name: place.name } : null,
+                    status: 'open',
+                    tests_count: 0,
+                    positive_count: 0,
+                    pending_count: 0,
+                };
+            }),
+        [pendingPackages, placeOptions],
+    );
+    const mergedPackages = useMemo<AlcoholPackagesPagination>(() => {
+        if (localPackages.length === 0) {
+            return packages;
+        }
+
+        return {
+            ...packages,
+            data: [...localPackages, ...packages.data],
+            total: packages.total + localPackages.length,
+        };
+    }, [localPackages, packages]);
+    const mergedStats = useMemo(
+        () => ({
+            ...stats,
+            total: stats.total + localPackages.length,
+        }),
+        [localPackages.length, stats],
+    );
 
     return (
         <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
             <AlcoholTestsHeader
-                stats={stats}
+                stats={mergedStats}
                 isCoordinatorView={coordinatorView}
                 onCreate={() => {
                     if (canManage) {
@@ -55,7 +97,7 @@ export function AlcoholTestsPage() {
             />
 
             <AlcoholPackagesTable
-                packages={packages}
+                packages={mergedPackages}
                 filters={filters}
                 isCoordinatorView={coordinatorView}
                 canDelete={canManage}

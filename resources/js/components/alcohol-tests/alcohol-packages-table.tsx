@@ -10,10 +10,13 @@ import {
     type DataTableColumn,
 } from '@/components/data-page';
 import { RowActionsMenu } from '@/components/shared/row-actions-menu';
+import { isBrowserOnline } from '@/lib/offline/ids';
 import { asPaginated } from '@/lib/paginated';
+import { toast } from 'sonner';
 
 export type AlcoholPackageItem = {
-    id: number;
+    id: number | string;
+    pending_sync?: boolean;
     title: string;
     session_date?: string | null;
     notes?: string | null;
@@ -76,6 +79,14 @@ export function AlcoholPackagesTable({
 }: Props) {
     const visit = useCallback(
         (params: Partial<AlcoholPackagesFilters> & { page?: number }) => {
+            if (!isBrowserOnline()) {
+                toast.info(
+                    'Sin conexión. Los filtros se habilitan al reconectar.',
+                );
+
+                return;
+            }
+
             router.get(
                 '/alcoholimetro',
                 {
@@ -132,11 +143,19 @@ export function AlcoholPackagesTable({
                     <div className="flex flex-col gap-0.5">
                         <StatBadge
                             label={
-                                item.status === 'closed' ? 'Cerrado' : 'Abierto'
+                                item.pending_sync
+                                    ? 'En dispositivo'
+                                    : item.status === 'closed'
+                                      ? 'Cerrado'
+                                      : 'Abierto'
                             }
                             value=""
                             variant={
-                                item.status === 'closed' ? 'muted' : 'success'
+                                item.pending_sync
+                                    ? 'warning'
+                                    : item.status === 'closed'
+                                      ? 'muted'
+                                      : 'success'
                             }
                         />
                         {item.sent_to_coordinators_at ? (
@@ -185,12 +204,16 @@ export function AlcoholPackagesTable({
                         <RowActionsMenu
                             label={`Acciones de ${item.title}`}
                             items={[
-                                {
-                                    key: 'open',
-                                    label: 'Abrir',
-                                    icon: Eye,
-                                    href: `/alcoholimetro/${item.id}`,
-                                },
+                                ...(item.pending_sync
+                                    ? []
+                                    : [
+                                          {
+                                              key: 'open',
+                                              label: 'Abrir',
+                                              icon: Eye,
+                                              href: `/alcoholimetro/${item.id}`,
+                                          },
+                                      ]),
                                 ...(canDelete && onDelete
                                     ? [
                                           {

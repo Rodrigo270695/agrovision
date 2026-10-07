@@ -1,5 +1,5 @@
 import { usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { UserDeleteModal } from '@/components/users/user-delete-modal';
 import { UserFormModal } from '@/components/users/user-form-modal';
 import {
@@ -15,6 +15,7 @@ import {
 } from '@/components/users/users-table';
 import type { UsersStatsData } from '@/components/users/users-stats';
 import { useCan } from '@/hooks/use-can';
+import { usePendingPosts } from '@/lib/offline/use-pending-posts';
 
 type UsersPageProps = {
     users: UsersPagination;
@@ -86,12 +87,47 @@ export function UsersPage() {
         setRolesOpen(false);
         setRolesUser(null);
     };
+    const pendingUsers = usePendingPosts('/usuarios');
+    const localUsers = useMemo<UserItem[]>(
+        () =>
+            pendingUsers.map((item) => ({
+                id: item.id,
+                pending_sync: true,
+                name: String(item.body.name ?? ''),
+                email: String(item.body.email ?? ''),
+                document_type: String(item.body.document_type ?? ''),
+                document_number: String(item.body.document_number ?? ''),
+                phone: String(item.body.phone ?? ''),
+                roles_count: 0,
+            })),
+        [pendingUsers],
+    );
+    const mergedUsers = useMemo<UsersPagination>(() => {
+        if (localUsers.length === 0) {
+            return users;
+        }
+
+        return {
+            ...users,
+            data: [...localUsers, ...users.data],
+            total: users.total + localUsers.length,
+        };
+    }, [localUsers, users]);
+    const mergedStats = useMemo(
+        () => ({
+            ...stats,
+            users: stats.users + localUsers.length,
+            on_screen: stats.on_screen + localUsers.length,
+            without_roles: stats.without_roles + localUsers.length,
+        }),
+        [localUsers, stats],
+    );
 
     return (
         <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
-            <UsersHeader stats={stats} onCreate={openCreate} />
+            <UsersHeader stats={mergedStats} onCreate={openCreate} />
             <UsersTable
-                users={users}
+                users={mergedUsers}
                 filters={filters}
                 onEdit={openEdit}
                 onDelete={openDelete}
