@@ -87,7 +87,7 @@ export default function DriverBoardPage() {
     return (
         <>
             <Head title="Tablero conductores" />
-            <div className="mx-auto flex w-full max-w-350 flex-col gap-4">
+            <div className="flex w-full flex-col gap-4 p-4 sm:p-6">
                 <div className="border-b-2 border-[#1a2b4c] pb-3">
                     <h1 className="text-lg font-bold tracking-wide text-[#1a2b4c] uppercase sm:text-2xl">
                         Tablero de mando SST conductores

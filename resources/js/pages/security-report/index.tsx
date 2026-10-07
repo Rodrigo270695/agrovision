@@ -74,7 +74,7 @@ export default function SecurityReportPage() {
     return (
         <>
             <Head title="Reporte SST" />
-            <div className="mx-auto flex w-full max-w-350 flex-col gap-4">
+            <div className="flex w-full flex-col gap-4 p-4 sm:p-6">
                 <div className="flex flex-col gap-3 border-b-2 border-[#1a2b4c] pb-3 lg:flex-row lg:items-end lg:justify-between">
                     <div>
                         <h1 className="text-lg font-bold tracking-wide text-[#1a2b4c] uppercase sm:text-2xl">
