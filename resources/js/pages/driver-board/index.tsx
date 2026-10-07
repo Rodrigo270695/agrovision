@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 type Ring = {
     key: string;
     label: string;
-    source: 'documento' | 'inspeccion' | 'induccion';
+    source: 'inspeccion' | 'induccion';
     mode: 'status' | 'programar';
     ok: number;
     baja: number;
@@ -49,7 +49,6 @@ const FALTA = '#ef4444';
 const PROGRAMAR = '#3b82f6';
 
 const SOURCE: Record<Ring['source'], string> = {
-    documento: 'Documento',
     inspeccion: 'Inspección',
     induccion: 'Inducción',
 };
@@ -93,10 +92,9 @@ export default function DriverBoardPage() {
                         Tablero de mando SST conductores
                     </h1>
                     <p className="mt-1 text-xs text-[#5a7390]">
-                        {summary.drivers} conductores. {summary.week_label}. La
-                        licencia sale del documento. Las inspecciones, de las
-                        inspecciones cerradas. Cada inducción es el título de
-                        la sesión que ya existe.
+                        {summary.drivers} conductores. {summary.week_label}. Las
+                        inspecciones salen de las inspecciones cerradas. Cada
+                        inducción es el título de la sesión que ya existe.
                     </p>
                     <div className="mt-4 flex flex-wrap items-end gap-3">
                         <div className="w-full sm:w-auto">

@@ -7,12 +7,10 @@ use App\Models\InductionAttendee;
 use App\Models\Site;
 use App\Models\Unit;
 use App\Models\UnitChecklist;
-use App\Models\UnitDocument;
 use App\Models\User;
 use App\Support\InductionFormOptions;
 use App\Support\ReportPeriod;
 use App\Support\SystemRoles;
-use App\Support\UnitDocumentTypes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -78,15 +76,12 @@ class DriverBoardController extends Controller
     }
 
     /**
-     * @return Collection<string, array{license: string, coordinator: string|null}>
+     * @return Collection<string, array{coordinator: string|null, name: string, units: list<int>}>
      */
     private function drivers(?int $coordinatorId, ?int $siteId): Collection
     {
         $query = Unit::query()
             ->with([
-                'documents' => fn ($builder) => $builder
-                    ->where('type', UnitDocumentTypes::DRIVER_LICENSE)
-                    ->select(['id', 'unit_id', 'type', 'expires_at']),
                 'coordinatorUser:id,name',
             ])
             ->whereHas('period', fn ($builder) => $builder->where('status', 'active'))
@@ -101,7 +96,7 @@ class DriverBoardController extends Controller
             $query->where('coordinator_id', $coordinatorId);
         }
 
-        /** @var Collection<string, array{license: string, coordinator: string|null, units: list<int>}> $drivers */
+        /** @var Collection<string, array{coordinator: string|null, name: string, units: list<int>}> $drivers */
         $drivers = collect();
 
         foreach ($query->get() as $unit) {
@@ -112,16 +107,11 @@ class DriverBoardController extends Controller
             }
 
             $current = $drivers->get($key, [
-                'license' => 'baja',
                 'coordinator' => null,
                 'name' => $this->normalize($unit->driver_name),
                 'units' => [],
             ]);
             $current['units'][] = (int) $unit->id;
-            $current['license'] = $this->betterLicense(
-                $current['license'],
-                $this->licenseStatus($unit->documents),
-            );
             $current['coordinator'] ??= $unit->coordinatorUser?->name;
             $drivers->put($key, $current);
         }
@@ -177,29 +167,9 @@ class DriverBoardController extends Controller
         $total = $drivers->count();
 
         return [
-            $this->licenseRing($drivers, $total),
             $this->inspectionRing($drivers, $range, $inspectorId, $total),
             ...$this->inductionRings($sessions, $drivers, $total),
         ];
-    }
-
-    /**
-     * @param  Collection<string, array{license: string}>  $drivers
-     * @return array<string, mixed>
-     */
-    private function licenseRing(Collection $drivers, int $total): array
-    {
-        return $this->ring(
-            'licencia',
-            'Licencia de conducir',
-            'documento',
-            'status',
-            $drivers->where('license', 'ok')->count(),
-            $drivers->where('license', 'baja')->count(),
-            $drivers->where('license', 'falta')->count(),
-            0,
-            $total,
-        );
     }
 
     /**
@@ -425,31 +395,6 @@ class DriverBoardController extends Controller
         $normalized = $this->normalize($name);
 
         return $normalized === '' ? null : 'name:'.$normalized;
-    }
-
-    /**
-     * @param  Collection<int, UnitDocument>  $documents
-     */
-    private function licenseStatus(Collection $documents): string
-    {
-        if ($documents->isEmpty()) {
-            return 'baja';
-        }
-
-        $today = now()->toDateString();
-        $valid = $documents->contains(
-            fn (UnitDocument $document) => $document->expires_at === null
-                || $document->expires_at->toDateString() >= $today,
-        );
-
-        return $valid ? 'ok' : 'falta';
-    }
-
-    private function betterLicense(string $current, string $next): string
-    {
-        $rank = ['ok' => 3, 'falta' => 2, 'baja' => 1];
-
-        return ($rank[$next] ?? 0) > ($rank[$current] ?? 0) ? $next : $current;
     }
 
     private function normalize(?string $value): string
