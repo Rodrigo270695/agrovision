@@ -16,7 +16,7 @@ final class CentralCertificateLayout
                 self::block('dni', 'DNI {{dni}}', 8, 38, 84, 14, 'center', 'normal', '#1d4ed8'),
                 self::block('curso', 'Aprobó satisfactoriamente la capacitación del curso: “{{curso}}”', 8, 48, 84, 13, 'center', 'normal', '#1e293b'),
                 self::block('firmante', "{{firmante}}\n{{cargo}}", 34, 82, 32, 11, 'center', 'normal', '#12355b'),
-                self::block('meta', "Fecha de emisión: {{emision}}\nFecha de expiración: {{vencimiento}}\n{{codigo}}", 4, 74, 32, 10, 'left', 'normal', '#475569'),
+                self::block('meta', "Fecha de inicio: {{inicio}}\nFecha de expiración: {{vencimiento}}\n{{codigo}}", 4, 74, 32, 10, 'left', 'normal', '#475569'),
             ],
             'qr' => ['x' => 84, 'y' => 74, 'size' => 12, 'visible' => true],
             'signature' => ['x' => 38, 'y' => 70, 'w' => 24, 'h' => 12, 'visible' => true],

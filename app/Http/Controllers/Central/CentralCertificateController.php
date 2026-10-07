@@ -181,8 +181,9 @@ class CentralCertificateController extends Controller
             ->get()
             ->map(fn (CentralCertificateTemplate $template) => [
                 'id' => $template->id,
-                'name' => $template->name,
+                'name' => $template->course_title ?: $template->name,
                 'course_title' => $template->course_title,
+                'starts_on' => $template->starts_on?->format('d/m/Y'),
                 'expires_on' => $template->expires_on?->format('d/m/Y'),
                 'training' => $template->training?->name,
                 'certificates_count' => $template->certificates_count,
@@ -196,7 +197,7 @@ class CentralCertificateController extends Controller
     public function create(): Response
     {
         return Inertia::render('central/certificates/editor', $this->editorProps(new CentralCertificateTemplate([
-            'name' => 'Nueva plantilla',
+            'name' => '',
             'course_title' => '',
             'code_prefix' => 'GIN',
             'layout' => CentralCertificateLayout::defaults(),
@@ -367,8 +368,9 @@ class CentralCertificateController extends Controller
             'template' => [
                 'id' => $template->id,
                 'training_id' => $template->training_id,
-                'name' => $template->name,
+                'name' => $template->course_title ?: $template->name,
                 'course_title' => $template->course_title,
+                'starts_on' => $template->starts_on?->format('Y-m-d'),
                 'expires_on' => $template->expires_on?->format('Y-m-d'),
                 'code_prefix' => $template->code_prefix ?: 'GIN',
                 'issuer_name' => $template->issuer_name ?? '',
@@ -384,7 +386,7 @@ class CentralCertificateController extends Controller
             'trainings' => CentralTraining::query()->orderBy('name')->get(['id', 'name']),
             'participants' => $participants,
             'fonts' => CertificateFonts::forFrontend(),
-            'variables' => ['nombre', 'dni', 'curso', 'emision', 'vencimiento', 'codigo', 'firmante', 'cargo'],
+            'variables' => ['nombre', 'dni', 'curso', 'inicio', 'emision', 'vencimiento', 'codigo', 'firmante', 'cargo'],
         ];
     }
 
@@ -392,9 +394,15 @@ class CentralCertificateController extends Controller
     {
         $data = $request->validate([
             'training_id' => ['nullable', 'integer', 'exists:central_trainings,id'],
-            'name' => ['required', 'string', 'max:160'],
             'course_title' => ['required', 'string', 'max:200'],
-            'expires_on' => ['nullable', 'date'],
+            'starts_on' => ['nullable', 'date'],
+            'expires_on' => ['nullable', 'date', function (string $attribute, mixed $value, \Closure $fail) use ($request): void {
+                $start = $request->input('starts_on');
+
+                if ($start && $value && $value < $start) {
+                    $fail('La fecha de expiración no puede ser anterior a la fecha de inicio.');
+                }
+            }],
             'code_prefix' => ['required', 'string', 'max:20'],
             'issuer_name' => ['nullable', 'string', 'max:160'],
             'issuer_title' => ['nullable', 'string', 'max:160'],
@@ -418,10 +426,13 @@ class CentralCertificateController extends Controller
         $layout = json_decode($data['layout'], true);
         $custom = json_decode((string) ($data['custom_variables'] ?? '[]'), true);
 
+        $courseTitle = trim($data['course_title']);
+
         $template->fill([
             'training_id' => $data['training_id'] ?: null,
-            'name' => trim($data['name']),
-            'course_title' => trim($data['course_title']),
+            'name' => $courseTitle,
+            'course_title' => $courseTitle,
+            'starts_on' => $data['starts_on'] ?: null,
             'expires_on' => $data['expires_on'] ?: null,
             'code_prefix' => strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $data['code_prefix']) ?: 'GIN'),
             'issuer_name' => trim((string) ($data['issuer_name'] ?? '')) ?: null,
@@ -573,7 +584,7 @@ class CentralCertificateController extends Controller
                 ->where('participant_id', $participant->id)
                 ->first();
 
-            $issuedOn = $existing?->issued_on ?? now();
+            $issuedOn = $locked->starts_on ?? now();
             $expiresOn = $locked->expires_on;
             $code = $existing?->code ?? $this->nextCode($locked);
             $custom = collect($locked->custom_variables ?? [])
@@ -594,6 +605,7 @@ class CentralCertificateController extends Controller
                     'participant_name' => $participant->full_name,
                     'participant_dni' => $participant->dni,
                     'course_title' => $locked->course_title,
+                    'issued_on' => $issuedOn,
                     'expires_on' => $expiresOn,
                     'variables' => $values,
                 ]);

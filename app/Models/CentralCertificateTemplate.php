@@ -14,6 +14,7 @@ class CentralCertificateTemplate extends Model
         'training_id',
         'name',
         'course_title',
+        'starts_on',
         'expires_on',
         'code_prefix',
         'next_sequence',
@@ -32,6 +33,7 @@ class CentralCertificateTemplate extends Model
     protected function casts(): array
     {
         return [
+            'starts_on' => 'date',
             'expires_on' => 'date',
             'logos' => 'array',
             'layout' => 'array',

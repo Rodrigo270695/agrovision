@@ -27,6 +27,7 @@ final class CentralCertificateDocument
             'dni' => $participant->dni,
             'curso' => trim((string) $template->course_title) !== '' ? (string) $template->course_title : '—',
             'emision' => $issuedOn->format('d/m/Y'),
+            'inicio' => $issuedOn->format('d/m/Y'),
             'vencimiento' => $expiresOn?->format('d/m/Y') ?? '—',
             'codigo' => $code,
             'firmante' => trim((string) $template->issuer_name) !== '' ? (string) $template->issuer_name : '',

@@ -6,6 +6,7 @@ type TemplateRow = {
     id: number;
     name: string;
     course_title: string;
+    starts_on: string | null;
     expires_on: string | null;
     training: string | null;
     certificates_count: number;
@@ -40,9 +41,9 @@ export default function CentralTemplates({ templates }: Props) {
                     <table className="w-full text-left text-sm">
                         <thead className="text-[#5a7390]">
                             <tr>
-                                <th className="px-4 py-3 font-medium">Plantilla</th>
                                 <th className="px-4 py-3 font-medium">Curso</th>
                                 <th className="px-4 py-3 font-medium">Participantes</th>
+                                <th className="px-4 py-3 font-medium">Inicio</th>
                                 <th className="px-4 py-3 font-medium">Vence</th>
                                 <th className="px-4 py-3" />
                             </tr>
@@ -50,9 +51,9 @@ export default function CentralTemplates({ templates }: Props) {
                         <tbody>
                             {templates.map((template) => (
                                 <tr key={template.id} className="border-t border-[#e6eef6]">
-                                    <td className="px-4 py-3 text-[#1a2b4c]">{template.name}</td>
-                                    <td className="px-4 py-3 text-[#1a2b4c]">{template.course_title}</td>
+                                    <td className="px-4 py-3 text-[#1a2b4c]">{template.course_title || template.name}</td>
                                     <td className="px-4 py-3 text-[#1a2b4c]">{template.training ?? 'Sin amarrar'}</td>
+                                    <td className="px-4 py-3 text-[#1a2b4c]">{template.starts_on ?? '—'}</td>
                                     <td className="px-4 py-3 text-[#1a2b4c]">{template.expires_on ?? '—'}</td>
                                     <td className="px-4 py-3">
                                         <div className="flex justify-end gap-2">

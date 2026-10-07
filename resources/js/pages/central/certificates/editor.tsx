@@ -58,6 +58,7 @@ type TemplatePayload = {
     training_id: number | null;
     name: string;
     course_title: string;
+    starts_on: string | null;
     expires_on: string | null;
     code_prefix: string;
     issuer_name: string;
@@ -112,9 +113,9 @@ function RemoveButton({ onRemove }: { onRemove: () => void }) {
 
 export default function CentralCertificateEditor({ template, trainings, participants, fonts, variables }: Props) {
     const canvasRef = useRef<HTMLDivElement>(null);
-    const [name, setName] = useState(template.name);
     const [courseTitle, setCourseTitle] = useState(template.course_title);
     const [trainingId, setTrainingId] = useState(template.training_id ? String(template.training_id) : '');
+    const [startsOn, setStartsOn] = useState(template.starts_on ?? '');
     const [expiresOn, setExpiresOn] = useState(template.expires_on ?? '');
     const [codePrefix, setCodePrefix] = useState(template.code_prefix);
     const [issuerName, setIssuerName] = useState(template.issuer_name);
@@ -151,7 +152,8 @@ export default function CentralCertificateEditor({ template, trainings, particip
             nombre: person?.full_name ?? 'NOMBRE DEL PARTICIPANTE',
             dni: person?.dni ?? '00000000',
             curso: courseTitle || 'Nombre del curso',
-            emision: new Date().toLocaleDateString('es-PE'),
+            inicio: startsOn ? new Date(startsOn + 'T00:00:00').toLocaleDateString('es-PE') : '—',
+            emision: startsOn ? new Date(startsOn + 'T00:00:00').toLocaleDateString('es-PE') : '—',
             vencimiento: expiresOn ? new Date(expiresOn + 'T00:00:00').toLocaleDateString('es-PE') : '—',
             codigo: `${codePrefix || 'GIN'}-${new Date().getFullYear()}-0001`,
             firmante: issuerName,
@@ -165,7 +167,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
         });
 
         return values;
-    }, [person, courseTitle, expiresOn, codePrefix, issuerName, issuerTitle, custom]);
+    }, [person, courseTitle, startsOn, expiresOn, codePrefix, issuerName, issuerTitle, custom]);
 
     const selectedBlock = blocks.find((block) => block.id === selected) ?? null;
 
@@ -274,9 +276,9 @@ export default function CentralCertificateEditor({ template, trainings, particip
             logos: stored.map((logo) => ({ id: logo.id, x: logo.x, y: logo.y, w: logo.w, h: logo.h })),
         };
         const body = new FormData();
-        body.append('name', name);
         body.append('course_title', courseTitle);
         body.append('training_id', trainingId);
+        body.append('starts_on', startsOn);
         body.append('expires_on', expiresOn);
         body.append('code_prefix', codePrefix);
         body.append('issuer_name', issuerName);
@@ -336,7 +338,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
 
     return (
         <>
-            <Head title={name || 'Plantilla'} />
+            <Head title={courseTitle || 'Plantilla'} />
             <div className="flex flex-col gap-4 p-4 md:p-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -366,9 +368,6 @@ export default function CentralCertificateEditor({ template, trainings, particip
                 <div className="grid items-start gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
                     <div className="grid content-start gap-3">
                         <Accordion title="Datos del certificado" hint="Curso, vigencia y firma" defaultOpen>
-                        <Field label="Nombre de la plantilla">
-                            <Input value={name} onChange={(event) => setName(event.target.value)} />
-                        </Field>
                         <Field label="Capacitación amarrada">
                             <select
                                 value={trainingId}
@@ -383,17 +382,20 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                 ))}
                             </select>
                         </Field>
-                        <Field label="Nombre del curso en el certificado">
+                        <Field label="Nombre del curso">
                             <Input value={courseTitle} onChange={(event) => setCourseTitle(event.target.value)} />
                         </Field>
                         <div className="grid gap-3 sm:grid-cols-2">
+                            <Field label="Fecha de inicio">
+                                <Input type="date" value={startsOn} onChange={(event) => setStartsOn(event.target.value)} />
+                            </Field>
                             <Field label="Fecha de expiración">
                                 <Input type="date" value={expiresOn} onChange={(event) => setExpiresOn(event.target.value)} />
                             </Field>
-                            <Field label="Prefijo del código">
-                                <Input value={codePrefix} onChange={(event) => setCodePrefix(event.target.value.toUpperCase())} />
-                            </Field>
                         </div>
+                        <Field label="Prefijo del código">
+                            <Input value={codePrefix} onChange={(event) => setCodePrefix(event.target.value.toUpperCase())} />
+                        </Field>
                         <Field label="Quien firma">
                             <Input value={issuerName} onChange={(event) => setIssuerName(event.target.value)} />
                         </Field>

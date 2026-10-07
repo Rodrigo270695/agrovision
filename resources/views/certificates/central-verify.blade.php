@@ -38,8 +38,8 @@
                     <dd>{{ $certificate->participant_dni }}</dd>
                     <dt>Código</dt>
                     <dd>{{ $certificate->code }}</dd>
-                    <dt>Emisión</dt>
-                    <dd>{{ $certificate->issued_on?->format('d/m/Y') }}</dd>
+                    <dt>Inicio</dt>
+                    <dd>{{ $certificate->issued_on?->format('d/m/Y') ?: '—' }}</dd>
                     <dt>Vencimiento</dt>
                     <dd>{{ $certificate->expires_on?->format('d/m/Y') ?: '—' }}</dd>
                 </dl>
