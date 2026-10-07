@@ -475,6 +475,7 @@ class ChecklistController extends Controller
                     'vehicle_info' => $unit->vehicle_type,
                     'first_inspected_on' => $inspectedOn,
                     'status' => 'draft',
+                    ...$this->startClock(),
                 ]);
 
                 foreach ($items as $item) {
@@ -612,6 +613,8 @@ class ChecklistController extends Controller
             return $unlockedPass;
         }
 
+        $this->ensureInspectionClock($checklist);
+
         return Inertia::render('checklists/edit', [
             'checklist' => [
                 'id' => $checklist->id,
@@ -740,6 +743,32 @@ class ChecklistController extends Controller
                     );
                 }
 
+                $incomingTime = $data['first_inspected_time'] ?? null;
+
+                if (! $lockFirst) {
+                    $blankTime = $incomingTime === null
+                        || $incomingTime === ''
+                        || str_starts_with((string) $incomingTime, '00:00');
+                    $storedTime = (string) $checklist->first_inspected_time;
+                    $storedBlank = $storedTime === '' || str_starts_with($storedTime, '00:00');
+
+                    if ($blankTime) {
+                        $incomingTime = $storedBlank
+                            ? $this->limaNow()->format('H:i')
+                            : substr($storedTime, 0, 5);
+                    }
+                }
+
+                $firstJustClosed = ! $lockFirst
+                    && in_array($firstResult, ['approved', 'rejected'], true)
+                    && ! $firstAlreadyDecided;
+                $secondJustClosed = $touchSecond
+                    && in_array((string) $secondResult, ['approved', 'rejected'], true)
+                    && ! $secondAlreadyDecided;
+                $closingNow = ($firstJustClosed || $secondJustClosed || ($shouldSeal && ! $checklist->finished_at))
+                    ? $this->limaNow()
+                    : null;
+
                 $checklist->update([
                     'location' => $data['location'] ?? null,
                     'transport_company' => $data['transport_company'] ?? null,
@@ -753,7 +782,9 @@ class ChecklistController extends Controller
                         : ($data['first_inspected_on'] ?? null),
                     'first_inspected_time' => $lockFirst
                         ? $checklist->first_inspected_time
-                        : ($data['first_inspected_time'] ?? null),
+                        : $incomingTime,
+                    'started_at' => $checklist->started_at ?? $checklist->created_at ?? $this->limaNow(),
+                    'finished_at' => $closingNow ?? $checklist->finished_at,
                     'second_inspected_on' => $touchSecond
                         ? ($data['second_inspected_on'] ?? null)
                         : $checklist->second_inspected_on,
@@ -1474,11 +1505,14 @@ class ChecklistController extends Controller
             ->first();
 
         if ($undated) {
+            $clock = $this->blankInspectionClock($undated);
+
             $undated->update([
                 'first_inspected_on' => $date,
                 'driver_name' => $undated->driver_name ?: $plate['driver'],
                 'provider' => $undated->provider ?: $plate['provider'],
                 'vehicle_info' => $undated->vehicle_info ?: $plate['vehicle_type'],
+                ...$clock,
             ]);
 
             return 'attached';
@@ -1503,6 +1537,7 @@ class ChecklistController extends Controller
             'license_class' => $plate['category'],
             'first_inspected_on' => $date,
             'status' => 'draft',
+            ...$this->startClock(),
         ]);
 
         foreach ($items as $item) {
@@ -1515,6 +1550,62 @@ class ChecklistController extends Controller
         $this->ensurePassSignatures($checklist);
 
         return 'created';
+    }
+
+    /**
+     * @return array{started_at: \Carbon\CarbonInterface, first_inspected_time: string}
+     */
+    private function startClock(): array
+    {
+        $now = $this->limaNow();
+
+        return [
+            'started_at' => $now,
+            'first_inspected_time' => $now->format('H:i:s'),
+        ];
+    }
+
+    private function limaNow(): \Carbon\CarbonInterface
+    {
+        return now()->timezone('America/Lima');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function blankInspectionClock(UnitChecklist $checklist): array
+    {
+        $updates = [];
+        $time = (string) $checklist->first_inspected_time;
+
+        if ($time === '' || str_starts_with($time, '00:00')) {
+            $updates['first_inspected_time'] = $this->limaNow()->format('H:i:s');
+        }
+
+        if (! $checklist->started_at) {
+            $updates['started_at'] = $checklist->created_at ?? $this->limaNow();
+        }
+
+        return $updates;
+    }
+
+    private function ensureInspectionClock(UnitChecklist $checklist): void
+    {
+        $updates = [];
+        $source = ($checklist->created_at ?? $this->limaNow())->timezone('America/Lima');
+        $time = (string) $checklist->first_inspected_time;
+
+        if (! $checklist->started_at) {
+            $updates['started_at'] = $source;
+        }
+
+        if (($time === '' || str_starts_with($time, '00:00')) && ! str_starts_with($source->format('H:i:s'), '00:00')) {
+            $updates['first_inspected_time'] = $source->format('H:i:s');
+        }
+
+        if ($updates !== []) {
+            $checklist->update($updates);
+        }
     }
 
     private function templateTypeForVehicle(?string $vehicleType): string

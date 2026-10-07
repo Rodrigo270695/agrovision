@@ -192,7 +192,11 @@ export function DataPagination<T>({
                             >
                                 <SelectValue />
                             </SelectTrigger>
-                            <SelectContent side="top" align="end">
+                            <SelectContent
+                                side="bottom"
+                                align="end"
+                                avoidCollisions={false}
+                            >
                                 {perPageOptions.map((opt) => (
                                     <SelectItem
                                         key={opt}

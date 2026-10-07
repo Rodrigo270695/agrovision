@@ -66,8 +66,9 @@ export function TablePagination({
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent
-                            side="top"
+                            side="bottom"
                             align="end"
+                            avoidCollisions={false}
                             position="popper"
                             className="z-[100] border-[#d7e3f0] bg-white shadow-lg"
                         >

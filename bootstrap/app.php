@@ -48,6 +48,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'central' => EnsureCentralDomain::class,
             'tenant' => EnsureTenantContext::class,
             'tenant.module' => EnsureTenantModule::class,
+            'company.owner' => \App\Http\Middleware\EnsureCompanyOwner::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

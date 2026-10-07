@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Central\CentralDashboardController;
+use App\Http\Controllers\Central\CompanyReportController;
 use App\Http\Controllers\Central\TenantController;
 use App\Http\Middleware\EnsureCentralDomain;
 use App\Support\CentralDomains;
@@ -29,4 +30,8 @@ Route::middleware(['auth', EnsureCentralDomain::class])->prefix('plataforma')->g
     Route::post('empresas/{tenant}/suspender', [TenantController::class, 'suspend'])->name('central.tenants.suspend');
     Route::post('empresas/{tenant}/activar', [TenantController::class, 'activate'])->name('central.tenants.activate');
     Route::post('empresas/{tenant}/entrar', [TenantController::class, 'impersonate'])->name('central.tenants.impersonate');
+    Route::get('empresas/{tenant}/reportes', [CompanyReportController::class, 'show'])->name('central.tenants.reports');
+    Route::put('empresas/{tenant}/reportes/cuotas', [CompanyReportController::class, 'updateQuotas'])->name('central.tenants.reports.quotas');
+    Route::get('empresas/{tenant}/reportes/pdf', [CompanyReportController::class, 'pdf'])->name('central.tenants.reports.pdf');
+    Route::post('empresas/{tenant}/reportes/correo', [CompanyReportController::class, 'mail'])->name('central.tenants.reports.mail');
 });

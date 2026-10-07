@@ -1,4 +1,5 @@
 import {
+    BarChart3,
     ExternalLink,
     PauseCircle,
     Pencil,
@@ -46,6 +47,12 @@ export function TenantRowActions({
                     icon: ScreenShare,
                     disabled: !isActive,
                     onSelect: () => onEnterSupport(tenant),
+                },
+                {
+                    key: 'reports',
+                    label: 'Reportes',
+                    icon: BarChart3,
+                    href: `/plataforma/empresas/${tenant.id}/reportes`,
                 },
                 {
                     key: 'edit',

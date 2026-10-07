@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
 import {
+    BarChart3,
     Building2,
     Bus,
     CalendarRange,
@@ -200,21 +201,45 @@ const centralNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
-    const { can } = useCan();
+    const { can, isSuperAdmin } = useCan();
     const { isMobile, setOpenMobile } = useSidebar();
     const page = usePage();
     const isCentral = Boolean(page.props.central);
     const modules = page.props.tenant?.modules ?? {};
-
-    const visibleNavItems = useMemo(
-        () =>
-            isCentral
-                ? centralNavItems
-                : filterNavItems(mainNavItems, can, (module) =>
-                      module ? modules[module] !== false : true,
-                  ),
-        [can, isCentral, modules],
+    const isSupport = Boolean(
+        (page.props.auth as { is_support?: boolean } | undefined)?.is_support,
     );
+    const showOwnerReports = !isCentral && isSuperAdmin && !isSupport;
+
+    const visibleNavItems = useMemo(() => {
+        const items = isCentral
+            ? centralNavItems
+            : filterNavItems(mainNavItems, can, (module) =>
+                  module ? modules[module] !== false : true,
+              );
+
+        if (!showOwnerReports) {
+            return items;
+        }
+
+        return items.map((item) => {
+            if (item.title !== 'Reportes' || !item.items) {
+                return item;
+            }
+
+            return {
+                ...item,
+                items: [
+                    ...item.items,
+                    {
+                        title: 'De la empresa',
+                        href: '/reportes-dueno',
+                        icon: BarChart3,
+                    },
+                ],
+            };
+        });
+    }, [can, isCentral, modules, showOwnerReports]);
 
     const visibleFooterItems = useMemo(
         () => filterNavItems(footerNavItems, can),
