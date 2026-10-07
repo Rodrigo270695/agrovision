@@ -534,6 +534,7 @@ export function ChecklistsTable({
                     placeholder="Buscar placa, conductor..."
                 >
                     <FilterChips
+                        key={typeChips.map((item) => item.value).join('|')}
                         ariaLabel="Filtrar por tipo"
                         value={(filters.template_type ?? 'all') as TypeFilter}
                         onChange={(value) =>

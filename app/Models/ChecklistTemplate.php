@@ -45,18 +45,21 @@ class ChecklistTemplate extends Model
     }
 
     /**
-     * @return list<array{id: int, value: string, label: string}>
+     * @return list<array{id: int, value: string, label: string, deletable: bool}>
      */
     public static function options(): array
     {
         return static::query()
             ->where('is_active', true)
+            ->select(['id', 'type', 'label'])
+            ->withCount('unitChecklists')
             ->orderBy('id')
-            ->get(['id', 'type', 'label'])
+            ->get()
             ->map(fn (self $template) => [
                 'id' => $template->id,
                 'value' => $template->type,
                 'label' => $template->displayLabel(),
+                'deletable' => (int) $template->unit_checklists_count === 0,
             ])
             ->all();
     }

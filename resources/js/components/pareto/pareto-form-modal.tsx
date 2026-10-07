@@ -37,7 +37,7 @@ export function ParetoFormModal({
     const isEditing = Boolean(item);
     const { can } = useCan();
     const [savingTemplate, setSavingTemplate] = useState<
-        'create' | 'rename' | null
+        'create' | 'rename' | 'delete' | null
     >(null);
     const templateOptions =
         templates.length > 0
@@ -279,10 +279,75 @@ export function ParetoFormModal({
                                     : undefined
                             }
                             renaming={savingTemplate === 'rename'}
+                            onDelete={
+                                can('pareto.delete')
+                                    ? (value) => {
+                                          const selected = templateOptions.find(
+                                              (option) =>
+                                                  option.value === value,
+                                          );
+
+                                          if (
+                                              !selected?.id ||
+                                              !selected.deletable
+                                          ) {
+                                              return;
+                                          }
+
+                                          if (
+                                              !window.confirm(
+                                                  `¿Eliminar la plantilla ${selected.label}? También se borran sus ítems.`,
+                                              )
+                                          ) {
+                                              return;
+                                          }
+
+                                          setSavingTemplate('delete');
+                                          router.delete(
+                                              `/pareto/plantillas/${selected.id}`,
+                                              {
+                                                  preserveScroll: true,
+                                                  preserveState: true,
+                                                  onSuccess: (page) => {
+                                                      const remaining = (page
+                                                          .props.templates ??
+                                                          []) as ParetoTemplateOption[];
+
+                                                      if (
+                                                          remaining.some(
+                                                              (option) =>
+                                                                  option.value ===
+                                                                  form.data
+                                                                      .template_type,
+                                                          )
+                                                      ) {
+                                                          return;
+                                                      }
+
+                                                      form.setData(
+                                                          (current) => ({
+                                                              ...current,
+                                                              template_type:
+                                                                  remaining[0]
+                                                                      ?.value ??
+                                                                  '',
+                                                              parent_id: '',
+                                                          }),
+                                                      );
+                                                  },
+                                                  onFinish: () =>
+                                                      setSavingTemplate(null),
+                                              },
+                                          );
+                                      }
+                                    : undefined
+                            }
+                            deleting={savingTemplate === 'delete'}
                         />
                         <p className="text-[11px] leading-snug text-[#6b8ead]">
                             Escribe un nombre para crear otra plantilla. El
-                            lápiz cambia el nombre.
+                            lápiz cambia el nombre. El basurero elimina la
+                            plantilla si no tiene inspecciones.
                         </p>
                         <InputError message={form.errors.template_type} />
                     </div>

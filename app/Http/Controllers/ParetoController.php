@@ -12,6 +12,7 @@ use App\Support\ParetoCheckTypes;
 use App\Support\PermissionCatalog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -35,7 +36,7 @@ class ParetoController extends Controller
         PermissionCatalog::syncToDatabase();
 
         $search = trim((string) ($validated['search'] ?? ''));
-        $templateType = $validated['template_type'] ?? 'tdp';
+        $templateType = $validated['template_type'] ?? ($templateTypes[0] ?? 'all');
         $sort = $validated['sort'] ?? 'sort_order';
         $direction = $validated['direction'] ?? 'asc';
         $perPage = (int) ($validated['per_page'] ?? 50);
@@ -252,6 +253,43 @@ class ParetoController extends Controller
             'type' => 'success',
             'message' => "La plantilla ahora se llama {$name}.",
         ]);
+    }
+
+    public function destroyTemplate(Request $request, ChecklistTemplate $template): RedirectResponse
+    {
+        if ($template->unitChecklists()->exists()) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'No se puede eliminar: esta plantilla ya tiene inspecciones.',
+            ]);
+        }
+
+        $label = $template->displayLabel();
+        $type = $template->type;
+
+        DB::transaction(function () use ($template): void {
+            Pareto::query()
+                ->where('template_type', $template->type)
+                ->whereNotNull('parent_id')
+                ->delete();
+            Pareto::query()
+                ->where('template_type', $template->type)
+                ->delete();
+            $template->delete();
+        });
+
+        $params = $request->query();
+
+        if (($params['template_type'] ?? null) === $type) {
+            unset($params['template_type']);
+        }
+
+        return redirect()
+            ->route('pareto.index', $params)
+            ->with('toast', [
+                'type' => 'success',
+                'message' => "Plantilla {$label} eliminada.",
+            ]);
     }
 
     public function redistribute(Request $request): RedirectResponse

@@ -1,4 +1,4 @@
-import { Check, ChevronsUpDown, Pencil, Plus, X } from 'lucide-react';
+import { Check, ChevronsUpDown, Pencil, Plus, Trash2, X } from 'lucide-react';
 import {
     useEffect,
     useId,
@@ -16,6 +16,7 @@ export type SearchableComboboxOption = {
     label: string;
     description?: string;
     keywords?: string;
+    deletable?: boolean;
 };
 
 type Props = {
@@ -34,6 +35,8 @@ type Props = {
     creating?: boolean;
     onRename?: (value: string, name: string) => void;
     renaming?: boolean;
+    onDelete?: (value: string) => void;
+    deleting?: boolean;
 };
 
 function normalize(value: string): string {
@@ -65,6 +68,8 @@ export function SearchableCombobox({
     creating = false,
     onRename,
     renaming = false,
+    onDelete,
+    deleting = false,
 }: Props) {
     const listId = useId();
     const rootRef = useRef<HTMLDivElement>(null);
@@ -538,6 +543,21 @@ export function SearchableCombobox({
                                             }}
                                         >
                                             <Pencil className="size-3.5" />
+                                        </button>
+                                    ) : null}
+                                    {onDelete && option.deletable ? (
+                                        <button
+                                            type="button"
+                                            aria-label={`Eliminar ${option.label}`}
+                                            disabled={deleting}
+                                            className="rounded p-1 text-[#6b8ead] hover:bg-white hover:text-red-600 disabled:opacity-50"
+                                            onMouseDown={(event) => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                                onDelete(option.value);
+                                            }}
+                                        >
+                                            <Trash2 className="size-3.5" />
                                         </button>
                                     ) : null}
                                 </div>
