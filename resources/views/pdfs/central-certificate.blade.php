@@ -15,16 +15,17 @@
             overflow: hidden;
             background: #fff;
         }
-        .bg, .mark, .block, .sig, .logo, .qr { position: absolute; }
-        .bg { left: 0; top: 0; width: 297mm; height: 210mm; }
+        .bg, .mark, .block, .sig, .logo, .qr { position: absolute; overflow: hidden; }
+        .bg { left: 0; top: 0; width: 297mm; height: 210mm; overflow: hidden; }
         .mark { opacity: 0.18; }
-        .block { margin: 0; padding: 0; white-space: pre-wrap; }
-        .sig img, .logo img, .mark img, .qr img { width: 100%; }
+        .block { margin: 0; padding: 0; white-space: pre-wrap; overflow: visible; }
+        .sig img, .logo img, .mark img, .qr img { display: block; }
     </style>
 </head>
 <body>
     @php
-        $mm = fn ($percent) => ((float) $percent / 100) * 210;
+        $widthMm = fn ($percent) => round(((float) $percent / 100) * 297, 2);
+        $heightMm = fn ($percent) => round(((float) $percent / 100) * 210, 2);
     @endphp
     <div class="sheet">
         @if (! empty($background))
@@ -32,14 +33,22 @@
         @endif
 
         @if (! empty($watermark))
-            <div class="mark" style="left: {{ $watermarkBox['x'] }}%; top: {{ $watermarkBox['y'] }}%; width: {{ $watermarkBox['w'] }}%; height: {{ $mm($watermarkBox['h']) }}mm;">
-                <img src="{{ $watermark }}" alt="">
+            @php
+                $markW = $widthMm($watermarkBox['w']);
+                $markH = $heightMm($watermarkBox['h']);
+            @endphp
+            <div class="mark" style="left: {{ $watermarkBox['x'] }}%; top: {{ $watermarkBox['y'] }}%; width: {{ $markW }}mm; height: {{ $markH }}mm;">
+                <img src="{{ $watermark }}" alt="" style="width: {{ $markW }}mm; height: {{ $markH }}mm;">
             </div>
         @endif
 
         @foreach ($logos as $logo)
-            <div class="logo" style="left: {{ $logo['x'] }}%; top: {{ $logo['y'] }}%; width: {{ $logo['w'] }}%; height: {{ $mm($logo['h']) }}mm;">
-                <img src="{{ $logo['src'] }}" alt="">
+            @php
+                $logoW = $widthMm($logo['w']);
+                $logoH = $heightMm($logo['h']);
+            @endphp
+            <div class="logo" style="left: {{ $logo['x'] }}%; top: {{ $logo['y'] }}%; width: {{ $logoW }}mm; height: {{ $logoH }}mm;">
+                <img src="{{ $logo['src'] }}" alt="" style="width: {{ $logoW }}mm; height: {{ $logoH }}mm;">
             </div>
         @endforeach
 
@@ -55,20 +64,31 @@
         @endforeach
 
         @if (! empty($signature))
-            <div class="sig" style="left: {{ $signatureBox['x'] }}%; top: {{ $signatureBox['y'] }}%; width: {{ $signatureBox['w'] }}%; height: {{ $mm($signatureBox['h']) }}mm;">
-                <img src="{{ $signature }}" alt="">
+            @php
+                $signW = $widthMm($signatureBox['w']);
+                $signH = $heightMm($signatureBox['h']);
+            @endphp
+            <div class="sig" style="left: {{ $signatureBox['x'] }}%; top: {{ $signatureBox['y'] }}%; width: {{ $signW }}mm; height: {{ $signH }}mm;">
+                <img src="{{ $signature }}" alt="" style="width: {{ $signW }}mm; height: {{ $signH }}mm;">
             </div>
         @endif
 
         @if (! empty($stamp))
-            <div class="sig" style="left: {{ $stampBox['x'] }}%; top: {{ $stampBox['y'] }}%; width: {{ $stampBox['w'] }}%; height: {{ $mm($stampBox['h']) }}mm;">
-                <img src="{{ $stamp }}" alt="">
+            @php
+                $stampW = $widthMm($stampBox['w']);
+                $stampH = $heightMm($stampBox['h']);
+            @endphp
+            <div class="sig" style="left: {{ $stampBox['x'] }}%; top: {{ $stampBox['y'] }}%; width: {{ $stampW }}mm; height: {{ $stampH }}mm;">
+                <img src="{{ $stamp }}" alt="" style="width: {{ $stampW }}mm; height: {{ $stampH }}mm;">
             </div>
         @endif
 
         @if (! empty($qr))
-            <div class="qr" style="left: {{ $qrBox['x'] }}%; top: {{ $qrBox['y'] }}%; width: {{ $qrBox['size'] }}%; height: {{ $mm($qrBox['size']) }}mm;">
-                <img src="{{ $qr }}" alt="">
+            @php
+                $qrMm = $widthMm($qrBox['size']);
+            @endphp
+            <div class="qr" style="left: {{ $qrBox['x'] }}%; top: {{ $qrBox['y'] }}%; width: {{ $qrMm }}mm; height: {{ $qrMm }}mm;">
+                <img src="{{ $qr }}" alt="" style="width: {{ $qrMm }}mm; height: {{ $qrMm }}mm;">
             </div>
         @endif
     </div>
