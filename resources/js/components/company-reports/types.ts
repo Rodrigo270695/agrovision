@@ -55,6 +55,14 @@ export type InspectionDetail = {
     duration: string;
     result: string;
     tone: ReportTone;
+    first_at: string;
+    first_result: string;
+    first_tone: ReportTone;
+    second_at: string;
+    second_result: string;
+    second_tone: ReportTone;
+    status: string;
+    status_tone: ReportTone;
 };
 
 export type ReportSummary = {

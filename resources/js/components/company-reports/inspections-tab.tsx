@@ -94,8 +94,8 @@ export function InspectionsTab({
                         Duración de cada inspección
                     </h3>
                     <p className="text-xs text-[#5a7390]">
-                        Hora de Perú. Empieza al crear la inspección y termina al
-                        aprobar, desaprobar o sellar.
+                        Hora de Perú. La inspección termina cuando la primera y
+                        la segunda ya tienen resultado.
                         {detailsTotal > details.length
                             ? ` Se muestran ${details.length} de ${detailsTotal}.`
                             : ''}
@@ -106,16 +106,15 @@ export function InspectionsTab({
                         <tr>
                             <th className="px-4 py-3">Placa</th>
                             <th className="px-4 py-3">Inspector</th>
-                            <th className="px-4 py-3">Empezó</th>
-                            <th className="px-4 py-3">Terminó</th>
-                            <th className="px-4 py-3">Demora</th>
-                            <th className="px-4 py-3">Resultado</th>
+                            <th className="px-4 py-3">1ra inspección</th>
+                            <th className="px-4 py-3">2da inspección</th>
+                            <th className="px-4 py-3">Estado</th>
                         </tr>
                     </thead>
                     <tbody>
                         {details.length === 0 ? (
                             <tr>
-                                <td colSpan={6} className="px-4 py-6 text-[#5a7390]">
+                                <td colSpan={5} className="px-4 py-6 text-[#5a7390]">
                                     No hay inspecciones en este periodo.
                                 </td>
                             </tr>
@@ -126,13 +125,47 @@ export function InspectionsTab({
                                         {row.plate}
                                     </td>
                                     <td className="px-4 py-3">{row.inspector}</td>
-                                    <td className="px-4 py-3 tabular-nums">{row.started}</td>
-                                    <td className="px-4 py-3 tabular-nums">{row.finished}</td>
-                                    <td className="px-4 py-3">{row.duration}</td>
                                     <td className="px-4 py-3">
-                                        <Semaphore tone={row.tone} />
-                                        <span className="ml-2 text-xs text-[#5a7390]">
-                                            {row.result}
+                                        <p className="tabular-nums text-[#1a2b4c]">
+                                            {row.first_at}
+                                        </p>
+                                        <p
+                                            className={
+                                                row.first_tone === 'ok'
+                                                    ? 'text-xs font-semibold text-emerald-700'
+                                                    : row.first_tone === 'bad'
+                                                      ? 'text-xs font-semibold text-red-700'
+                                                      : 'text-xs font-semibold text-amber-700'
+                                            }
+                                        >
+                                            {row.first_result}
+                                        </p>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <p className="tabular-nums text-[#1a2b4c]">
+                                            {row.second_at}
+                                        </p>
+                                        <p
+                                            className={
+                                                row.second_tone === 'ok'
+                                                    ? 'text-xs font-semibold text-emerald-700'
+                                                    : row.second_tone === 'bad'
+                                                      ? 'text-xs font-semibold text-red-700'
+                                                      : 'text-xs font-semibold text-amber-700'
+                                            }
+                                        >
+                                            {row.second_result}
+                                        </p>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <span
+                                            className={
+                                                row.status_tone === 'ok'
+                                                    ? 'text-xs font-semibold text-emerald-700'
+                                                    : 'text-xs font-semibold text-amber-700'
+                                            }
+                                        >
+                                            {row.status}
                                         </span>
                                     </td>
                                 </tr>

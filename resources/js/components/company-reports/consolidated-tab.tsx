@@ -47,7 +47,7 @@ export function ConsolidatedTab({
                 <div className="flex items-center justify-center rounded-2xl border border-[#d7e3f0] bg-white p-4">
                     <Ring
                         percent={summary.today_goal_percent}
-                        label="Inspectores en la meta de hoy"
+                        label="Inspectores en la meta del periodo"
                     />
                 </div>
                 <div className="flex items-center justify-center rounded-2xl border border-[#d7e3f0] bg-white p-4">

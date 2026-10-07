@@ -19,11 +19,6 @@ export function QuotaTab({ rows, baseUrl, goalPercent }: Props) {
         setDraft(rows);
     }, [rows]);
 
-    const max = Math.max(
-        1,
-        ...draft.map((row) => Math.max(row.today, row.daily_quota ?? 0)),
-    );
-
     const save = () => {
         setSaving(true);
         router.put(
@@ -45,17 +40,22 @@ export function QuotaTab({ rows, baseUrl, goalPercent }: Props) {
     return (
         <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
             <div className="flex items-center justify-center rounded-2xl border border-[#d7e3f0] bg-white p-4">
-                <Ring percent={goalPercent} label="Inspectores en la meta de hoy" />
+                <Ring percent={goalPercent} label="Inspectores en la meta del periodo" />
             </div>
             <div className="rounded-2xl border border-[#d7e3f0] bg-white p-4">
                 <h3 className="mb-3 text-sm font-semibold text-[#1a2b4c]">
-                    Inspecciones de hoy frente a la cuota
+                    Inspecciones del periodo frente a la cuota
                 </h3>
                 <BarChart
                     rows={draft.map((row) => ({
                         label: row.name,
-                        value: row.today,
-                        max,
+                        value: row.period,
+                        max: Math.max(
+                            1,
+                            ...draft.map((item) =>
+                                Math.max(item.period, item.daily_quota ?? 0),
+                            ),
+                        ),
                         tone: row.tone,
                     }))}
                 />
@@ -66,7 +66,6 @@ export function QuotaTab({ rows, baseUrl, goalPercent }: Props) {
                         <tr>
                             <th className="px-4 py-3">Inspector</th>
                             <th className="px-4 py-3">Cuota por día</th>
-                            <th className="px-4 py-3">Hoy</th>
                             <th className="px-4 py-3">En el periodo</th>
                             <th className="px-4 py-3">Días en meta</th>
                             <th className="px-4 py-3">Semáforo</th>
@@ -76,7 +75,7 @@ export function QuotaTab({ rows, baseUrl, goalPercent }: Props) {
                         {draft.length === 0 ? (
                             <tr>
                                 <td
-                                    colSpan={6}
+                                    colSpan={5}
                                     className="px-4 py-6 text-[#5a7390]"
                                 >
                                     No hay inspectores en esta empresa.
@@ -118,9 +117,6 @@ export function QuotaTab({ rows, baseUrl, goalPercent }: Props) {
                                                 );
                                             }}
                                         />
-                                    </td>
-                                    <td className="px-4 py-3 tabular-nums">
-                                        {row.today}
                                     </td>
                                     <td className="px-4 py-3 tabular-nums">
                                         {row.period}

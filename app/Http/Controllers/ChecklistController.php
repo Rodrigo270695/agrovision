@@ -759,13 +759,9 @@ class ChecklistController extends Controller
                     }
                 }
 
-                $firstJustClosed = ! $lockFirst
-                    && in_array($firstResult, ['approved', 'rejected'], true)
-                    && ! $firstAlreadyDecided;
-                $secondJustClosed = $touchSecond
-                    && in_array((string) $secondResult, ['approved', 'rejected'], true)
-                    && ! $secondAlreadyDecided;
-                $closingNow = ($firstJustClosed || $secondJustClosed || ($shouldSeal && ! $checklist->finished_at))
+                $firstClosed = in_array($firstResult, ['approved', 'rejected'], true);
+                $secondClosed = in_array((string) $secondResult, ['approved', 'rejected'], true);
+                $closingNow = ($firstClosed && $secondClosed && ! $checklist->finished_at) || ($shouldSeal && ! $checklist->finished_at)
                     ? $this->limaNow()
                     : null;
 

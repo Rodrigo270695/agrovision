@@ -50,20 +50,19 @@ final class OwnerReports
             $request->input('date_from'),
             $request->input('date_to'),
         );
-        $today = CarbonImmutable::now('America/Lima')->toDateString();
         $inspectors = SystemRoles::inspectors();
         $quotaMap = InspectorQuota::query()
             ->pluck('daily_quota', 'user_id')
             ->mapWithKeys(fn ($quota, $id) => [(int) $id => (int) $quota]);
         $checklists = $this->checklists($range['from'], $range['to']);
-        $todayCounts = $this->countsByInspector($this->checklists($today, $today));
         $periodCounts = $this->countsByInspector($checklists);
         $days = $this->daysByInspector($checklists);
+        $singleDay = $range['from'] !== null && $range['from'] === $range['to'];
         $sessions = $this->sessions($range['from'], $range['to']);
 
-        $quotaRows = $inspectors->map(function (User $user) use ($quotaMap, $todayCounts, $periodCounts, $days) {
+        $quotaRows = $inspectors->map(function (User $user) use ($quotaMap, $periodCounts, $days, $singleDay) {
             $quota = $quotaMap->has($user->id) ? (int) $quotaMap[$user->id] : null;
-            $todayTotal = (int) ($todayCounts[$user->id] ?? 0);
+            $periodTotal = (int) ($periodCounts[$user->id] ?? 0);
             $worked = $days[$user->id] ?? [];
             $met = 0;
 
@@ -78,11 +77,13 @@ final class OwnerReports
                 'name' => $user->name,
                 'email' => $user->email,
                 'daily_quota' => $quota,
-                'today' => $todayTotal,
-                'period' => (int) ($periodCounts[$user->id] ?? 0),
+                'today' => $periodTotal,
+                'period' => $periodTotal,
                 'days_met' => $met,
                 'days_with_work' => count($worked),
-                'tone' => $this->goalTone($todayTotal, $quota),
+                'tone' => $singleDay
+                    ? $this->goalTone($periodTotal, $quota)
+                    : $this->daysTone($met, count($worked), $quota),
             ];
         })->values()->all();
 
@@ -100,12 +101,16 @@ final class OwnerReports
         $withQuota = count(array_filter($quotaRows, fn (array $row) => $row['daily_quota'] !== null));
         $metToday = count(array_filter(
             $quotaRows,
-            fn (array $row) => $row['daily_quota'] !== null && $row['today'] >= $row['daily_quota'],
+            fn (array $row) => $row['tone'] === 'ok',
         ));
         $durations = array_values(array_filter(array_column($detailRows, 'minutes'), fn ($minutes) => $minutes !== null));
 
         return [
-            'filters' => $range,
+            'filters' => [
+                'date_from' => $range['from'],
+                'date_to' => $range['to'],
+                'label' => $range['label'],
+            ],
             'quotas' => $quotaRows,
             'inductions' => $inductionRows,
             'inspectors' => $inspectorRows,
@@ -152,7 +157,8 @@ final class OwnerReports
             $query->where(function ($builder) use ($from, $to) {
                 $builder
                     ->whereBetween('first_inspected_on', [$from, $to])
-                    ->orWhereBetween('started_at', [$from.' 00:00:00', $to.' 23:59:59']);
+                    ->orWhereBetween('second_inspected_on', [$from, $to])
+                    ->orWhereRaw('started_at::date between ? and ?', [$from, $to]);
             });
         }
 
@@ -206,7 +212,8 @@ final class OwnerReports
 
         foreach ($checklists as $checklist) {
             $id = (int) ($checklist->created_by ?? 0);
-            $date = $this->startedAt($checklist)?->toDateString();
+            $date = $checklist->first_inspected_on?->toDateString()
+                ?? $this->startedAt($checklist)?->toDateString();
 
             if ($date === null) {
                 continue;
@@ -343,30 +350,79 @@ final class OwnerReports
      */
     private function detailRow(UnitChecklist $checklist): array
     {
-        $start = $this->startedAt($checklist);
-        $end = $this->finishedAt($checklist);
-        $minutes = $this->minutes($start, $end);
-        $result = $checklist->second_result ?: $checklist->first_result;
+        $firstAt = $this->passAt(
+            $checklist->first_inspected_on,
+            $checklist->first_inspected_time,
+            $this->startedAt($checklist),
+        );
+        $secondAt = $this->passAt(
+            $checklist->second_inspected_on,
+            $checklist->second_inspected_time,
+            null,
+        );
+        $firstDone = in_array($checklist->first_result, ['approved', 'rejected'], true);
+        $secondDone = in_array($checklist->second_result, ['approved', 'rejected'], true);
+        $finished = $firstDone && $secondDone;
 
         return [
             'id' => $checklist->id,
             'plate' => $checklist->plate_number,
             'inspector' => $checklist->creator?->name ?: 'Sin inspector',
-            'started' => $start?->format('d/m/Y H:i') ?? '—',
-            'finished' => $end?->format('d/m/Y H:i') ?? 'En curso',
-            'minutes' => $minutes,
-            'duration' => $this->durationLabel($minutes),
-            'result' => match ($result) {
-                'approved' => 'Aprobada',
-                'rejected' => 'Desaprobada',
-                default => 'Pendiente',
-            },
-            'tone' => match ($result) {
-                'approved' => 'ok',
-                'rejected' => 'bad',
-                default => 'mid',
-            },
+            'started' => $firstAt?->format('d/m/Y H:i') ?? '—',
+            'finished' => $finished ? 'Terminada' : 'En curso',
+            'minutes' => null,
+            'duration' => $finished ? 'Terminada' : 'En curso',
+            'result' => $finished ? 'Terminada' : 'En curso',
+            'tone' => $finished ? 'ok' : 'mid',
+            'first_at' => $firstAt?->format('d/m/Y H:i') ?? '—',
+            'first_result' => $this->resultLabel($checklist->first_result),
+            'first_tone' => $this->resultTone($checklist->first_result, $firstDone),
+            'second_at' => $secondAt?->format('d/m/Y H:i') ?? ($firstDone ? 'Pendiente' : '—'),
+            'second_result' => $secondDone ? $this->resultLabel($checklist->second_result) : 'Pendiente',
+            'second_tone' => $this->resultTone($checklist->second_result, $secondDone),
+            'status' => $finished ? 'Terminada' : 'En curso',
+            'status_tone' => $finished ? 'ok' : 'mid',
         ];
+    }
+
+    private function resultLabel(?string $result): string
+    {
+        return match ($result) {
+            'approved' => 'Aprobada',
+            'rejected' => 'Desaprobada',
+            default => 'Pendiente',
+        };
+    }
+
+    private function resultTone(?string $result, bool $done): string
+    {
+        if (! $done) {
+            return 'mid';
+        }
+
+        return $result === 'approved' ? 'ok' : 'bad';
+    }
+
+    private function passAt(mixed $date, ?string $time, ?CarbonImmutable $fallback): ?CarbonImmutable
+    {
+        if ($date === null) {
+            return $fallback;
+        }
+
+        $day = $date instanceof \DateTimeInterface
+            ? CarbonImmutable::parse($date)->timezone('America/Lima')->toDateString()
+            : (string) $date;
+        $clock = trim((string) $time);
+
+        if ($clock === '' || str_starts_with($clock, '00:00')) {
+            if ($fallback !== null && $fallback->toDateString() === $day) {
+                return $fallback;
+            }
+
+            $clock = '00:00:00';
+        }
+
+        return CarbonImmutable::parse($day.' '.substr($clock, 0, 8), 'America/Lima');
     }
 
     private function startedAt(UnitChecklist $checklist): ?CarbonImmutable

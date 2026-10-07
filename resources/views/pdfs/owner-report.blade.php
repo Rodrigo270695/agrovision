@@ -27,7 +27,7 @@
 
     <table class="cards">
         <tr>
-            <td>Inspectores en meta hoy<strong>{{ $summary['met_today'] }}/{{ $summary['with_quota'] }}</strong></td>
+            <td>En meta del periodo<strong>{{ $summary['met_today'] }}/{{ $summary['with_quota'] }}</strong></td>
             <td>Inspecciones<strong>{{ $summary['inspections'] }}</strong></td>
             <td>Demora promedio<strong>{{ $summary['avg_minutes'] === null ? '—' : $summary['avg_minutes'].' min' }}</strong></td>
             <td>Capacitaciones<strong>{{ $summary['sessions'] }}</strong></td>
@@ -124,10 +124,11 @@
             <tr>
                 <th>Placa</th>
                 <th>Inspector</th>
-                <th>Empezó</th>
-                <th>Terminó</th>
-                <th>Demora</th>
-                <th>Resultado</th>
+                <th>1ra</th>
+                <th>Resultado 1ra</th>
+                <th>2da</th>
+                <th>Resultado 2da</th>
+                <th>Estado</th>
             </tr>
         </thead>
         <tbody>
@@ -135,13 +136,14 @@
                 <tr>
                     <td>{{ $row['plate'] }}</td>
                     <td>{{ $row['inspector'] }}</td>
-                    <td>{{ $row['started'] }}</td>
-                    <td>{{ $row['finished'] }}</td>
-                    <td>{{ $row['duration'] }}</td>
-                    <td>{{ $row['result'] }}</td>
+                    <td>{{ $row['first_at'] }}</td>
+                    <td>{{ $row['first_result'] }}</td>
+                    <td>{{ $row['second_at'] }}</td>
+                    <td>{{ $row['second_result'] }}</td>
+                    <td>{{ $row['status'] }}</td>
                 </tr>
             @empty
-                <tr><td colspan="6">No hay inspecciones en el periodo.</td></tr>
+                <tr><td colspan="7">No hay inspecciones en el periodo.</td></tr>
             @endforelse
         </tbody>
     </table>
