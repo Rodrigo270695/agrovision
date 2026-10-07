@@ -94,6 +94,18 @@ function fill(text: string, sample: Record<string, string>): string {
     return text.replace(/\{\{\s*([a-zA-Z][a-zA-Z0-9_]*)\s*\}\}/g, (_, key: string) => sample[key] ?? '');
 }
 
+function RichText({ text }: { text: string }) {
+    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+
+    return parts.map((part, index) =>
+        part.startsWith('**') && part.endsWith('**') ? (
+            <strong key={index}>{part.slice(2, -2)}</strong>
+        ) : (
+            <span key={index}>{part}</span>
+        ),
+    );
+}
+
 function RemoveButton({ onRemove }: { onRemove: () => void }) {
     return (
         <button
@@ -113,6 +125,7 @@ function RemoveButton({ onRemove }: { onRemove: () => void }) {
 
 export default function CentralCertificateEditor({ template, trainings, participants, fonts, variables }: Props) {
     const canvasRef = useRef<HTMLDivElement>(null);
+    const textRef = useRef<HTMLTextAreaElement>(null);
     const [courseTitle, setCourseTitle] = useState(template.course_title);
     const [trainingId, setTrainingId] = useState(template.training_id ? String(template.training_id) : '');
     const [startsOn, setStartsOn] = useState(template.starts_on ?? '');
@@ -510,7 +523,9 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                     }`}
                                 >
                                     <span className="mt-0.5 size-3.5 shrink-0 rounded-full border border-black/10" style={{ background: block.color }} />
-                                    <span className="min-w-0 flex-1 whitespace-pre-line text-[#1a2b4c] line-clamp-2">{fill(block.text, sample) || 'Texto vacío'}</span>
+                                    <span className="min-w-0 flex-1 whitespace-pre-line text-[#1a2b4c] line-clamp-2">
+                                        <RichText text={fill(block.text, sample) || 'Texto vacío'} />
+                                    </span>
                                 </button>
                             ))}
                         </div>
@@ -652,7 +667,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                 }
                                 onRemove={() => setBlocks((current) => current.filter((item) => item.id !== block.id))}
                             >
-                                {fill(block.text, sample) || ' '}
+                                {fill(block.text, sample) ? <RichText text={fill(block.text, sample)} /> : ' '}
                             </Movable>
                         ))}
                         {signatureSrc && signature.visible && (
@@ -739,11 +754,30 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                 <div className="grid gap-3 md:col-span-2">
                                 <Field label="Texto">
                                     <textarea
+                                        ref={textRef}
                                         value={selectedBlock.text}
                                         rows={4}
                                         onChange={(event) => patchBlock(selectedBlock.id, { text: event.target.value })}
                                         className="w-full rounded-md border border-[#c5d5e6] px-2 py-1 text-sm"
                                     />
+                                    <button
+                                        type="button"
+                                        className="mt-1 cursor-pointer text-left text-xs font-medium text-[#12355b]"
+                                        onClick={() => {
+                                            const field = textRef.current;
+                                            const value = selectedBlock.text;
+                                            const start = field?.selectionStart ?? value.length;
+                                            const end = field?.selectionEnd ?? value.length;
+                                            const chosen = value.slice(start, end) || '{{curso}}';
+                                            const next = `${value.slice(0, start)}**${chosen}**${value.slice(end)}`;
+                                            patchBlock(selectedBlock.id, { text: next });
+                                        }}
+                                    >
+                                        Negrita solo en lo seleccionado
+                                    </button>
+                                    <p className="text-xs text-[#5a7390]">
+                                        Deja el recuadro en peso normal y marca así el curso: **{'{{curso}}'}**
+                                    </p>
                                 </Field>
                                 <div className="grid grid-cols-2 gap-3">
                                 <Field label="Tamaño">
