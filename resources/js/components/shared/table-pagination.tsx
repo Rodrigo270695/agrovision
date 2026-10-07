@@ -66,11 +66,12 @@ export function TablePagination({
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent
-                            side="bottom"
+                            side="top"
                             align="end"
-                            avoidCollisions={false}
                             position="popper"
-                            className="z-[100] border-[#d7e3f0] bg-white shadow-lg"
+                            collisionPadding={16}
+                            className="z-[200] border-[#d7e3f0] bg-white shadow-lg"
+                            style={{ maxHeight: '16rem' }}
                         >
                             {perPageOptions.map((option) => (
                                 <SelectItem

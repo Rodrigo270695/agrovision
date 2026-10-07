@@ -193,9 +193,12 @@ export function DataPagination<T>({
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent
-                                side="bottom"
+                                side="top"
                                 align="end"
-                                avoidCollisions={false}
+                                position="popper"
+                                collisionPadding={16}
+                                className="z-[200]"
+                                style={{ maxHeight: '16rem' }}
                             >
                                 {perPageOptions.map((opt) => (
                                     <SelectItem

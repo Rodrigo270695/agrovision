@@ -15,12 +15,39 @@ export function AppSidebarHeader({
 }) {
     const page = usePage();
     const isCentral = Boolean(page.props.central);
+    const path = page.url.split('?')[0];
+    const companyName = (
+        page.props as { company?: { name?: string } }
+    ).company?.name;
+    const resolvedBreadcrumbs =
+        breadcrumbs.length > 0
+            ? breadcrumbs
+            : path.includes('/empresas/') && path.endsWith('/reportes')
+              ? [
+                    { title: 'Panel', href: '/plataforma' },
+                    { title: 'Empresas', href: '/plataforma/empresas' },
+                    {
+                        title: companyName
+                            ? `Reportes · ${companyName}`
+                            : 'Reportes',
+                        href: path,
+                    },
+                ]
+              : path === '/reportes-dueno'
+                ? [
+                      { title: 'Panel', href: '/dashboard' },
+                      {
+                          title: 'Reportes de la empresa',
+                          href: '/reportes-dueno',
+                      },
+                  ]
+                : breadcrumbs;
 
     return (
         <header className="z-20 flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border/50 bg-background px-6 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
             <div className="flex min-w-0 flex-1 items-center gap-2">
                 <SidebarTrigger className="-ml-1" />
-                <Breadcrumbs breadcrumbs={breadcrumbs} />
+                <Breadcrumbs breadcrumbs={resolvedBreadcrumbs} />
             </div>
             <div className="ml-auto flex shrink-0 items-center gap-2">
                 {isCentral ? null : (

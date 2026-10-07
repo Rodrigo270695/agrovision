@@ -1,4 +1,5 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { ConsolidatedTab } from '@/components/company-reports/consolidated-tab';
 import { InductionsTab } from '@/components/company-reports/inductions-tab';
@@ -51,6 +52,9 @@ export default function CompanyReportsPage({
     detail_filters,
     summary,
 }: Props) {
+    const isCentral = Boolean(usePage().props.central);
+    const backHref = isCentral ? '/plataforma/empresas' : '/dashboard';
+    const backLabel = isCentral ? 'Volver a empresas' : 'Volver al panel';
     const [tab, setTab] = useState<TabId>('cuotas');
     const daysMet = inspectors.reduce((sum, row) => sum + row.days_met, 0);
     const daysWorked = inspectors.reduce(
@@ -66,6 +70,13 @@ export default function CompanyReportsPage({
             <div className="flex w-full flex-col gap-4 p-4 sm:p-6">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                     <div>
+                        <Link
+                            href={backHref}
+                            className="mb-2 inline-flex items-center gap-1.5 text-sm font-medium text-[#2e5a9e] hover:text-[#1a2b4c]"
+                        >
+                            <ArrowLeft className="size-4" />
+                            {backLabel}
+                        </Link>
                         <p className="text-xs font-semibold tracking-wide text-[#6b8ead] uppercase">
                             {company.name}
                         </p>
