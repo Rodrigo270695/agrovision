@@ -21,7 +21,7 @@ use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use ZipArchive;
 
 class CentralCertificateController extends Controller
@@ -258,7 +258,7 @@ class CentralCertificateController extends Controller
         );
     }
 
-    public function download(CentralCertificateTemplate $template): StreamedResponse|RedirectResponse
+    public function download(CentralCertificateTemplate $template): BinaryFileResponse|RedirectResponse
     {
         if (! $template->training_id) {
             return back()->with('toast', [

@@ -41,8 +41,9 @@
             border: 18px solid rgba(255, 255, 255, 0.12);
             border-radius: 50%;
         }
-        .logos { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; min-height: 54px; }
-        .logos img { height: 52px; max-width: 120px; object-fit: contain; background: #fff; border-radius: 12px; padding: 6px 8px; }
+        .logos { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; min-height: 54px; }
+        .brand { width: 72px; height: 72px; object-fit: contain; border-radius: 18px; background: #07111f; box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22); }
+        .logos img.extra { height: 52px; max-width: 120px; object-fit: contain; background: #fff; border-radius: 12px; padding: 6px 8px; }
         .wordmark { font-size: 13px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
         .status {
             position: relative;
@@ -103,7 +104,10 @@
         <article class="card">
             @if (! $found)
                 <header class="band missing">
-                    <div class="logos"><span class="wordmark">Grupo Indelsi</span></div>
+                    <div class="logos">
+                        <img class="brand" src="{{ asset('icon.png') }}" alt="Grupo Indelsi">
+                        <span class="wordmark">Grupo Indelsi</span>
+                    </div>
                     <div class="status"><span class="dot"></span> No encontrado</div>
                 </header>
                 <div class="body">
@@ -113,11 +117,11 @@
             @else
                 <header class="band {{ $valid ? '' : 'expired' }}">
                     <div class="logos">
-                        @forelse ($logos as $logo)
-                            <img src="{{ $logo }}" alt="Logo">
-                        @empty
-                            <span class="wordmark">Grupo Indelsi</span>
-                        @endforelse
+                        <img class="brand" src="{{ asset('icon.png') }}" alt="Grupo Indelsi">
+                        <span class="wordmark">Grupo Indelsi</span>
+                        @foreach ($logos as $logo)
+                            <img class="extra" src="{{ $logo }}" alt="Logo">
+                        @endforeach
                     </div>
                     <div class="status"><span class="dot"></span> {{ $valid ? 'Válido' : 'Vencido' }}</div>
                 </header>
