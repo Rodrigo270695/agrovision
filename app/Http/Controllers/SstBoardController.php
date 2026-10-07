@@ -23,6 +23,7 @@ class SstBoardController extends Controller
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
             'coordinator_id' => ['nullable', 'integer'],
+            'inspector_id' => ['nullable', 'integer'],
             'vehicle_types' => ['nullable', 'array'],
             'vehicle_types.*' => ['string', 'max:80'],
             'template' => ['nullable', 'string', 'max:50', Rule::exists('checklist_templates', 'type')->where('is_active', true)],
@@ -35,6 +36,9 @@ class SstBoardController extends Controller
         $coordinatorId = isset($validated['coordinator_id'])
             ? (int) $validated['coordinator_id']
             : null;
+        $inspectorId = isset($validated['inspector_id'])
+            ? (int) $validated['inspector_id']
+            : null;
         $vehicleTypes = collect($validated['vehicle_types'] ?? [])
             ->map(fn ($type) => trim((string) $type))
             ->filter()
@@ -45,7 +49,7 @@ class SstBoardController extends Controller
             $coordinatorId = (int) Auth::id();
         }
 
-        $checklists = $this->checklists($template, $range, $coordinatorId, $vehicleTypes);
+        $checklists = $this->checklists($template, $range, $coordinatorId, $vehicleTypes, $inspectorId);
         $latest = $checklists
             ->groupBy('unit_id')
             ->map(fn (Collection $rows) => $rows->sortByDesc('id')->first())
@@ -84,11 +88,13 @@ class SstBoardController extends Controller
                 'date_from' => $range['from'],
                 'date_to' => $range['to'],
                 'coordinator_id' => $coordinatorId,
+                'inspector_id' => $inspectorId,
                 'vehicle_types' => $vehicleTypes->all(),
                 'template' => $template,
                 'inspection' => $inspection,
             ],
             'coordinators' => $this->coordinatorOptions($coordinatorId),
+            'inspectors' => $this->inspectorOptions(),
             'vehicle_options' => $this->vehicleOptions(),
             'templateOptions' => ChecklistTemplate::options(),
             'scoped' => SystemRoles::currentIsScopedCoordinator(),
@@ -99,7 +105,7 @@ class SstBoardController extends Controller
      * @param  Collection<int, string>  $vehicleTypes
      * @return Collection<int, UnitChecklist>
      */
-    private function checklists(string $template, array $range, ?int $coordinatorId, Collection $vehicleTypes): Collection
+    private function checklists(string $template, array $range, ?int $coordinatorId, Collection $vehicleTypes, ?int $inspectorId): Collection
     {
         $query = UnitChecklist::query()
             ->with([
@@ -116,6 +122,10 @@ class SstBoardController extends Controller
 
         if ($coordinatorId) {
             $query->whereHas('unit', fn ($builder) => $builder->where('coordinator_id', $coordinatorId));
+        }
+
+        if ($inspectorId) {
+            $query->where('created_by', $inspectorId);
         }
 
         if ($vehicleTypes->isNotEmpty()) {
@@ -264,6 +274,19 @@ class SstBoardController extends Controller
         }
 
         return $coordinators
+            ->map(fn ($user) => [
+                'id' => (int) $user->id,
+                'name' => (string) $user->name,
+            ])
+            ->all();
+    }
+
+    /**
+     * @return list<array{id: int, name: string}>
+     */
+    private function inspectorOptions(): array
+    {
+        return SystemRoles::inspectors()
             ->map(fn ($user) => [
                 'id' => (int) $user->id,
                 'name' => (string) $user->name,

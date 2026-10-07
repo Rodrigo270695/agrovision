@@ -122,6 +122,16 @@ final class SystemRoles
     }
 
     /**
+     * @return Collection<int, User>
+     */
+    public static function inspectors(): Collection
+    {
+        return User::role(self::INSPECTOR)
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
+    }
+
+    /**
      * @return array<string, int> nombre lower => user id
      */
     public static function coordinatorNameMap(): array

@@ -23,11 +23,15 @@ class SecurityReportController extends Controller
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
             'coordinator_id' => ['nullable', 'integer'],
+            'inspector_id' => ['nullable', 'integer'],
         ]);
 
         $range = ReportPeriod::range($validated['date_from'] ?? null, $validated['date_to'] ?? null);
         $coordinatorId = isset($validated['coordinator_id'])
             ? (int) $validated['coordinator_id']
+            : null;
+        $inspectorId = isset($validated['inspector_id'])
+            ? (int) $validated['inspector_id']
             : null;
 
         if (SystemRoles::currentIsScopedCoordinator()) {
@@ -35,7 +39,7 @@ class SecurityReportController extends Controller
         }
 
         $units = $this->units($coordinatorId);
-        $checklists = $this->latestChecklists($range, $units->pluck('id'));
+        $checklists = $this->latestChecklists($range, $units->pluck('id'), $inspectorId);
         $rows = $units->map(fn (Unit $unit) => $this->row($unit, $checklists->get($unit->id)))->values();
 
         $approved = $rows->where('status', 'ok')->where('decision', 'approved')->count();
@@ -65,7 +69,6 @@ class SecurityReportController extends Controller
             ],
             'full_coverage' => $this->fullCoverage($rows),
             'exceptions' => $rows
-                ->reject(fn (array $row) => $row['status'] === 'ok' && $row['decision'] === 'approved')
                 ->values()
                 ->map(function (array $row, int $index) {
                     unset($row['answers'], $row['license_ok'], $row['decision']);
@@ -80,8 +83,10 @@ class SecurityReportController extends Controller
                 'date_from' => $range['from'],
                 'date_to' => $range['to'],
                 'coordinator_id' => $coordinatorId,
+                'inspector_id' => $inspectorId,
             ],
             'coordinators' => $this->coordinatorOptions($coordinatorId),
+            'inspectors' => $this->personOptions(SystemRoles::inspectors()),
             'scoped' => SystemRoles::currentIsScopedCoordinator(),
         ]);
     }
@@ -116,7 +121,7 @@ class SecurityReportController extends Controller
      * @param  Collection<int, int>  $unitIds
      * @return Collection<int, UnitChecklist>
      */
-    private function latestChecklists(array $range, Collection $unitIds): Collection
+    private function latestChecklists(array $range, Collection $unitIds, ?int $inspectorId): Collection
     {
         if ($unitIds->isEmpty()) {
             return collect();
@@ -129,6 +134,10 @@ class SecurityReportController extends Controller
 
         if ($range['from'] !== null && $range['to'] !== null) {
             $query->whereBetween('first_inspected_on', [$range['from'], $range['to']]);
+        }
+
+        if ($inspectorId) {
+            $query->where('created_by', $inspectorId);
         }
 
         return $query
@@ -148,14 +157,21 @@ class SecurityReportController extends Controller
             ? null
             : ($checklist->second_result !== null ? $checklist->second_result : $checklist->first_result);
         $decision = in_array($result, ['approved', 'rejected'], true) ? $result : null;
-        $isBaja = $notes !== '' && str_contains($this->normalize($notes), 'baja');
+        $inactive = ($unit->status ?? 'active') !== 'active';
+        $isBaja = $inactive || ($notes !== '' && str_contains($this->normalize($notes), 'baja'));
 
         if ($isBaja) {
             $status = 'baja';
-        } elseif ($decision !== null) {
+            $group = 'nok';
+        } elseif ($decision === 'approved') {
             $status = 'ok';
+            $group = 'ok';
+        } elseif ($decision === 'rejected') {
+            $status = 'ok';
+            $group = 'nok';
         } else {
             $status = 'pendiente';
+            $group = 'pendiente';
         }
 
         $answers = [];
@@ -172,7 +188,9 @@ class SecurityReportController extends Controller
         }
 
         return [
+            'id' => $unit->id,
             'status' => $status,
+            'group' => $group,
             'service_type' => $unit->service_type ?: '—',
             'plate' => $unit->plate_number ?: 'S/P',
             'coordinator' => $unit->coordinatorUser?->name ?: '—',
@@ -184,9 +202,11 @@ class SecurityReportController extends Controller
             'inspection' => $status === 'ok' && $decision === 'approved' ? 'OK' : 'NOK',
             'observations' => $notes !== ''
                 ? $notes
-                : ($status === 'pendiente'
-                    ? 'Sin inspección cerrada'
-                    : ($decision === 'rejected' ? 'Inspección desaprobada' : '')),
+                : ($inactive
+                    ? 'No está en la última carga de unidades'
+                    : ($status === 'pendiente'
+                        ? 'Sin inspección cerrada'
+                        : ($decision === 'rejected' ? 'Inspección desaprobada' : ''))),
             'answers' => $answers,
             'license_ok' => $this->licenseOk($unit->documents),
             'decision' => $decision,
@@ -324,7 +344,16 @@ class SecurityReportController extends Controller
             $coordinators = $coordinators->where('id', $forcedId)->values();
         }
 
-        return $coordinators
+        return $this->personOptions($coordinators);
+    }
+
+    /**
+     * @param  Collection<int, mixed>  $users
+     * @return list<array{id: int, name: string}>
+     */
+    private function personOptions(Collection $users): array
+    {
+        return $users
             ->map(fn ($user) => [
                 'id' => (int) $user->id,
                 'name' => (string) $user->name,

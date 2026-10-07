@@ -1,4 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { useState } from 'react';
 import { DateRangeFilter } from '@/components/shared/date-range-filter';
 import { dashboard } from '@/routes';
 import { cn } from '@/lib/utils';
@@ -9,9 +10,13 @@ type FleetRow = {
     delta: number | null;
 };
 
+type UnitGroup = 'ok' | 'nok' | 'pendiente';
+
 type ExceptionRow = {
+    id: number;
     number: number;
     status: 'ok' | 'baja' | 'pendiente';
+    group: UnitGroup;
     service_type: string;
     plate: string;
     coordinator: string;
@@ -38,6 +43,7 @@ type Filters = {
     date_from: string | null;
     date_to: string | null;
     coordinator_id: number | null;
+    inspector_id: number | null;
 };
 
 type PageProps = {
@@ -47,6 +53,7 @@ type PageProps = {
     exceptions: ExceptionRow[];
     filters: Filters;
     coordinators: { id: number; name: string }[];
+    inspectors: { id: number; name: string }[];
     scoped: boolean;
 };
 
@@ -55,8 +62,10 @@ const BAJA = '#94a3b8';
 const PENDIENTE = '#f59e0b';
 
 export default function SecurityReportPage() {
-    const { fleet, summary, full_coverage, exceptions, filters, coordinators, scoped } =
+    const { fleet, summary, full_coverage, exceptions, filters, coordinators, inspectors, scoped } =
         usePage<PageProps>().props;
+    const [unitGroup, setUnitGroup] = useState<UnitGroup>('nok');
+    const visibleUnits = exceptions.filter((row) => row.group === unitGroup);
 
     const visit = (next: Partial<Filters>) => {
         const merged: Filters = { ...filters, ...next };
@@ -67,6 +76,7 @@ export default function SecurityReportPage() {
                 date_from: merged.date_from || undefined,
                 date_to: merged.date_to || undefined,
                 coordinator_id: merged.coordinator_id ?? undefined,
+                inspector_id: merged.inspector_id ?? undefined,
             },
             { preserveState: true, preserveScroll: true, replace: true },
         );
@@ -128,6 +138,28 @@ export default function SecurityReportPage() {
                                         value={coordinator.id}
                                     >
                                         {coordinator.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-64">
+                            Inspector
+                            <select
+                                value={filters.inspector_id ?? ''}
+                                onChange={(event) =>
+                                    visit({
+                                        inspector_id:
+                                            event.target.value === ''
+                                                ? null
+                                                : Number(event.target.value),
+                                    })
+                                }
+                                className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c] normal-case"
+                            >
+                                <option value="">Todos</option>
+                                {inspectors.map((inspector) => (
+                                    <option key={inspector.id} value={inspector.id}>
+                                        {inspector.name}
                                     </option>
                                 ))}
                             </select>
@@ -274,9 +306,40 @@ export default function SecurityReportPage() {
                 </div>
 
                 <section className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
-                    <h2 className="text-base font-bold tracking-wide text-[#1a2b4c] uppercase">
-                        Unidades que no están OK
-                    </h2>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <h2 className="text-base font-bold tracking-wide text-[#1a2b4c] uppercase">
+                                Unidades
+                            </h2>
+                            <p className="mt-1 text-xs text-[#5a7390]">
+                                OK, No OK y pendientes suman el total de{' '}
+                                {summary.total}.
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {(
+                                [
+                                    ['ok', 'OK', exceptions.filter((row) => row.group === 'ok').length],
+                                    ['nok', 'No OK', exceptions.filter((row) => row.group === 'nok').length],
+                                    ['pendiente', 'Pendientes', exceptions.filter((row) => row.group === 'pendiente').length],
+                                ] as const
+                            ).map(([value, label, count]) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    onClick={() => setUnitGroup(value)}
+                                    className={cn(
+                                        'cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold',
+                                        unitGroup === value
+                                            ? 'bg-[#1a2b4c] text-white'
+                                            : 'border border-[#c5d5e6] text-[#1a2b4c]',
+                                    )}
+                                >
+                                    {label} {count}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                     <div className="mt-4 overflow-x-auto">
                         <table className="w-full min-w-[860px] border-collapse text-left text-xs">
                             <thead>
@@ -293,24 +356,23 @@ export default function SecurityReportPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {exceptions.length === 0 ? (
+                                {visibleUnits.length === 0 ? (
                                     <tr>
                                         <td
                                             colSpan={9}
                                             className="px-3 py-8 text-center text-sm text-[#5a7390]"
                                         >
-                                            Todas las unidades del filtro están
-                                            OK.
+                                            {emptyUnitMessage(unitGroup)}
                                         </td>
                                     </tr>
                                 ) : (
-                                    exceptions.map((row) => (
+                                    visibleUnits.map((row, index) => (
                                         <tr
-                                            key={`${row.plate}-${row.number}`}
+                                            key={row.id}
                                             className="border-b border-[#e8eef5] text-[#1a2b4c]"
                                         >
                                             <td className="px-2 py-2">
-                                                {row.number}
+                                                {index + 1}
                                             </td>
                                             <td className="px-2 py-2">
                                                 {row.service_type}
@@ -361,13 +423,25 @@ export default function SecurityReportPage() {
                         </table>
                     </div>
                     <p className="mt-3 inline-block bg-[#fde68a] px-2 py-1 text-xs font-semibold text-[#1a2b4c]">
-                        (*) Unidad de baja. Sale así cuando la observación de
-                        la inspección dice baja.
+                        (*) Unidad de baja. Sale así cuando no vino en la
+                        última carga o cuando la observación dice baja.
                     </p>
                 </section>
             </div>
         </>
     );
+}
+
+function emptyUnitMessage(group: UnitGroup): string {
+    if (group === 'ok') {
+        return 'Ninguna unidad está OK.';
+    }
+
+    if (group === 'pendiente') {
+        return 'No hay unidades pendientes.';
+    }
+
+    return 'Ninguna unidad está en No OK.';
 }
 
 function formatDelta(delta: number): string {

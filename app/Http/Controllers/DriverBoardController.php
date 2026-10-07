@@ -25,12 +25,16 @@ class DriverBoardController extends Controller
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
             'coordinator_id' => ['nullable', 'integer'],
+            'inspector_id' => ['nullable', 'integer'],
             'sede' => ['nullable', 'integer'],
         ]);
 
         $range = ReportPeriod::range($validated['date_from'] ?? null, $validated['date_to'] ?? null);
         $coordinatorId = isset($validated['coordinator_id'])
             ? (int) $validated['coordinator_id']
+            : null;
+        $inspectorId = isset($validated['inspector_id'])
+            ? (int) $validated['inspector_id']
             : null;
         $siteId = isset($validated['sede']) ? (int) $validated['sede'] : null;
 
@@ -39,7 +43,7 @@ class DriverBoardController extends Controller
         }
 
         $drivers = $this->drivers($coordinatorId, $siteId);
-        $sessions = $this->sessions($range);
+        $sessions = $this->sessions($range, $inspectorId);
         $covered = $this->coveredTopics($sessions, $drivers);
 
         $coordinatorNames = $drivers
@@ -61,9 +65,11 @@ class DriverBoardController extends Controller
                 'date_from' => $range['from'],
                 'date_to' => $range['to'],
                 'coordinator_id' => $coordinatorId,
+                'inspector_id' => $inspectorId,
                 'sede' => $siteId,
             ],
             'coordinators' => $this->coordinatorOptions($coordinatorId),
+            'inspectors' => $this->inspectorOptions(),
             'sedes' => $this->sedeOptions(),
             'scoped' => SystemRoles::currentIsScopedCoordinator(),
         ]);
@@ -124,7 +130,7 @@ class DriverBoardController extends Controller
     /**
      * @return Collection<int, Induction>
      */
-    private function sessions(array $range): Collection
+    private function sessions(array $range, ?int $inspectorId): Collection
     {
         $query = Induction::query()
             ->with([
@@ -135,6 +141,10 @@ class DriverBoardController extends Controller
                     ->whereNull('period_id')
                     ->orWhereHas('period', fn ($period) => $period->where('status', 'active'));
             });
+
+        if ($inspectorId) {
+            $query->where('created_by', $inspectorId);
+        }
 
         if ($range['from'] !== null && $range['to'] !== null) {
             $query->where(function ($builder) use ($range) {
@@ -477,6 +487,19 @@ class DriverBoardController extends Controller
         }
 
         return $coordinators
+            ->map(fn ($user) => [
+                'id' => (int) $user->id,
+                'name' => (string) $user->name,
+            ])
+            ->all();
+    }
+
+    /**
+     * @return list<array{id: int, name: string}>
+     */
+    private function inspectorOptions(): array
+    {
+        return SystemRoles::inspectors()
             ->map(fn ($user) => [
                 'id' => (int) $user->id,
                 'name' => (string) $user->name,

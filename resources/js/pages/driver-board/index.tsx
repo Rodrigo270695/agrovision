@@ -25,6 +25,7 @@ type Filters = {
     date_from: string | null;
     date_to: string | null;
     coordinator_id: number | null;
+    inspector_id: number | null;
     sede: number | null;
 };
 
@@ -42,6 +43,7 @@ type PageProps = {
     };
     filters: Filters;
     coordinators: CoordinatorOption[];
+    inspectors: CoordinatorOption[];
     sedes: CoordinatorOption[];
     scoped: boolean;
 };
@@ -57,6 +59,7 @@ export default function DriverBoardPage() {
         summary,
         filters,
         coordinators,
+        inspectors,
         sedes,
         scoped,
     } = usePage<PageProps>().props;
@@ -70,6 +73,7 @@ export default function DriverBoardPage() {
                 date_from: merged.date_from || undefined,
                 date_to: merged.date_to || undefined,
                 coordinator_id: merged.coordinator_id ?? undefined,
+                inspector_id: merged.inspector_id ?? undefined,
                 sede: merged.sede ?? undefined,
             },
             { preserveState: true, preserveScroll: true, replace: true },
@@ -129,6 +133,29 @@ export default function DriverBoardPage() {
                                 />
                             </div>
                         </div>
+
+                        <label className="mt-4 block text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                            Inspector
+                            <select
+                                value={filters.inspector_id ?? ''}
+                                onChange={(event) =>
+                                    visit({
+                                        inspector_id:
+                                            event.target.value === ''
+                                                ? null
+                                                : Number(event.target.value),
+                                    })
+                                }
+                                className="mt-2 h-10 w-full cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c] normal-case"
+                            >
+                                <option value="">Todos</option>
+                                {inspectors.map((inspector) => (
+                                    <option key={inspector.id} value={inspector.id}>
+                                        {inspector.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
 
                         <div className="mt-4">
                             <p className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
