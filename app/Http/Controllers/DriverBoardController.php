@@ -6,10 +6,10 @@ use App\Models\Induction;
 use App\Models\InductionAttendee;
 use App\Models\Site;
 use App\Models\Unit;
-use App\Models\UnitChecklist;
 use App\Models\User;
 use App\Support\InductionAttendeeStatuses;
 use App\Support\InductionFormOptions;
+use App\Support\InductionStatuses;
 use App\Support\ReportPeriod;
 use App\Support\SystemRoles;
 use Illuminate\Http\Request;
@@ -45,11 +45,9 @@ class DriverBoardController extends Controller
 
         $drivers = $this->drivers($coordinatorId, $siteId);
         $sessions = $this->sessions($range, $inspectorId);
-        $items = $this->items(
-            $drivers,
+        $items = $this->inductionRings(
             $sessions,
-            $range,
-            $inspectorId,
+            $drivers,
             $coordinatorId !== null || $siteId !== null,
         );
 
@@ -134,12 +132,7 @@ class DriverBoardController extends Controller
         $query = Induction::query()
             ->with([
                 'attendees:id,induction_id,unit_id,driver_name,driver_dni,status,signature_path',
-            ])
-            ->where(function ($builder) {
-                $builder
-                    ->whereNull('period_id')
-                    ->orWhereHas('period', fn ($period) => $period->where('status', 'active'));
-            });
+            ]);
 
         if ($inspectorId) {
             $query->where('created_by', $inspectorId);
@@ -160,84 +153,10 @@ class DriverBoardController extends Controller
             });
         }
 
-        return $query->get();
-    }
-
-    /**
-     * @param  Collection<string, array{license: string, coordinator: string|null, units?: list<int>, name?: string}>  $drivers
-     * @param  Collection<int, Induction>  $sessions
-     * @param  array{from: string|null, to: string|null, label: string}  $range
-     * @return list<array<string, mixed>>
-     */
-    private function items(Collection $drivers, Collection $sessions, array $range, ?int $inspectorId, bool $restrictAttendees): array
-    {
-        $total = $drivers->count();
-
-        return [
-            $this->inspectionRing($drivers, $range, $inspectorId, $total),
-            ...$this->inductionRings($sessions, $drivers, $restrictAttendees),
-        ];
-    }
-
-    /**
-     * @param  Collection<string, array{units?: list<int>}>  $drivers
-     * @param  array{from: string|null, to: string|null, label: string}  $range
-     * @return array<string, mixed>
-     */
-    private function inspectionRing(Collection $drivers, array $range, ?int $inspectorId, int $total): array
-    {
-        $unitKey = [];
-
-        foreach ($drivers as $key => $driver) {
-            foreach ($driver['units'] ?? [] as $unitId) {
-                $unitKey[(int) $unitId] = $key;
-            }
-        }
-
-        $best = [];
-
-        if ($unitKey !== []) {
-            $query = UnitChecklist::query()
-                ->whereIn('unit_id', array_keys($unitKey))
-                ->whereHas('period', fn ($builder) => $builder->where('status', 'active'));
-
-            if ($range['from'] !== null && $range['to'] !== null) {
-                $query->whereBetween('first_inspected_on', [$range['from'], $range['to']]);
-            }
-
-            if ($inspectorId) {
-                $query->where('created_by', $inspectorId);
-            }
-
-            foreach ($query->get(['unit_id', 'first_result', 'second_result']) as $checklist) {
-                $key = $unitKey[(int) $checklist->unit_id] ?? null;
-                $result = $checklist->second_result ?? $checklist->first_result;
-
-                if ($key === null || ! in_array($result, ['approved', 'rejected'], true)) {
-                    continue;
-                }
-
-                if (($best[$key] ?? null) !== 'approved') {
-                    $best[$key] = $result;
-                }
-            }
-        }
-
-        $approved = count(array_filter($best, fn (string $result) => $result === 'approved'));
-        $rejected = count($best) - $approved;
-        $pending = max(0, $total - $approved - $rejected);
-
-        return $this->card(
-            'inspecciones',
-            'Inspecciones de seguridad',
-            'inspeccion',
-            $total > 0 ? (int) round(($approved / $total) * 100) : 0,
-            [
-                $this->metric('aprobadas', 'Aprobadas', $approved, 'ok'),
-                $this->metric('desaprobadas', 'Desaprobadas', $rejected, 'bad'),
-                $this->metric('sin', 'Sin inspección', $pending, 'muted'),
-            ],
-        );
+        return $query
+            ->orderByDesc('scheduled_at')
+            ->orderByDesc('id')
+            ->get();
     }
 
     /**
@@ -262,66 +181,54 @@ class DriverBoardController extends Controller
             }
         }
 
-        $groups = [];
+        $rings = [];
 
         foreach ($sessions as $induction) {
-            $label = $this->inductionLabel($induction);
-            $key = $this->normalize($label);
-
-            if ($key === '') {
-                continue;
-            }
-
-            $groups[$key] ??= [
-                'label' => $label,
-                'sessions' => 0,
-                'cited' => 0,
-                'arrived' => 0,
-                'missed' => 0,
-                'pending' => 0,
-            ];
-            $groups[$key]['sessions']++;
+            $cited = 0;
+            $arrived = 0;
+            $missed = 0;
+            $pending = 0;
 
             foreach ($induction->attendees as $attendee) {
                 if ($restrictAttendees && $this->attendeeKey($attendee, $unitKey, $names, $drivers) === null) {
                     continue;
                 }
 
-                $groups[$key]['cited']++;
+                $cited++;
 
                 if ($this->attended($attendee)) {
-                    $groups[$key]['arrived']++;
+                    $arrived++;
                 } elseif ($attendee->status === InductionAttendeeStatuses::ABSENT) {
-                    $groups[$key]['missed']++;
+                    $missed++;
                 } else {
-                    $groups[$key]['pending']++;
+                    $pending++;
                 }
             }
-        }
-
-        $rings = [];
-
-        foreach ($groups as $key => $group) {
-            $cited = $group['cited'];
 
             $rings[] = $this->card(
-                'induccion-'.$key,
-                $group['label'],
-                'induccion',
-                $cited > 0 ? (int) round(($group['arrived'] / $cited) * 100) : 0,
+                'induccion-'.$induction->id,
+                $this->inductionLabel($induction),
+                $this->inductionDetail($induction),
+                $cited > 0 ? (int) round(($arrived / $cited) * 100) : 0,
                 [
-                    $this->metric('sesiones', 'Sesiones', $group['sessions'], 'info'),
                     $this->metric('citados', 'Citados', $cited, 'muted'),
-                    $this->metric('llegaron', 'Llegaron', $group['arrived'], 'ok'),
-                    $this->metric('no', 'No llegaron', $group['missed'], 'bad'),
-                    $this->metric('pendiente', 'Sin marcar', $group['pending'], 'muted'),
+                    $this->metric('llegaron', 'Llegaron', $arrived, 'ok'),
+                    $this->metric('no', 'No llegaron', $missed, 'bad'),
+                    $this->metric('pendiente', 'Sin marcar', $pending, 'muted'),
                 ],
             );
         }
 
-        usort($rings, fn (array $left, array $right) => strnatcasecmp($left['label'], $right['label']));
-
         return $rings;
+    }
+
+    private function inductionDetail(Induction $induction): string
+    {
+        $when = $induction->scheduled_at
+            ? $induction->scheduled_at->timezone(config('app.timezone'))->format('d/m/Y H:i')
+            : ($induction->session_date?->format('d/m/Y') ?? 'Sin fecha');
+
+        return $when.' · '.InductionStatuses::label((string) $induction->status);
     }
 
     private function inductionLabel(Induction $induction): string
@@ -336,18 +243,16 @@ class DriverBoardController extends Controller
     }
 
     /**
-     * @return array<string, mixed>
-     */
-    /**
      * @param  list<array{key: string, label: string, value: int, tone: string}>  $metrics
      * @return array<string, mixed>
      */
-    private function card(string $key, string $label, string $source, int $percent, array $metrics): array
+    private function card(string $key, string $label, string $detail, int $percent, array $metrics): array
     {
         return [
             'key' => $key,
             'label' => $label,
-            'source' => $source,
+            'detail' => $detail,
+            'source' => 'induccion',
             'percent' => $percent,
             'metrics' => $metrics,
         ];

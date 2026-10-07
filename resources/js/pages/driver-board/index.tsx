@@ -13,7 +13,8 @@ type Metric = {
 type Ring = {
     key: string;
     label: string;
-    source: 'inspeccion' | 'induccion';
+    detail: string;
+    source: 'induccion';
     percent: number;
     metrics: Metric[];
 };
@@ -52,17 +53,9 @@ const TONE = {
     info: { bar: '#1a2b4c', text: 'text-[#1a2b4c]' },
 };
 
-const CHART_KEYS = new Set([
-    'aprobadas',
-    'desaprobadas',
-    'sin',
-    'llegaron',
-    'no',
-    'pendiente',
-]);
+const CHART_KEYS = new Set(['llegaron', 'no', 'pendiente']);
 
 const SOURCE: Record<Ring['source'], string> = {
-    inspeccion: 'Inspección',
     induccion: 'Inducción',
 };
 
@@ -105,9 +98,9 @@ export default function DriverBoardPage() {
                         Tablero de mando SST conductores
                     </h1>
                     <p className="mt-1 text-xs text-[#5a7390]">
-                        {summary.drivers} conductores. {summary.week_label}. Las
-                        inspecciones salen de las inspecciones cerradas. Cada
-                        inducción es el título de la sesión que ya existe.
+                        {summary.drivers} conductores. {summary.week_label}. Cada
+                        tarjeta es una inducción. El anillo es cuántos
+                        llegaron de los citados.
                     </p>
                     <div className="mt-4 flex flex-wrap items-end gap-3">
                         <div className="w-full sm:w-auto">
@@ -257,6 +250,9 @@ function RingCard({ ring }: { ring: Ring }) {
             <h2 className="mt-1 line-clamp-2 min-h-10 text-center text-xs font-bold tracking-wide text-[#1a2b4c] uppercase">
                 {ring.label}
             </h2>
+            <p className="mt-1 text-center text-[11px] text-[#5a7390]">
+                {ring.detail}
+            </p>
             <div className="relative mx-auto mt-2 size-32">
                 <svg viewBox="0 0 120 120" className="size-full -rotate-90">
                     <circle
