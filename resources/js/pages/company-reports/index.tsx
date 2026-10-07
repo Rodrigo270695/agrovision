@@ -76,7 +76,7 @@ export default function CompanyReportsPage({
                     <DateRangeFilter
                         desde={filters.date_from}
                         hasta={filters.date_to}
-                        align="start"
+                        align="end"
                         onApply={(desde, hasta) =>
                             router.get(
                                 baseUrl,

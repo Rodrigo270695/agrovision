@@ -486,7 +486,7 @@ export function DateRangeFilter({
                 align={align}
                 side="bottom"
                 sideOffset={8}
-                avoidCollisions={false}
+                collisionPadding={16}
                 className="w-auto max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border-[#d7e3f0] p-0 shadow-xl"
             >
                 {panel}
