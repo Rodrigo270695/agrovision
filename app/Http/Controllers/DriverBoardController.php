@@ -6,8 +6,10 @@ use App\Models\Induction;
 use App\Models\InductionAttendee;
 use App\Models\Site;
 use App\Models\Unit;
+use App\Models\UnitChecklist;
 use App\Models\UnitDocument;
 use App\Models\User;
+use App\Support\InductionFormOptions;
 use App\Support\ReportPeriod;
 use App\Support\SystemRoles;
 use App\Support\UnitDocumentTypes;
@@ -44,7 +46,7 @@ class DriverBoardController extends Controller
 
         $drivers = $this->drivers($coordinatorId, $siteId);
         $sessions = $this->sessions($range, $inspectorId);
-        $covered = $this->coveredTopics($sessions, $drivers);
+        $items = $this->items($drivers, $sessions, $range, $inspectorId);
 
         $coordinatorNames = $drivers
             ->pluck('coordinator')
@@ -55,7 +57,7 @@ class DriverBoardController extends Controller
             ->all();
 
         return Inertia::render('driver-board/index', [
-            'sections' => $this->sections($drivers, $covered),
+            'items' => $items,
             'summary' => [
                 'drivers' => $drivers->count(),
                 'week_label' => $range['label'],
@@ -165,23 +167,116 @@ class DriverBoardController extends Controller
     }
 
     /**
+     * @param  Collection<string, array{license: string, coordinator: string|null, units?: list<int>, name?: string}>  $drivers
      * @param  Collection<int, Induction>  $sessions
-     * @param  Collection<string, array{license: string, coordinator: string|null, units?: list<int>}>  $drivers
-     * @return array<string, array{sessions: int, ok: array<string, true>, listed: array<string, true>}>
+     * @param  array{from: string|null, to: string|null, label: string}  $range
+     * @return list<array<string, mixed>>
      */
-    private function coveredTopics(Collection $sessions, Collection $drivers): array
+    private function items(Collection $drivers, Collection $sessions, array $range, ?int $inspectorId): array
+    {
+        $total = $drivers->count();
+
+        return [
+            $this->licenseRing($drivers, $total),
+            $this->inspectionRing($drivers, $range, $inspectorId, $total),
+            ...$this->inductionRings($sessions, $drivers, $total),
+        ];
+    }
+
+    /**
+     * @param  Collection<string, array{license: string}>  $drivers
+     * @return array<string, mixed>
+     */
+    private function licenseRing(Collection $drivers, int $total): array
+    {
+        return $this->ring(
+            'licencia',
+            'Licencia de conducir',
+            'documento',
+            'status',
+            $drivers->where('license', 'ok')->count(),
+            $drivers->where('license', 'baja')->count(),
+            $drivers->where('license', 'falta')->count(),
+            0,
+            $total,
+        );
+    }
+
+    /**
+     * @param  Collection<string, array{units?: list<int>}>  $drivers
+     * @param  array{from: string|null, to: string|null, label: string}  $range
+     * @return array<string, mixed>
+     */
+    private function inspectionRing(Collection $drivers, array $range, ?int $inspectorId, int $total): array
     {
         $unitKey = [];
 
         foreach ($drivers as $key => $driver) {
             foreach ($driver['units'] ?? [] as $unitId) {
-                $unitKey[$unitId] = $key;
+                $unitKey[(int) $unitId] = $key;
             }
         }
 
+        $best = [];
+
+        if ($unitKey !== []) {
+            $query = UnitChecklist::query()
+                ->whereIn('unit_id', array_keys($unitKey))
+                ->whereHas('period', fn ($builder) => $builder->where('status', 'active'));
+
+            if ($range['from'] !== null && $range['to'] !== null) {
+                $query->whereBetween('first_inspected_on', [$range['from'], $range['to']]);
+            }
+
+            if ($inspectorId) {
+                $query->where('created_by', $inspectorId);
+            }
+
+            foreach ($query->get(['unit_id', 'first_result', 'second_result']) as $checklist) {
+                $key = $unitKey[(int) $checklist->unit_id] ?? null;
+                $result = $checklist->second_result ?? $checklist->first_result;
+
+                if ($key === null || ! in_array($result, ['approved', 'rejected'], true)) {
+                    continue;
+                }
+
+                if (($best[$key] ?? null) !== 'approved') {
+                    $best[$key] = $result;
+                }
+            }
+        }
+
+        $ok = count(array_filter($best, fn (string $result) => $result === 'approved'));
+        $falta = count($best) - $ok;
+
+        return $this->ring(
+            'inspecciones',
+            'Inspecciones de seguridad',
+            'inspeccion',
+            'status',
+            $ok,
+            max(0, $total - $ok - $falta),
+            $falta,
+            0,
+            $total,
+        );
+    }
+
+    /**
+     * @param  Collection<int, Induction>  $sessions
+     * @param  Collection<string, array{license: string, coordinator: string|null, units?: list<int>, name?: string}>  $drivers
+     * @return list<array<string, mixed>>
+     */
+    private function inductionRings(Collection $sessions, Collection $drivers, int $total): array
+    {
+        $unitKey = [];
         $names = [];
 
         foreach ($drivers as $key => $driver) {
+            foreach ($driver['units'] ?? [] as $unitId) {
+                $unitKey[(int) $unitId] = $key;
+            }
+
             $name = $driver['name'] ?? '';
 
             if ($name !== '' && ! isset($names[$name])) {
@@ -189,100 +284,71 @@ class DriverBoardController extends Controller
             }
         }
 
-        $covered = [];
+        $groups = [];
 
-        foreach (array_keys($this->topicNeedles()) as $topic) {
-            $covered[$topic] = [
-                'sessions' => 0,
+        foreach ($sessions as $induction) {
+            $label = $this->inductionLabel($induction);
+            $key = $this->normalize($label);
+
+            if ($key === '') {
+                continue;
+            }
+
+            $groups[$key] ??= [
+                'label' => $label,
                 'ok' => [],
                 'listed' => [],
             ];
-        }
 
-        foreach ($sessions as $induction) {
-            $topics = $this->topicKeys($induction);
+            foreach ($induction->attendees as $attendee) {
+                $driverKey = $this->attendeeKey($attendee, $unitKey, $names, $drivers);
 
-            foreach ($topics as $topic) {
-                $covered[$topic]['sessions']++;
+                if ($driverKey === null) {
+                    continue;
+                }
 
-                foreach ($induction->attendees as $attendee) {
-                    $key = $this->attendeeKey($attendee, $unitKey, $names, $drivers);
+                $groups[$key]['listed'][$driverKey] = true;
 
-                    if ($key === null) {
-                        continue;
-                    }
-
-                    $covered[$topic]['listed'][$key] = true;
-
-                    if ($this->attended($attendee)) {
-                        $covered[$topic]['ok'][$key] = true;
-                    }
+                if ($this->attended($attendee)) {
+                    $groups[$key]['ok'][$driverKey] = true;
                 }
             }
         }
 
-        return $covered;
-    }
+        $rings = [];
 
-    /**
-     * @param  Collection<string, array{license: string, coordinator: string|null}>  $drivers
-     * @param  array<string, array{sessions: int, ok: array<string, true>, listed: array<string, true>}>  $covered
-     * @return list<array<string, mixed>>
-     */
-    private function sections(Collection $drivers, array $covered): array
-    {
-        $total = $drivers->count();
+        foreach ($groups as $key => $group) {
+            $ok = count($group['ok']);
+            $listed = count($group['listed']);
+            $falta = max(0, $listed - $ok);
 
-        return collect($this->groupDefinitions())
-            ->map(function (array $group) use ($drivers, $covered, $total) {
-                $items = collect($group['items'])->map(function (array $item) use ($drivers, $covered, $total) {
-                    if (($item['source'] ?? null) === 'license') {
-                        return $this->licenseRing($item, $drivers, $total);
-                    }
-
-                    return $this->trainingRing($item, $covered[$item['key']] ?? null, $total);
-                })->all();
-
-                return [
-                    'key' => $group['key'],
-                    'title' => $group['title'],
-                    'items' => $items,
-                ];
-            })
-            ->all();
-    }
-
-    /**
-     * @param  array{key: string, label: string}  $item
-     * @param  Collection<string, array{license: string, coordinator: string|null}>  $drivers
-     * @return array<string, mixed>
-     */
-    private function licenseRing(array $item, Collection $drivers, int $total): array
-    {
-        $ok = $drivers->where('license', 'ok')->count();
-        $falta = $drivers->where('license', 'falta')->count();
-        $baja = $drivers->where('license', 'baja')->count();
-
-        return $this->ring($item['key'], $item['label'], 'status', $ok, $baja, $falta, 0, $total);
-    }
-
-    /**
-     * @param  array{key: string, label: string}  $item
-     * @param  array{sessions: int, ok: array<string, true>, listed: array<string, true>}|null  $topic
-     * @return array<string, mixed>
-     */
-    private function trainingRing(array $item, ?array $topic, int $total): array
-    {
-        if ($topic === null || $topic['sessions'] === 0) {
-            return $this->ring($item['key'], $item['label'], 'programar', 0, 0, 0, $total, $total);
+            $rings[] = $this->ring(
+                'induccion-'.$key,
+                $group['label'],
+                'induccion',
+                'status',
+                $ok,
+                max(0, $total - $ok - $falta),
+                $falta,
+                0,
+                $total,
+            );
         }
 
-        $ok = count($topic['ok']);
-        $listed = count($topic['listed']);
-        $falta = max(0, $listed - $ok);
-        $baja = max(0, $total - $ok - $falta);
+        usort($rings, fn (array $left, array $right) => strnatcasecmp($left['label'], $right['label']));
 
-        return $this->ring($item['key'], $item['label'], 'status', $ok, $baja, $falta, 0, $total);
+        return $rings;
+    }
+
+    private function inductionLabel(Induction $induction): string
+    {
+        $title = trim((string) $induction->title);
+
+        if ($title !== '') {
+            return $title;
+        }
+
+        return InductionFormOptions::activities()[$induction->activity] ?? 'Inducción';
     }
 
     /**
@@ -291,6 +357,7 @@ class DriverBoardController extends Controller
     private function ring(
         string $key,
         string $label,
+        string $source,
         string $mode,
         int $ok,
         int $baja,
@@ -305,6 +372,7 @@ class DriverBoardController extends Controller
         return [
             'key' => $key,
             'label' => $label,
+            'source' => $source,
             'mode' => $mode,
             'ok' => $ok,
             'baja' => $baja,
@@ -313,81 +381,6 @@ class DriverBoardController extends Controller
             'total' => $total,
             'percent' => $percent,
         ];
-    }
-
-    /**
-     * @return list<array{key: string, title: string, items: list<array{key: string, label: string, source?: string}>}>
-     */
-    private function groupDefinitions(): array
-    {
-        return [
-            [
-                'key' => 'mtc',
-                'title' => 'Requisitos solicitados por MTC',
-                'items' => [
-                    ['key' => 'licencia', 'label' => 'Licencia de conducir', 'source' => 'license'],
-                    ['key' => 'vial', 'label' => 'Seguridad en las vías'],
-                ],
-            ],
-            [
-                'key' => 'sst',
-                'title' => 'Requisitos de ley de SST',
-                'items' => [
-                    ['key' => 'general', 'label' => 'Inducción general en SST'],
-                    ['key' => 'iperc', 'label' => 'Capacitación de IPERC'],
-                    ['key' => 'defensiva', 'label' => 'Capacitación de manejo a la defensiva'],
-                    ['key' => 'accidentes', 'label' => 'Capacitación de investig. accidentes'],
-                ],
-            ],
-            [
-                'key' => 'otros',
-                'title' => 'Otros requisitos',
-                'items' => [
-                    ['key' => 'inspecciones', 'label' => 'Capacitación de inspecciones de SST'],
-                    ['key' => 'extintores', 'label' => 'Uso de extintores'],
-                ],
-            ],
-        ];
-    }
-
-    /**
-     * @return array<string, list<string>>
-     */
-    private function topicNeedles(): array
-    {
-        return [
-            'vial' => ['seguridad en las vias', 'seguridad vial'],
-            'general' => ['induccion general', 'induccion sst', 'induccion en sst', 'induccion de sst'],
-            'iperc' => ['iperc'],
-            'defensiva' => ['defensiv'],
-            'accidentes' => ['accident'],
-            'inspecciones' => ['inspeccion'],
-            'extintores' => ['extintor'],
-        ];
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function topicKeys(Induction $induction): array
-    {
-        $text = $this->normalize(trim($induction->title.' '.$induction->temario));
-        $keys = [];
-
-        foreach ($this->topicNeedles() as $key => $needles) {
-            foreach ($needles as $needle) {
-                if (str_contains($text, $needle)) {
-                    $keys[] = $key;
-                    break;
-                }
-            }
-        }
-
-        if ($keys === [] && $induction->activity === 'induccion') {
-            $keys[] = 'general';
-        }
-
-        return $keys;
     }
 
     /**

@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 type Ring = {
     key: string;
     label: string;
+    source: 'documento' | 'inspeccion' | 'induccion';
     mode: 'status' | 'programar';
     ok: number;
     baja: number;
@@ -13,12 +14,6 @@ type Ring = {
     programar: number;
     total: number;
     percent: number;
-};
-
-type Section = {
-    key: string;
-    title: string;
-    items: Ring[];
 };
 
 type Filters = {
@@ -29,22 +24,22 @@ type Filters = {
     sede: number | null;
 };
 
-type CoordinatorOption = {
+type PersonOption = {
     id: number;
     name: string;
 };
 
 type PageProps = {
-    sections: Section[];
+    items: Ring[];
     summary: {
         drivers: number;
         week_label: string;
         coordinators: string[];
     };
     filters: Filters;
-    coordinators: CoordinatorOption[];
-    inspectors: CoordinatorOption[];
-    sedes: CoordinatorOption[];
+    coordinators: PersonOption[];
+    inspectors: PersonOption[];
+    sedes: PersonOption[];
     scoped: boolean;
 };
 
@@ -53,9 +48,18 @@ const BAJA = '#94a3b8';
 const FALTA = '#ef4444';
 const PROGRAMAR = '#3b82f6';
 
+const SOURCE: Record<Ring['source'], string> = {
+    documento: 'Documento',
+    inspeccion: 'Inspección',
+    induccion: 'Inducción',
+};
+
+const selectClass =
+    'mt-1 h-10 w-full cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c] normal-case disabled:cursor-not-allowed disabled:opacity-60';
+
 export default function DriverBoardPage() {
     const {
-        sections,
+        items = [],
         summary,
         filters,
         coordinators,
@@ -84,57 +88,37 @@ export default function DriverBoardPage() {
         <>
             <Head title="Tablero conductores" />
             <div className="flex w-full flex-col gap-4 p-4 sm:p-6">
-                <div className="border-b-2 border-[#1a2b4c] pb-3">
+                <div className="border-b-2 border-[#1a2b4c] pb-4">
                     <h1 className="text-lg font-bold tracking-wide text-[#1a2b4c] uppercase sm:text-2xl">
                         Tablero de mando SST conductores
                     </h1>
                     <p className="mt-1 text-xs text-[#5a7390]">
-                        La licencia sale del documento de la unidad. Las
-                        capacitaciones salen del título o temario de la
-                        inducción. Si en el periodo no hay sesión, el anillo
-                        queda por programar.
+                        {summary.drivers} conductores. {summary.week_label}. La
+                        licencia sale del documento. Las inspecciones, de las
+                        inspecciones cerradas. Cada inducción es el título de
+                        la sesión que ya existe.
                     </p>
-                </div>
-
-                <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)]">
-                    <aside className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
-                        <p className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
-                            Conductores
-                        </p>
-                        <p className="font-display text-4xl font-semibold text-[#1a2b4c]">
-                            {summary.drivers}
-                        </p>
-                        <p className="mt-1 text-xs text-[#5a7390]">
-                            {summary.week_label}
-                        </p>
-
-                        <div className="mt-4">
-                            <p className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                    <div className="mt-4 flex flex-wrap items-end gap-3">
+                        <div className="w-full sm:w-auto">
+                            <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
                                 Fecha
                             </p>
-                            <div className="mt-2">
-                                <DateRangeFilter
-                                    desde={filters.date_from}
-                                    hasta={filters.date_to}
-                                    align="start"
-                                    triggerClassName="w-full"
-                                    onApply={(dateFrom, dateTo) =>
-                                        visit({
-                                            date_from: dateFrom,
-                                            date_to: dateTo,
-                                        })
-                                    }
-                                    onClear={() =>
-                                        visit({
-                                            date_from: null,
-                                            date_to: null,
-                                        })
-                                    }
-                                />
-                            </div>
+                            <DateRangeFilter
+                                desde={filters.date_from}
+                                hasta={filters.date_to}
+                                align="start"
+                                onApply={(dateFrom, dateTo) =>
+                                    visit({
+                                        date_from: dateFrom,
+                                        date_to: dateTo,
+                                    })
+                                }
+                                onClear={() =>
+                                    visit({ date_from: null, date_to: null })
+                                }
+                            />
                         </div>
-
-                        <label className="mt-4 block text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                        <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-56">
                             Inspector
                             <select
                                 value={filters.inspector_id ?? ''}
@@ -146,134 +130,90 @@ export default function DriverBoardPage() {
                                                 : Number(event.target.value),
                                     })
                                 }
-                                className="mt-2 h-10 w-full cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c] normal-case"
+                                className={selectClass}
                             >
                                 <option value="">Todos</option>
                                 {inspectors.map((inspector) => (
-                                    <option key={inspector.id} value={inspector.id}>
+                                    <option
+                                        key={inspector.id}
+                                        value={inspector.id}
+                                    >
                                         {inspector.name}
                                     </option>
                                 ))}
                             </select>
                         </label>
-
-                        <div className="mt-4">
-                            <p className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
-                                Coordinador
-                            </p>
-                            <div className="mt-2 flex flex-col gap-1">
+                        <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-64">
+                            Coordinador
+                            <select
+                                value={filters.coordinator_id ?? ''}
+                                onChange={(event) =>
+                                    visit({
+                                        coordinator_id:
+                                            event.target.value === ''
+                                                ? null
+                                                : Number(event.target.value),
+                                    })
+                                }
+                                disabled={scoped}
+                                className={selectClass}
+                            >
                                 {scoped ? null : (
-                                    <FilterButton
-                                        active={filters.coordinator_id === null}
-                                        onClick={() =>
-                                            visit({ coordinator_id: null })
-                                        }
-                                        label="Todos"
-                                    />
+                                    <option value="">Todos</option>
                                 )}
                                 {coordinators.map((coordinator) => (
-                                    <FilterButton
+                                    <option
                                         key={coordinator.id}
-                                        active={
-                                            filters.coordinator_id ===
-                                            coordinator.id
-                                        }
-                                        onClick={() =>
-                                            visit({
-                                                coordinator_id: coordinator.id,
-                                            })
-                                        }
-                                        label={coordinator.name}
-                                    />
+                                        value={coordinator.id}
+                                    >
+                                        {coordinator.name}
+                                    </option>
                                 ))}
-                            </div>
-                        </div>
-
-                        <div className="mt-4">
-                            <p className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
-                                Sede
-                            </p>
-                            <div className="mt-2 flex flex-col gap-1">
-                                <FilterButton
-                                    active={filters.sede === null}
-                                    onClick={() => visit({ sede: null })}
-                                    label="Todas"
-                                />
-                                {sedes.length === 0 ? (
-                                    <p className="px-2 text-xs text-[#6b8ead]">
-                                        Sin sedes activas en Lugares.
-                                    </p>
-                                ) : (
-                                    sedes.map((sede) => (
-                                        <FilterButton
-                                            key={sede.id}
-                                            active={filters.sede === sede.id}
-                                            onClick={() =>
-                                                visit({ sede: sede.id })
-                                            }
-                                            label={sede.name}
-                                        />
-                                    ))
-                                )}
-                            </div>
-                        </div>
-
-                        <p className="mt-4 text-[11px] text-[#6b8ead]">
-                            Estatus: periodo activo. La sede es la de Lugares,
-                            por el lugar del coordinador.
-                        </p>
-                    </aside>
-
-                    <div className="grid gap-4 lg:grid-cols-3">
-                        {sections.map((section) => (
-                            <section
-                                key={section.key}
-                                className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm"
+                            </select>
+                        </label>
+                        <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-56">
+                            Sede
+                            <select
+                                value={filters.sede ?? ''}
+                                onChange={(event) =>
+                                    visit({
+                                        sede:
+                                            event.target.value === ''
+                                                ? null
+                                                : Number(event.target.value),
+                                    })
+                                }
+                                className={selectClass}
                             >
-                                <h2 className="border-b border-[#1a2b4c] pb-1 text-center text-[11px] font-bold tracking-wide text-[#1a2b4c] uppercase">
-                                    {section.title}
-                                </h2>
-                                <div className="mt-4 flex flex-col gap-6">
-                                    {section.items.map((item) => (
-                                        <RingCard key={item.key} ring={item} />
-                                    ))}
-                                </div>
-                            </section>
-                        ))}
+                                <option value="">Todas</option>
+                                {sedes.map((sede) => (
+                                    <option key={sede.id} value={sede.id}>
+                                        {sede.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
                     </div>
                 </div>
+
+                {items.length === 0 ? (
+                    <section className="rounded-2xl border border-[#d7e3f0] bg-white p-8 text-center text-sm text-[#5a7390] shadow-sm">
+                        No hay datos de conductores para este filtro.
+                    </section>
+                ) : (
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                        {items.map((item) => (
+                            <RingCard key={item.key} ring={item} />
+                        ))}
+                    </div>
+                )}
             </div>
         </>
     );
 }
 
-function FilterButton({
-    active,
-    label,
-    onClick,
-}: {
-    active: boolean;
-    label: string;
-    onClick: () => void;
-}) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            className={cn(
-                'cursor-pointer rounded-md px-2 py-1.5 text-left text-xs font-medium',
-                active
-                    ? 'bg-[#1a2b4c] text-white'
-                    : 'text-[#1a2b4c] hover:bg-[#eef3f8]',
-            )}
-        >
-            {label}
-        </button>
-    );
-}
-
 function RingCard({ ring }: { ring: Ring }) {
-    const radius = 46;
+    const radius = 42;
     const circumference = 2 * Math.PI * radius;
     const parts =
         ring.mode === 'programar'
@@ -283,7 +223,6 @@ function RingCard({ ring }: { ring: Ring }) {
                   { key: 'baja', value: ring.baja, color: BAJA },
                   { key: 'falta', value: ring.falta, color: FALTA },
               ];
-
     const visible = parts.filter((part) => part.value > 0);
     let offset = 0;
     const arcs =
@@ -303,11 +242,14 @@ function RingCard({ ring }: { ring: Ring }) {
               });
 
     return (
-        <div className="flex flex-col items-center">
-            <p className="mb-2 text-center text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
-                {ring.label}
+        <article className="flex flex-col rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
+            <p className="text-center text-[10px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                {SOURCE[ring.source]}
             </p>
-            <div className="relative size-36">
+            <h2 className="mt-1 line-clamp-2 min-h-10 text-center text-xs font-bold tracking-wide text-[#1a2b4c] uppercase">
+                {ring.label}
+            </h2>
+            <div className="relative mx-auto mt-2 size-32">
                 <svg viewBox="0 0 120 120" className="size-full -rotate-90">
                     <circle
                         cx="60"
@@ -315,7 +257,7 @@ function RingCard({ ring }: { ring: Ring }) {
                         r={radius}
                         fill="none"
                         stroke="#e8eef5"
-                        strokeWidth="14"
+                        strokeWidth="12"
                     />
                     {arcs.map((arc) => (
                         <circle
@@ -325,7 +267,7 @@ function RingCard({ ring }: { ring: Ring }) {
                             r={radius}
                             fill="none"
                             stroke={arc.color}
-                            strokeWidth="14"
+                            strokeWidth="12"
                             strokeDasharray={`${arc.dash} ${arc.gap}`}
                             strokeDashoffset={-arc.offset}
                         />
@@ -337,46 +279,53 @@ function RingCard({ ring }: { ring: Ring }) {
                     </span>
                 </div>
             </div>
-            <div className="mt-2 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-[#5a7390]">
+            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-[#e8eef5] pt-3 text-center">
                 {ring.mode === 'programar' ? (
-                    <Legend
-                        color={PROGRAMAR}
+                    <Count
                         label="Por programar"
                         value={ring.programar}
+                        className="col-span-3 text-[#1d4ed8]"
                     />
                 ) : (
                     <>
-                        <Legend color={OK} label="OK" value={ring.ok} />
-                        <Legend color={BAJA} label="Baja" value={ring.baja} />
-                        <Legend
-                            color={FALTA}
+                        <Count
+                            label="OK"
+                            value={ring.ok}
+                            className="text-[#166534]"
+                        />
+                        <Count
+                            label="Baja"
+                            value={ring.baja}
+                            className="text-[#64748b]"
+                        />
+                        <Count
                             label="Falta"
                             value={ring.falta}
+                            className="text-[#b91c1c]"
                         />
                     </>
                 )}
             </div>
-        </div>
+        </article>
     );
 }
 
-function Legend({
-    color,
+function Count({
     label,
     value,
+    className,
 }: {
-    color: string;
     label: string;
     value: number;
+    className: string;
 }) {
     return (
-        <span className="inline-flex items-center gap-1">
-            <span
-                className="size-2 rounded-full"
-                style={{ backgroundColor: color }}
-            />
-            {label} {value}
-        </span>
+        <div className={className.includes('col-span') ? 'col-span-3' : undefined}>
+            <p className="text-[10px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                {label}
+            </p>
+            <p className={cn('text-lg font-bold', className)}>{value}</p>
+        </div>
     );
 }
 
