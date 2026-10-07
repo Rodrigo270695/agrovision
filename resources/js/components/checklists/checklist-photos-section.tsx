@@ -1,6 +1,6 @@
 import { router } from '@inertiajs/react';
 import { Camera, ImagePlus, MapPin, Trash2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -329,7 +329,6 @@ function PhotoPassSection({
     photos: ChecklistPhoto[];
     readonly?: boolean;
 }) {
-    const inputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
     const [deletingId, setDeletingId] = useState<number | string | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -459,10 +458,6 @@ function PhotoPassSection({
                 toast.success('Foto guardada en el dispositivo.');
                 setUploading(false);
 
-                if (inputRef.current) {
-                    inputRef.current.value = '';
-                }
-
                 return;
             }
 
@@ -482,10 +477,6 @@ function PhotoPassSection({
             );
         } finally {
             setUploading(false);
-
-            if (inputRef.current) {
-                inputRef.current.value = '';
-            }
         }
     };
 
@@ -534,59 +525,46 @@ function PhotoPassSection({
                 <div className="flex gap-2">
                     {!readonly ? (
                         <>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                disabled={uploading}
-                                onClick={() => {
-                                    if (inputRef.current) {
-                                        inputRef.current.setAttribute(
-                                            'capture',
-                                            'environment',
-                                        );
-                                        inputRef.current.click();
-                                    }
-                                }}
-                                className="h-10 flex-1 cursor-pointer border-[#c5d5e6] text-[#1a2b4c] hover:bg-white sm:h-9 sm:flex-none"
-                            >
+                            <label className="relative inline-flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border border-[#c5d5e6] bg-white px-3 text-sm text-[#1a2b4c] sm:h-9 sm:flex-none">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    disabled={uploading}
+                                    className="absolute inset-0 cursor-pointer opacity-0"
+                                    onChange={(event) => {
+                                        const file =
+                                            event.target.files?.[0] ?? null;
+                                        event.target.value = '';
+                                        void handleCapture(file);
+                                    }}
+                                />
                                 {uploading ? (
                                     <Spinner />
                                 ) : (
                                     <Camera className="size-4" />
                                 )}
                                 Cámara
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                disabled={uploading}
-                                onClick={() => {
-                                    if (inputRef.current) {
-                                        inputRef.current.removeAttribute(
-                                            'capture',
-                                        );
-                                        inputRef.current.click();
-                                    }
-                                }}
-                                className="h-10 flex-1 cursor-pointer border-[#c5d5e6] text-[#1a2b4c] hover:bg-white sm:h-9 sm:flex-none"
-                            >
+                            </label>
+                            <label className="relative inline-flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border border-[#c5d5e6] bg-white px-3 text-sm text-[#1a2b4c] sm:h-9 sm:flex-none">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    disabled={uploading}
+                                    className="absolute inset-0 cursor-pointer opacity-0"
+                                    onChange={(event) => {
+                                        const file =
+                                            event.target.files?.[0] ?? null;
+                                        event.target.value = '';
+                                        void handleCapture(file);
+                                    }}
+                                />
                                 <ImagePlus className="size-4" />
                                 Galería
-                            </Button>
+                            </label>
                         </>
                     ) : null}
                 </div>
-
-                <input
-                    ref={inputRef}
-                    type="file"
-                    accept="image/*"
-                    form="checklist-photo-source"
-                    className="hidden"
-                    onChange={(event) =>
-                        handleCapture(event.target.files?.[0] ?? null)
-                    }
-                />
             </div>
 
             {error ? (

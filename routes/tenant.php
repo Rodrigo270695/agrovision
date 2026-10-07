@@ -11,7 +11,6 @@ use App\Http\Controllers\ImpersonationLeaveController;
 use App\Http\Controllers\InductionController;
 use App\Http\Controllers\InspectionBatchController;
 use App\Http\Controllers\LookupController;
-use App\Http\Controllers\OwnerReportController;
 use App\Http\Controllers\ParetoController;
 use App\Http\Controllers\PeriodController;
 use App\Http\Controllers\PlaceController;
@@ -250,17 +249,6 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
         Route::get('tablero-conductores', DriverBoardController::class)
             ->middleware('permission:inductions.view')
             ->name('inductions.board');
-
-        Route::middleware('company.owner')->group(function () {
-            Route::get('reportes-dueno', [OwnerReportController::class, 'show'])
-                ->name('owner-reports.show');
-            Route::put('reportes-dueno/cuotas', [OwnerReportController::class, 'updateQuotas'])
-                ->name('owner-reports.quotas');
-            Route::get('reportes-dueno/pdf', [OwnerReportController::class, 'pdf'])
-                ->name('owner-reports.pdf');
-            Route::post('reportes-dueno/correo', [OwnerReportController::class, 'mail'])
-                ->name('owner-reports.mail');
-        });
 
         Route::get('inspecciones/dia', [ChecklistController::class, 'day'])
             ->middleware('permission:checklists.create')

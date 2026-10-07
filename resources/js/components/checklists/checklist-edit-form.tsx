@@ -8,7 +8,7 @@ import {
     ShieldCheck,
     Trash2,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import {
     ChecklistPhotosSection,
@@ -429,8 +429,6 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
         };
     }, [checklist.id]);
     const [evidenceBusy, setEvidenceBusy] = useState<number | null>(null);
-    const evidenceInputRef = useRef<HTMLInputElement>(null);
-    const evidenceTargetRef = useRef<number | null>(null);
     const [signatures, setSignatures] = useState<SignatureState[]>(
         checklist.signatures.map((signature) => ({
             signature_role_id: signature.signature_role_id,
@@ -1206,25 +1204,6 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                     </div>
                 ) : null}
 
-                <input
-                    ref={evidenceInputRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    form="checklist-item-evidence"
-                    className="hidden"
-                    onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        const itemId = evidenceTargetRef.current;
-                        event.target.value = '';
-
-                        if (!file || itemId === null) {
-                            return;
-                        }
-
-                        void uploadEvidence(itemId, file);
-                    }}
-                />
                 <div className="grid grid-cols-1 gap-1.5 xl:grid-cols-2">
                     {checklist.items.map((item, index) => {
                         const answer = answers[index];
@@ -1249,6 +1228,9 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                         const disabled =
                             sealed ||
                             (activePass === 'first' ? firstLocked : secondLocked);
+                        const photoLocked =
+                            sealed ||
+                            (activePass === 'second' && !secondUnlocked);
                         const observationMissing = isExpiry && expiryDate === '';
                         const countsInPareto = value === 'yes';
 
@@ -1371,21 +1353,35 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                         Sin foto
                                                     </span>
                                                 )}
-                                                {!disabled ? (
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        disabled={
-                                                            evidenceBusy ===
-                                                            item.id
-                                                        }
-                                                        onClick={() => {
-                                                            evidenceTargetRef.current =
-                                                                item.id;
-                                                            evidenceInputRef.current?.click();
-                                                        }}
-                                                        className="h-8 cursor-pointer gap-1 border-[#c5d5e6] px-2 text-[11px] text-[#1a2b4c]"
-                                                    >
+                                                {!photoLocked ? (
+                                                    <label className="relative inline-flex h-8 cursor-pointer items-center gap-1 rounded-md border border-[#c5d5e6] bg-white px-2 text-[11px] text-[#1a2b4c]">
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            disabled={
+                                                                evidenceBusy ===
+                                                                item.id
+                                                            }
+                                                            className="absolute inset-0 cursor-pointer opacity-0"
+                                                            onChange={(
+                                                                event,
+                                                            ) => {
+                                                                const file =
+                                                                    event.target
+                                                                        .files?.[0];
+                                                                event.target.value =
+                                                                    '';
+
+                                                                if (!file) {
+                                                                    return;
+                                                                }
+
+                                                                void uploadEvidence(
+                                                                    item.id,
+                                                                    file,
+                                                                );
+                                                            }}
+                                                        />
                                                         {evidenceBusy ===
                                                         item.id ? (
                                                             <Spinner />
@@ -1395,9 +1391,9 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                         {evidencePhoto
                                                             ? 'Cambiar foto'
                                                             : 'Subir foto'}
-                                                    </Button>
+                                                    </label>
                                                 ) : null}
-                                                {evidencePhoto && !disabled ? (
+                                                {evidencePhoto && !photoLocked ? (
                                                     <Button
                                                         type="button"
                                                         variant="ghost"
@@ -1449,8 +1445,8 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                 photos={checklist.photos ?? []}
                 showFirst
                 showSecond={secondUnlocked}
-                readonlyFirst={sealed || firstLocked}
-                readonlySecond={sealed || secondLocked}
+                readonlyFirst={sealed}
+                readonlySecond={sealed || !secondUnlocked}
             />
 
             <div className="rounded-2xl border border-[#d7e3f0] bg-white p-3 shadow-sm sm:p-5">

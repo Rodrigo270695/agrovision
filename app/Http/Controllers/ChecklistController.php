@@ -943,17 +943,6 @@ class ChecklistController extends Controller
             return $this->checklistToast($request, $checklist, 'error', 'La 2da inspección se habilita cuando la 1ra está aprobada o desaprobada.');
         }
 
-        if (! $this->passIsWritable($checklist, $pass)) {
-            return $this->checklistToast(
-                $request,
-                $checklist,
-                'error',
-                $pass === 'first'
-                    ? 'La 1ra inspección está cerrada. Pide autorización a un superadmin.'
-                    : 'La 2da inspección está cerrada. Pide autorización a un superadmin.',
-            );
-        }
-
         if ($itemId !== null) {
             $previous = UnitChecklistPhoto::query()
                 ->where('unit_checklist_id', $checklist->id)
@@ -1031,17 +1020,6 @@ class ChecklistController extends Controller
                 'type' => 'error',
                 'message' => 'Esta inspección está sellada. No se pueden eliminar fotos.',
             ]);
-        }
-
-        $photoPass = $photo->inspection_pass === 'second' ? 'second' : 'first';
-
-        if (! $this->passIsWritable($checklist, $photoPass)) {
-            return $this->checklistToast(
-                request(),
-                $checklist,
-                'error',
-                'Esa inspección está cerrada. Pide autorización a un superadmin.',
-            );
         }
 
         Storage::disk($photo->disk)->delete($photo->path);
