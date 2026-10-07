@@ -75,28 +75,25 @@ export default function SecurityReportPage() {
         <>
             <Head title="Reporte SST" />
             <div className="flex w-full flex-col gap-4 p-4 sm:p-6">
-                <div className="flex flex-col gap-3 border-b-2 border-[#1a2b4c] pb-3 lg:flex-row lg:items-end lg:justify-between">
-                    <div>
-                        <h1 className="text-lg font-bold tracking-wide text-[#1a2b4c] uppercase sm:text-2xl">
-                            Inspecciones de seguridad
-                        </h1>
-                        <p className="mt-1 text-xs text-[#5a7390]">
-                            Unidades del periodo activo. {summary.week_label}.
-                            {summary.previous_period
-                                ? ` La variación es frente a ${summary.previous_period}.`
-                                : ''}
-                        </p>
-                    </div>
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                        <div className="sm:w-64 [&>div]:mt-0">
-                            <ReportPeriodFilter
-                                view={filters.view}
-                                value={filters.week}
-                                options={periods}
-                                onChange={(next) => visit(next)}
-                            />
-                        </div>
-                        <label className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                <div className="border-b-2 border-[#1a2b4c] pb-4">
+                    <h1 className="text-lg font-bold tracking-wide text-[#1a2b4c] uppercase sm:text-2xl">
+                        Inspecciones de seguridad
+                    </h1>
+                    <p className="mt-1 text-xs text-[#5a7390]">
+                        Unidades del periodo activo. {summary.week_label}.
+                        {summary.previous_period
+                            ? ` La variación es frente a ${summary.previous_period}.`
+                            : ''}
+                    </p>
+                    <div className="mt-4 flex flex-wrap items-end gap-3">
+                        <ReportPeriodFilter
+                            compact
+                            view={filters.view}
+                            value={filters.week}
+                            options={periods}
+                            onChange={(next) => visit(next)}
+                        />
+                        <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-64">
                             Coordinador
                             <select
                                 value={filters.coordinator_id ?? ''}
@@ -109,7 +106,7 @@ export default function SecurityReportPage() {
                                     })
                                 }
                                 disabled={scoped}
-                                className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c] normal-case sm:w-64"
+                                className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c] normal-case disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {scoped ? null : <option value="">Todos</option>}
                                 {coordinators.map((coordinator) => (
