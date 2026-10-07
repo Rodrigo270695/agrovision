@@ -15,10 +15,11 @@
             overflow: hidden;
             background: #fff;
         }
-        .bg, .mark, .block, .sig, .logo, .qr { position: absolute; overflow: hidden; }
-        .bg { left: 0; top: 0; width: 297mm; height: 210mm; overflow: hidden; }
+        .bg, .mark, .block, .sig, .logo, .qr { position: absolute; }
+        .bg { left: 0; top: 0; width: 297mm; height: 210mm; }
         .mark { opacity: 0.18; }
-        .block { margin: 0; padding: 0; white-space: pre-wrap; overflow: visible; line-height: 1.2; }
+        .block { margin: 0; padding: 0; white-space: pre-wrap; }
+        .sig, .logo, .mark, .qr { overflow: hidden; }
         .sig img, .logo img, .mark img, .qr img { display: block; }
     </style>
 </head>
@@ -33,25 +34,37 @@
         @endif
 
         @if (! empty($watermark))
-            <img class="mark" src="{{ $watermark['src'] }}" alt="" style="left: {{ $watermark['left'] }}mm; top: {{ $watermark['top'] }}mm; width: {{ $watermark['width'] }}mm; height: {{ $watermark['height'] }}mm;">
+            <div class="mark" style="left: {{ $watermark['left'] }}mm; top: {{ $watermark['top'] }}mm; width: {{ $watermark['width'] }}mm; height: {{ $watermark['height'] }}mm;">
+                <img src="{{ $watermark['src'] }}" alt="" style="width: {{ $watermark['width'] }}mm; height: {{ $watermark['height'] }}mm;">
+            </div>
         @endif
 
         @foreach ($logos as $logo)
-            <img class="logo" src="{{ $logo['src'] }}" alt="" style="left: {{ $logo['left'] }}mm; top: {{ $logo['top'] }}mm; width: {{ $logo['width'] }}mm; height: {{ $logo['height'] }}mm;">
+            <div class="logo" style="left: {{ $logo['left'] }}mm; top: {{ $logo['top'] }}mm; width: {{ $logo['width'] }}mm; height: {{ $logo['height'] }}mm;">
+                <img src="{{ $logo['src'] }}" alt="" style="width: {{ $logo['width'] }}mm; height: {{ $logo['height'] }}mm;">
+            </div>
         @endforeach
 
         @if (! empty($signature))
-            <img class="sig" src="{{ $signature['src'] }}" alt="" style="left: {{ $signature['left'] }}mm; top: {{ $signature['top'] }}mm; width: {{ $signature['width'] }}mm; height: {{ $signature['height'] }}mm;">
+            <div class="sig" style="left: {{ $signature['left'] }}mm; top: {{ $signature['top'] }}mm; width: {{ $signature['width'] }}mm; height: {{ $signature['height'] }}mm;">
+                <img src="{{ $signature['src'] }}" alt="" style="width: {{ $signature['width'] }}mm; height: {{ $signature['height'] }}mm;">
+            </div>
         @endif
 
         @if (! empty($stamp))
-            <img class="sig" src="{{ $stamp['src'] }}" alt="" style="left: {{ $stamp['left'] }}mm; top: {{ $stamp['top'] }}mm; width: {{ $stamp['width'] }}mm; height: {{ $stamp['height'] }}mm;">
+            <div class="sig" style="left: {{ $stamp['left'] }}mm; top: {{ $stamp['top'] }}mm; width: {{ $stamp['width'] }}mm; height: {{ $stamp['height'] }}mm;">
+                <img src="{{ $stamp['src'] }}" alt="" style="width: {{ $stamp['width'] }}mm; height: {{ $stamp['height'] }}mm;">
+            </div>
         @endif
 
         @foreach ($blocks as $block)
+            @php
+                $placement = \App\Support\CertificateFonts::pdfPlacement((string) $block['font'], (float) $block['size']);
+                $top = ((float) $block['y'] / 100) * 210 - $placement['nudge_mm'];
+            @endphp
             <div
                 class="block"
-                style="left: {{ $block['x'] }}%; top: {{ ((float) $block['y'] / 100) * 210 }}mm; width: {{ $block['w'] }}%; text-align: {{ $block['align'] }}; font-size: {{ $block['size'] }}pt; line-height: 1.2; font-weight: {{ $block['weight'] }}; color: {{ $block['color'] }}; font-family: {{ $block['font'] }};"
+                style="left: {{ $block['x'] }}%; top: {{ $top }}mm; width: {{ $block['w'] }}%; text-align: {{ $block['align'] }}; font-size: {{ $block['size'] }}pt; line-height: {{ $placement['line_height'] }}; font-weight: {{ $block['weight'] }}; color: {{ $block['color'] }}; font-family: {{ $block['font'] }};"
             >{!! preg_replace('/\*\*(.+?)\*\*/s', '<strong>$1</strong>', e($block['text'])) !!}</div>
         @endforeach
 

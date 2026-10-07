@@ -214,7 +214,7 @@ final class CentralCertificateDocument
             $image = $binary !== false ? @imagecreatefromstring($binary) : false;
 
             if ($image !== false) {
-                $dpi = 8;
+                $dpi = 96 / 25.4;
                 $canvasW = max(1, (int) round($boxW * $dpi));
                 $canvasH = max(1, (int) round($boxH * $dpi));
                 $scale = min($canvasW / $pxW, $canvasH / $pxH);
