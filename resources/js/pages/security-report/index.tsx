@@ -25,6 +25,8 @@ type ExceptionRow = {
 type Summary = {
     total: number;
     ok: number;
+    approved: number;
+    rejected: number;
     baja: number;
     pendiente: number;
     percent: number;
@@ -204,7 +206,7 @@ export default function SecurityReportPage() {
                                             Baja
                                         </th>
                                         <th className="bg-[#22c55e] px-2 py-2">
-                                            OK
+                                            Hechas
                                         </th>
                                         <th className="bg-[#e8eef8] px-2 py-2 text-[#1a2b4c]">
                                             Total
@@ -230,6 +232,24 @@ export default function SecurityReportPage() {
                                 </tbody>
                             </table>
                             <Donut summary={summary} />
+                        </div>
+                        <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                            <div className="rounded-lg border border-[#bbf7d0] bg-[#f0fdf4] px-3 py-2">
+                                <p className="text-[11px] font-semibold tracking-wide text-[#166534] uppercase">
+                                    Aprobadas
+                                </p>
+                                <p className="text-lg font-bold text-[#166534]">
+                                    {summary.approved}
+                                </p>
+                            </div>
+                            <div className="rounded-lg border border-[#fecaca] bg-[#fef2f2] px-3 py-2">
+                                <p className="text-[11px] font-semibold tracking-wide text-[#991b1b] uppercase">
+                                    Desaprobadas
+                                </p>
+                                <p className="text-lg font-bold text-[#991b1b]">
+                                    {summary.rejected}
+                                </p>
+                            </div>
                         </div>
                         <div className="mt-4 text-xs text-[#1a2b4c]">
                             {full_coverage.length === 0 ? (
@@ -416,7 +436,7 @@ function Donut({ summary }: { summary: Summary }) {
                     </span>
                 </div>
             </div>
-            <p className="mt-1 text-[11px] text-[#5a7390]">OK del total</p>
+            <p className="mt-1 text-[11px] text-[#5a7390]">Hechas del total</p>
         </div>
     );
 }

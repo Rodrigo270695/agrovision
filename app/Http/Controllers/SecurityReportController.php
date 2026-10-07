@@ -38,7 +38,9 @@ class SecurityReportController extends Controller
         $checklists = $this->latestChecklists($range, $units->pluck('id'));
         $rows = $units->map(fn (Unit $unit) => $this->row($unit, $checklists->get($unit->id)))->values();
 
-        $ok = $rows->where('status', 'ok')->count();
+        $approved = $rows->where('status', 'ok')->where('decision', 'approved')->count();
+        $rejected = $rows->where('status', 'ok')->where('decision', 'rejected')->count();
+        $ok = $approved + $rejected;
         $baja = $rows->where('status', 'baja')->count();
         $pendiente = $rows->where('status', 'pendiente')->count();
         $total = $rows->count();
@@ -53,6 +55,8 @@ class SecurityReportController extends Controller
             'summary' => [
                 'total' => $total,
                 'ok' => $ok,
+                'approved' => $approved,
+                'rejected' => $rejected,
                 'baja' => $baja,
                 'pendiente' => $pendiente,
                 'percent' => $total > 0 ? (int) round(($ok / $total) * 100) : 0,
@@ -61,10 +65,10 @@ class SecurityReportController extends Controller
             ],
             'full_coverage' => $this->fullCoverage($rows),
             'exceptions' => $rows
-                ->where('status', '!=', 'ok')
+                ->reject(fn (array $row) => $row['status'] === 'ok' && $row['decision'] === 'approved')
                 ->values()
                 ->map(function (array $row, int $index) {
-                    unset($row['answers'], $row['license_ok']);
+                    unset($row['answers'], $row['license_ok'], $row['decision']);
 
                     return [
                         'number' => $index + 1,
@@ -143,11 +147,12 @@ class SecurityReportController extends Controller
         $result = $checklist === null
             ? null
             : ($checklist->second_result !== null ? $checklist->second_result : $checklist->first_result);
+        $decision = in_array($result, ['approved', 'rejected'], true) ? $result : null;
         $isBaja = $notes !== '' && str_contains($this->normalize($notes), 'baja');
 
         if ($isBaja) {
             $status = 'baja';
-        } elseif ($result === 'approved') {
+        } elseif ($decision !== null) {
             $status = 'ok';
         } else {
             $status = 'pendiente';
@@ -176,12 +181,15 @@ class SecurityReportController extends Controller
             'vehicle_type' => trim((string) $unit->vehicle_type) !== ''
                 ? mb_strtoupper(trim((string) $unit->vehicle_type))
                 : 'Sin tipo',
-            'inspection' => $status === 'ok' ? 'OK' : 'NOK',
+            'inspection' => $status === 'ok' && $decision === 'approved' ? 'OK' : 'NOK',
             'observations' => $notes !== ''
                 ? $notes
-                : ($status === 'pendiente' ? 'Sin inspección cerrada' : ''),
+                : ($status === 'pendiente'
+                    ? 'Sin inspección cerrada'
+                    : ($decision === 'rejected' ? 'Inspección desaprobada' : '')),
             'answers' => $answers,
             'license_ok' => $this->licenseOk($unit->documents),
+            'decision' => $decision,
         ];
     }
 
