@@ -11,12 +11,12 @@ final class CentralCertificateLayout
     {
         return [
             'blocks' => [
-                self::block('titulo', 'CERTIFICADO', 8, 8, 84, 26, 'center', 'bold'),
-                self::block('nombre', '{{nombre}}', 8, 28, 84, 18, 'center', 'bold'),
-                self::block('dni', 'DNI {{dni}}', 8, 40, 84, 13, 'center', 'normal'),
-                self::block('curso', 'Aprobó satisfactoriamente la capacitación del curso: “{{curso}}”', 8, 50, 84, 13, 'center', 'normal'),
-                self::block('firmante', "{{firmante}}\n{{cargo}}", 34, 84, 32, 11, 'center', 'normal'),
-                self::block('meta', "Fecha de emisión: {{emision}}\nFecha de expiración: {{vencimiento}}\n{{codigo}}", 4, 76, 30, 9, 'left', 'normal'),
+                self::block('titulo', 'CERTIFICADO', 8, 8, 84, 28, 'center', 'bold', '#12355b'),
+                self::block('nombre', '{{nombre}}', 8, 26, 84, 20, 'center', 'bold', '#0f766e'),
+                self::block('dni', 'DNI {{dni}}', 8, 38, 84, 14, 'center', 'normal', '#1d4ed8'),
+                self::block('curso', 'Aprobó satisfactoriamente la capacitación del curso: “{{curso}}”', 8, 48, 84, 13, 'center', 'normal', '#1e293b'),
+                self::block('firmante', "{{firmante}}\n{{cargo}}", 34, 82, 32, 11, 'center', 'normal', '#12355b'),
+                self::block('meta', "Fecha de emisión: {{emision}}\nFecha de expiración: {{vencimiento}}\n{{codigo}}", 4, 74, 32, 10, 'left', 'normal', '#475569'),
             ],
             'qr' => ['x' => 84, 'y' => 74, 'size' => 12, 'visible' => true],
             'signature' => ['x' => 38, 'y' => 70, 'w' => 24, 'h' => 12, 'visible' => true],
@@ -57,6 +57,7 @@ final class CentralCertificateLayout
         int $size,
         string $align,
         string $weight,
+        string $color = '#12355b',
     ): array {
         return [
             'id' => $id,
@@ -67,7 +68,7 @@ final class CentralCertificateLayout
             'size' => $size,
             'align' => $align,
             'weight' => $weight,
-            'color' => '#1a1a1a',
+            'color' => $color,
             'font' => 'sans',
         ];
     }

@@ -1,11 +1,23 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Download, Eye, Save } from 'lucide-react';
-import { useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { ChevronDown, Download, Eye, Save } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { AppModal } from '@/components/shared/app-modal';
 import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+
+const TEXT_COLORS = [
+    { name: 'Marino', value: '#12355b' },
+    { name: 'Verde', value: '#0f766e' },
+    { name: 'Azul', value: '#1d4ed8' },
+    { name: 'Dorado', value: '#a16207' },
+    { name: 'Granate', value: '#9f1239' },
+    { name: 'Negro', value: '#1a1a1a' },
+    { name: 'Gris', value: '#475569' },
+    { name: 'Blanco', value: '#ffffff' },
+];
 
 type Block = {
     id: string;
@@ -35,7 +47,7 @@ type LogoItem = {
 
 type CustomVariable = { key: string; label: string; value: string };
 
-type FontOption = { id: string; label: string; family: string };
+type FontOption = { id: string; label: string; family: string; url?: string | null };
 
 type Training = { id: number; name: string };
 
@@ -131,6 +143,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
     const [removeWatermark, setRemoveWatermark] = useState(false);
     const [removedLogos, setRemovedLogos] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
+    const [canvasWidth, setCanvasWidth] = useState(900);
 
     const person = participants.find((item) => item.id === previewPerson) ?? participants[0];
     const sample = useMemo(() => {
@@ -155,6 +168,42 @@ export default function CentralCertificateEditor({ template, trainings, particip
     }, [person, courseTitle, expiresOn, codePrefix, issuerName, issuerTitle, custom]);
 
     const selectedBlock = blocks.find((block) => block.id === selected) ?? null;
+
+    useEffect(() => {
+        const styleId = 'central-certificate-font-faces';
+        const rules = fonts
+            .filter((font) => font.url)
+            .map((font) => {
+                const face = font.family.split(',')[0]?.trim() ?? font.family;
+
+                return `@font-face{font-family:${face};src:url('${font.url}') format('truetype');font-weight:normal;font-style:normal;font-display:swap;}@font-face{font-family:${face};src:url('${font.url}') format('truetype');font-weight:bold;font-style:normal;font-display:swap;}`;
+            })
+            .join('');
+        let style = document.getElementById(styleId) as HTMLStyleElement | null;
+
+        if (!style) {
+            style = document.createElement('style');
+            style.id = styleId;
+            document.head.appendChild(style);
+        }
+
+        style.textContent = rules;
+    }, [fonts]);
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+
+        if (!canvas) {
+            return;
+        }
+
+        const update = () => setCanvasWidth(canvas.clientWidth);
+        update();
+        const observer = new ResizeObserver(update);
+        observer.observe(canvas);
+
+        return () => observer.disconnect();
+    }, []);
 
     const drag = (event: ReactPointerEvent, originX: number, originY: number, apply: (x: number, y: number) => void) => {
         const canvas = canvasRef.current;
@@ -197,7 +246,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                 size: 14,
                 align: 'center',
                 weight: 'normal',
-                color: '#1a1a1a',
+                color: '#12355b',
                 font: 'sans',
             },
         ]);
@@ -314,8 +363,9 @@ export default function CentralCertificateEditor({ template, trainings, particip
                     </div>
                 </div>
 
-                <div className="grid gap-4 xl:grid-cols-[280px_1fr_280px]">
-                    <section className="grid content-start gap-3 rounded-2xl border border-[#d7e3f0] bg-white p-4">
+                <div className="grid items-start gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
+                    <div className="grid content-start gap-3">
+                        <Accordion title="Datos del certificado" hint="Curso, vigencia y firma" defaultOpen>
                         <Field label="Nombre de la plantilla">
                             <Input value={name} onChange={(event) => setName(event.target.value)} />
                         </Field>
@@ -323,7 +373,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                             <select
                                 value={trainingId}
                                 onChange={(event) => setTrainingId(event.target.value)}
-                                className="h-9 rounded-md border border-[#c5d5e6] px-2 text-sm text-[#1a2b4c]"
+                                className="h-10 w-full rounded-lg border border-[#c5d5e6] bg-white px-3 text-sm text-[#1a2b4c]"
                             >
                                 <option value="">Sin amarrar</option>
                                 {trainings.map((training) => (
@@ -336,20 +386,26 @@ export default function CentralCertificateEditor({ template, trainings, particip
                         <Field label="Nombre del curso en el certificado">
                             <Input value={courseTitle} onChange={(event) => setCourseTitle(event.target.value)} />
                         </Field>
-                        <Field label="Fecha de expiración">
-                            <Input type="date" value={expiresOn} onChange={(event) => setExpiresOn(event.target.value)} />
-                        </Field>
-                        <Field label="Prefijo del código">
-                            <Input value={codePrefix} onChange={(event) => setCodePrefix(event.target.value.toUpperCase())} />
-                        </Field>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <Field label="Fecha de expiración">
+                                <Input type="date" value={expiresOn} onChange={(event) => setExpiresOn(event.target.value)} />
+                            </Field>
+                            <Field label="Prefijo del código">
+                                <Input value={codePrefix} onChange={(event) => setCodePrefix(event.target.value.toUpperCase())} />
+                            </Field>
+                        </div>
                         <Field label="Quien firma">
                             <Input value={issuerName} onChange={(event) => setIssuerName(event.target.value)} />
                         </Field>
                         <Field label="Cargo">
                             <Input value={issuerTitle} onChange={(event) => setIssuerTitle(event.target.value)} />
                         </Field>
+                        </Accordion>
+                        <Accordion title="Imágenes" hint="Fondo, logos, sello, firma y marca de agua">
+                        <div className="grid gap-2">
                         <FileField
                             label="Fondo"
+                            preview={backgroundSrc}
                             onChange={(file) => {
                                 setBackgroundFile(file);
                                 setRemoveBackground(false);
@@ -360,6 +416,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                         />
                         <FileField
                             label="Firma"
+                            preview={signatureSrc}
                             onChange={(file) => {
                                 setSignatureFile(file);
                                 setRemoveSignature(false);
@@ -371,6 +428,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                         />
                         <FileField
                             label="Sello"
+                            preview={stampSrc}
                             onChange={(file) => {
                                 setStampFile(file);
                                 setRemoveStamp(false);
@@ -382,6 +440,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                         />
                         <FileField
                             label="Marca de agua"
+                            preview={watermarkSrc}
                             onChange={(file) => {
                                 setWatermarkFile(file);
                                 setRemoveWatermark(false);
@@ -413,14 +472,18 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                 ]);
                             }}
                         />
-                        <div className="grid gap-2">
-                            <p className="text-xs font-medium text-[#1a2b4c]">Textos</p>
-                            <div className="flex flex-wrap gap-1">
+                        </div>
+                        {logos.length > 0 && (
+                            <p className="text-xs text-[#5a7390]">{logos.length} logo{logos.length === 1 ? '' : 's'} en el certificado. Muévelos en la hoja.</p>
+                        )}
+                        </Accordion>
+                        <Accordion title="Textos" hint="Variables del participante y textos libres" defaultOpen>
+                        <div className="flex flex-wrap gap-1.5">
                                 {variables.map((key) => (
                                     <button
                                         key={key}
                                         type="button"
-                                        className="cursor-pointer rounded-full border border-[#c5d5e6] px-2 py-1 text-xs text-[#1a2b4c]"
+                                        className="cursor-pointer rounded-full border border-[#bfd3ea] bg-[#f3f7fb] px-2.5 py-1 text-xs font-medium text-[#12355b]"
                                         onClick={() => addBlock(`{{${key}}}`)}
                                     >
                                         {`{{${key}}}`}
@@ -428,14 +491,28 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                 ))}
                                 <button
                                     type="button"
-                                    className="cursor-pointer rounded-full border border-[#c5d5e6] px-2 py-1 text-xs text-[#1a2b4c]"
+                                    className="cursor-pointer rounded-full border border-[#99f6e4] bg-[#f0fdfa] px-2.5 py-1 text-xs font-medium text-[#0f766e]"
                                     onClick={() => addBlock('Texto')}
                                 >
                                     Texto libre
                                 </button>
-                            </div>
                         </div>
-                        <div className="grid gap-2">
+                        <div className="mt-3 grid gap-2">
+                            {blocks.map((block) => (
+                                <button
+                                    key={block.id}
+                                    type="button"
+                                    onClick={() => setSelected(block.id)}
+                                    className={`flex cursor-pointer items-center gap-2 rounded-lg border px-2 py-1.5 text-left text-xs ${
+                                        selected === block.id ? 'border-[#12355b] bg-[#f3f7fb]' : 'border-[#e6eef6]'
+                                    }`}
+                                >
+                                    <span className="size-3.5 shrink-0 rounded-full border border-black/10" style={{ background: block.color }} />
+                                    <span className="truncate text-[#1a2b4c]">{fill(block.text, sample) || 'Texto vacío'}</span>
+                                </button>
+                            ))}
+                        </div>
+                        <div className="mt-4 grid gap-2">
                             <p className="text-xs font-medium text-[#1a2b4c]">Variables propias</p>
                             {custom.map((item, index) => (
                                 <div key={index} className="grid grid-cols-3 gap-1">
@@ -487,23 +564,29 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                     <button
                                         key={item.key}
                                         type="button"
-                                        className="cursor-pointer text-left text-xs text-[#1a2b4c]"
+                                        className="cursor-pointer text-left text-xs text-[#0f766e]"
                                         onClick={() => addBlock(`{{${item.key}}}`)}
                                     >
                                         Insertar {`{{${item.key}}}`}
                                     </button>
                                 ))}
                         </div>
+                        </Accordion>
                         <Button variant="outline" asChild>
                             <Link href="/plataforma/certificados/plantillas">Volver al listado</Link>
                         </Button>
-                    </section>
+                    </div>
+
+                    <div className="grid gap-4">
+                    <div className="rounded-2xl border border-[#d7e3f0] bg-[#e7eef6] p-3 md:p-6">
 
                     <div
                         ref={canvasRef}
-                        className="relative aspect-[297/210] overflow-hidden rounded-2xl border border-[#d7e3f0] bg-white"
+                        className="relative mx-auto aspect-[297/210] w-full max-w-5xl overflow-hidden rounded-sm border border-[#d5deea] bg-white shadow-[0_18px_50px_rgba(18,53,91,0.12)]"
                         onPointerDown={() => setSelected(null)}
                     >
+                        <div className="pointer-events-none absolute inset-[3.2%] border border-[#d5deea]" />
+                        <div className="pointer-events-none absolute inset-[3.8%] border border-[#e7eef6]" />
                         {backgroundSrc && <img src={backgroundSrc} alt="" className="absolute inset-0 h-full w-full object-cover" />}
                         {watermarkSrc && watermark.visible && (
                             <Movable
@@ -552,7 +635,8 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                     left: `${block.x}%`,
                                     top: `${block.y}%`,
                                     width: `${block.w}%`,
-                                    fontSize: `${block.size * 0.45}px`,
+                                    fontSize: `${Math.max(11, (block.size * canvasWidth) / 842)}px`,
+                                    lineHeight: 1.2,
                                     textAlign: block.align,
                                     fontWeight: block.weight,
                                     color: block.color,
@@ -614,11 +698,42 @@ export default function CentralCertificateEditor({ template, trainings, particip
                             </Movable>
                         )}
                     </div>
+                    </div>
 
-                    <section className="grid content-start gap-3 rounded-2xl border border-[#d7e3f0] bg-white p-4">
-                        <h2 className="text-sm font-semibold text-[#1a2b4c]">Elemento</h2>
+                    <section className="rounded-2xl border border-[#d7e3f0] bg-white p-4">
+                        <h2 className="text-sm font-semibold text-[#12355b]">Elemento seleccionado</h2>
                         {selectedBlock && (
-                            <>
+                            <div className="mt-3 grid gap-3 md:grid-cols-2">
+                                <div className="md:col-span-2">
+                                    <p className="mb-2 text-xs font-medium text-[#5a7390]">Color</p>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {TEXT_COLORS.map((swatch) => (
+                                            <button
+                                                key={swatch.value}
+                                                type="button"
+                                                title={swatch.name}
+                                                aria-label={swatch.name}
+                                                onClick={() => patchBlock(selectedBlock.id, { color: swatch.value })}
+                                                className={`size-8 cursor-pointer rounded-full border-2 ${
+                                                    selectedBlock.color.toLowerCase() === swatch.value
+                                                        ? 'border-[#12355b]'
+                                                        : 'border-transparent'
+                                                }`}
+                                                style={{ background: swatch.value, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.12)' }}
+                                            />
+                                        ))}
+                                        <label className="flex cursor-pointer items-center gap-2 text-xs text-[#12355b]">
+                                            Otro
+                                            <input
+                                                type="color"
+                                                value={selectedBlock.color}
+                                                onChange={(event) => patchBlock(selectedBlock.id, { color: event.target.value })}
+                                                className="h-8 w-10 cursor-pointer rounded border border-[#c5d5e6] bg-white"
+                                            />
+                                        </label>
+                                    </div>
+                                </div>
+                                <div className="md:col-span-2">
                                 <Field label="Texto">
                                     <textarea
                                         value={selectedBlock.text}
@@ -677,14 +792,8 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                     />
                                     Negrita
                                 </label>
-                                <Field label="Color">
-                                    <Input
-                                        type="color"
-                                        value={selectedBlock.color}
-                                        onChange={(event) => patchBlock(selectedBlock.id, { color: event.target.value })}
-                                    />
-                                </Field>
-                            </>
+                                </div>
+                            </div>
                         )}
                         {selected === 'qr' && (
                             <Size
@@ -728,6 +837,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                             </Button>
                         )}
                     </section>
+                    </div>
                 </div>
             </div>
 
@@ -776,11 +886,60 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
     );
 }
 
-function FileField({ label, onChange }: { label: string; onChange: (file: File | null) => void }) {
+function FileField({
+    label,
+    preview,
+    onChange,
+}: {
+    label: string;
+    preview?: string | null;
+    onChange: (file: File | null) => void;
+}) {
     return (
-        <Field label={label}>
-            <Input type="file" accept="image/*" onChange={(event) => onChange(event.target.files?.[0] ?? null)} />
-        </Field>
+        <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-[#c5d5e6] bg-[#f8fafc] px-3 py-2 hover:border-[#12355b]">
+            {preview ? (
+                <img src={preview} alt="" className="h-11 w-11 rounded-lg bg-white object-contain" />
+            ) : (
+                <span className="grid h-11 w-11 place-items-center rounded-lg bg-[#e7eef6] text-lg text-[#12355b]">+</span>
+            )}
+            <span className="min-w-0">
+                <span className="block text-sm font-medium text-[#12355b]">{label}</span>
+                <span className="block text-xs text-[#5a7390]">PNG o JPG</span>
+            </span>
+            <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(event) => onChange(event.target.files?.[0] ?? null)}
+            />
+        </label>
+    );
+}
+
+function Accordion({
+    title,
+    hint,
+    defaultOpen = false,
+    children,
+}: {
+    title: string;
+    hint: string;
+    defaultOpen?: boolean;
+    children: ReactNode;
+}) {
+    const [open, setOpen] = useState(defaultOpen);
+
+    return (
+        <Collapsible open={open} onOpenChange={setOpen} className="overflow-hidden rounded-2xl border border-[#d7e3f0] bg-white">
+            <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left">
+                <span>
+                    <span className="block text-sm font-semibold text-[#12355b]">{title}</span>
+                    <span className="block text-xs text-[#5a7390]">{hint}</span>
+                </span>
+                <ChevronDown className={`size-4 shrink-0 text-[#5a7390] transition ${open ? 'rotate-180' : ''}`} />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="grid gap-3 border-t border-[#e6eef6] px-4 py-4">{children}</CollapsibleContent>
+        </Collapsible>
     );
 }
 

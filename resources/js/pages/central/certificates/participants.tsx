@@ -1,7 +1,8 @@
 import { Head, router } from '@inertiajs/react';
-import { Trash2, Upload } from 'lucide-react';
+import { ChevronDown, Trash2, Upload, Users } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -23,11 +24,32 @@ type Props = {
     participants: Participant[];
 };
 
+const TONES = [
+    { bar: 'bg-[#12355b]', soft: 'bg-[#e7eef6]', text: 'text-[#12355b]', chip: 'bg-[#12355b]' },
+    { bar: 'bg-[#0f766e]', soft: 'bg-[#e6f6f3]', text: 'text-[#0f766e]', chip: 'bg-[#0f766e]' },
+    { bar: 'bg-[#1d4ed8]', soft: 'bg-[#e8efff]', text: 'text-[#1d4ed8]', chip: 'bg-[#1d4ed8]' },
+    { bar: 'bg-[#a16207]', soft: 'bg-[#fbf3e4]', text: 'text-[#a16207]', chip: 'bg-[#a16207]' },
+    { bar: 'bg-[#9f1239]', soft: 'bg-[#fde8ee]', text: 'text-[#9f1239]', chip: 'bg-[#9f1239]' },
+];
+
+function tone(index: number) {
+    return TONES[index % TONES.length];
+}
+
+function initials(name: string): string {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+
+    return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '•';
+}
+
 export default function CentralParticipants({ trainings, selected, participants }: Props) {
     const [name, setName] = useState('');
     const [dnis, setDnis] = useState('');
     const [file, setFile] = useState<File | null>(null);
+    const [importOpen, setImportOpen] = useState(participants.length === 0);
     const current = trainings.find((training) => training.id === selected) ?? null;
+    const currentIndex = Math.max(0, trainings.findIndex((training) => training.id === selected));
+    const currentTone = tone(currentIndex);
 
     const select = (id: number) => {
         router.get('/plataforma/certificados/participantes', { capacitacion: id }, { preserveState: true });
@@ -65,19 +87,27 @@ export default function CentralParticipants({ trainings, selected, participants 
         <>
             <Head title="Participantes" />
             <div className="flex flex-col gap-6 p-4 md:p-6">
-                <div>
-                    <p className="text-xs font-semibold tracking-wide text-[#5a7390] uppercase">Certificado</p>
-                    <h1 className="text-2xl font-semibold text-[#1a2b4c]">Participantes</h1>
-                    <p className="mt-1 text-sm text-[#5a7390]">
-                        Cada lote queda amarrado al nombre de la capacitación. Con el DNI se consulta el nombre en API Perú.
-                    </p>
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                    <div>
+                        <p className="text-xs font-semibold tracking-wide text-[#0f766e] uppercase">Certificado</p>
+                        <h1 className="text-2xl font-semibold text-[#12355b]">Participantes</h1>
+                        <p className="mt-1 max-w-xl text-sm text-[#5a7390]">
+                            Cada lote queda amarrado a una capacitación. Con el DNI, API Perú completa el nombre.
+                        </p>
+                    </div>
+                    <div className="flex gap-2">
+                        <Stat label="Capacitaciones" value={trainings.length} className="bg-[#e7eef6] text-[#12355b]" />
+                        <Stat label="En este lote" value={participants.length} className="bg-[#e6f6f3] text-[#0f766e]" />
+                    </div>
                 </div>
 
-                <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-                    <section className="rounded-2xl border border-[#d7e3f0] bg-white p-4">
-                        <h2 className="text-sm font-semibold text-[#1a2b4c]">Capacitaciones</h2>
-                        <div className="mt-3 grid gap-2">
-                            <Label htmlFor="training-name">Nombre de la capacitación</Label>
+                <div className="grid items-start gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
+                    <section className="overflow-hidden rounded-2xl border border-[#d7e3f0] bg-white">
+                        <div className="border-b border-[#e6eef6] bg-[#f7fafc] px-4 py-3">
+                            <h2 className="text-sm font-semibold text-[#12355b]">Capacitaciones</h2>
+                        </div>
+                        <div className="grid gap-2 p-4">
+                            <Label htmlFor="training-name">Nueva capacitación</Label>
                             <Input
                                 id="training-name"
                                 value={name}
@@ -88,40 +118,49 @@ export default function CentralParticipants({ trainings, selected, participants 
                                 Crear lote
                             </Button>
                         </div>
-                        <ul className="mt-4 grid gap-1">
-                            {trainings.map((training) => (
-                                <li key={training.id}>
-                                    <button
-                                        type="button"
-                                        onClick={() => select(training.id)}
-                                        className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-left text-sm ${
-                                            training.id === selected
-                                                ? 'bg-[#1a2b4c] text-white'
-                                                : 'text-[#1a2b4c] hover:bg-[#f4f7fb]'
-                                        }`}
-                                    >
-                                        <span>{training.name}</span>
-                                        <span className="text-xs opacity-80">{training.participants_count}</span>
-                                    </button>
-                                </li>
-                            ))}
+                        <ul className="grid gap-2 px-4 pb-4">
+                            {trainings.map((training, index) => {
+                                const paint = tone(index);
+                                const active = training.id === selected;
+
+                                return (
+                                    <li key={training.id}>
+                                        <button
+                                            type="button"
+                                            onClick={() => select(training.id)}
+                                            className={`flex w-full cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-left ${
+                                                active ? 'border-transparent shadow-sm' : 'border-[#e6eef6] bg-white'
+                                            } ${active ? paint.soft : ''}`}
+                                        >
+                                            <span className={`h-9 w-1.5 rounded-full ${paint.bar}`} />
+                                            <span className="min-w-0 flex-1">
+                                                <span className={`block truncate text-sm font-medium ${paint.text}`}>{training.name}</span>
+                                                <span className="text-xs text-[#5a7390]">{training.participants_count} participantes</span>
+                                            </span>
+                                        </button>
+                                    </li>
+                                );
+                            })}
                             {trainings.length === 0 && (
-                                <li className="text-sm text-[#5a7390]">Todavía no hay capacitaciones.</li>
+                                <li className="rounded-xl bg-[#f7fafc] px-3 py-6 text-center text-sm text-[#5a7390]">
+                                    Crea la primera capacitación.
+                                </li>
                             )}
                         </ul>
                     </section>
 
-                    <section className="rounded-2xl border border-[#d7e3f0] bg-white p-4">
+                    <section className="overflow-hidden rounded-2xl border border-[#d7e3f0] bg-white">
                         {current ? (
                             <>
-                                <div className="flex items-start justify-between gap-3">
+                                <div className={`flex items-start justify-between gap-3 px-5 py-4 ${currentTone.soft}`}>
                                     <div>
-                                        <h2 className="text-lg font-semibold text-[#1a2b4c]">{current.name}</h2>
-                                        <p className="text-sm text-[#5a7390]">{participants.length} participantes</p>
+                                        <p className={`text-xs font-semibold tracking-wide uppercase ${currentTone.text}`}>Lote activo</p>
+                                        <h2 className="text-xl font-semibold text-[#12355b]">{current.name}</h2>
                                     </div>
                                     <Button
                                         type="button"
                                         variant="outline"
+                                        className="bg-white"
                                         onClick={() => {
                                             if (confirm(`¿Eliminar la capacitación “${current.name}” y sus participantes?`)) {
                                                 router.delete(`/plataforma/certificados/capacitaciones/${current.id}`);
@@ -132,78 +171,100 @@ export default function CentralParticipants({ trainings, selected, participants 
                                     </Button>
                                 </div>
 
-                                <div className="mt-4 grid gap-3">
-                                    <Label htmlFor="dnis">DNI, uno por línea o separados por coma</Label>
-                                    <textarea
-                                        id="dnis"
-                                        value={dnis}
-                                        onChange={(event) => setDnis(event.target.value)}
-                                        rows={5}
-                                        className="rounded-lg border border-[#c5d5e6] px-3 py-2 text-sm text-[#1a2b4c]"
-                                        placeholder={'45652349\n12345678'}
-                                    />
-                                    <Label htmlFor="dni-file">O sube un archivo .txt o .csv</Label>
-                                    <Input
-                                        id="dni-file"
-                                        type="file"
-                                        accept=".txt,.csv,text/plain"
-                                        onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                                    />
-                                    <Button type="button" onClick={importBatch}>
-                                        <Upload className="size-4" />
-                                        Consultar y agregar
-                                    </Button>
-                                    <p className="text-xs text-[#5a7390]">Máximo 40 DNI por envío.</p>
-                                </div>
+                                <div className="p-4">
+                                    <Collapsible open={importOpen} onOpenChange={setImportOpen} className="rounded-xl border border-[#d7e3f0]">
+                                        <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between px-4 py-3 text-left">
+                                            <span>
+                                                <span className="block text-sm font-semibold text-[#12355b]">Subir lote de DNI</span>
+                                                <span className="block text-xs text-[#5a7390]">Pega los números o sube un archivo. Máximo 40 por envío.</span>
+                                            </span>
+                                            <ChevronDown className={`size-4 text-[#5a7390] transition ${importOpen ? 'rotate-180' : ''}`} />
+                                        </CollapsibleTrigger>
+                                        <CollapsibleContent className="grid gap-3 border-t border-[#e6eef6] px-4 py-4">
+                                            <Label htmlFor="dnis">DNI, uno por línea o separados por coma</Label>
+                                            <textarea
+                                                id="dnis"
+                                                value={dnis}
+                                                onChange={(event) => setDnis(event.target.value)}
+                                                rows={5}
+                                                className="rounded-lg border border-[#c5d5e6] px-3 py-2 text-sm text-[#12355b]"
+                                                placeholder={'45652349\n12345678'}
+                                            />
+                                            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-[#c5d5e6] bg-[#f8fafc] px-3 py-2">
+                                                <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#e7eef6] text-[#12355b]">
+                                                    <Upload className="size-4" />
+                                                </span>
+                                                <span className="min-w-0">
+                                                    <span className="block text-sm font-medium text-[#12355b]">Archivo .txt o .csv</span>
+                                                    <span className="block truncate text-xs text-[#5a7390]">{file?.name ?? 'Ningún archivo elegido'}</span>
+                                                </span>
+                                                <input
+                                                    type="file"
+                                                    accept=".txt,.csv,text/plain"
+                                                    className="sr-only"
+                                                    onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                                                />
+                                            </label>
+                                            <Button type="button" onClick={importBatch} className="bg-[#0f766e] hover:bg-[#0d655e]">
+                                                Consultar y agregar
+                                            </Button>
+                                        </CollapsibleContent>
+                                    </Collapsible>
 
-                                <div className="mt-6 overflow-x-auto">
-                                    <table className="w-full text-left text-sm">
-                                        <thead className="text-[#5a7390]">
-                                            <tr>
-                                                <th className="py-2 font-medium">DNI</th>
-                                                <th className="py-2 font-medium">Nombre</th>
-                                                <th className="py-2" />
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {participants.map((person) => (
-                                                <tr key={person.id} className="border-t border-[#e6eef6]">
-                                                    <td className="py-2 text-[#1a2b4c]">{person.dni}</td>
-                                                    <td className="py-2 text-[#1a2b4c]">{person.full_name}</td>
-                                                    <td className="py-2 text-right">
-                                                        <button
-                                                            type="button"
-                                                            aria-label="Eliminar participante"
-                                                            className="cursor-pointer text-[#5a7390] hover:text-red-600"
-                                                            onClick={() =>
-                                                                router.delete(
-                                                                    `/plataforma/certificados/participantes/${person.id}`,
-                                                                )
-                                                            }
-                                                        >
-                                                            <Trash2 className="size-4" />
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                            {participants.length === 0 && (
-                                                <tr>
-                                                    <td colSpan={3} className="py-6 text-[#5a7390]">
-                                                        Este lote todavía no tiene participantes.
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
+                                    <ul className="mt-4 grid gap-2">
+                                        {participants.map((person, index) => {
+                                            const paint = tone(index);
+
+                                            return (
+                                                <li
+                                                    key={person.id}
+                                                    className="flex items-center gap-3 rounded-xl border border-[#e6eef6] px-3 py-2.5"
+                                                >
+                                                    <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-full text-xs font-semibold text-white ${paint.chip}`}>
+                                                        {initials(person.full_name)}
+                                                    </span>
+                                                    <span className="min-w-0 flex-1">
+                                                        <span className="block truncate text-sm font-medium text-[#12355b]">{person.full_name}</span>
+                                                        <span className={`text-xs font-medium ${paint.text}`}>DNI {person.dni}</span>
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        aria-label="Eliminar participante"
+                                                        className="cursor-pointer rounded-lg p-2 text-[#5a7390] hover:bg-[#fde8ee] hover:text-[#9f1239]"
+                                                        onClick={() =>
+                                                            router.delete(`/plataforma/certificados/participantes/${person.id}`)
+                                                        }
+                                                    >
+                                                        <Trash2 className="size-4" />
+                                                    </button>
+                                                </li>
+                                            );
+                                        })}
+                                        {participants.length === 0 && (
+                                            <li className="flex flex-col items-center gap-2 rounded-xl bg-[#f7fafc] px-4 py-10 text-center">
+                                                <Users className="size-6 text-[#0f766e]" />
+                                                <p className="text-sm text-[#5a7390]">Este lote todavía no tiene participantes.</p>
+                                            </li>
+                                        )}
+                                    </ul>
                                 </div>
                             </>
                         ) : (
-                            <p className="text-sm text-[#5a7390]">Crea una capacitación para cargar participantes.</p>
+                            <p className="px-5 py-10 text-sm text-[#5a7390]">Crea una capacitación para cargar participantes.</p>
                         )}
                     </section>
                 </div>
             </div>
         </>
+    );
+}
+
+function Stat({ label, value, className }: { label: string; value: number; className: string }) {
+    return (
+        <div className={`rounded-xl px-4 py-2 ${className}`}>
+            <p className="text-xs font-medium opacity-80">{label}</p>
+            <p className="text-lg font-semibold">{value}</p>
+        </div>
     );
 }
 
