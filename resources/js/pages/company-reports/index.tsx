@@ -5,6 +5,8 @@ import { InductionsTab } from '@/components/company-reports/inductions-tab';
 import { InspectionsTab } from '@/components/company-reports/inspections-tab';
 import { QuotaTab } from '@/components/company-reports/quota-tab';
 import type {
+    DetailFilters,
+    DetailMeta,
     InductionRow,
     InspectionDetail,
     InspectorRow,
@@ -25,7 +27,8 @@ type Props = {
     inductions: InductionRow[];
     inspectors: InspectorRow[];
     details: InspectionDetail[];
-    details_total: number;
+    details_meta: DetailMeta;
+    detail_filters: DetailFilters;
     summary: ReportSummary;
 };
 
@@ -44,7 +47,8 @@ export default function CompanyReportsPage({
     inductions,
     inspectors,
     details,
-    details_total,
+    details_meta,
+    detail_filters,
     summary,
 }: Props) {
     const [tab, setTab] = useState<TabId>('cuotas');
@@ -129,7 +133,11 @@ export default function CompanyReportsPage({
                     <InspectionsTab
                         inspectors={inspectors}
                         details={details}
-                        detailsTotal={details_total}
+                        detailsMeta={details_meta}
+                        detailFilters={detail_filters}
+                        baseUrl={baseUrl}
+                        dateFrom={filters.date_from}
+                        dateTo={filters.date_to}
                         goalPercent={daysPercent}
                     />
                 ) : null}

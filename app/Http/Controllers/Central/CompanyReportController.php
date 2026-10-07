@@ -44,6 +44,7 @@ class CompanyReportController extends Controller
     public function pdf(Request $request, Tenant $tenant, OwnerReports $reports): HttpResponse
     {
         $binary = $tenant->run(function () use ($request, $reports, $tenant) {
+            $request->merge(['export' => true]);
             $data = $reports->build($request);
 
             return $reports->pdfBinary($data, $tenant->name);
@@ -67,6 +68,7 @@ class CompanyReportController extends Controller
         ])['email'];
 
         $binary = $tenant->run(function () use ($request, $reports, $tenant) {
+            $request->merge(['export' => true]);
             $data = $reports->build($request);
 
             return $reports->pdfBinary($data, $tenant->name);

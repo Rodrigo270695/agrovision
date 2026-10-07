@@ -91,7 +91,8 @@ final class OwnerReports
         $details = $checklists
             ->sortByDesc(fn (UnitChecklist $checklist) => $this->startedAt($checklist)?->getTimestamp() ?? 0)
             ->values();
-        $detailRows = $details->take(300)->map(fn (UnitChecklist $checklist) => $this->detailRow($checklist))->all();
+        $detailPage = $this->paginateDetails($request, $details);
+        $detailRows = $detailPage['rows'];
         $inspectorRows = $this->inspectorSummaries($inspectors, $quotaMap, $checklists, $days);
 
         $cited = array_sum(array_column($inductionRows, 'cited'));
@@ -103,7 +104,11 @@ final class OwnerReports
             $quotaRows,
             fn (array $row) => $row['tone'] === 'ok',
         ));
-        $durations = array_values(array_filter(array_column($detailRows, 'minutes'), fn ($minutes) => $minutes !== null));
+        $durations = $checklists
+            ->map(fn (UnitChecklist $checklist) => $this->firstDurationMinutes($checklist))
+            ->filter(fn (?int $minutes) => $minutes !== null)
+            ->values()
+            ->all();
 
         return [
             'filters' => [
@@ -115,7 +120,9 @@ final class OwnerReports
             'inductions' => $inductionRows,
             'inspectors' => $inspectorRows,
             'details' => $detailRows,
-            'details_total' => $details->count(),
+            'details_total' => $detailPage['total'],
+            'details_meta' => $detailPage['meta'],
+            'detail_filters' => $detailPage['filters'],
             'summary' => [
                 'inspectors' => count($quotaRows),
                 'with_quota' => $withQuota,
@@ -240,7 +247,7 @@ final class OwnerReports
         foreach ($checklists as $checklist) {
             $id = (int) ($checklist->created_by ?? 0);
             $groups[$id] ??= [];
-            $minutes = $this->minutes($this->startedAt($checklist), $this->finishedAt($checklist));
+            $minutes = $this->firstDurationMinutes($checklist);
 
             if ($minutes !== null) {
                 $groups[$id][] = $minutes;
@@ -346,6 +353,69 @@ final class OwnerReports
     }
 
     /**
+     * @param  Collection<int, UnitChecklist>  $details
+     * @return array{rows: list<array<string, mixed>>, total: int, meta: array<string, mixed>, filters: array<string, mixed>}
+     */
+    private function paginateDetails(Request $request, Collection $details): array
+    {
+        $inspectorId = max(0, (int) $request->input('inspector_id', 0));
+        $status = (string) $request->input('detail_status', 'all');
+
+        if (! in_array($status, ['all', 'open', 'first', 'done'], true)) {
+            $status = 'all';
+        }
+
+        $filtered = $details->filter(function (UnitChecklist $checklist) use ($inspectorId, $status) {
+            if ($inspectorId > 0 && (int) $checklist->created_by !== $inspectorId) {
+                return false;
+            }
+
+            $firstDone = in_array($checklist->first_result, ['approved', 'rejected'], true);
+            $secondDone = in_array($checklist->second_result, ['approved', 'rejected'], true);
+
+            return match ($status) {
+                'open' => ! $firstDone,
+                'first' => $firstDone && ! $secondDone,
+                'done' => $firstDone && $secondDone,
+                default => true,
+            };
+        })->values();
+
+        $total = $filtered->count();
+        $export = $request->boolean('export');
+        $perPage = $export ? 80 : (int) $request->input('detail_per_page', 15);
+
+        if (! in_array($perPage, [15, 25, 50, 80, 100], true)) {
+            $perPage = 15;
+        }
+
+        $lastPage = max(1, (int) ceil($total / $perPage));
+        $page = $export ? 1 : min(max(1, (int) $request->input('detail_page', 1)), $lastPage);
+        $slice = $filtered->slice(($page - 1) * $perPage, $perPage)->values();
+        $from = $total === 0 ? null : (($page - 1) * $perPage) + 1;
+        $to = $total === 0 ? null : $from + $slice->count() - 1;
+
+        return [
+            'rows' => $slice->map(fn (UnitChecklist $checklist) => $this->detailRow($checklist))->all(),
+            'total' => $total,
+            'filters' => [
+                'inspector_id' => $inspectorId > 0 ? $inspectorId : null,
+                'status' => $status,
+                'per_page' => $perPage,
+            ],
+            'meta' => [
+                'current_page' => $page,
+                'last_page' => $lastPage,
+                'per_page' => $perPage,
+                'from' => $from,
+                'to' => $to,
+                'total' => $total,
+                'path' => $request->url(),
+            ],
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function detailRow(UnitChecklist $checklist): array
@@ -363,6 +433,12 @@ final class OwnerReports
         $firstDone = in_array($checklist->first_result, ['approved', 'rejected'], true);
         $secondDone = in_array($checklist->second_result, ['approved', 'rejected'], true);
         $finished = $firstDone && $secondDone;
+        $firstEnd = $checklist->first_finished_at
+            ? CarbonImmutable::parse($checklist->first_finished_at)->timezone('America/Lima')
+            : null;
+        $firstMinutes = $firstAt !== null && $firstEnd !== null && $firstEnd->greaterThanOrEqualTo($firstAt)
+            ? $this->minutes($firstAt, $firstEnd)
+            : null;
 
         return [
             'id' => $checklist->id,
@@ -370,11 +446,17 @@ final class OwnerReports
             'inspector' => $checklist->creator?->name ?: 'Sin inspector',
             'started' => $firstAt?->format('d/m/Y H:i') ?? '—',
             'finished' => $finished ? 'Terminada' : 'En curso',
-            'minutes' => null,
-            'duration' => $finished ? 'Terminada' : 'En curso',
+            'minutes' => $firstMinutes,
+            'duration' => $firstMinutes !== null
+                ? $this->durationLabel($firstMinutes)
+                : ($firstDone ? 'Sin cierre' : 'En curso'),
             'result' => $finished ? 'Terminada' : 'En curso',
             'tone' => $finished ? 'ok' : 'mid',
             'first_at' => $firstAt?->format('d/m/Y H:i') ?? '—',
+            'first_finished' => $firstEnd?->format('d/m/Y H:i') ?? ($firstDone ? 'Sin hora de cierre' : '—'),
+            'first_duration' => $firstMinutes !== null
+                ? $this->durationLabel($firstMinutes)
+                : ($firstDone ? 'Sin cierre' : 'En curso'),
             'first_result' => $this->resultLabel($checklist->first_result),
             'first_tone' => $this->resultTone($checklist->first_result, $firstDone),
             'second_at' => $secondAt?->format('d/m/Y H:i') ?? ($firstDone ? 'Pendiente' : '—'),
@@ -456,6 +538,26 @@ final class OwnerReports
         }
 
         return null;
+    }
+
+    private function firstDurationMinutes(UnitChecklist $checklist): ?int
+    {
+        if ($checklist->first_finished_at === null) {
+            return null;
+        }
+
+        $start = $this->passAt(
+            $checklist->first_inspected_on,
+            $checklist->first_inspected_time,
+            $this->startedAt($checklist),
+        );
+        $end = CarbonImmutable::parse($checklist->first_finished_at)->timezone('America/Lima');
+
+        if ($start === null || $end->lessThan($start)) {
+            return null;
+        }
+
+        return $this->minutes($start, $end);
     }
 
     private function minutes(?CarbonImmutable $start, ?CarbonImmutable $end): ?int

@@ -46,6 +46,7 @@ class OwnerReportController extends Controller
 
     public function pdf(Request $request, OwnerReports $reports): HttpResponse
     {
+        $request->merge(['export' => true]);
         $company = (string) tenant('name');
         $binary = $reports->pdfBinary($reports->build($request), $company);
         $name = 'reportes-'.tenant('id').'.pdf';
@@ -65,6 +66,7 @@ class OwnerReportController extends Controller
             'email.email' => 'El correo no es válido.',
         ])['email'];
 
+        $request->merge(['export' => true]);
         $company = (string) tenant('name');
         $binary = $reports->pdfBinary($reports->build($request), $company);
 

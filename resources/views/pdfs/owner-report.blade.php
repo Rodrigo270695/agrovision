@@ -124,7 +124,9 @@
             <tr>
                 <th>Placa</th>
                 <th>Inspector</th>
-                <th>1ra</th>
+                <th>1ra empezó</th>
+                <th>1ra terminó</th>
+                <th>Demora 1ra</th>
                 <th>Resultado 1ra</th>
                 <th>2da</th>
                 <th>Resultado 2da</th>
@@ -137,13 +139,15 @@
                     <td>{{ $row['plate'] }}</td>
                     <td>{{ $row['inspector'] }}</td>
                     <td>{{ $row['first_at'] }}</td>
+                    <td>{{ $row['first_finished'] }}</td>
+                    <td>{{ $row['first_duration'] }}</td>
                     <td>{{ $row['first_result'] }}</td>
                     <td>{{ $row['second_at'] }}</td>
                     <td>{{ $row['second_result'] }}</td>
                     <td>{{ $row['status'] }}</td>
                 </tr>
             @empty
-                <tr><td colspan="7">No hay inspecciones en el periodo.</td></tr>
+                <tr><td colspan="9">No hay inspecciones en el periodo.</td></tr>
             @endforelse
         </tbody>
     </table>

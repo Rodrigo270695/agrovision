@@ -1,20 +1,50 @@
+import { router } from '@inertiajs/react';
+import { DataPagination } from '@/components/data-page/data-pagination';
 import { BarChart, Ring, Semaphore } from '@/components/company-reports/report-visuals';
-import type { InspectionDetail, InspectorRow } from '@/components/company-reports/types';
+import type {
+    DetailFilters,
+    DetailMeta,
+    InspectionDetail,
+    InspectorRow,
+} from '@/components/company-reports/types';
 
 type Props = {
     inspectors: InspectorRow[];
     details: InspectionDetail[];
-    detailsTotal: number;
+    detailsMeta: DetailMeta;
+    detailFilters: DetailFilters;
+    baseUrl: string;
+    dateFrom: string | null;
+    dateTo: string | null;
     goalPercent: number;
 };
 
 export function InspectionsTab({
     inspectors,
     details,
-    detailsTotal,
+    detailsMeta,
+    detailFilters,
+    baseUrl,
+    dateFrom,
+    dateTo,
     goalPercent,
 }: Props) {
     const max = Math.max(1, ...inspectors.map((row) => row.total));
+    const visit = (extra: Record<string, string | number | null>) => {
+        router.get(
+            baseUrl,
+            {
+                date_from: dateFrom ?? undefined,
+                date_to: dateTo ?? undefined,
+                inspector_id: detailFilters.inspector_id ?? undefined,
+                detail_status: detailFilters.status,
+                detail_per_page: detailFilters.per_page,
+                detail_page: 1,
+                ...extra,
+            },
+            { preserveScroll: true, preserveState: true },
+        );
+    };
 
     return (
         <div className="grid gap-4">
@@ -47,7 +77,7 @@ export function InspectionsTab({
                             <th className="px-4 py-3">Inspecciones</th>
                             <th className="px-4 py-3">Cuota diaria</th>
                             <th className="px-4 py-3">Días en meta</th>
-                            <th className="px-4 py-3">Demora promedio</th>
+                            <th className="px-4 py-3">Demora 1ra</th>
                             <th className="px-4 py-3">Semáforo</th>
                         </tr>
                     </thead>
@@ -89,17 +119,48 @@ export function InspectionsTab({
                 </table>
             </div>
             <div className="overflow-x-auto rounded-2xl border border-[#d7e3f0] bg-white">
-                <div className="border-b border-[#e2eaf3] px-4 py-3">
-                    <h3 className="text-sm font-semibold text-[#1a2b4c]">
-                        Duración de cada inspección
-                    </h3>
-                    <p className="text-xs text-[#5a7390]">
-                        Hora de Perú. La inspección termina cuando la primera y
-                        la segunda ya tienen resultado.
-                        {detailsTotal > details.length
-                            ? ` Se muestran ${details.length} de ${detailsTotal}.`
-                            : ''}
-                    </p>
+                <div className="flex flex-col gap-3 border-b border-[#e2eaf3] px-4 py-3 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <h3 className="text-sm font-semibold text-[#1a2b4c]">
+                            Duración de cada inspección
+                        </h3>
+                        <p className="text-xs text-[#5a7390]">
+                            La 1ra cierra al aprobar o desaprobar. La inspección
+                            completa cierra cuando también existe la 2da.
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        <select
+                            value={detailFilters.inspector_id ?? ''}
+                            onChange={(event) =>
+                                visit({
+                                    inspector_id: event.target.value
+                                        ? Number(event.target.value)
+                                        : null,
+                                })
+                            }
+                            className="h-9 rounded-lg border border-[#c5d5e6] bg-white px-2 text-sm text-[#1a2b4c]"
+                        >
+                            <option value="">Todos los inspectores</option>
+                            {inspectors.map((row) => (
+                                <option key={row.user_id} value={row.user_id}>
+                                    {row.name}
+                                </option>
+                            ))}
+                        </select>
+                        <select
+                            value={detailFilters.status}
+                            onChange={(event) =>
+                                visit({ detail_status: event.target.value })
+                            }
+                            className="h-9 rounded-lg border border-[#c5d5e6] bg-white px-2 text-sm text-[#1a2b4c]"
+                        >
+                            <option value="all">Todos los estados</option>
+                            <option value="open">1ra pendiente</option>
+                            <option value="first">1ra cerrada, sin 2da</option>
+                            <option value="done">Terminadas</option>
+                        </select>
+                    </div>
                 </div>
                 <table className="w-full min-w-[760px] text-sm">
                     <thead className="bg-[#f7fafc] text-left text-xs tracking-wide text-[#5a7390] uppercase">
@@ -127,7 +188,13 @@ export function InspectionsTab({
                                     <td className="px-4 py-3">{row.inspector}</td>
                                     <td className="px-4 py-3">
                                         <p className="tabular-nums text-[#1a2b4c]">
-                                            {row.first_at}
+                                            Empezó {row.first_at}
+                                        </p>
+                                        <p className="tabular-nums text-[#1a2b4c]">
+                                            Terminó {row.first_finished}
+                                        </p>
+                                        <p className="text-xs text-[#5a7390]">
+                                            Duró {row.first_duration}
                                         </p>
                                         <p
                                             className={
@@ -173,6 +240,32 @@ export function InspectionsTab({
                         )}
                     </tbody>
                 </table>
+                <DataPagination
+                    meta={{
+                        data: details,
+                        ...detailsMeta,
+                        first_page_url: null,
+                        last_page_url: null,
+                        next_page_url: null,
+                        prev_page_url: null,
+                        links: [],
+                    }}
+                    pageQueryKey="detail_page"
+                    perPageOptions={[15, 25, 50, 100]}
+                    preservedQuery={{
+                        date_from: dateFrom,
+                        date_to: dateTo,
+                        inspector_id: detailFilters.inspector_id,
+                        detail_status:
+                            detailFilters.status === 'all'
+                                ? undefined
+                                : detailFilters.status,
+                        detail_per_page: detailFilters.per_page,
+                    }}
+                    onPerPageChange={(perPage) =>
+                        visit({ detail_per_page: perPage, detail_page: 1 })
+                    }
+                />
             </div>
         </div>
     );

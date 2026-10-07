@@ -781,6 +781,12 @@ class ChecklistController extends Controller
                         : $incomingTime,
                     'started_at' => $checklist->started_at ?? $checklist->created_at ?? $this->limaNow(),
                     'finished_at' => $closingNow ?? $checklist->finished_at,
+                    'first_finished_at' => $firstClosed
+                        ? ($checklist->first_finished_at ?? $this->limaNow())
+                        : $checklist->first_finished_at,
+                    'second_finished_at' => $secondClosed
+                        ? ($checklist->second_finished_at ?? $this->limaNow())
+                        : $checklist->second_finished_at,
                     'second_inspected_on' => $touchSecond
                         ? ($data['second_inspected_on'] ?? null)
                         : $checklist->second_inspected_on,

@@ -56,6 +56,8 @@ export type InspectionDetail = {
     result: string;
     tone: ReportTone;
     first_at: string;
+    first_finished: string;
+    first_duration: string;
     first_result: string;
     first_tone: ReportTone;
     second_at: string;
@@ -63,6 +65,22 @@ export type InspectionDetail = {
     second_tone: ReportTone;
     status: string;
     status_tone: ReportTone;
+};
+
+export type DetailFilters = {
+    inspector_id: number | null;
+    status: 'all' | 'open' | 'first' | 'done';
+    per_page: number;
+};
+
+export type DetailMeta = {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    from: number | null;
+    to: number | null;
+    total: number;
+    path: string;
 };
 
 export type ReportSummary = {
