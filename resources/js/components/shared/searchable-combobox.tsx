@@ -144,17 +144,8 @@ export function SearchableCombobox({
             const spaceBelow = window.innerHeight - rect.bottom - gap - 8;
             const spaceAbove = rect.top - gap - 8;
             const openUp = spaceBelow < 160 && spaceAbove > spaceBelow;
-            const maxHeight = Math.max(
-                120,
-                Math.min(220, openUp ? spaceAbove : spaceBelow),
-            );
-
-            const width = Math.max(rect.width, menuMinWidth ?? 0);
-            const maxLeft = Math.max(8, window.innerWidth - width - 8);
-
-            list.style.left = `${Math.min(rect.left, maxLeft)}px`;
-            list.style.width = `${width}px`;
-            list.style.maxHeight = `${maxHeight}px`;
+            const available = Math.max(openUp ? spaceAbove : spaceBelow, 0);
+            const limit = Math.min(240, available);
 
             if (openUp) {
                 list.style.top = 'auto';
@@ -163,6 +154,20 @@ export function SearchableCombobox({
                 list.style.bottom = 'auto';
                 list.style.top = `${rect.bottom + gap}px`;
             }
+
+            list.style.height = 'auto';
+            list.style.maxHeight = 'none';
+            const contentHeight = list.scrollHeight;
+            const height = Math.min(contentHeight, limit);
+
+            const width = Math.max(rect.width, menuMinWidth ?? 0);
+            const maxLeft = Math.max(8, window.innerWidth - width - 8);
+
+            list.style.left = `${Math.min(rect.left, maxLeft)}px`;
+            list.style.width = `${width}px`;
+            list.style.height = `${height}px`;
+            list.style.maxHeight = `${height}px`;
+            list.style.overflowY = contentHeight > height + 1 ? 'auto' : 'hidden';
         };
 
         updatePanel();
@@ -238,7 +243,7 @@ export function SearchableCombobox({
             window.removeEventListener('resize', updatePanel);
             window.removeEventListener('scroll', updatePanel, true);
         };
-    }, [open, menuMinWidth]);
+    }, [open, menuMinWidth, itemCount, renameValue]);
 
     useEffect(() => {
         if (!open || !listRef.current) {
