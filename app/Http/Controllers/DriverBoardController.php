@@ -8,6 +8,7 @@ use App\Models\Site;
 use App\Models\Unit;
 use App\Models\UnitChecklist;
 use App\Models\User;
+use App\Support\InductionAttendeeStatuses;
 use App\Support\InductionFormOptions;
 use App\Support\ReportPeriod;
 use App\Support\SystemRoles;
@@ -44,7 +45,13 @@ class DriverBoardController extends Controller
 
         $drivers = $this->drivers($coordinatorId, $siteId);
         $sessions = $this->sessions($range, $inspectorId);
-        $items = $this->items($drivers, $sessions, $range, $inspectorId);
+        $items = $this->items(
+            $drivers,
+            $sessions,
+            $range,
+            $inspectorId,
+            $coordinatorId !== null || $siteId !== null,
+        );
 
         $coordinatorNames = $drivers
             ->pluck('coordinator')
@@ -162,13 +169,13 @@ class DriverBoardController extends Controller
      * @param  array{from: string|null, to: string|null, label: string}  $range
      * @return list<array<string, mixed>>
      */
-    private function items(Collection $drivers, Collection $sessions, array $range, ?int $inspectorId): array
+    private function items(Collection $drivers, Collection $sessions, array $range, ?int $inspectorId, bool $restrictAttendees): array
     {
         $total = $drivers->count();
 
         return [
             $this->inspectionRing($drivers, $range, $inspectorId, $total),
-            ...$this->inductionRings($sessions, $drivers, $total),
+            ...$this->inductionRings($sessions, $drivers, $restrictAttendees),
         ];
     }
 
@@ -216,19 +223,20 @@ class DriverBoardController extends Controller
             }
         }
 
-        $ok = count(array_filter($best, fn (string $result) => $result === 'approved'));
-        $falta = count($best) - $ok;
+        $approved = count(array_filter($best, fn (string $result) => $result === 'approved'));
+        $rejected = count($best) - $approved;
+        $pending = max(0, $total - $approved - $rejected);
 
-        return $this->ring(
+        return $this->card(
             'inspecciones',
             'Inspecciones de seguridad',
             'inspeccion',
-            'status',
-            $ok,
-            max(0, $total - $ok - $falta),
-            $falta,
-            0,
-            $total,
+            $total > 0 ? (int) round(($approved / $total) * 100) : 0,
+            [
+                $this->metric('aprobadas', 'Aprobadas', $approved, 'ok'),
+                $this->metric('desaprobadas', 'Desaprobadas', $rejected, 'bad'),
+                $this->metric('sin', 'Sin inspección', $pending, 'muted'),
+            ],
         );
     }
 
@@ -237,7 +245,7 @@ class DriverBoardController extends Controller
      * @param  Collection<string, array{license: string, coordinator: string|null, units?: list<int>, name?: string}>  $drivers
      * @return list<array<string, mixed>>
      */
-    private function inductionRings(Collection $sessions, Collection $drivers, int $total): array
+    private function inductionRings(Collection $sessions, Collection $drivers, bool $restrictAttendees): array
     {
         $unitKey = [];
         $names = [];
@@ -266,21 +274,27 @@ class DriverBoardController extends Controller
 
             $groups[$key] ??= [
                 'label' => $label,
-                'ok' => [],
-                'listed' => [],
+                'sessions' => 0,
+                'cited' => 0,
+                'arrived' => 0,
+                'missed' => 0,
+                'pending' => 0,
             ];
+            $groups[$key]['sessions']++;
 
             foreach ($induction->attendees as $attendee) {
-                $driverKey = $this->attendeeKey($attendee, $unitKey, $names, $drivers);
-
-                if ($driverKey === null) {
+                if ($restrictAttendees && $this->attendeeKey($attendee, $unitKey, $names, $drivers) === null) {
                     continue;
                 }
 
-                $groups[$key]['listed'][$driverKey] = true;
+                $groups[$key]['cited']++;
 
                 if ($this->attended($attendee)) {
-                    $groups[$key]['ok'][$driverKey] = true;
+                    $groups[$key]['arrived']++;
+                } elseif ($attendee->status === InductionAttendeeStatuses::ABSENT) {
+                    $groups[$key]['missed']++;
+                } else {
+                    $groups[$key]['pending']++;
                 }
             }
         }
@@ -288,20 +302,20 @@ class DriverBoardController extends Controller
         $rings = [];
 
         foreach ($groups as $key => $group) {
-            $ok = count($group['ok']);
-            $listed = count($group['listed']);
-            $falta = max(0, $listed - $ok);
+            $cited = $group['cited'];
 
-            $rings[] = $this->ring(
+            $rings[] = $this->card(
                 'induccion-'.$key,
                 $group['label'],
                 'induccion',
-                'status',
-                $ok,
-                max(0, $total - $ok - $falta),
-                $falta,
-                0,
-                $total,
+                $cited > 0 ? (int) round(($group['arrived'] / $cited) * 100) : 0,
+                [
+                    $this->metric('sesiones', 'Sesiones', $group['sessions'], 'info'),
+                    $this->metric('citados', 'Citados', $cited, 'muted'),
+                    $this->metric('llegaron', 'Llegaron', $group['arrived'], 'ok'),
+                    $this->metric('no', 'No llegaron', $group['missed'], 'bad'),
+                    $this->metric('pendiente', 'Sin marcar', $group['pending'], 'muted'),
+                ],
             );
         }
 
@@ -324,32 +338,31 @@ class DriverBoardController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function ring(
-        string $key,
-        string $label,
-        string $source,
-        string $mode,
-        int $ok,
-        int $baja,
-        int $falta,
-        int $programar,
-        int $total,
-    ): array {
-        $percent = $mode === 'programar'
-            ? ($total > 0 ? 100 : 0)
-            : ($total > 0 ? (int) round(($ok / $total) * 100) : 0);
-
+    /**
+     * @param  list<array{key: string, label: string, value: int, tone: string}>  $metrics
+     * @return array<string, mixed>
+     */
+    private function card(string $key, string $label, string $source, int $percent, array $metrics): array
+    {
         return [
             'key' => $key,
             'label' => $label,
             'source' => $source,
-            'mode' => $mode,
-            'ok' => $ok,
-            'baja' => $baja,
-            'falta' => $falta,
-            'programar' => $programar,
-            'total' => $total,
             'percent' => $percent,
+            'metrics' => $metrics,
+        ];
+    }
+
+    /**
+     * @return array{key: string, label: string, value: int, tone: string}
+     */
+    private function metric(string $key, string $label, int $value, string $tone): array
+    {
+        return [
+            'key' => $key,
+            'label' => $label,
+            'value' => $value,
+            'tone' => $tone,
         ];
     }
 

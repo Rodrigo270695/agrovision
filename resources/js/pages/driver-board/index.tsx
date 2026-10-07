@@ -3,17 +3,19 @@ import { DateRangeFilter } from '@/components/shared/date-range-filter';
 import { dashboard } from '@/routes';
 import { cn } from '@/lib/utils';
 
+type Metric = {
+    key: string;
+    label: string;
+    value: number;
+    tone: 'ok' | 'bad' | 'muted' | 'info';
+};
+
 type Ring = {
     key: string;
     label: string;
     source: 'inspeccion' | 'induccion';
-    mode: 'status' | 'programar';
-    ok: number;
-    baja: number;
-    falta: number;
-    programar: number;
-    total: number;
     percent: number;
+    metrics: Metric[];
 };
 
 type Filters = {
@@ -43,10 +45,21 @@ type PageProps = {
     scoped: boolean;
 };
 
-const OK = '#22c55e';
-const BAJA = '#94a3b8';
-const FALTA = '#ef4444';
-const PROGRAMAR = '#3b82f6';
+const TONE = {
+    ok: { bar: '#22c55e', text: 'text-[#166534]' },
+    bad: { bar: '#ef4444', text: 'text-[#b91c1c]' },
+    muted: { bar: '#94a3b8', text: 'text-[#64748b]' },
+    info: { bar: '#1a2b4c', text: 'text-[#1a2b4c]' },
+};
+
+const CHART_KEYS = new Set([
+    'aprobadas',
+    'desaprobadas',
+    'sin',
+    'llegaron',
+    'no',
+    'pendiente',
+]);
 
 const SOURCE: Record<Ring['source'], string> = {
     inspeccion: 'Inspección',
@@ -213,21 +226,18 @@ export default function DriverBoardPage() {
 function RingCard({ ring }: { ring: Ring }) {
     const radius = 42;
     const circumference = 2 * Math.PI * radius;
-    const parts =
-        ring.mode === 'programar'
-            ? [{ key: 'programar', value: ring.programar, color: PROGRAMAR }]
-            : [
-                  { key: 'ok', value: ring.ok, color: OK },
-                  { key: 'baja', value: ring.baja, color: BAJA },
-                  { key: 'falta', value: ring.falta, color: FALTA },
-              ];
-    const visible = parts.filter((part) => part.value > 0);
+    const chartTotal = ring.metrics
+        .filter((metric) => CHART_KEYS.has(metric.key))
+        .reduce((sum, metric) => sum + metric.value, 0);
+    const parts = ring.metrics.filter(
+        (metric) => CHART_KEYS.has(metric.key) && metric.value > 0,
+    );
     let offset = 0;
     const arcs =
-        ring.total === 0
+        chartTotal === 0
             ? []
-            : visible.map((part) => {
-                  const length = (part.value / ring.total) * circumference;
+            : parts.map((part) => {
+                  const length = (part.value / chartTotal) * circumference;
                   const arc = {
                       ...part,
                       dash: length,
@@ -264,7 +274,7 @@ function RingCard({ ring }: { ring: Ring }) {
                             cy="60"
                             r={radius}
                             fill="none"
-                            stroke={arc.color}
+                            stroke={TONE[arc.tone].bar}
                             strokeWidth="12"
                             strokeDasharray={`${arc.dash} ${arc.gap}`}
                             strokeDashoffset={-arc.offset}
@@ -273,36 +283,26 @@ function RingCard({ ring }: { ring: Ring }) {
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
                     <span className="text-xl font-bold text-[#1a2b4c]">
-                        {ring.total === 0 ? '—' : `${ring.percent}%`}
+                        {chartTotal === 0 ? '—' : `${ring.percent}%`}
                     </span>
                 </div>
             </div>
-            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-[#e8eef5] pt-3 text-center">
-                {ring.mode === 'programar' ? (
-                    <Count
-                        label="Por programar"
-                        value={ring.programar}
-                        className="col-span-3 text-[#1d4ed8]"
-                    />
-                ) : (
-                    <>
-                        <Count
-                            label="OK"
-                            value={ring.ok}
-                            className="text-[#166534]"
-                        />
-                        <Count
-                            label="Baja"
-                            value={ring.baja}
-                            className="text-[#64748b]"
-                        />
-                        <Count
-                            label="Falta"
-                            value={ring.falta}
-                            className="text-[#b91c1c]"
-                        />
-                    </>
+            <div
+                className={cn(
+                    'mt-3 grid gap-2 border-t border-[#e8eef5] pt-3 text-center',
+                    ring.metrics.length > 3 ? 'grid-cols-2' : 'grid-cols-3',
                 )}
+            >
+                {ring.metrics
+                    .filter((metric) => metric.key !== 'pendiente' || metric.value > 0)
+                    .map((metric) => (
+                        <Count
+                            key={metric.key}
+                            label={metric.label}
+                            value={metric.value}
+                            className={TONE[metric.tone].text}
+                        />
+                    ))}
             </div>
         </article>
     );
@@ -318,7 +318,7 @@ function Count({
     className: string;
 }) {
     return (
-        <div className={className.includes('col-span') ? 'col-span-3' : undefined}>
+        <div>
             <p className="text-[10px] font-semibold tracking-wide text-[#6b8ead] uppercase">
                 {label}
             </p>
