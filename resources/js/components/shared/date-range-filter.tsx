@@ -42,6 +42,7 @@ type Props = {
     onApply: (desde: string, hasta: string) => void;
     onClear: () => void;
     triggerClassName?: string;
+    align?: 'start' | 'center' | 'end';
 };
 
 type PresetId =
@@ -293,6 +294,7 @@ export function DateRangeFilter({
     onApply,
     onClear,
     triggerClassName,
+    align = 'end',
 }: Props) {
     const sheet = useSheetLayout();
     const [open, setOpen] = useState(false);
@@ -481,7 +483,7 @@ export function DateRangeFilter({
         >
             <PopoverTrigger asChild>{trigger}</PopoverTrigger>
             <PopoverContent
-                align="end"
+                align={align}
                 side="bottom"
                 sideOffset={8}
                 avoidCollisions={false}

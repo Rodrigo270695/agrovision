@@ -20,8 +20,8 @@ class SstBoardController extends Controller
     public function __invoke(Request $request): Response
     {
         $validated = $request->validate([
-            'view' => ['nullable', 'string', 'max:10'],
-            'week' => ['nullable', 'string', 'max:20'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date'],
             'coordinator_id' => ['nullable', 'integer'],
             'vehicle_types' => ['nullable', 'array'],
             'vehicle_types.*' => ['string', 'max:80'],
@@ -31,8 +31,7 @@ class SstBoardController extends Controller
 
         $template = $validated['template'] ?? 'tdp';
         $inspection = $validated['inspection'] ?? 'actual';
-        $view = ReportPeriod::view($validated['view'] ?? null);
-        $week = ReportPeriod::resolve($view, $validated['week'] ?? null, 'Todas las semanas');
+        $range = ReportPeriod::range($validated['date_from'] ?? null, $validated['date_to'] ?? null);
         $coordinatorId = isset($validated['coordinator_id'])
             ? (int) $validated['coordinator_id']
             : null;
@@ -46,7 +45,7 @@ class SstBoardController extends Controller
             $coordinatorId = (int) Auth::id();
         }
 
-        $checklists = $this->checklists($template, $week, $coordinatorId, $vehicleTypes);
+        $checklists = $this->checklists($template, $range, $coordinatorId, $vehicleTypes);
         $latest = $checklists
             ->groupBy('unit_id')
             ->map(fn (Collection $rows) => $rows->sortByDesc('id')->first())
@@ -75,29 +74,20 @@ class SstBoardController extends Controller
             'sections' => $sections,
             'summary' => [
                 'units' => $latest->count(),
-                'week_label' => $week['label'],
-                'week_number' => $week['number'],
+                'week_label' => $range['label'],
                 'coordinators' => $coordinatorNames,
                 'vehicle_types' => $vehicleNames,
                 'template_label' => ChecklistTemplate::query()->where('type', $template)->first()?->displayLabel()
                     ?? mb_strtoupper($template),
             ],
             'filters' => [
-                'view' => $view,
-                'week' => $week['value'],
+                'date_from' => $range['from'],
+                'date_to' => $range['to'],
                 'coordinator_id' => $coordinatorId,
                 'vehicle_types' => $vehicleTypes->all(),
                 'template' => $template,
                 'inspection' => $inspection,
             ],
-            'periods' => ReportPeriod::options(
-                $view,
-                UnitChecklist::query()
-                    ->whereNotNull('first_inspected_on')
-                    ->whereHas('period', fn ($builder) => $builder->where('status', 'active'))
-                    ->pluck('first_inspected_on'),
-                'Todas las semanas',
-            ),
             'coordinators' => $this->coordinatorOptions($coordinatorId),
             'vehicle_options' => $this->vehicleOptions(),
             'templateOptions' => ChecklistTemplate::options(),
@@ -109,7 +99,7 @@ class SstBoardController extends Controller
      * @param  Collection<int, string>  $vehicleTypes
      * @return Collection<int, UnitChecklist>
      */
-    private function checklists(string $template, array $week, ?int $coordinatorId, Collection $vehicleTypes): Collection
+    private function checklists(string $template, array $range, ?int $coordinatorId, Collection $vehicleTypes): Collection
     {
         $query = UnitChecklist::query()
             ->with([
@@ -120,8 +110,8 @@ class SstBoardController extends Controller
             ->whereHas('template', fn ($builder) => $builder->where('type', $template))
             ->whereHas('period', fn ($builder) => $builder->where('status', 'active'));
 
-        if ($week['value'] !== 'all') {
-            $query->whereBetween('first_inspected_on', [$week['from'], $week['to']]);
+        if ($range['from'] !== null && $range['to'] !== null) {
+            $query->whereBetween('first_inspected_on', [$range['from'], $range['to']]);
         }
 
         if ($coordinatorId) {

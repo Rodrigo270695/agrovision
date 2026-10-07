@@ -1,5 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { ReportPeriodFilter, type ReportView } from '@/components/reports/report-period-filter';
+import { DateRangeFilter } from '@/components/shared/date-range-filter';
 import { dashboard } from '@/routes';
 import { cn } from '@/lib/utils';
 
@@ -22,15 +22,10 @@ type Section = {
 };
 
 type Filters = {
-    view: ReportView;
-    week: string;
+    date_from: string | null;
+    date_to: string | null;
     coordinator_id: number | null;
     sede: number | null;
-};
-
-type WeekOption = {
-    value: string;
-    label: string;
 };
 
 type CoordinatorOption = {
@@ -43,11 +38,9 @@ type PageProps = {
     summary: {
         drivers: number;
         week_label: string;
-        week_number: number | null;
         coordinators: string[];
     };
     filters: Filters;
-    periods: WeekOption[];
     coordinators: CoordinatorOption[];
     sedes: CoordinatorOption[];
     scoped: boolean;
@@ -63,7 +56,6 @@ export default function DriverBoardPage() {
         sections,
         summary,
         filters,
-        periods,
         coordinators,
         sedes,
         scoped,
@@ -75,8 +67,8 @@ export default function DriverBoardPage() {
         router.get(
             '/tablero-conductores',
             {
-                view: merged.view,
-                week: merged.week || undefined,
+                date_from: merged.date_from || undefined,
+                date_to: merged.date_to || undefined,
                 coordinator_id: merged.coordinator_id ?? undefined,
                 sede: merged.sede ?? undefined,
             },
@@ -112,12 +104,31 @@ export default function DriverBoardPage() {
                             {summary.week_label}
                         </p>
 
-                        <ReportPeriodFilter
-                            view={filters.view}
-                            value={filters.week}
-                            options={periods}
-                            onChange={(next) => visit(next)}
-                        />
+                        <div className="mt-4">
+                            <p className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                                Fecha
+                            </p>
+                            <div className="mt-2">
+                                <DateRangeFilter
+                                    desde={filters.date_from}
+                                    hasta={filters.date_to}
+                                    align="start"
+                                    triggerClassName="w-full"
+                                    onApply={(dateFrom, dateTo) =>
+                                        visit({
+                                            date_from: dateFrom,
+                                            date_to: dateTo,
+                                        })
+                                    }
+                                    onClear={() =>
+                                        visit({
+                                            date_from: null,
+                                            date_to: null,
+                                        })
+                                    }
+                                />
+                            </div>
+                        </div>
 
                         <div className="mt-4">
                             <p className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">

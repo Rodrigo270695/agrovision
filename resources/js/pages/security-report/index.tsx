@@ -1,5 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { ReportPeriodFilter, type ReportView } from '@/components/reports/report-period-filter';
+import { DateRangeFilter } from '@/components/shared/date-range-filter';
 import { dashboard } from '@/routes';
 import { cn } from '@/lib/utils';
 
@@ -33,8 +33,8 @@ type Summary = {
 };
 
 type Filters = {
-    view: ReportView;
-    week: string;
+    date_from: string | null;
+    date_to: string | null;
     coordinator_id: number | null;
 };
 
@@ -44,7 +44,6 @@ type PageProps = {
     full_coverage: string[];
     exceptions: ExceptionRow[];
     filters: Filters;
-    periods: { value: string; label: string }[];
     coordinators: { id: number; name: string }[];
     scoped: boolean;
 };
@@ -54,7 +53,7 @@ const BAJA = '#94a3b8';
 const PENDIENTE = '#f59e0b';
 
 export default function SecurityReportPage() {
-    const { fleet, summary, full_coverage, exceptions, filters, periods, coordinators, scoped } =
+    const { fleet, summary, full_coverage, exceptions, filters, coordinators, scoped } =
         usePage<PageProps>().props;
 
     const visit = (next: Partial<Filters>) => {
@@ -63,8 +62,8 @@ export default function SecurityReportPage() {
         router.get(
             '/reporte-sst',
             {
-                view: merged.view,
-                week: merged.week || undefined,
+                date_from: merged.date_from || undefined,
+                date_to: merged.date_to || undefined,
                 coordinator_id: merged.coordinator_id ?? undefined,
             },
             { preserveState: true, preserveScroll: true, replace: true },
@@ -86,13 +85,25 @@ export default function SecurityReportPage() {
                             : ''}
                     </p>
                     <div className="mt-4 flex flex-wrap items-end gap-3">
-                        <ReportPeriodFilter
-                            compact
-                            view={filters.view}
-                            value={filters.week}
-                            options={periods}
-                            onChange={(next) => visit(next)}
-                        />
+                        <div className="w-full sm:w-auto">
+                            <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                                Fecha
+                            </p>
+                            <DateRangeFilter
+                                desde={filters.date_from}
+                                hasta={filters.date_to}
+                                align="start"
+                                onApply={(dateFrom, dateTo) =>
+                                    visit({
+                                        date_from: dateFrom,
+                                        date_to: dateTo,
+                                    })
+                                }
+                                onClear={() =>
+                                    visit({ date_from: null, date_to: null })
+                                }
+                            />
+                        </div>
                         <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-64">
                             Coordinador
                             <select

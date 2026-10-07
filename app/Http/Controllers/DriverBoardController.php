@@ -12,7 +12,6 @@ use App\Support\ReportPeriod;
 use App\Support\SystemRoles;
 use App\Support\UnitDocumentTypes;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -23,14 +22,13 @@ class DriverBoardController extends Controller
     public function __invoke(Request $request): Response
     {
         $validated = $request->validate([
-            'view' => ['nullable', 'string', 'max:10'],
-            'week' => ['nullable', 'string', 'max:20'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date'],
             'coordinator_id' => ['nullable', 'integer'],
             'sede' => ['nullable', 'integer'],
         ]);
 
-        $view = ReportPeriod::view($validated['view'] ?? null);
-        $week = ReportPeriod::resolve($view, $validated['week'] ?? null, 'Todas las semanas');
+        $range = ReportPeriod::range($validated['date_from'] ?? null, $validated['date_to'] ?? null);
         $coordinatorId = isset($validated['coordinator_id'])
             ? (int) $validated['coordinator_id']
             : null;
@@ -41,7 +39,7 @@ class DriverBoardController extends Controller
         }
 
         $drivers = $this->drivers($coordinatorId, $siteId);
-        $sessions = $this->sessions($week);
+        $sessions = $this->sessions($range);
         $covered = $this->coveredTopics($sessions, $drivers);
 
         $coordinatorNames = $drivers
@@ -56,17 +54,15 @@ class DriverBoardController extends Controller
             'sections' => $this->sections($drivers, $covered),
             'summary' => [
                 'drivers' => $drivers->count(),
-                'week_label' => $week['label'],
-                'week_number' => $week['number'],
+                'week_label' => $range['label'],
                 'coordinators' => $coordinatorNames,
             ],
             'filters' => [
-                'view' => $view,
-                'week' => $week['value'],
+                'date_from' => $range['from'],
+                'date_to' => $range['to'],
                 'coordinator_id' => $coordinatorId,
                 'sede' => $siteId,
             ],
-            'periods' => ReportPeriod::options($view, $this->sessionDates(), 'Todas las semanas'),
             'coordinators' => $this->coordinatorOptions($coordinatorId),
             'sedes' => $this->sedeOptions(),
             'scoped' => SystemRoles::currentIsScopedCoordinator(),
@@ -128,7 +124,7 @@ class DriverBoardController extends Controller
     /**
      * @return Collection<int, Induction>
      */
-    private function sessions(array $week): Collection
+    private function sessions(array $range): Collection
     {
         $query = Induction::query()
             ->with([
@@ -140,16 +136,16 @@ class DriverBoardController extends Controller
                     ->orWhereHas('period', fn ($period) => $period->where('status', 'active'));
             });
 
-        if ($week['value'] !== 'all') {
-            $query->where(function ($builder) use ($week) {
+        if ($range['from'] !== null && $range['to'] !== null) {
+            $query->where(function ($builder) use ($range) {
                 $builder
-                    ->whereBetween('session_date', [$week['from'], $week['to']])
-                    ->orWhere(function ($inner) use ($week) {
+                    ->whereBetween('session_date', [$range['from'], $range['to']])
+                    ->orWhere(function ($inner) use ($range) {
                         $inner
                             ->whereNull('session_date')
                             ->whereBetween('scheduled_at', [
-                                $week['from'].' 00:00:00',
-                                $week['to'].' 23:59:59',
+                                $range['from'].' 00:00:00',
+                                $range['to'].' 23:59:59',
                             ]);
                     });
             });
@@ -467,27 +463,6 @@ class DriverBoardController extends Controller
         ]);
 
         return preg_replace('/\s+/', ' ', $value) ?? '';
-    }
-
-    /**
-     * @return Collection<int, string>
-     */
-    private function sessionDates(): Collection
-    {
-        return Induction::query()
-            ->where(function ($builder) {
-                $builder
-                    ->whereNull('period_id')
-                    ->orWhereHas('period', fn ($period) => $period->where('status', 'active'));
-            })
-            ->get(['session_date', 'scheduled_at'])
-            ->map(function (Induction $induction) {
-                $date = $induction->session_date ?? $induction->scheduled_at;
-
-                return $date ? Carbon::parse($date)->toDateString() : null;
-            })
-            ->filter()
-            ->values();
     }
 
     /**

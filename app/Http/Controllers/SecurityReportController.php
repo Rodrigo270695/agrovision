@@ -20,19 +20,12 @@ class SecurityReportController extends Controller
     public function __invoke(Request $request): Response
     {
         $validated = $request->validate([
-            'view' => ['nullable', 'string', 'max:10'],
-            'week' => ['nullable', 'string', 'max:20'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date'],
             'coordinator_id' => ['nullable', 'integer'],
         ]);
 
-        $view = ReportPeriod::view($validated['view'] ?? null);
-        $requested = $validated['week'] ?? null;
-
-        if (! $request->exists('view') && ($requested === null || $requested === '')) {
-            $requested = 'all';
-        }
-
-        $week = ReportPeriod::resolve($view, $requested, 'Periodo activo');
+        $range = ReportPeriod::range($validated['date_from'] ?? null, $validated['date_to'] ?? null);
         $coordinatorId = isset($validated['coordinator_id'])
             ? (int) $validated['coordinator_id']
             : null;
@@ -42,7 +35,7 @@ class SecurityReportController extends Controller
         }
 
         $units = $this->units($coordinatorId);
-        $checklists = $this->latestChecklists($week, $units->pluck('id'));
+        $checklists = $this->latestChecklists($range, $units->pluck('id'));
         $rows = $units->map(fn (Unit $unit) => $this->row($unit, $checklists->get($unit->id)))->values();
 
         $ok = $rows->where('status', 'ok')->count();
@@ -63,7 +56,7 @@ class SecurityReportController extends Controller
                 'baja' => $baja,
                 'pendiente' => $pendiente,
                 'percent' => $total > 0 ? (int) round(($ok / $total) * 100) : 0,
-                'week_label' => $week['label'],
+                'week_label' => $range['label'],
                 'previous_period' => $previous?->name,
             ],
             'full_coverage' => $this->fullCoverage($rows),
@@ -80,18 +73,10 @@ class SecurityReportController extends Controller
                 })
                 ->all(),
             'filters' => [
-                'view' => $view,
-                'week' => $week['value'],
+                'date_from' => $range['from'],
+                'date_to' => $range['to'],
                 'coordinator_id' => $coordinatorId,
             ],
-            'periods' => ReportPeriod::options(
-                $view,
-                UnitChecklist::query()
-                    ->whereNotNull('first_inspected_on')
-                    ->whereHas('period', fn ($builder) => $builder->where('status', 'active'))
-                    ->pluck('first_inspected_on'),
-                'Periodo activo',
-            ),
             'coordinators' => $this->coordinatorOptions($coordinatorId),
             'scoped' => SystemRoles::currentIsScopedCoordinator(),
         ]);
@@ -127,7 +112,7 @@ class SecurityReportController extends Controller
      * @param  Collection<int, int>  $unitIds
      * @return Collection<int, UnitChecklist>
      */
-    private function latestChecklists(array $week, Collection $unitIds): Collection
+    private function latestChecklists(array $range, Collection $unitIds): Collection
     {
         if ($unitIds->isEmpty()) {
             return collect();
@@ -138,8 +123,8 @@ class SecurityReportController extends Controller
             ->whereIn('unit_id', $unitIds->all())
             ->whereHas('period', fn ($builder) => $builder->where('status', 'active'));
 
-        if ($week['value'] !== 'all') {
-            $query->whereBetween('first_inspected_on', [$week['from'], $week['to']]);
+        if ($range['from'] !== null && $range['to'] !== null) {
+            $query->whereBetween('first_inspected_on', [$range['from'], $range['to']]);
         }
 
         return $query
