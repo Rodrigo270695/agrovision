@@ -210,6 +210,10 @@ export function ChecklistsPage() {
             <ChecklistsTable
                 checklists={mergedChecklists}
                 filters={filters}
+                templateOptions={(templates ?? []).map((template) => ({
+                    value: template.type,
+                    label: template.label || template.type.toUpperCase(),
+                }))}
                 onEdit={(item, pass) => {
                     if (can('checklists.update') || item.sealed_at) {
                         void openEditor(item, pass);

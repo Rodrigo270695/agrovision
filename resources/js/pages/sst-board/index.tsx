@@ -24,7 +24,7 @@ type Filters = {
     week: string;
     coordinator_id: number | null;
     vehicle_types: string[];
-    template: 'tdp' | 'tdc';
+    template: string;
     inspection: 'actual' | 'first' | 'second';
 };
 
@@ -39,6 +39,7 @@ type CoordinatorOption = {
 };
 
 type PageProps = {
+    templateOptions?: { value: string; label: string }[];
     sections: Section[];
     summary: {
         units: number;
@@ -67,6 +68,7 @@ export default function SstBoardPage() {
         periods,
         coordinators,
         vehicle_options: vehicleOptions,
+        templateOptions = [],
         scoped,
     } = usePage<PageProps>().props;
 
@@ -124,20 +126,28 @@ export default function SstBoardPage() {
                             marcar, rojo en NO.
                         </p>
                     </div>
-                    <div className="flex gap-2">
-                        {(['tdp', 'tdc'] as const).map((type) => (
+                    <div className="flex flex-wrap gap-2">
+                        {(templateOptions.length > 0
+                            ? templateOptions
+                            : [
+                                  { value: 'tdp', label: 'TDP' },
+                                  { value: 'tdc', label: 'TDC' },
+                              ]
+                        ).map((template) => (
                             <button
-                                key={type}
+                                key={template.value}
                                 type="button"
-                                onClick={() => visit({ template: type })}
+                                onClick={() =>
+                                    visit({ template: template.value })
+                                }
                                 className={cn(
-                                    'cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold uppercase',
-                                    filters.template === type
+                                    'cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold',
+                                    filters.template === template.value
                                         ? 'bg-[#1a2b4c] text-white'
                                         : 'border border-[#c5d5e6] text-[#1a2b4c]',
                                 )}
                             >
-                                {type}
+                                {template.label}
                             </button>
                         ))}
                     </div>

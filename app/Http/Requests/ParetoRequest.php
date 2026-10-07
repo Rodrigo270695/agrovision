@@ -19,7 +19,12 @@ class ParetoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'template_type' => ['required', 'string', Rule::in(['tdp', 'tdc'])],
+            'template_type' => [
+                'required',
+                'string',
+                'max:50',
+                Rule::exists('checklist_templates', 'type')->where('is_active', true),
+            ],
             'parent_id' => ['nullable', 'integer', 'exists:pareto,id'],
             'item_number' => ['required', 'string', 'max:20'],
             'label' => ['required', 'string', 'max:500'],

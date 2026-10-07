@@ -1,4 +1,4 @@
-import { Check, ChevronsUpDown, Plus, X } from 'lucide-react';
+import { Check, ChevronsUpDown, Pencil, Plus, X } from 'lucide-react';
 import {
     useEffect,
     useId,
@@ -32,6 +32,8 @@ type Props = {
     compact?: boolean;
     onCreate?: (name: string) => void;
     creating?: boolean;
+    onRename?: (value: string, name: string) => void;
+    renaming?: boolean;
 };
 
 function normalize(value: string): string {
@@ -61,6 +63,8 @@ export function SearchableCombobox({
     compact = false,
     onCreate,
     creating = false,
+    onRename,
+    renaming = false,
 }: Props) {
     const listId = useId();
     const rootRef = useRef<HTMLDivElement>(null);
@@ -69,6 +73,8 @@ export function SearchableCombobox({
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
     const [highlight, setHighlight] = useState(0);
+    const [renameValue, setRenameValue] = useState<string | null>(null);
+    const [renameDraft, setRenameDraft] = useState('');
 
     const selected = useMemo(
         () => options.find((option) => option.value === value) ?? null,
@@ -264,6 +270,31 @@ export function SearchableCombobox({
         setQuery('');
     };
 
+    const startRename = (option: SearchableComboboxOption) => {
+        setRenameValue(option.value);
+        setRenameDraft(option.label);
+    };
+
+    const commitRename = () => {
+        if (!onRename || !renameValue || renaming) {
+            return;
+        }
+
+        const next = renameDraft.trim();
+        const current = options.find((option) => option.value === renameValue);
+
+        if (next === '' || (current && normalize(current.label) === normalize(next))) {
+            setRenameValue(null);
+            setRenameDraft('');
+
+            return;
+        }
+
+        onRename(renameValue, next);
+        setRenameValue(null);
+        setRenameDraft('');
+    };
+
     const openMenu = () => {
         if (disabled) {
             return;
@@ -413,46 +444,103 @@ export function SearchableCombobox({
                         filtered.map((option, index) => {
                             const isSelected = option.value === value;
                             const isActive = index === highlight;
+                            const isRenaming = renameValue === option.value;
+
+                            if (isRenaming) {
+                                return (
+                                    <div
+                                        key={option.value}
+                                        className="flex items-center gap-2 px-3 py-1.5"
+                                    >
+                                        <Pencil className="size-3.5 shrink-0 text-[#2e5a9e]" />
+                                        <input
+                                            autoFocus
+                                            value={renameDraft}
+                                            disabled={renaming}
+                                            aria-label="Nuevo nombre de la plantilla"
+                                            className="h-8 min-w-0 flex-1 rounded-md border border-[#c5d5e6] px-2 text-sm text-[#1a2b4c] outline-none focus:border-[#2e5a9e]"
+                                            onChange={(event) =>
+                                                setRenameDraft(event.target.value)
+                                            }
+                                            onMouseDown={(event) =>
+                                                event.stopPropagation()
+                                            }
+                                            onKeyDown={(event) => {
+                                                event.stopPropagation();
+
+                                                if (event.key === 'Enter') {
+                                                    event.preventDefault();
+                                                    commitRename();
+                                                }
+
+                                                if (event.key === 'Escape') {
+                                                    event.preventDefault();
+                                                    setRenameValue(null);
+                                                    setRenameDraft('');
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                );
+                            }
 
                             return (
-                                <button
+                                <div
                                     key={option.value}
-                                    type="button"
-                                    role="option"
                                     data-index={index}
-                                    aria-selected={isSelected}
                                     className={cn(
-                                        'flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm transition',
+                                        'flex w-full items-center gap-1 pr-2 text-sm transition',
                                         isActive
                                             ? 'bg-[#e8f1fa] text-[#1a2b4c]'
                                             : 'text-[#1a2b4c] hover:bg-[#f8fafc]',
                                     )}
                                     onMouseEnter={() => setHighlight(index)}
-                                    onMouseDown={(event) => {
-                                        // Evita que el input pierda foco antes del click
-                                        event.preventDefault();
-                                        selectOption(option);
-                                    }}
                                 >
-                                    <Check
-                                        className={cn(
-                                            'size-3.5 shrink-0',
-                                            isSelected
-                                                ? 'text-[#2e5a9e] opacity-100'
-                                                : 'opacity-0',
-                                        )}
-                                    />
-                                    <span className="min-w-0 flex-1">
-                                        <span className="block truncate font-medium leading-tight">
-                                            {option.label}
-                                        </span>
-                                        {option.description ? (
-                                            <span className="mt-0.5 block truncate text-xs leading-tight text-[#5a7390]">
-                                                {option.description}
+                                    <button
+                                        type="button"
+                                        role="option"
+                                        aria-selected={isSelected}
+                                        className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-3 py-2 text-left"
+                                        onMouseDown={(event) => {
+                                            event.preventDefault();
+                                            selectOption(option);
+                                        }}
+                                    >
+                                        <Check
+                                            className={cn(
+                                                'size-3.5 shrink-0',
+                                                isSelected
+                                                    ? 'text-[#2e5a9e] opacity-100'
+                                                    : 'opacity-0',
+                                            )}
+                                        />
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block truncate font-medium leading-tight">
+                                                {option.label}
                                             </span>
-                                        ) : null}
-                                    </span>
-                                </button>
+                                            {option.description ? (
+                                                <span className="mt-0.5 block truncate text-xs leading-tight text-[#5a7390]">
+                                                    {option.description}
+                                                </span>
+                                            ) : null}
+                                        </span>
+                                    </button>
+                                    {onRename ? (
+                                        <button
+                                            type="button"
+                                            aria-label={`Editar ${option.label}`}
+                                            disabled={renaming}
+                                            className="rounded p-1 text-[#6b8ead] hover:bg-white hover:text-[#1a2b4c] disabled:opacity-50"
+                                            onMouseDown={(event) => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                                startRename(option);
+                                            }}
+                                        >
+                                            <Pencil className="size-3.5" />
+                                        </button>
+                                    ) : null}
+                                </div>
                             );
                         })
                     )}

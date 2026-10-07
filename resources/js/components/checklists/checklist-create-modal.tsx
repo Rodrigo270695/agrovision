@@ -17,6 +17,7 @@ export type ChecklistTemplateOption = {
     type: string;
     code: string;
     name: string;
+    label?: string;
 };
 
 export type ActiveUnitOption = {

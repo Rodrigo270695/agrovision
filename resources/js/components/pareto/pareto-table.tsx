@@ -15,9 +15,15 @@ import { RowActionsMenu } from '@/components/shared/row-actions-menu';
 import { useCan } from '@/hooks/use-can';
 import { asPaginated } from '@/lib/paginated';
 
+export type ParetoTemplateOption = {
+    id?: number;
+    value: string;
+    label: string;
+};
+
 export type ParetoItem = {
     id: number;
-    template_type: 'tdp' | 'tdc';
+    template_type: string;
     parent_id?: number | null;
     item_number: string;
     label: string;
@@ -48,7 +54,7 @@ export type ParetoPagination = {
 
 export type ParetoFilters = {
     search: string;
-    template_type: 'tdp' | 'tdc' | 'all';
+    template_type: string;
     sort: 'sort_order' | 'item_number' | 'label' | 'weight' | 'created_at';
     direction: 'asc' | 'desc';
     per_page: number;
@@ -65,6 +71,7 @@ export type ParetoStats = {
 type Props = {
     items: ParetoPagination;
     filters: ParetoFilters;
+    templates: ParetoTemplateOption[];
     checkTypeOptions: { value: string; label: string }[];
     onEdit: (item: ParetoItem) => void;
     onDelete: (item: ParetoItem) => void;
@@ -73,6 +80,7 @@ type Props = {
 export function ParetoTable({
     items,
     filters,
+    templates,
     checkTypeOptions,
     onEdit,
     onDelete,
@@ -102,10 +110,24 @@ export function ParetoTable({
     const typeLabel = (value: string) =>
         checkTypeOptions.find((item) => item.value === value)?.label ?? value;
 
-    const typeOptions: readonly FilterChip<ParetoFilters['template_type']>[] = [
+    const templateLabel = (value: string) =>
+        templates.find((item) => item.value === value)?.label ??
+        value.toUpperCase();
+
+    const chipTones = ['info', 'success', 'warning', 'danger'] as const;
+    const typeOptions: readonly FilterChip<string>[] = [
         { value: 'all', label: 'Todas', tone: 'default' },
-        { value: 'tdp', label: 'TDP', tone: 'info' },
-        { value: 'tdc', label: 'TDC', tone: 'primary' },
+        ...(templates.length > 0
+            ? templates
+            : [
+                  { value: 'tdp', label: 'TDP' },
+                  { value: 'tdc', label: 'TDC' },
+              ]
+        ).map((template, index) => ({
+            value: template.value,
+            label: template.label,
+            tone: chipTones[index % chipTones.length],
+        })),
     ];
 
     const columns = useMemo<DataTableColumn<ParetoItem>[]>(
@@ -135,8 +157,8 @@ export function ParetoTable({
                 key: 'template_type',
                 header: 'Plantilla',
                 cell: (item) => (
-                    <span className="text-xs uppercase text-muted-foreground">
-                        {item.template_type}
+                    <span className="text-xs text-muted-foreground">
+                        {templateLabel(item.template_type)}
                     </span>
                 ),
             },
@@ -216,7 +238,7 @@ export function ParetoTable({
                 ),
             },
         ],
-        [canDelete, canUpdate, checkTypeOptions, onDelete, onEdit],
+        [canDelete, canUpdate, checkTypeOptions, onDelete, onEdit, templates],
     );
 
     const hasFilters =

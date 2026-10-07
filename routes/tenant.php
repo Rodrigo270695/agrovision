@@ -96,6 +96,14 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:pareto.view')
             ->name('pareto.index');
 
+        Route::post('pareto/plantillas', [ParetoController::class, 'storeTemplate'])
+            ->middleware('permission:pareto.create')
+            ->name('pareto.templates.store');
+
+        Route::put('pareto/plantillas/{template}', [ParetoController::class, 'updateTemplate'])
+            ->middleware('permission:pareto.update')
+            ->name('pareto.templates.update');
+
         Route::post('pareto', [ParetoController::class, 'store'])
             ->middleware('permission:pareto.create')
             ->name('pareto.store');

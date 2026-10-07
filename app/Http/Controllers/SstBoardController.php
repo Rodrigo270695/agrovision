@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ChecklistTemplate;
 use App\Models\Unit;
 use App\Models\UnitChecklist;
 use App\Models\UnitChecklistAnswer;
@@ -24,7 +25,7 @@ class SstBoardController extends Controller
             'coordinator_id' => ['nullable', 'integer'],
             'vehicle_types' => ['nullable', 'array'],
             'vehicle_types.*' => ['string', 'max:80'],
-            'template' => ['nullable', Rule::in(['tdp', 'tdc'])],
+            'template' => ['nullable', 'string', 'max:50', Rule::exists('checklist_templates', 'type')->where('is_active', true)],
             'inspection' => ['nullable', Rule::in(['actual', 'first', 'second'])],
         ]);
 
@@ -78,7 +79,8 @@ class SstBoardController extends Controller
                 'week_number' => $week['number'],
                 'coordinators' => $coordinatorNames,
                 'vehicle_types' => $vehicleNames,
-                'template_label' => $template === 'tdc' ? 'TDC' : 'TDP',
+                'template_label' => ChecklistTemplate::query()->where('type', $template)->first()?->displayLabel()
+                    ?? mb_strtoupper($template),
             ],
             'filters' => [
                 'view' => $view,
@@ -98,6 +100,7 @@ class SstBoardController extends Controller
             ),
             'coordinators' => $this->coordinatorOptions($coordinatorId),
             'vehicle_options' => $this->vehicleOptions(),
+            'templateOptions' => ChecklistTemplate::options(),
             'scoped' => SystemRoles::currentIsScopedCoordinator(),
         ]);
     }

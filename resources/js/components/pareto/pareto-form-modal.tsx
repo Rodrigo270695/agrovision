@@ -1,7 +1,12 @@
-import { useForm } from '@inertiajs/react';
-import { useEffect, useMemo, type FormEvent } from 'react';
+import { router, useForm } from '@inertiajs/react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import InputError from '@/components/input-error';
-import type { ParetoItem, ParentOption } from '@/components/pareto/pareto-table';
+import type {
+    ParetoItem,
+    ParetoTemplateOption,
+    ParentOption,
+} from '@/components/pareto/pareto-table';
+import { useCan } from '@/hooks/use-can';
 import { AppModal } from '@/components/shared/app-modal';
 import { SearchableCombobox } from '@/components/shared/searchable-combobox';
 import { Button } from '@/components/ui/button';
@@ -15,7 +20,8 @@ type Props = {
     item?: ParetoItem | null;
     checkTypeOptions: { value: string; label: string }[];
     parentOptions: ParentOption[];
-    defaultTemplateType: 'tdp' | 'tdc';
+    templates: ParetoTemplateOption[];
+    defaultTemplateType: string;
     onClose: () => void;
 };
 
@@ -24,12 +30,24 @@ export function ParetoFormModal({
     item = null,
     checkTypeOptions,
     parentOptions,
+    templates,
     defaultTemplateType,
     onClose,
 }: Props) {
     const isEditing = Boolean(item);
+    const { can } = useCan();
+    const [savingTemplate, setSavingTemplate] = useState<
+        'create' | 'rename' | null
+    >(null);
+    const templateOptions =
+        templates.length > 0
+            ? templates
+            : [
+                  { value: 'tdp', label: 'TDP' },
+                  { value: 'tdc', label: 'TDC' },
+              ];
     const form = useForm({
-        template_type: 'tdp' as 'tdp' | 'tdc',
+        template_type: 'tdp',
         parent_id: '' as string,
         item_number: '',
         label: '',
@@ -177,10 +195,6 @@ export function ParetoFormModal({
                             allowClear={false}
                             className="w-full min-w-0"
                             value={form.data.template_type}
-                            options={[
-                                { value: 'tdp', label: 'TDP' },
-                                { value: 'tdc', label: 'TDC' },
-                            ]}
                             onChange={(value) => {
                                 if (!value) {
                                     return;
@@ -188,11 +202,88 @@ export function ParetoFormModal({
 
                                 form.setData((current) => ({
                                     ...current,
-                                    template_type: value as 'tdp' | 'tdc',
+                                    template_type: value,
                                     parent_id: '',
                                 }));
                             }}
+                            options={templateOptions}
+                            onCreate={
+                                can('pareto.create')
+                                    ? (name) => {
+                                          setSavingTemplate('create');
+                                          router.post(
+                                              '/pareto/plantillas',
+                                              { name },
+                                              {
+                                                  preserveScroll: true,
+                                                  preserveState: true,
+                                                  onSuccess: (page) => {
+                                                      const created = (
+                                                          page.props
+                                                              .templates as
+                                                              | ParetoTemplateOption[]
+                                                              | undefined
+                                                      )?.find(
+                                                          (option) =>
+                                                              option.label.toLowerCase() ===
+                                                              name.toLowerCase(),
+                                                      );
+
+                                                      if (!created) {
+                                                          return;
+                                                      }
+
+                                                      form.setData(
+                                                          (current) => ({
+                                                              ...current,
+                                                              template_type:
+                                                                  created.value,
+                                                              parent_id: '',
+                                                          }),
+                                                      );
+                                                  },
+                                                  onFinish: () =>
+                                                      setSavingTemplate(null),
+                                              },
+                                          );
+                                      }
+                                    : undefined
+                            }
+                            creating={savingTemplate === 'create'}
+                            onRename={
+                                can('pareto.update')
+                                    ? (value, name) => {
+                                          setSavingTemplate('rename');
+                                          const selected = templateOptions.find(
+                                              (option) =>
+                                                  option.value === value,
+                                          );
+
+                                          if (!selected?.id) {
+                                              setSavingTemplate(null);
+
+                                              return;
+                                          }
+
+                                          router.put(
+                                              `/pareto/plantillas/${selected.id}`,
+                                              { name },
+                                              {
+                                                  preserveScroll: true,
+                                                  preserveState: true,
+                                                  onFinish: () =>
+                                                      setSavingTemplate(null),
+                                              },
+                                          );
+                                      }
+                                    : undefined
+                            }
+                            renaming={savingTemplate === 'rename'}
                         />
+                        <p className="text-[11px] leading-snug text-[#6b8ead]">
+                            Escribe un nombre para crear otra plantilla. El
+                            lápiz cambia el nombre.
+                        </p>
                         <InputError message={form.errors.template_type} />
                     </div>
                     <div className="grid min-w-0 gap-1.5">

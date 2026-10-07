@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $type
  * @property string $code
  * @property string $name
+ * @property string|null $label
  * @property string $version
  * @property string|null $notes_hint
  * @property bool $is_active
@@ -20,6 +21,7 @@ class ChecklistTemplate extends Model
         'type',
         'code',
         'name',
+        'label',
         'version',
         'notes_hint',
         'is_active',
@@ -33,6 +35,30 @@ class ChecklistTemplate extends Model
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+    public function displayLabel(): string
+    {
+        $label = trim((string) $this->label);
+
+        return $label !== '' ? $label : mb_strtoupper((string) $this->type);
+    }
+
+    /**
+     * @return list<array{id: int, value: string, label: string}>
+     */
+    public static function options(): array
+    {
+        return static::query()
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->get(['id', 'type', 'label'])
+            ->map(fn (self $template) => [
+                'id' => $template->id,
+                'value' => $template->type,
+                'label' => $template->displayLabel(),
+            ])
+            ->all();
     }
 
     public function items(): HasMany

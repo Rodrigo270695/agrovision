@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ParetoRequest;
+use App\Models\ChecklistSignatureRole;
+use App\Models\ChecklistTemplate;
 use App\Models\Pareto;
 use App\Services\ParetoChecklistSync;
 use App\Support\IndexedRedirect;
@@ -10,6 +12,7 @@ use App\Support\ParetoCheckTypes;
 use App\Support\PermissionCatalog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -18,9 +21,12 @@ class ParetoController extends Controller
 {
     public function index(Request $request): Response
     {
+        $templateOptions = ChecklistTemplate::options();
+        $templateTypes = array_column($templateOptions, 'value');
+
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:255'],
-            'template_type' => ['nullable', Rule::in(['tdp', 'tdc', 'all'])],
+            'template_type' => ['nullable', Rule::in([...$templateTypes, 'all'])],
             'sort' => ['nullable', Rule::in(['sort_order', 'item_number', 'label', 'weight', 'created_at'])],
             'direction' => ['nullable', Rule::in(['asc', 'desc'])],
             'per_page' => ['nullable', Rule::in([10, 25, 50, 100])],
@@ -88,10 +94,11 @@ class ParetoController extends Controller
                 ->map(fn (string $label, string $value) => compact('value', 'label'))
                 ->values()
                 ->all(),
+            'templates' => $templateOptions,
             'parentOptions' => Pareto::query()
-                ->when($templateType !== 'all', fn ($q) => $q->where('template_type', $templateType))
                 ->whereNull('parent_id')
                 ->orderBy('sort_order')
+                ->orderBy('id')
                 ->get(['id', 'item_number', 'label', 'template_type']),
             'stats' => [
                 'total' => (clone $weightScope)->count(),
@@ -158,10 +165,104 @@ class ParetoController extends Controller
         ]);
     }
 
+    public function storeTemplate(Request $request): RedirectResponse
+    {
+        $name = trim((string) $request->input('name'));
+
+        if ($name === '' || mb_strlen($name) > 80) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'El nombre de la plantilla debe tener entre 1 y 80 caracteres.',
+            ]);
+        }
+
+        if ($this->templateLabelExists($name)) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Ya existe una plantilla con ese nombre.',
+            ]);
+        }
+
+        $type = $this->uniqueTemplateType($name);
+        $template = ChecklistTemplate::query()->create([
+            'type' => $type,
+            'code' => $this->uniqueTemplateCode(),
+            'name' => $name,
+            'label' => $name,
+            'version' => '1',
+            'is_active' => true,
+        ]);
+
+        $roles = ChecklistSignatureRole::query()
+            ->whereHas('template', fn ($query) => $query->where('type', 'tdp'))
+            ->orderBy('sort_order')
+            ->pluck('label');
+
+        if ($roles->isEmpty()) {
+            $roles = collect([
+                'Conductor de la unidad',
+                'Mecánico de mantenimiento',
+                'Jefe del área de transporte',
+                'V°B° SST',
+            ]);
+        }
+
+        foreach ($roles->values() as $index => $label) {
+            ChecklistSignatureRole::query()->create([
+                'template_id' => $template->id,
+                'label' => $label,
+                'sort_order' => $index + 1,
+            ]);
+        }
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => "Plantilla {$name} creada. Ya puedes agregarle ítems.",
+        ]);
+    }
+
+    public function updateTemplate(Request $request, ChecklistTemplate $template): RedirectResponse
+    {
+        $name = trim((string) $request->input('name'));
+
+        if ($name === '' || mb_strlen($name) > 80) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'El nombre de la plantilla debe tener entre 1 y 80 caracteres.',
+            ]);
+        }
+
+        if ($this->templateLabelExists($name, $template->id)) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Ya existe una plantilla con ese nombre.',
+            ]);
+        }
+
+        $previous = $template->displayLabel();
+        $attributes = ['label' => $name];
+
+        if (trim((string) $template->name) === $previous) {
+            $attributes['name'] = $name;
+        }
+
+        $template->update($attributes);
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => "La plantilla ahora se llama {$name}.",
+        ]);
+    }
+
     public function redistribute(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'template_type' => ['required', Rule::in(['tdp', 'tdc'])],
+            'template_type' => [
+                'required',
+                'string',
+                'max:50',
+                Rule::exists('checklist_templates', 'type')->where('is_active', true),
+            ],
         ]);
 
         $items = Pareto::query()
@@ -200,6 +301,51 @@ class ParetoController extends Controller
             'type' => 'success',
             'message' => "Pesos redistribuidos equitativamente ({$count} ítems = 100%).",
         ]);
+    }
+
+    private function templateLabelExists(string $name, ?int $ignoreId = null): bool
+    {
+        return ChecklistTemplate::query()
+            ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
+            ->whereRaw('lower(label) = ?', [mb_strtolower($name)])
+            ->exists();
+    }
+
+    private function uniqueTemplateType(string $name): string
+    {
+        $base = Str::slug($name, '_');
+        $base = substr($base, 0, 40);
+        $base = $base !== '' ? $base : 'plantilla';
+        $type = $base;
+        $suffix = 2;
+
+        while (ChecklistTemplate::query()->where('type', $type)->exists()) {
+            $type = substr($base, 0, 36).'_'.$suffix;
+            $suffix++;
+        }
+
+        return $type;
+    }
+
+    private function uniqueTemplateCode(): string
+    {
+        $max = ChecklistTemplate::query()
+            ->pluck('code')
+            ->map(function (string $code): int {
+                preg_match('/(\d+)$/', $code, $matches);
+
+                return isset($matches[1]) ? (int) $matches[1] : 0;
+            })
+            ->max();
+
+        $next = ((int) $max) + 1;
+
+        do {
+            $code = 'PE-F-SST-'.str_pad((string) $next, 3, '0', STR_PAD_LEFT);
+            $next++;
+        } while (ChecklistTemplate::query()->where('code', $code)->exists());
+
+        return $code;
     }
 
     private function syncChecklist(string $templateType): void

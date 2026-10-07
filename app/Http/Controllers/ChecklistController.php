@@ -48,7 +48,7 @@ class ChecklistController extends Controller
     {
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:255'],
-            'template_type' => ['nullable', Rule::in(['tdp', 'tdc'])],
+            'template_type' => ['nullable', 'string', 'max:50', Rule::exists('checklist_templates', 'type')],
             'status' => ['nullable', Rule::in(['draft', 'completed'])],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
@@ -162,6 +162,7 @@ class ChecklistController extends Controller
                 'type' => $template->type,
                 'code' => $template->code,
                 'name' => $template->name,
+                'label' => $template->displayLabel(),
             ])->values(),
             'activeUnits' => $activeUnitsQuery->get([
                 'id',
@@ -226,7 +227,7 @@ class ChecklistController extends Controller
     {
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:255'],
-            'template_type' => ['nullable', Rule::in(['tdp', 'tdc'])],
+            'template_type' => ['nullable', 'string', 'max:50', Rule::exists('checklist_templates', 'type')],
             'status' => ['nullable', Rule::in(['draft', 'completed'])],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],

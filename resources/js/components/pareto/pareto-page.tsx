@@ -9,6 +9,7 @@ import {
     type ParetoItem,
     type ParetoPagination,
     type ParetoStats,
+    type ParetoTemplateOption,
     type ParentOption,
 } from '@/components/pareto/pareto-table';
 import { useCan } from '@/hooks/use-can';
@@ -19,10 +20,11 @@ type PageProps = {
     filters: ParetoFilters;
     checkTypeOptions: { value: string; label: string }[];
     parentOptions: ParentOption[];
+    templates: ParetoTemplateOption[];
 };
 
 export function ParetoPage() {
-    const { items, stats, filters, checkTypeOptions, parentOptions } =
+    const { items, stats, filters, checkTypeOptions, parentOptions, templates } =
         usePage().props as unknown as PageProps;
     const { can } = useCan();
 
@@ -48,6 +50,7 @@ export function ParetoPage() {
             <ParetoTable
                 items={items}
                 filters={filters}
+                templates={templates ?? []}
                 checkTypeOptions={checkTypeOptions ?? []}
                 onEdit={(item) => {
                     if (!can('pareto.update')) {
@@ -73,9 +76,10 @@ export function ParetoPage() {
                     item={editing}
                     checkTypeOptions={checkTypeOptions ?? []}
                     parentOptions={parentOptions ?? []}
+                    templates={templates ?? []}
                     defaultTemplateType={
                         filters.template_type === 'all'
-                            ? 'tdp'
+                            ? (templates?.[0]?.value ?? 'tdp')
                             : filters.template_type
                     }
                     onClose={() => {

@@ -64,7 +64,7 @@ export type ChecklistsPagination = {
 
 export type ChecklistsFilters = {
     search: string;
-    template_type?: 'tdp' | 'tdc' | null;
+    template_type?: string | null;
     status?: 'draft' | 'completed' | null;
     date_from?: string | null;
     date_to?: string | null;
@@ -77,13 +77,14 @@ export type ChecklistsFilters = {
 type Props = {
     checklists: ChecklistsPagination;
     filters: ChecklistsFilters;
+    templateOptions?: { value: string; label: string }[];
     onEdit: (item: ChecklistItemRow, pass?: 'first' | 'second') => void;
     onDelete: (item: ChecklistItemRow) => void;
     onPreviewPdf: (item: ChecklistItemRow) => void;
 };
 
 type SortKey = ChecklistsFilters['sort'];
-type TypeFilter = 'all' | 'tdp' | 'tdc';
+type TypeFilter = string;
 type StatusFilter = 'all' | 'draft' | 'completed';
 
 function formatDate(value?: string | null): string {
@@ -271,6 +272,7 @@ function editActions(
 export function ChecklistsTable({
     checklists,
     filters,
+    templateOptions = [],
     onEdit,
     onDelete,
     onPreviewPdf,
@@ -335,10 +337,21 @@ export function ChecklistsTable({
         ? { key: filters.sort, direction: filters.direction }
         : null;
 
+    const typeChips =
+        templateOptions.length > 0
+            ? templateOptions
+            : [
+                  { value: 'tdp', label: 'TDP' },
+                  { value: 'tdc', label: 'TDC' },
+              ];
+    const typeTones = ['info', 'success', 'warning', 'danger'] as const;
     const typeOptions: readonly FilterChip<TypeFilter>[] = [
         { value: 'all', label: 'Todos los tipos', tone: 'default' },
-        { value: 'tdp', label: 'TDP', tone: 'info' },
-        { value: 'tdc', label: 'TDC', tone: 'primary' },
+        ...typeChips.map((template, index) => ({
+            value: template.value,
+            label: template.label,
+            tone: typeTones[index % typeTones.length],
+        })),
     ];
 
     const statusOptions: readonly FilterChip<StatusFilter>[] = [
@@ -525,10 +538,7 @@ export function ChecklistsTable({
                         value={(filters.template_type ?? 'all') as TypeFilter}
                         onChange={(value) =>
                             visit({
-                                template_type:
-                                    value === 'all'
-                                        ? null
-                                        : (value as 'tdp' | 'tdc'),
+                                template_type: value === 'all' ? null : value,
                                 page: 1,
                             })
                         }
