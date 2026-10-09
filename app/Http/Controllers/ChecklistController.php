@@ -1341,7 +1341,7 @@ class ChecklistController extends Controller
             $checkType = $item?->resolvedCheckType() ?? ParetoCheckTypes::OBSERVATION;
             $observation = trim((string) ($answer['observations'] ?? ''));
 
-            if ($checkType === ParetoCheckTypes::EXPIRY && $observation === '') {
+            if ($checkType === ParetoCheckTypes::EXPIRY && $value === 'yes' && $observation === '') {
                 throw new \RuntimeException(
                     "El ítem «{$label}» requiere vencimiento / observación antes de aprobar."
                 );

@@ -238,7 +238,6 @@ export function VerificationPhotoCapture({
                             ref={fileRef}
                             type="file"
                             accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-                            capture="environment"
                             className="hidden"
                             onChange={(event) => {
                                 void handleFile(event.target.files?.[0] ?? null);

@@ -3,6 +3,7 @@ import {
     ArrowLeft,
     Camera,
     CheckCircle2,
+    ChevronDown,
     FileDown,
     Lock,
     ShieldCheck,
@@ -16,6 +17,11 @@ import {
 } from '@/components/checklists/checklist-photos-section';
 import { SignaturePad } from '@/components/checklists/signature-pad';
 import { Button } from '@/components/ui/button';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
@@ -118,6 +124,86 @@ export type ChecklistFormData = {
 
 function itemAllowsEvidence(item: ChecklistFormItem): boolean {
     return item.allows_photo === true;
+}
+
+const REQUIREMENT_SECTIONS: { id: string; title: string; test: RegExp }[] = [
+    {
+        id: 'docs',
+        title: 'Documentos',
+        test: /tarjeta de propiedad|soat|sctr|revisi[oó]n t[eé]cnica/i,
+    },
+    {
+        id: 'lights',
+        title: 'Luces',
+        test: /luz|luces|intermitente/i,
+    },
+    {
+        id: 'rolling',
+        title: 'Señales y llantas',
+        test: /claxon|alarma|llanta|gata|rueda|plumilla/i,
+    },
+    {
+        id: 'emergency',
+        title: 'Emergencia',
+        test: /botiqu[ií]n|extintor|cono|tri[aá]ngulo|taco/i,
+    },
+    {
+        id: 'cabin',
+        title: 'Cabina y seguridad',
+        test: /espejo|cintur|salida|ventana|estrobo|cinta|paso|pasadizo|asiento|luna|pedal|herramienta|qu[ií]mico|flayer/i,
+    },
+];
+
+function sectionForLabel(label: string): { id: string; title: string } {
+    const rule = REQUIREMENT_SECTIONS.find((item) => item.test.test(label));
+
+    return rule ?? { id: 'other', title: 'Otros' };
+}
+
+function buildRequirementGroups(items: ChecklistFormItem[]): {
+    id: string;
+    title: string;
+    rows: { item: ChecklistFormItem; index: number }[];
+}[] {
+    const parentSection = new Map<number, { id: string; title: string }>();
+    const groups = new Map<
+        string,
+        {
+            id: string;
+            title: string;
+            rows: { item: ChecklistFormItem; index: number }[];
+        }
+    >();
+    const order: string[] = [];
+
+    items.forEach((item, index) => {
+        const inherited =
+            item.parent_id != null
+                ? parentSection.get(item.parent_id)
+                : undefined;
+        const section = inherited ?? sectionForLabel(item.label);
+
+        if (item.parent_id == null) {
+            parentSection.set(item.id, section);
+        }
+
+        const current = groups.get(section.id);
+
+        if (!current) {
+            groups.set(section.id, {
+                id: section.id,
+                title: section.title,
+                rows: [{ item, index }],
+            });
+            order.push(section.id);
+
+            return;
+        }
+
+        current.rows.push({ item, index });
+    });
+
+    return order.map((id) => groups.get(id)!);
 }
 
 function toDateInputValue(value: string): string {
@@ -448,7 +534,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
         const missingExpiry = checklist.items.some((item, index) => {
             const isExpiry =
                 item.check_type === 'expiry' || item.has_expiry;
-            if (!isExpiry) {
+            if (!isExpiry || answers[index]?.first_value !== 'yes') {
                 return false;
             }
 
@@ -478,7 +564,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
         const missingExpiry = checklist.items.some((item, index) => {
             const isExpiry =
                 item.check_type === 'expiry' || item.has_expiry;
-            if (!isExpiry) {
+            if (!isExpiry || answers[index]?.second_value !== 'yes') {
                 return false;
             }
 
@@ -546,6 +632,30 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
         activeStats.allMarked &&
         !activeStats.missingExpiry &&
         livePareto.passes;
+
+    const requirementGroups = useMemo(
+        () => buildRequirementGroups(checklist.items),
+        [checklist.items],
+    );
+    const [openSections, setOpenSections] = useState<Record<string, boolean>>(
+        {},
+    );
+
+    useEffect(() => {
+        setOpenSections({});
+    }, [checklist.id]);
+
+    const firstPendingSectionId =
+        requirementGroups.find((group) =>
+            group.rows.some((row) => {
+                const value =
+                    activePass === 'first'
+                        ? answers[row.index]?.first_value
+                        : answers[row.index]?.second_value;
+
+                return !value;
+            }),
+        )?.id ?? requirementGroups[0]?.id;
 
     const updateAnswer = (
         index: number,
@@ -1160,8 +1270,8 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                         </h2>
                         <p className="text-xs text-[#5a7390]">
                             {activePass === 'first'
-                                ? 'Marca SÍ / NO de la primera inspección (catálogo Pareto).'
-                                : '1ra bloqueada. Marca ahora la segunda inspección.'}
+                                ? 'Abre cada grupo y marca SÍ o NO. La fecha de caducidad solo aparece si marcas SÍ.'
+                                : '1ra bloqueada. Marca ahora la segunda inspección, grupo por grupo.'}
                         </p>
                     </div>
                     <div className="flex flex-col items-start gap-1 sm:items-end">
@@ -1204,8 +1314,65 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                     </div>
                 ) : null}
 
-                <div className="grid grid-cols-1 gap-1.5 xl:grid-cols-2">
-                    {checklist.items.map((item, index) => {
+                <div className="grid gap-2">
+                    {requirementGroups.map((group) => {
+                        const valueKey =
+                            activePass === 'first' ? 'first_value' : 'second_value';
+                        const marked = group.rows.filter(
+                            (row) => (answers[row.index]?.[valueKey] ?? '') !== '',
+                        ).length;
+                        const nos = group.rows.filter(
+                            (row) => answers[row.index]?.[valueKey] === 'no',
+                        ).length;
+                        const pending = group.rows.length - marked;
+                        const complete = group.rows.length > 0 && pending === 0;
+                        const open =
+                            openSections[group.id] ?? group.id === firstPendingSectionId;
+
+                        return (
+                            <Collapsible
+                                key={group.id}
+                                open={open}
+                                onOpenChange={(next) =>
+                                    setOpenSections((current) => ({
+                                        ...current,
+                                        [group.id]: next,
+                                    }))
+                                }
+                                className="overflow-hidden rounded-xl border border-[#d7e3f0] bg-white"
+                            >
+                                <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left hover:bg-[#f8fafc]">
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block text-sm font-semibold text-[#12355b]">
+                                            {group.title}
+                                        </span>
+                                        <span className="mt-0.5 block text-[11px] text-[#6b8ead]">
+                                            {complete
+                                                ? 'Completo'
+                                                : `${pending} pendiente${pending === 1 ? '' : 's'}`}
+                                            {nos > 0 ? ` · ${nos} en NO` : ''}
+                                        </span>
+                                    </span>
+                                    <span
+                                        className={cn(
+                                            'rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums',
+                                            complete
+                                                ? 'bg-emerald-50 text-emerald-800'
+                                                : 'bg-[#eef3f8] text-[#3d5674]',
+                                        )}
+                                    >
+                                        {marked}/{group.rows.length}
+                                    </span>
+                                    <ChevronDown
+                                        className={cn(
+                                            'size-4 shrink-0 text-[#6b8ead] transition',
+                                            open && 'rotate-180',
+                                        )}
+                                    />
+                                </CollapsibleTrigger>
+                                <CollapsibleContent className="border-t border-[#e6eef6]">
+                                    <div className="divide-y divide-[#e6eef6]">
+                    {group.rows.map(({ item, index }) => {
                         const answer = answers[index];
                         const isChild = item.parent_id !== null;
                         const isExpiry =
@@ -1231,22 +1398,18 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                         const photoLocked =
                             sealed ||
                             (activePass === 'second' && !secondUnlocked);
-                        const observationMissing = isExpiry && expiryDate === '';
+                        const observationMissing =
+                            isExpiry && value === 'yes' && expiryDate === '';
                         const countsInPareto = value === 'yes';
 
                         return (
                             <article
                                 key={item.id}
                                 className={cn(
-                                    'rounded-xl border border-[#e2eaf3] bg-white px-2.5 py-2 sm:px-3',
-                                    isChild && 'bg-[#f7fafc]',
-                                    value === 'yes' &&
-                                        'border-emerald-200 bg-emerald-50/50',
-                                    value === 'no' &&
-                                        'border-red-200 bg-red-50/40',
-                                    observationMissing &&
-                                        !sealed &&
-                                        'border-amber-300',
+                                    'px-3 py-3 sm:px-4',
+                                    isChild && 'bg-[#f8fafc] pl-8 sm:pl-11',
+                                    value === 'yes' && 'bg-emerald-50/40',
+                                    value === 'no' && 'bg-red-50/30',
                                 )}
                             >
                                 <div className="flex items-start gap-2">
@@ -1293,6 +1456,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                 </span>
                                             ) : null}
                                             {isExpiry ? (
+                                                value === 'yes' ? (
                                                 <Input
                                                     type="date"
                                                     value={expiryDate}
@@ -1312,6 +1476,11 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                             'border-amber-400',
                                                     )}
                                                 />
+                                                ) : (
+                                                    <span className="text-[11px] text-[#6b8ead]">
+                                                        Fecha solo si marcas SÍ
+                                                    </span>
+                                                )
                                             ) : (
                                                 <Input
                                                     value={
@@ -1417,6 +1586,11 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                     </div>
                                 </div>
                             </article>
+                        );
+                    })}
+                                    </div>
+                                </CollapsibleContent>
+                            </Collapsible>
                         );
                     })}
                 </div>
