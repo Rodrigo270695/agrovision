@@ -49,6 +49,8 @@ export type InspectionDetail = {
     id: number;
     plate: string;
     inspector: string;
+    sede: string;
+    lugar: string;
     started: string;
     finished: string;
     minutes: number | null;

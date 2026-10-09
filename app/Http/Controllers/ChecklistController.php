@@ -18,6 +18,7 @@ use App\Models\UnitMovement;
 use App\Services\ParetoChecklistSync;
 use App\Support\IndexedRedirect;
 use App\Support\InspectionDatabaseExporter;
+use App\Support\InspectionPlace;
 use App\Support\ParetoCheckTypes;
 use App\Support\ParetoPassThreshold;
 use App\Support\ParetoPieChart;
@@ -83,6 +84,7 @@ class ChecklistController extends Controller
                 'template:id,type,code,name',
                 'period:id,name,date,status',
                 'unit:id,correlative,plate_number,period_id,coordinator_id',
+                ...InspectionPlace::withCreator(),
             ])
             ->whereHas('period', fn ($q) => $q->where('status', 'active'));
 
@@ -123,7 +125,15 @@ class ChecklistController extends Controller
 
         $query->orderByDesc('id');
 
-        $checklists = $query->paginate($perPage)->withQueryString();
+        $checklists = $query->paginate($perPage)->withQueryString()
+            ->through(function (UnitChecklist $checklist) {
+                $place = InspectionPlace::labels($checklist->creator, $checklist->location);
+                $checklist->setAttribute('sede', $place['sede']);
+                $checklist->setAttribute('lugar', $place['lugar']);
+                $checklist->unsetRelation('creator');
+
+                return $checklist;
+            });
         $this->attachEditRequestState($checklists);
 
         $activeUnitsQuery = Unit::query()

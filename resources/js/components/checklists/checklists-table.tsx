@@ -26,6 +26,8 @@ export type ChecklistItemRow = {
     id: number | string;
     pending_sync?: boolean;
     plate_number: string;
+    sede?: string | null;
+    lugar?: string | null;
     driver_name?: string | null;
     provider?: string | null;
     status: 'draft' | 'completed';
@@ -388,6 +390,24 @@ export function ChecklistsTable({
                 ),
             },
             {
+                key: 'sede',
+                header: 'Sede',
+                cell: (item) => (
+                    <span className="text-xs text-muted-foreground">
+                        {item.sede && item.sede !== '—' ? item.sede : '—'}
+                    </span>
+                ),
+            },
+            {
+                key: 'lugar',
+                header: 'Lugar',
+                cell: (item) => (
+                    <span className="text-xs text-muted-foreground">
+                        {item.lugar && item.lugar !== '—' ? item.lugar : '—'}
+                    </span>
+                ),
+            },
+            {
                 key: 'status',
                 header: 'Estado',
                 sortable: true,
@@ -570,29 +590,26 @@ export function ChecklistsTable({
                         }
                         options={statusOptions}
                     />
-                    <label className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
-                        Inspector
-                        <select
-                            value={filters.inspector_id ?? ''}
-                            onChange={(event) =>
-                                visit({
-                                    inspector_id:
-                                        event.target.value === ''
-                                            ? null
-                                            : Number(event.target.value),
-                                    page: 1,
-                                })
-                            }
-                            className="mt-1 h-9 w-full min-w-44 cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c] normal-case"
-                        >
-                            <option value="">Todos</option>
-                            {inspectors.map((inspector) => (
-                                <option key={inspector.id} value={inspector.id}>
-                                    {inspector.name}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
+                    <select
+                        value={filters.inspector_id ?? ''}
+                        onChange={(event) =>
+                            visit({
+                                inspector_id:
+                                    event.target.value === ''
+                                        ? null
+                                        : Number(event.target.value),
+                                page: 1,
+                            })
+                        }
+                        className="h-9 min-w-44 cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c]"
+                    >
+                        <option value="">Todos los inspectores</option>
+                        {inspectors.map((inspector) => (
+                            <option key={inspector.id} value={inspector.id}>
+                                {inspector.name}
+                            </option>
+                        ))}
+                    </select>
                     <DateRangeFilter
                         desde={filters.date_from ?? null}
                         hasta={filters.date_to ?? null}

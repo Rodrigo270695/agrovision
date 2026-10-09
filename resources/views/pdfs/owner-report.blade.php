@@ -124,6 +124,8 @@
             <tr>
                 <th>Placa</th>
                 <th>Inspector</th>
+                <th>Sede</th>
+                <th>Lugar</th>
                 <th>1ra empezó</th>
                 <th>1ra terminó</th>
                 <th>Demora 1ra</th>
@@ -138,6 +140,8 @@
                 <tr>
                     <td>{{ $row['plate'] }}</td>
                     <td>{{ $row['inspector'] }}</td>
+                    <td>{{ $row['sede'] ?? '—' }}</td>
+                    <td>{{ $row['lugar'] ?? '—' }}</td>
                     <td>{{ $row['first_at'] }}</td>
                     <td>{{ $row['first_finished'] }}</td>
                     <td>{{ $row['first_duration'] }}</td>
@@ -147,7 +151,7 @@
                     <td>{{ $row['status'] }}</td>
                 </tr>
             @empty
-                <tr><td colspan="9">No hay inspecciones en el periodo.</td></tr>
+                <tr><td colspan="11">No hay inspecciones en el periodo.</td></tr>
             @endforelse
         </tbody>
     </table>

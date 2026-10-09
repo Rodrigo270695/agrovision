@@ -167,6 +167,8 @@ export function InspectionsTab({
                         <tr>
                             <th className="px-4 py-3">Placa</th>
                             <th className="px-4 py-3">Inspector</th>
+                            <th className="px-4 py-3">Sede</th>
+                            <th className="px-4 py-3">Lugar</th>
                             <th className="px-4 py-3">1ra inspección</th>
                             <th className="px-4 py-3">2da inspección</th>
                             <th className="px-4 py-3">Estado</th>
@@ -175,7 +177,7 @@ export function InspectionsTab({
                     <tbody>
                         {details.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="px-4 py-6 text-[#5a7390]">
+                                <td colSpan={7} className="px-4 py-6 text-[#5a7390]">
                                     No hay inspecciones en este periodo.
                                 </td>
                             </tr>
@@ -186,6 +188,8 @@ export function InspectionsTab({
                                         {row.plate}
                                     </td>
                                     <td className="px-4 py-3">{row.inspector}</td>
+                                    <td className="px-4 py-3">{row.sede}</td>
+                                    <td className="px-4 py-3">{row.lugar}</td>
                                     <td className="px-4 py-3">
                                         <p className="tabular-nums text-[#1a2b4c]">
                                             Empezó {row.first_at}

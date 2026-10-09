@@ -158,7 +158,7 @@ final class OwnerReports
      */
     private function checklists(?string $from, ?string $to): Collection
     {
-        $query = UnitChecklist::query()->with('creator:id,name');
+        $query = UnitChecklist::query()->with(InspectionPlace::withCreator());
 
         if ($from !== null && $to !== null) {
             $query->where(function ($builder) use ($from, $to) {
@@ -444,6 +444,7 @@ final class OwnerReports
             'id' => $checklist->id,
             'plate' => $checklist->plate_number,
             'inspector' => $checklist->creator?->name ?: 'Sin inspector',
+            ...InspectionPlace::labels($checklist->creator, $checklist->location),
             'started' => $firstAt?->format('d/m/Y H:i') ?? '—',
             'finished' => $finished ? 'Terminada' : 'En curso',
             'minutes' => $firstMinutes,
