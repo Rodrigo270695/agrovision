@@ -32,6 +32,10 @@ function exportHref(filters: ChecklistsFilters, templateType: string): string {
         params.set('date_to', filters.date_to);
     }
 
+    if (filters.inspector_id) {
+        params.set('inspector_id', String(filters.inspector_id));
+    }
+
     return `/inspecciones/exportar?${params.toString()}`;
 }
 
@@ -126,8 +130,8 @@ export function ChecklistExportModal({
                         );
                     })}
                     <p className="text-xs text-[#6b8ead]">
-                        Respeta la búsqueda, el estado y las fechas que ya
-                        tienes en el listado.
+                        Respeta la búsqueda, el estado, el inspector y las
+                        fechas que ya tienes en el listado.
                     </p>
                 </div>
             )}

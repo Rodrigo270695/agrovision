@@ -52,6 +52,7 @@ class ChecklistController extends Controller
             'status' => ['nullable', Rule::in(['draft', 'completed'])],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
+            'inspector_id' => ['nullable', 'integer'],
             'sort' => ['nullable', Rule::in(['plate_number', 'created_at', 'first_inspected_on', 'status', 'first_result'])],
             'direction' => ['nullable', Rule::in(['asc', 'desc'])],
             'per_page' => ['nullable', Rule::in([5, 10, 25, 50])],
@@ -64,6 +65,7 @@ class ChecklistController extends Controller
         $search = trim((string) ($validated['search'] ?? ''));
         $templateType = $validated['template_type'] ?? null;
         $status = $validated['status'] ?? null;
+        $inspectorId = isset($validated['inspector_id']) ? (int) $validated['inspector_id'] : null;
         [$dateFrom, $dateTo] = $this->inspectionDateRange($validated);
 
         if ($dateFrom === null && $dateTo === null) {
@@ -103,6 +105,10 @@ class ChecklistController extends Controller
 
         if ($status) {
             $query->where('status', $status);
+        }
+
+        if ($inspectorId) {
+            $query->where('created_by', $inspectorId);
         }
 
         $this->applyInspectionDateRange($query, $dateFrom, $dateTo);
@@ -151,6 +157,7 @@ class ChecklistController extends Controller
                 'status' => $status,
                 'date_from' => $dateFrom,
                 'date_to' => $dateTo,
+                'inspector_id' => $inspectorId,
                 'sort' => $sort,
                 'direction' => $direction,
                 'per_page' => $perPage,
@@ -218,6 +225,12 @@ class ChecklistController extends Controller
                 'page' => $checklists->currentPage().'/'.max($checklists->lastPage(), 1),
                 'on_screen' => $checklists->count(),
             ],
+            'inspectors' => SystemRoles::inspectors()
+                ->map(fn ($user) => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                ])
+                ->values(),
         ]);
     }
 
@@ -229,17 +242,20 @@ class ChecklistController extends Controller
             'status' => ['nullable', Rule::in(['draft', 'completed'])],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
+            'inspector_id' => ['nullable', 'integer'],
         ]);
 
         $search = trim((string) ($validated['search'] ?? ''));
         $templateType = $validated['template_type'];
         $status = $validated['status'] ?? null;
+        $inspectorId = isset($validated['inspector_id']) ? (int) $validated['inspector_id'] : null;
         [$dateFrom, $dateTo] = $this->inspectionDateRange($validated);
 
         $query = UnitChecklist::query()
             ->with([
                 'template:id,type',
                 'period:id,name,status',
+                'creator:id,name',
                 'unit.coordinatorUser.place.site',
                 'unit.coordinatorUser.places.site',
                 'unit.documents',
@@ -266,6 +282,10 @@ class ChecklistController extends Controller
 
         if ($status) {
             $query->where('status', $status);
+        }
+
+        if ($inspectorId) {
+            $query->where('created_by', $inspectorId);
         }
 
         $this->applyInspectionDateRange($query, $dateFrom, $dateTo);

@@ -68,6 +68,7 @@ export type ChecklistsFilters = {
     status?: 'draft' | 'completed' | null;
     date_from?: string | null;
     date_to?: string | null;
+    inspector_id?: number | null;
     sort: 'plate_number' | 'created_at' | 'first_inspected_on' | 'status' | 'first_result';
     direction: 'asc' | 'desc';
     per_page: number;
@@ -78,6 +79,7 @@ type Props = {
     checklists: ChecklistsPagination;
     filters: ChecklistsFilters;
     templateOptions?: { value: string; label: string }[];
+    inspectors?: { id: number; name: string }[];
     onEdit: (item: ChecklistItemRow, pass?: 'first' | 'second') => void;
     onDelete: (item: ChecklistItemRow) => void;
     onPreviewPdf: (item: ChecklistItemRow) => void;
@@ -273,6 +275,7 @@ export function ChecklistsTable({
     checklists,
     filters,
     templateOptions = [],
+    inspectors = [],
     onEdit,
     onDelete,
     onPreviewPdf,
@@ -313,6 +316,12 @@ export function ChecklistsTable({
             )
                 ? params.date_to
                 : filters.date_to;
+            const nextInspector = Object.prototype.hasOwnProperty.call(
+                params,
+                'inspector_id',
+            )
+                ? params.inspector_id
+                : filters.inspector_id;
 
             router.get(
                 '/inspecciones',
@@ -322,6 +331,7 @@ export function ChecklistsTable({
                     ...(nextStatus ? { status: nextStatus } : {}),
                     ...(nextFrom ? { date_from: nextFrom } : {}),
                     ...(nextTo ? { date_to: nextTo } : {}),
+                    ...(nextInspector ? { inspector_id: nextInspector } : {}),
                     sort: params.sort ?? filters.sort,
                     direction: params.direction ?? filters.direction,
                     per_page: params.per_page ?? filters.per_page,
@@ -501,7 +511,8 @@ export function ChecklistsTable({
             filters.template_type ||
             filters.status ||
             filters.date_from ||
-            filters.date_to,
+            filters.date_to ||
+            filters.inspector_id,
     );
 
     return (
@@ -559,6 +570,29 @@ export function ChecklistsTable({
                         }
                         options={statusOptions}
                     />
+                    <label className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                        Inspector
+                        <select
+                            value={filters.inspector_id ?? ''}
+                            onChange={(event) =>
+                                visit({
+                                    inspector_id:
+                                        event.target.value === ''
+                                            ? null
+                                            : Number(event.target.value),
+                                    page: 1,
+                                })
+                            }
+                            className="mt-1 h-9 w-full min-w-44 cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c] normal-case"
+                        >
+                            <option value="">Todos</option>
+                            {inspectors.map((inspector) => (
+                                <option key={inspector.id} value={inspector.id}>
+                                    {inspector.name}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
                     <DateRangeFilter
                         desde={filters.date_from ?? null}
                         hasta={filters.date_to ?? null}
@@ -592,6 +626,7 @@ export function ChecklistsTable({
                         status: filters.status ?? undefined,
                         date_from: filters.date_from ?? undefined,
                         date_to: filters.date_to ?? undefined,
+                        inspector_id: filters.inspector_id ?? undefined,
                     }}
                 />
             }

@@ -38,6 +38,7 @@ type PageProps = {
     templates: ChecklistTemplateOption[];
     activeUnits: ActiveUnitOption[];
     offlineCatalog?: OfflineCatalogTemplate[];
+    inspectors?: { id: number; name: string }[];
 };
 
 function prefetchInspectionEdits(
@@ -91,8 +92,15 @@ function prefetchInspectionEdits(
 
 export function ChecklistsPage() {
     const page = usePage();
-    const { checklists, stats, filters, templates, activeUnits, offlineCatalog } =
-        page.props as unknown as PageProps;
+    const {
+        checklists,
+        stats,
+        filters,
+        templates,
+        activeUnits,
+        offlineCatalog,
+        inspectors,
+    } = page.props as unknown as PageProps;
     const { can } = useCan();
 
     const [createOpen, setCreateOpen] = useState(false);
@@ -220,6 +228,7 @@ export function ChecklistsPage() {
                     value: template.type,
                     label: template.label || template.type.toUpperCase(),
                 }))}
+                inspectors={inspectors ?? []}
                 onEdit={(item, pass) => {
                     if (can('checklists.update') || item.sealed_at) {
                         void openEditor(item, pass);

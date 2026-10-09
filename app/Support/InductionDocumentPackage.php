@@ -95,7 +95,7 @@ final class InductionDocumentPackage
             'modalityLabels' => InductionFormOptions::modalities(),
             'schoolLabels' => InductionFormOptions::schools(),
             'categoryLabels' => InductionFormOptions::categories(),
-        ])->setPaper('a4', 'landscape');
+        ])->setPaper('a4', 'portrait');
 
         $documents = [
             $reportPdf->output(),
