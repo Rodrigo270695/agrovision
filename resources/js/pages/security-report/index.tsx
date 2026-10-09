@@ -10,7 +10,7 @@ type FleetRow = {
     delta: number | null;
 };
 
-type UnitGroup = 'ok' | 'nok' | 'pendiente';
+type UnitGroup = 'all' | 'ok' | 'nok' | 'pendiente';
 
 type ExceptionRow = {
     id: number;
@@ -65,7 +65,10 @@ export default function SecurityReportPage() {
     const { fleet, summary, full_coverage, exceptions, filters, coordinators, inspectors, scoped } =
         usePage<PageProps>().props;
     const [unitGroup, setUnitGroup] = useState<UnitGroup>('nok');
-    const visibleUnits = exceptions.filter((row) => row.group === unitGroup);
+    const visibleUnits =
+        unitGroup === 'all'
+            ? exceptions
+            : exceptions.filter((row) => row.group === unitGroup);
 
     const visit = (next: Partial<Filters>) => {
         const merged: Filters = { ...filters, ...next };
@@ -306,9 +309,10 @@ export default function SecurityReportPage() {
                                 {summary.total}.
                             </p>
                         </div>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             {(
                                 [
+                                    ['all', 'Todos', exceptions.length],
                                     ['ok', 'OK', exceptions.filter((row) => row.group === 'ok').length],
                                     ['nok', 'No OK', exceptions.filter((row) => row.group === 'nok').length],
                                     ['pendiente', 'Pendientes', exceptions.filter((row) => row.group === 'pendiente').length],
@@ -328,6 +332,12 @@ export default function SecurityReportPage() {
                                     {label} {count}
                                 </button>
                             ))}
+                            <a
+                                href={excelHref(filters, unitGroup)}
+                                className="inline-flex h-9 cursor-pointer items-center rounded-lg border border-[#1a2b4c] px-3 text-xs font-semibold text-[#1a2b4c] hover:bg-[#e8f1fa]"
+                            >
+                                Descargar Excel
+                            </a>
                         </div>
                     </div>
                     <div className="mt-4 overflow-x-auto">
@@ -422,7 +432,15 @@ export default function SecurityReportPage() {
     );
 }
 
+function excelHref(filters: Filters, group: UnitGroup): string {
+    return `/reporte-sst/excel?${reportQuery(filters, group)}`;
+}
+
 function pdfHref(filters: Filters, group: UnitGroup): string {
+    return `/reporte-sst/pdf?${reportQuery(filters, group)}`;
+}
+
+function reportQuery(filters: Filters, group: UnitGroup): string {
     const params = new URLSearchParams();
 
     if (filters.date_from) {
@@ -443,7 +461,7 @@ function pdfHref(filters: Filters, group: UnitGroup): string {
 
     params.set('group', group);
 
-    return `/reporte-sst/pdf?${params.toString()}`;
+    return params.toString();
 }
 
 function OutcomeChart({
@@ -509,6 +527,10 @@ function OutcomeBar({
 }
 
 function emptyUnitMessage(group: UnitGroup): string {
+    if (group === 'all') {
+        return 'No hay unidades en este filtro.';
+    }
+
     if (group === 'ok') {
         return 'Ninguna unidad está OK.';
     }

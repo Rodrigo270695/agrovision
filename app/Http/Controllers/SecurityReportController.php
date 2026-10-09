@@ -16,7 +16,13 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SecurityReportController extends Controller
 {
@@ -56,6 +62,153 @@ class SecurityReportController extends Controller
         ])->setPaper('a4', 'landscape');
 
         return $pdf->stream('inspecciones-de-seguridad.pdf');
+    }
+
+    public function excel(Request $request): StreamedResponse
+    {
+        $report = $this->report($request);
+        $group = $request->string('group')->toString();
+
+        if (! in_array($group, ['all', 'ok', 'nok', 'pendiente'], true)) {
+            $group = 'all';
+        }
+
+        $rows = collect($report['exceptions']);
+
+        if ($group !== 'all') {
+            $rows = $rows->where('group', $group)->values();
+        }
+
+        $headers = [
+            'N°',
+            'Estado',
+            'Tipo de servicio',
+            'Placa',
+            'Coordinador',
+            'Responsable',
+            'Fecha de ingreso',
+            'Tipo de vehículo',
+            'Insp. seg.',
+            'Observaciones',
+        ];
+
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Unidades');
+
+        foreach ($headers as $index => $header) {
+            $sheet->setCellValue([$index + 1, 1], $header);
+        }
+
+        $lastColumn = 'J';
+        $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'size' => 9,
+                'color' => ['rgb' => 'FFFFFF'],
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '1A2B4C'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'wrapText' => true,
+            ],
+        ]);
+        $sheet->getRowDimension(1)->setRowHeight(24);
+        $sheet->freezePane('A2');
+
+        $rowNumber = 2;
+
+        foreach ($rows as $index => $row) {
+            $estado = match ($row['group']) {
+                'ok' => 'OK',
+                'pendiente' => 'Pendiente',
+                default => 'No OK',
+            };
+            $plate = (string) $row['plate'];
+
+            if (($row['status'] ?? '') === 'baja') {
+                $plate .= ' (*)';
+            }
+
+            $values = [
+                $index + 1,
+                $estado,
+                $row['service_type'],
+                $plate,
+                $row['coordinator'],
+                $row['responsible'],
+                $row['service_date'],
+                $row['vehicle_type'],
+                $row['inspection'],
+                $row['observations'],
+            ];
+
+            foreach ($values as $column => $value) {
+                $sheet->setCellValue([$column + 1, $rowNumber], $value);
+            }
+
+            $inspectionColor = $row['inspection'] === 'OK' ? '22C55E' : 'EF4444';
+            $sheet->getStyle("I{$rowNumber}")->applyFromArray([
+                'font' => [
+                    'bold' => true,
+                    'color' => ['rgb' => 'FFFFFF'],
+                ],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => $inspectionColor],
+                ],
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                ],
+            ]);
+
+            if (($row['status'] ?? '') === 'baja') {
+                $sheet->getStyle("D{$rowNumber}")->getFill()
+                    ->setFillType(Fill::FILL_SOLID)
+                    ->getStartColor()
+                    ->setRGB('FDE68A');
+            }
+
+            $rowNumber++;
+        }
+
+        if ($rows->isEmpty()) {
+            $sheet->setCellValue('A2', 'No hay unidades para este filtro.');
+        }
+
+        $lastRow = max(1, $rowNumber - 1);
+        $sheet->getStyle("A1:{$lastColumn}{$lastRow}")->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => 'D7E3F0'],
+                ],
+            ],
+        ]);
+        $sheet->setAutoFilter("A1:{$lastColumn}{$lastRow}");
+
+        foreach (range(1, count($headers)) as $index) {
+            $sheet->getColumnDimensionByColumn($index)->setWidth($index === 10 ? 48 : 20);
+        }
+
+        $suffix = match ($group) {
+            'ok' => 'ok',
+            'nok' => 'no-ok',
+            'pendiente' => 'pendientes',
+            default => 'todas',
+        };
+        $filename = 'unidades-reporte-sst-'.$suffix.'.xlsx';
+        $writer = new Xlsx($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer): void {
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 
     /**
