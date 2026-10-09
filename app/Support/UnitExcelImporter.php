@@ -557,6 +557,7 @@ final class UnitExcelImporter
         try {
             $this->allowRepeatedMovementCorrelatives();
             $this->ensureUnitStatusColumn();
+            $this->ensureUnitStatusEventsTable();
             $this->persistImport($pending, $period, $created, $updated, $unitsCreated, $deactivated);
         } catch (QueryException $exception) {
             report($exception);
@@ -669,6 +670,12 @@ final class UnitExcelImporter
                     $unitId = $unit->id;
                     $createdUnitIds[$plate] = $unitId;
                     $unitsCreated++;
+                    UnitStatusHistory::record(
+                        $unitId,
+                        'active',
+                        $data['service_date'] ?? now(),
+                        'import',
+                    );
                 }
 
                 if ($correlative !== '') {
@@ -723,6 +730,7 @@ final class UnitExcelImporter
     private function syncImportedPresence(Period $period, array $presentPlates, array $latestByUnit): int
     {
         foreach ($latestByUnit as $unitId => $data) {
+            $previous = Unit::query()->whereKey($unitId)->value('status') ?: 'active';
             $snapshot = $this->presentAttributes($data);
             unset($snapshot['correlative'], $snapshot['coordinator_id']);
             $snapshot['status'] = 'active';
@@ -732,6 +740,15 @@ final class UnitExcelImporter
             }
 
             Unit::query()->whereKey($unitId)->update($snapshot);
+
+            if ($previous !== 'active') {
+                UnitStatusHistory::record(
+                    (int) $unitId,
+                    'active',
+                    $data['service_date'] ?? now(),
+                    'import',
+                );
+            }
         }
 
         $plates = array_keys($presentPlates);
@@ -750,7 +767,35 @@ final class UnitExcelImporter
             $missing->where('coordinator_id', Auth::id());
         }
 
-        return $missing->update(['status' => 'inactive']);
+        $returning = (clone $missing)->where(function ($query): void {
+            $query->where('status', '!=', 'inactive')->orWhereNull('status');
+        })->pluck('id');
+
+        $deactivated = $missing->update(['status' => 'inactive']);
+        $today = now()->toDateString();
+
+        foreach ($returning as $unitId) {
+            UnitStatusHistory::record((int) $unitId, 'inactive', $today, 'import');
+        }
+
+        return $deactivated;
+    }
+
+    private function ensureUnitStatusEventsTable(): void
+    {
+        if (Schema::hasTable('unit_status_events')) {
+            return;
+        }
+
+        Schema::create('unit_status_events', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('unit_id')->constrained('units')->cascadeOnDelete();
+            $table->string('status', 20);
+            $table->date('happened_on');
+            $table->string('source', 20)->default('manual');
+            $table->timestamps();
+            $table->index(['unit_id', 'happened_on']);
+        });
     }
 
     private function ensureUnitStatusColumn(): void

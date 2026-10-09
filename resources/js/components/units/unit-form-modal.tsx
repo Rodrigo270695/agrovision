@@ -40,6 +40,7 @@ const emptyValues = {
     driver_dni: '',
     category: '',
     coordinator_id: '',
+    status: 'active',
 };
 
 function toFormValues(unit?: UnitItem | null) {
@@ -69,6 +70,7 @@ function toFormValues(unit?: UnitItem | null) {
             : unit.coordinatorUser?.id
               ? String(unit.coordinatorUser.id)
               : '',
+        status: unit.status === 'inactive' ? 'inactive' : 'active',
     };
 }
 

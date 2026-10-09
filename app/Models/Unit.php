@@ -98,4 +98,9 @@ class Unit extends Model
     {
         return $this->hasMany(UnitMovement::class);
     }
+
+    public function statusEvents(): HasMany
+    {
+        return $this->hasMany(UnitStatusEvent::class);
+    }
 }

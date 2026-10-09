@@ -47,6 +47,8 @@ export type UnitItem = {
     category?: string | null;
     coordinator_id?: number | null;
     status?: string | null;
+    last_inactive_on?: string | null;
+    last_active_on?: string | null;
     coordinatorUser?: {
         id: number;
         name: string;
@@ -332,18 +334,39 @@ export function UnitsTable({
             {
                 key: 'status',
                 header: 'Estado',
-                cell: (unit) =>
-                    unit.pending_sync ? (
-                        <StatBadge
-                            label="En dispositivo"
-                            value=""
-                            variant="warning"
-                        />
-                    ) : unit.status === 'inactive' ? (
-                        <StatBadge label="Inactivo" value="" variant="muted" />
-                    ) : (
-                        <StatBadge label="Activo" value="" variant="success" />
-                    ),
+                cell: (unit) => (
+                    <div className="flex min-w-0 flex-col gap-1">
+                        {unit.pending_sync ? (
+                            <StatBadge
+                                label="En dispositivo"
+                                value=""
+                                variant="warning"
+                            />
+                        ) : unit.status === 'inactive' ? (
+                            <StatBadge
+                                label="Inactivo"
+                                value=""
+                                variant="muted"
+                            />
+                        ) : (
+                            <StatBadge
+                                label="Activo"
+                                value=""
+                                variant="success"
+                            />
+                        )}
+                        {unit.last_inactive_on ? (
+                            <span className="text-[11px] text-muted-foreground">
+                                No estuvo {formatDate(unit.last_inactive_on)}
+                            </span>
+                        ) : null}
+                        {unit.last_active_on ? (
+                            <span className="text-[11px] text-muted-foreground">
+                                Ingresó {formatDate(unit.last_active_on)}
+                            </span>
+                        ) : null}
+                    </div>
+                ),
             },
             {
                 key: 'driver_name',

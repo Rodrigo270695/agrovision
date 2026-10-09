@@ -43,6 +43,7 @@ class UnitRequest extends FormRequest
             'ruc' => ['nullable', 'string', 'max:11', 'regex:/^\d{11}$/'],
             'driver_dni' => ['nullable', 'string', 'max:20', 'regex:/^\d+$/'],
             'category' => ['nullable', 'string', 'max:100'],
+            'status' => ['required', 'string', Rule::in(['active', 'inactive'])],
             'coordinator_id' => [
                 'nullable',
                 'integer',
@@ -107,6 +108,8 @@ class UnitRequest extends FormRequest
             'driver_dni.regex' => 'El DNI solo debe contener números.',
             'plate_number.regex' => 'La placa debe ser 3 caracteres, un guion y 3 más. Ejemplo: T5M-121.',
             'service_date.date' => 'La fecha no es válida.',
+            'status.required' => 'El estado es obligatorio.',
+            'status.in' => 'El estado no es válido.',
         ];
     }
 
@@ -131,6 +134,7 @@ class UnitRequest extends FormRequest
             'driver_dni' => 'DNI del conductor',
             'category' => 'categoría',
             'coordinator_id' => 'coordinador',
+            'status' => 'estado',
         ];
     }
 
@@ -154,6 +158,7 @@ class UnitRequest extends FormRequest
             'coordinator_id' => $coordinatorId === '' || $coordinatorId === null
                 ? null
                 : (int) $coordinatorId,
+            'status' => $this->input('status') === 'inactive' ? 'inactive' : 'active',
         ]);
 
         if (! $this->filled('service_date')) {

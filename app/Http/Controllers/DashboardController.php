@@ -38,6 +38,10 @@ class DashboardController extends Controller
         }
 
         $unitsTotal = (clone $unitsQuery)->count();
+        $unitsActive = (clone $unitsQuery)->where(function (Builder $query): void {
+            $query->where('status', 'active')->orWhereNull('status');
+        })->count();
+        $unitsInactive = (clone $unitsQuery)->where('status', 'inactive')->count();
         $providers = (clone $unitsQuery)->distinct()->count('provider');
         $withoutPlate = (clone $unitsQuery)
             ->where(function (Builder $query): void {
@@ -193,13 +197,13 @@ class DashboardController extends Controller
             'kpis' => [
                 [
                     'key' => 'units',
-                    'label' => 'Unidades',
-                    'value' => $unitsTotal,
-                    'hint' => 'Flota en alcance',
+                    'label' => 'Unidades activas',
+                    'value' => $unitsActive,
+                    'hint' => 'Hoy',
                     'tone' => 'blue',
                     'href' => '/unidades',
-                    'delta' => $monthCompare['units_delta'],
-                    'deltaLabel' => 'vs mes anterior',
+                    'delta' => null,
+                    'deltaLabel' => 'Hoy · '.$unitsInactive.' inactivas · '.$unitsTotal.' en total',
                 ],
                 [
                     'key' => 'docs',

@@ -48,6 +48,7 @@ export type UnitFormValues = {
     driver_dni: string;
     category: string;
     coordinator_id: string;
+    status: string;
 };
 
 type Props = {
@@ -599,6 +600,29 @@ export function UnitFormFields({
                     </SelectContent>
                 </Select>
                 <InputError message={errors.period_id} />
+            </div>
+
+            <div className="grid gap-1.5">
+                <Label className="text-xs text-[#1a2b4c]">
+                    Estado <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                    value={values.status === 'inactive' ? 'inactive' : 'active'}
+                    onValueChange={(value) => onChange('status', value)}
+                >
+                    <SelectTrigger className="h-9 w-full cursor-pointer border-[#c5d5e6] bg-white text-sm text-[#1a2b4c]">
+                        <SelectValue placeholder="Estado" />
+                    </SelectTrigger>
+                    <SelectContent className="border-[#d7e3f0] bg-white">
+                        <SelectItem value="active" className="cursor-pointer">
+                            Activo
+                        </SelectItem>
+                        <SelectItem value="inactive" className="cursor-pointer">
+                            Inactivo
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
+                <InputError message={errors.status} />
             </div>
 
             {/* RUC + DNI primero para consultas SUNAT / RENIEC */}

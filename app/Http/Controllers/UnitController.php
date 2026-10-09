@@ -9,11 +9,13 @@ use App\Models\ResponsiblePerson;
 use App\Models\ServiceType;
 use App\Models\Unit;
 use App\Models\UnitMovement;
+use App\Models\UnitStatusEvent;
 use App\Models\VehicleType;
 use App\Support\IndexedRedirect;
 use App\Support\PermissionCatalog;
 use App\Support\SystemRoles;
 use App\Support\UnitCatalog;
+use App\Support\UnitStatusHistory;
 use App\Support\UnitDocumentTypes;
 use App\Support\UnitExcelImporter;
 use Illuminate\Database\Eloquent\Builder;
@@ -37,6 +39,7 @@ class UnitController extends Controller
 
         $baseQuery = $this->scopedUnitsQuery();
         $showingMovements = $filters['view'] === 'movements';
+        UnitStatusHistory::ensure();
 
         $units = $showingMovements
             ? null
@@ -49,6 +52,20 @@ class UnitController extends Controller
                         ->with('uploader:id,name'),
                 ])
                 ->withCount('documents')
+                ->addSelect([
+                    'last_inactive_on' => UnitStatusEvent::query()
+                        ->select('happened_on')
+                        ->whereColumn('unit_status_events.unit_id', 'units.id')
+                        ->where('status', 'inactive')
+                        ->orderByDesc('happened_on')
+                        ->limit(1),
+                    'last_active_on' => UnitStatusEvent::query()
+                        ->select('happened_on')
+                        ->whereColumn('unit_status_events.unit_id', 'units.id')
+                        ->where('status', 'active')
+                        ->orderByDesc('happened_on')
+                        ->limit(1),
+                ])
                 ->paginate($filters['per_page'])
                 ->withQueryString()
                 ->through(function (Unit $unit) {
@@ -157,8 +174,15 @@ class UnitController extends Controller
         }
 
         $data = $this->rememberCatalogValues($data);
+        $data['status'] = ($data['status'] ?? 'active') === 'inactive' ? 'inactive' : 'active';
 
-        Unit::create($data);
+        $unit = Unit::create($data);
+        UnitStatusHistory::record(
+            $unit->id,
+            $unit->status,
+            $unit->service_date ?? now(),
+            'manual',
+        );
 
         return IndexedRedirect::toIndex($request, 'units.index', [
             'type' => 'success',
@@ -177,8 +201,19 @@ class UnitController extends Controller
         }
 
         $data = $this->rememberCatalogValues($data);
+        $previousStatus = $unit->status ?: 'active';
+        $data['status'] = ($data['status'] ?? $previousStatus) === 'inactive' ? 'inactive' : 'active';
 
         $unit->update($data);
+
+        if ($unit->status !== $previousStatus) {
+            UnitStatusHistory::record(
+                $unit->id,
+                $unit->status,
+                now(),
+                'manual',
+            );
+        }
 
         return IndexedRedirect::toIndex($request, 'units.index', [
             'type' => 'success',

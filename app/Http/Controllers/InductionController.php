@@ -885,7 +885,10 @@ class InductionController extends Controller
     {
         $query = Unit::query()
             ->whereNotNull('driver_name')
-            ->where('driver_name', '!=', '');
+            ->where('driver_name', '!=', '')
+            ->where(function (Builder $builder): void {
+                $builder->where('status', 'active')->orWhereNull('status');
+            });
 
         if (SystemRoles::currentIsScopedCoordinator()) {
             $query->where('coordinator_id', Auth::id());
@@ -900,7 +903,63 @@ class InductionController extends Controller
             $query->whereNotIn('id', $alreadyUnitIds);
         }
 
+        $this->excludeDriversWithValidSameInduction($query, $induction);
+
         return $query;
+    }
+
+    /**
+     * Una inducción o capacitación del mismo nombre vale un año.
+     * Quien ya está inscrito o asistió no vuelve a salir para jalarlo.
+     *
+     * @param  Builder<Unit>  $query
+     */
+    private function excludeDriversWithValidSameInduction(Builder $query, Induction $induction): void
+    {
+        $title = mb_strtolower(trim((string) $induction->title));
+
+        if ($title === '') {
+            return;
+        }
+
+        $cutoff = now()->subYear()->startOfDay()->toDateString();
+
+        $query->whereNotExists(function ($sub) use ($induction, $title, $cutoff): void {
+            $sub->selectRaw('1')
+                ->from('induction_attendees as ia')
+                ->join('inductions as i', 'i.id', '=', 'ia.induction_id')
+                ->where('i.id', '!=', $induction->id)
+                ->where('i.status', '!=', InductionStatuses::CANCELLED)
+                ->whereIn('ia.status', [
+                    InductionAttendeeStatuses::REGISTERED,
+                    InductionAttendeeStatuses::ATTENDED,
+                ])
+                ->whereRaw('LOWER(TRIM(i.title)) = ?', [$title])
+                ->where(function ($dates) use ($cutoff): void {
+                    $dates->whereDate('i.session_date', '>=', $cutoff)
+                        ->orWhere(function ($fallback) use ($cutoff): void {
+                            $fallback->whereNull('i.session_date')
+                                ->whereDate('i.scheduled_at', '>=', $cutoff);
+                        })
+                        ->orWhere(function ($created) use ($cutoff): void {
+                            $created->whereNull('i.session_date')
+                                ->whereNull('i.scheduled_at')
+                                ->whereDate('i.created_at', '>=', $cutoff);
+                        });
+                })
+                ->where(function ($match): void {
+                    $match->where(function ($byDni): void {
+                        $byDni->whereColumn('ia.driver_dni', 'units.driver_dni')
+                            ->whereNotNull('units.driver_dni')
+                            ->where('units.driver_dni', '!=', '');
+                    })->orWhere(function ($byName): void {
+                        $byName->where(function ($emptyDni): void {
+                            $emptyDni->whereNull('units.driver_dni')
+                                ->orWhere('units.driver_dni', '');
+                        })->whereRaw('LOWER(TRIM(ia.driver_name)) = LOWER(TRIM(units.driver_name))');
+                    });
+                });
+        });
     }
 
     private function ensureCanAccess(Induction $induction): void

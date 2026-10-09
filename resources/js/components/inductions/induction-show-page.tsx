@@ -574,8 +574,8 @@ export function InductionShowPage() {
                             Jalar conductores desde unidades
                         </h2>
                         <p className="mt-0.5 text-xs text-[#6b8ead]">
-                            Conductores de todos los periodos. Se toma DNI,
-                            nombres y cargo Conductor.
+                            Solo unidades activas. Si el conductor ya tiene esta
+                            inducción vigente (un año), no aparece.
                         </p>
                     </div>
                     <div className="flex flex-col gap-2 border-b border-[#e2eaf3] px-3 py-2.5 sm:flex-row sm:items-center">
