@@ -221,18 +221,18 @@ class ChecklistController extends Controller
         ]);
     }
 
-    public function export(Request $request, InspectionDatabaseExporter $exporter): StreamedResponse
+    public function export(Request $request, InspectionDatabaseExporter $exporter): StreamedResponse|RedirectResponse
     {
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:255'],
-            'template_type' => ['nullable', 'string', 'max:50', Rule::exists('checklist_templates', 'type')],
+            'template_type' => ['required', 'string', 'max:50', Rule::exists('checklist_templates', 'type')],
             'status' => ['nullable', Rule::in(['draft', 'completed'])],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
         ]);
 
         $search = trim((string) ($validated['search'] ?? ''));
-        $templateType = $validated['template_type'] ?? null;
+        $templateType = $validated['template_type'];
         $status = $validated['status'] ?? null;
         [$dateFrom, $dateTo] = $this->inspectionDateRange($validated);
 
@@ -275,7 +275,7 @@ class ChecklistController extends Controller
             ->orderBy('id')
             ->get();
 
-        $filename = 'inspecciones';
+        $filename = 'inspecciones-'.$templateType;
 
         if ($dateFrom || $dateTo) {
             $filename .= '-'.($dateFrom ?: 'inicio').'_a_'.($dateTo ?: now()->toDateString());

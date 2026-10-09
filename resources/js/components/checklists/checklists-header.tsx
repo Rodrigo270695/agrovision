@@ -8,14 +8,14 @@ import { useCan } from '@/hooks/use-can';
 
 type Props = {
     stats: ChecklistsStatsData;
-    exportHref: string;
+    onExport: () => void;
     onCreate: () => void;
     onSendBatch?: () => void;
 };
 
 export function ChecklistsHeader({
     stats,
-    exportHref,
+    onExport,
     onCreate,
     onSendBatch,
 }: Props) {
@@ -57,16 +57,14 @@ export function ChecklistsHeader({
                         <Button
                             type="button"
                             variant="outline"
-                            asChild
+                            onClick={onExport}
                             className="cursor-pointer gap-2 border-[#1a2b4c] text-[#1a2b4c] hover:bg-[#e8f1fa]"
                         >
-                            <a href={exportHref}>
-                                <Download className="size-4" />
-                                <span className="hidden sm:inline">
-                                    Exportar
-                                </span>
-                                <span className="sm:hidden">Excel</span>
-                            </a>
+                            <Download className="size-4" />
+                            <span className="hidden sm:inline">
+                                Exportar
+                            </span>
+                            <span className="sm:hidden">Excel</span>
                         </Button>
                     ) : null}
                     {can('checklists.update') && onSendBatch ? (

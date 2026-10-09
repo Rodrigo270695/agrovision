@@ -2,6 +2,7 @@ import { router, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { ChecklistCreateModal } from '@/components/checklists/checklist-create-modal';
+import { ChecklistExportModal } from '@/components/checklists/checklist-export-modal';
 import type {
     ActiveUnitOption,
     ChecklistTemplateOption,
@@ -38,34 +39,6 @@ type PageProps = {
     activeUnits: ActiveUnitOption[];
     offlineCatalog?: OfflineCatalogTemplate[];
 };
-
-function inspectionExportHref(filters: ChecklistsFilters): string {
-    const params = new URLSearchParams();
-
-    if (filters.search) {
-        params.set('search', filters.search);
-    }
-
-    if (filters.template_type) {
-        params.set('template_type', filters.template_type);
-    }
-
-    if (filters.status) {
-        params.set('status', filters.status);
-    }
-
-    if (filters.date_from) {
-        params.set('date_from', filters.date_from);
-    }
-
-    if (filters.date_to) {
-        params.set('date_to', filters.date_to);
-    }
-
-    const query = params.toString();
-
-    return query ? `/inspecciones/exportar?${query}` : '/inspecciones/exportar';
-}
 
 function prefetchInspectionEdits(
     rows: ChecklistItemRow[],
@@ -123,6 +96,7 @@ export function ChecklistsPage() {
     const { can } = useCan();
 
     const [createOpen, setCreateOpen] = useState(false);
+    const [exportOpen, setExportOpen] = useState(false);
     const [batchOpen, setBatchOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleting, setDeleting] = useState<ChecklistItemRow | null>(null);
@@ -230,7 +204,7 @@ export function ChecklistsPage() {
         <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
             <ChecklistsHeader
                 stats={mergedStats}
-                exportHref={inspectionExportHref(filters)}
+                onExport={() => setExportOpen(true)}
                 onCreate={() => {
                     if (can('checklists.create')) {
                         setCreateOpen(true);
@@ -309,6 +283,15 @@ export function ChecklistsPage() {
                         setDeleteOpen(false);
                         setDeleting(null);
                     }}
+                />
+            ) : null}
+
+            {can('checklists.view') ? (
+                <ChecklistExportModal
+                    open={exportOpen}
+                    templates={templates ?? []}
+                    filters={filters}
+                    onClose={() => setExportOpen(false)}
                 />
             ) : null}
 

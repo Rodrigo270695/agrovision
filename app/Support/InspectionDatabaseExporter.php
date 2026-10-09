@@ -2,10 +2,13 @@
 
 namespace App\Support;
 
+use App\Models\ChecklistItem;
+use App\Models\ChecklistTemplate;
 use App\Models\Unit;
 use App\Models\UnitChecklist;
 use App\Models\UnitChecklistAnswer;
 use App\Models\UnitDocument;
+use App\Support\ParetoCheckTypes;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -137,14 +140,60 @@ final class InspectionDatabaseExporter
             ->setTitle('Inspecciones')
             ->setSubject('Base de datos de unidades de inspecciones');
 
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Inspecciones');
+        $groups = $checklists->groupBy(
+            fn (UnitChecklist $checklist) => (int) ($checklist->template_id ?? 0),
+        );
 
-        foreach (self::COLUMNS as $index => $column) {
+        if ($groups->isEmpty()) {
+            $this->fillSheet($spreadsheet->getActiveSheet(), collect(), null, collect());
+        } else {
+            $usedTitles = [];
+            $first = true;
+
+            foreach ($groups as $templateId => $rows) {
+                $template = ChecklistTemplate::query()->find((int) $templateId);
+                $items = $template
+                    ? ChecklistItem::query()
+                        ->where('template_id', $template->id)
+                        ->orderBy('sort_order')
+                        ->orderBy('id')
+                        ->get()
+                    : collect();
+                $sheet = $first
+                    ? $spreadsheet->getActiveSheet()
+                    : $spreadsheet->createSheet();
+                $first = false;
+                $sheet->setTitle($this->sheetTitle($template, $usedTitles));
+                $this->fillSheet($sheet, $rows, $template, $items);
+            }
+        }
+
+        $writer = new Xlsx($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer): void {
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    /**
+     * @param  Collection<int, UnitChecklist>  $checklists
+     * @param  Collection<int, ChecklistItem>  $items
+     */
+    private function fillSheet(
+        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        Collection $checklists,
+        ?ChecklistTemplate $template,
+        Collection $items,
+    ): void {
+        $columns = $this->columnsFor($items);
+
+        foreach ($columns as $index => $column) {
             $sheet->setCellValue([$index + 1, 1], $column['header']);
         }
 
-        $lastColumn = $this->columnLetter(count(self::COLUMNS));
+        $lastColumn = $this->columnLetter(count($columns));
         $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
             'font' => [
                 'bold' => true,
@@ -174,14 +223,15 @@ final class InspectionDatabaseExporter
                     continue;
                 }
 
-                $this->writeRow($sheet, $rowNumber, $checklist, $pass, $sequence);
+                $this->writeRow($sheet, $rowNumber, $checklist, $pass, $sequence, $columns);
                 $rowNumber++;
                 $sequence++;
             }
         }
 
         if ($rowNumber === 2) {
-            $sheet->setCellValue('A2', 'Sin inspecciones para los filtros aplicados.');
+            $label = $template?->displayLabel() ?? 'esta plantilla';
+            $sheet->setCellValue('A2', "Sin inspecciones de {$label} para los filtros aplicados.");
         }
 
         $sheet->getStyle("A1:{$lastColumn}".max(1, $rowNumber - 1))->applyFromArray([
@@ -193,17 +243,71 @@ final class InspectionDatabaseExporter
             ],
         ]);
 
-        for ($index = 1; $index <= count(self::COLUMNS); $index++) {
-            $sheet->getColumnDimension($this->columnLetter($index))->setWidth($index <= 16 ? 22 : 16);
+        for ($index = 1; $index <= count($columns); $index++) {
+            $sheet->getColumnDimension($this->columnLetter($index))->setWidth($index <= 16 ? 22 : 18);
+        }
+    }
+
+    /**
+     * Datos fijos de la unidad y, después, cada ítem y su observación
+     * de la plantilla elegida.
+     *
+     * @param  Collection<int, ChecklistItem>  $items
+     * @return list<array{header: string, type: string, needles?: list<string>, item_id?: int, check_type?: string}>
+     */
+    private function columnsFor(Collection $items): array
+    {
+        $columns = array_values(array_filter(
+            self::COLUMNS,
+            fn (array $column) => ! in_array($column['type'], ['mark', 'note', 'score', 'nok_count'], true),
+        ));
+
+        $columns[] = ['header' => 'OBSERVACIONES', 'type' => 'nok_count'];
+
+        foreach ($items as $item) {
+            $columns[] = [
+                'header' => $item->label,
+                'type' => 'mark',
+                'item_id' => $item->id,
+                'check_type' => $item->resolvedCheckType(),
+            ];
         }
 
-        $writer = new Xlsx($spreadsheet);
+        $columns[] = ['header' => 'PUNTAJE', 'type' => 'score'];
 
-        return response()->streamDownload(function () use ($writer): void {
-            $writer->save('php://output');
-        }, $filename, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        ]);
+        foreach ($items as $item) {
+            $columns[] = [
+                'header' => 'Observación '.$item->label,
+                'type' => 'note',
+                'item_id' => $item->id,
+                'check_type' => $item->resolvedCheckType(),
+            ];
+        }
+
+        return $columns;
+    }
+
+    /**
+     * @param  list<string>  $usedTitles
+     */
+    private function sheetTitle(?ChecklistTemplate $template, array &$usedTitles): string
+    {
+        $title = mb_strtoupper(trim((string) ($template?->displayLabel() ?? 'Inspecciones')));
+        $title = preg_replace('/[\\\\\\/\\?\\*\\:\\[\\]]/u', ' ', $title) ?? $title;
+        $title = trim(preg_replace('/\s+/u', ' ', $title) ?? $title);
+        $title = $title !== '' ? mb_substr($title, 0, 31) : 'Inspecciones';
+        $base = $title;
+        $suffix = 2;
+
+        while (in_array($title, $usedTitles, true)) {
+            $extra = ' '.$suffix;
+            $title = mb_substr($base, 0, 31 - mb_strlen($extra)).$extra;
+            $suffix++;
+        }
+
+        $usedTitles[] = $title;
+
+        return $title;
     }
 
     private function passInExport(UnitChecklist $checklist, string $pass): bool
@@ -216,17 +320,21 @@ final class InspectionDatabaseExporter
             || $checklist->answers->contains(fn (UnitChecklistAnswer $answer) => filled($answer->second_value));
     }
 
+    /**
+     * @param  list<array{header: string, type: string, needles?: list<string>, item_id?: int, check_type?: string}>  $columns
+     */
     private function writeRow(
         \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
         int $rowNumber,
         UnitChecklist $checklist,
         string $pass,
         int $sequence,
+        array $columns,
     ): void {
-        $context = $this->context($checklist, $pass);
+        $context = $this->context($checklist, $pass, $columns);
         $nokCells = [];
 
-        foreach (self::COLUMNS as $index => $column) {
+        foreach ($columns as $index => $column) {
             $coordinate = [$index + 1, $rowNumber];
             $value = $this->cellValue($column, $context, $sequence);
 
@@ -257,9 +365,10 @@ final class InspectionDatabaseExporter
     }
 
     /**
+     * @param  list<array{header: string, type: string, needles?: list<string>, item_id?: int, check_type?: string}>  $columns
      * @return array<string, mixed>
      */
-    private function context(UnitChecklist $checklist, string $pass): array
+    private function context(UnitChecklist $checklist, string $pass, array $columns): array
     {
         $answers = $checklist->answers;
         $unit = $checklist->unit;
@@ -269,14 +378,16 @@ final class InspectionDatabaseExporter
         $scored = 0.0;
         $catalog = 0.0;
 
-        foreach (self::COLUMNS as $column) {
+        foreach ($columns as $column) {
             if ($column['type'] !== 'mark') {
                 continue;
             }
 
-            $answer = $this->findAnswer($answers, $column['needles'] ?? []);
+            $answer = isset($column['item_id'])
+                ? $this->answerByItem($answers, (int) $column['item_id'])
+                : $this->findAnswer($answers, $column['needles'] ?? []);
             $mark = $this->mark($answer, $pass);
-            $marks[$column['header']] = $mark;
+            $marks[(string) ($column['item_id'] ?? $column['header'])] = $mark;
 
             if ($mark === 'NOK') {
                 $nok++;
@@ -362,8 +473,13 @@ final class InspectionDatabaseExporter
             'itv_text' => $context['itv']['text'],
             'nok_count' => $context['nok'],
             'score' => $context['score'],
-            'mark' => $context['marks'][$column['header']] ?? null,
-            'note' => $this->note($this->findAnswer($context['answers'], $column['needles'] ?? [])),
+            'mark' => $context['marks'][(string) ($column['item_id'] ?? $column['header'])] ?? null,
+            'note' => $this->note(
+                isset($column['item_id'])
+                    ? $this->answerByItem($context['answers'], (int) $column['item_id'])
+                    : $this->findAnswer($context['answers'], $column['needles'] ?? []),
+                ($column['check_type'] ?? '') === ParetoCheckTypes::EXPIRY,
+            ),
             default => null,
         };
     }
@@ -414,12 +530,32 @@ final class InspectionDatabaseExporter
         };
     }
 
-    private function note(?UnitChecklistAnswer $answer): string
+    /**
+     * @param  Collection<int, UnitChecklistAnswer>  $answers
+     */
+    private function answerByItem(Collection $answers, int $itemId): ?UnitChecklistAnswer
+    {
+        return $answers->first(
+            fn (UnitChecklistAnswer $answer) => (int) $answer->checklist_item_id === $itemId,
+        );
+    }
+
+    private function note(?UnitChecklistAnswer $answer, bool $expiry = false): string
     {
         $text = trim((string) ($answer?->observations ?? ''));
 
-        if ($text === '' || $this->isOnlyDate($text)) {
-            return 'Ninguna';
+        if ($text === '') {
+            return '';
+        }
+
+        if ($expiry) {
+            $date = $this->parseDate($text);
+
+            return $date ? $date->format('d/m/Y') : $text;
+        }
+
+        if ($this->isOnlyDate($text)) {
+            return '';
         }
 
         return $text;
