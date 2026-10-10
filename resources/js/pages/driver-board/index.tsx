@@ -198,6 +198,12 @@ export default function DriverBoardPage() {
                                 ))}
                             </select>
                         </label>
+                        <a
+                            href={excelHref(filters)}
+                            className="inline-flex h-10 cursor-pointer items-center rounded-lg border border-[#1a2b4c] px-3 text-xs font-semibold text-[#1a2b4c] hover:bg-[#e8f1fa]"
+                        >
+                            Descargar Excel
+                        </a>
                     </div>
                 </div>
 
@@ -215,6 +221,36 @@ export default function DriverBoardPage() {
             </div>
         </>
     );
+}
+
+function excelHref(filters: Filters): string {
+    const params = new URLSearchParams();
+
+    if (filters.date_from) {
+        params.set('date_from', filters.date_from);
+    }
+
+    if (filters.date_to) {
+        params.set('date_to', filters.date_to);
+    }
+
+    if (filters.coordinator_id) {
+        params.set('coordinator_id', String(filters.coordinator_id));
+    }
+
+    if (filters.inspector_id) {
+        params.set('inspector_id', String(filters.inspector_id));
+    }
+
+    if (filters.sede) {
+        params.set('sede', String(filters.sede));
+    }
+
+    const query = params.toString();
+
+    return query === ''
+        ? '/tablero-conductores/excel'
+        : `/tablero-conductores/excel?${query}`;
 }
 
 function RingCard({ ring }: { ring: Ring }) {

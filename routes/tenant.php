@@ -250,6 +250,10 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:checklists.view')
             ->name('checklists.security-report');
 
+        Route::get('tablero-conductores/excel', [DriverBoardController::class, 'excel'])
+            ->middleware('permission:inductions.view')
+            ->name('inductions.board.excel');
+
         Route::get('tablero-conductores', DriverBoardController::class)
             ->middleware('permission:inductions.view')
             ->name('inductions.board');

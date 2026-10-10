@@ -16,31 +16,24 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DriverBoardController extends Controller
 {
     public function __invoke(Request $request): Response
     {
-        $validated = $request->validate([
-            'date_from' => ['nullable', 'date'],
-            'date_to' => ['nullable', 'date'],
-            'coordinator_id' => ['nullable', 'integer'],
-            'inspector_id' => ['nullable', 'integer'],
-            'sede' => ['nullable', 'integer'],
-        ]);
-
-        $range = ReportPeriod::range($validated['date_from'] ?? null, $validated['date_to'] ?? null);
-        $coordinatorId = isset($validated['coordinator_id'])
-            ? (int) $validated['coordinator_id']
-            : null;
-        $inspectorId = isset($validated['inspector_id'])
-            ? (int) $validated['inspector_id']
-            : null;
-        $siteId = isset($validated['sede']) ? (int) $validated['sede'] : null;
-
-        if (SystemRoles::currentIsScopedCoordinator()) {
-            $coordinatorId = (int) Auth::id();
-        }
+        $selection = $this->selection($request);
+        $range = $selection['range'];
+        $coordinatorId = $selection['coordinator_id'];
+        $inspectorId = $selection['inspector_id'];
+        $siteId = $selection['site_id'];
 
         $drivers = $this->drivers($coordinatorId, $siteId);
         $sessions = $this->sessions($range, $inspectorId);
@@ -70,15 +63,72 @@ class DriverBoardController extends Controller
                 'inspector_id' => $inspectorId,
                 'sede' => $siteId,
             ],
-            'coordinators' => $this->coordinatorOptions($coordinatorId),
+            'coordinators' => $this->coordinatorOptions(
+                SystemRoles::currentIsScopedCoordinator() ? (int) Auth::id() : null,
+            ),
             'inspectors' => $this->inspectorOptions(),
             'sedes' => $this->sedeOptions(),
             'scoped' => SystemRoles::currentIsScopedCoordinator(),
         ]);
     }
 
+    public function excel(Request $request): StreamedResponse
+    {
+        $selection = $this->selection($request);
+        $drivers = $this->drivers($selection['coordinator_id'], $selection['site_id']);
+        $sessions = $this->sessions($selection['range'], $selection['inspector_id']);
+        $topics = $this->topics($sessions, $drivers);
+        $activeCount = $drivers->where('active', true)->count();
+        $bajaCount = $drivers->count() - $activeCount;
+
+        $spreadsheet = new Spreadsheet;
+        $this->coverageSheet($spreadsheet, $selection, $topics, $activeCount, $bajaCount);
+        $this->driversSheet($spreadsheet, $drivers, $topics);
+
+        $writer = new Xlsx($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer): void {
+            $writer->save('php://output');
+        }, 'tablero-conductores.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
     /**
-     * @return Collection<string, array{coordinator: string|null, name: string, units: list<int>, active: bool}>
+     * @return array{range: array{from: string|null, to: string|null, label: string}, coordinator_id: int|null, inspector_id: int|null, site_id: int|null}
+     */
+    private function selection(Request $request): array
+    {
+        $validated = $request->validate([
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date'],
+            'coordinator_id' => ['nullable', 'integer'],
+            'inspector_id' => ['nullable', 'integer'],
+            'sede' => ['nullable', 'integer'],
+        ]);
+
+        $coordinatorId = isset($validated['coordinator_id'])
+            ? (int) $validated['coordinator_id']
+            : null;
+        $inspectorId = isset($validated['inspector_id'])
+            ? (int) $validated['inspector_id']
+            : null;
+        $siteId = isset($validated['sede']) ? (int) $validated['sede'] : null;
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $coordinatorId = (int) Auth::id();
+        }
+
+        return [
+            'range' => ReportPeriod::range($validated['date_from'] ?? null, $validated['date_to'] ?? null),
+            'coordinator_id' => $coordinatorId,
+            'inspector_id' => $inspectorId,
+            'site_id' => $siteId,
+        ];
+    }
+
+    /**
+     * @return Collection<string, array{coordinator: string|null, name: string, dni: string, units: list<int>, active: bool}>
      */
     private function drivers(?int $coordinatorId, ?int $siteId): Collection
     {
@@ -98,7 +148,7 @@ class DriverBoardController extends Controller
             $query->where('coordinator_id', $coordinatorId);
         }
 
-        /** @var Collection<string, array{coordinator: string|null, name: string, units: list<int>, active: bool}> $drivers */
+        /** @var Collection<string, array{coordinator: string|null, name: string, dni: string, units: list<int>, active: bool}> $drivers */
         $drivers = collect();
 
         foreach ($query->get() as $unit) {
@@ -108,12 +158,18 @@ class DriverBoardController extends Controller
                 continue;
             }
 
+            $dni = preg_replace('/\D+/', '', (string) $unit->driver_dni) ?? '';
             $current = $drivers->get($key, [
                 'coordinator' => null,
-                'name' => $this->normalize($unit->driver_name),
+                'name' => trim((string) $unit->driver_name),
+                'dni' => $dni,
                 'units' => [],
                 'active' => false,
             ]);
+
+            if ($current['dni'] === '' && $dni !== '') {
+                $current['dni'] = $dni;
+            }
             $current['units'][] = (int) $unit->id;
             $current['coordinator'] ??= $unit->coordinatorUser?->name;
 
@@ -173,6 +229,35 @@ class DriverBoardController extends Controller
      */
     private function inductionRings(Collection $sessions, Collection $drivers): array
     {
+        $topics = $this->topics($sessions, $drivers);
+        $activeCount = $drivers->where('active', true)->count();
+        $bajaCount = $drivers->count() - $activeCount;
+        $rings = [];
+
+        foreach ($topics as $topic) {
+            $rings[] = $this->card(
+                'tema-'.$topic['key'],
+                $topic['label'],
+                'Vigente por 1 año',
+                $activeCount > 0 ? (int) round(($topic['have'] / $activeCount) * 100) : 0,
+                [
+                    $this->metric('tienen', 'Ya la tienen', $topic['have'], 'ok'),
+                    $this->metric('faltan', 'Faltan', $topic['missing'], 'bad'),
+                    $this->metric('baja', 'De baja', $bajaCount, 'muted'),
+                ],
+            );
+        }
+
+        return $rings;
+    }
+
+    /**
+     * @param  Collection<int, Induction>  $sessions
+     * @param  Collection<string, array{active?: bool}>  $drivers
+     * @return list<array{key: string, label: string, covered: array<string, true>, have: int, missing: int}>
+     */
+    private function topics(Collection $sessions, Collection $drivers): array
+    {
         $active = [];
 
         foreach ($drivers as $key => $driver) {
@@ -182,7 +267,6 @@ class DriverBoardController extends Controller
         }
 
         $activeCount = count($active);
-        $bajaCount = $drivers->count() - $activeCount;
         $validFrom = now()->subYear()->startOfDay();
         $topics = [];
 
@@ -199,6 +283,7 @@ class DriverBoardController extends Controller
 
             if (! isset($topics[$titleKey])) {
                 $topics[$titleKey] = [
+                    'key' => $titleKey,
                     'label' => $this->inductionLabel($induction),
                     'covered' => [],
                 ];
@@ -223,28 +308,148 @@ class DriverBoardController extends Controller
             }
         }
 
-        $rings = [];
+        $rows = [];
 
-        foreach ($topics as $titleKey => $topic) {
+        foreach ($topics as $topic) {
             $have = count($topic['covered']);
-            $missing = max(0, $activeCount - $have);
-
-            $rings[] = $this->card(
-                'tema-'.$titleKey,
-                $topic['label'],
-                'Vigente por 1 año',
-                $activeCount > 0 ? (int) round(($have / $activeCount) * 100) : 0,
-                [
-                    $this->metric('tienen', 'Ya la tienen', $have, 'ok'),
-                    $this->metric('faltan', 'Faltan', $missing, 'bad'),
-                    $this->metric('baja', 'De baja', $bajaCount, 'muted'),
-                ],
-            );
+            $topic['have'] = $have;
+            $topic['missing'] = max(0, $activeCount - $have);
+            $rows[] = $topic;
         }
 
-        usort($rings, fn (array $left, array $right) => strnatcasecmp($left['label'], $right['label']));
+        usort($rows, fn (array $left, array $right) => strnatcasecmp($left['label'], $right['label']));
 
-        return $rings;
+        return $rows;
+    }
+
+    /**
+     * @param  array{range: array{from: string|null, to: string|null, label: string}, coordinator_id: int|null, inspector_id: int|null, site_id: int|null}  $selection
+     * @param  list<array{label: string, have: int, missing: int}>  $topics
+     */
+    private function coverageSheet(Spreadsheet $spreadsheet, array $selection, array $topics, int $activeCount, int $bajaCount): void
+    {
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Cobertura');
+        $coordinator = collect($this->coordinatorOptions(null))->firstWhere('id', $selection['coordinator_id']);
+        $inspector = collect($this->inspectorOptions())->firstWhere('id', $selection['inspector_id']);
+        $sede = collect($this->sedeOptions())->firstWhere('id', $selection['site_id']);
+
+        $sheet->setCellValue('A1', 'Tablero de mando SST conductores');
+        $sheet->setCellValue('A2', 'Fechas');
+        $sheet->setCellValue('B2', $selection['range']['label']);
+        $sheet->setCellValue('A3', 'Coordinador');
+        $sheet->setCellValue('B3', $coordinator['name'] ?? 'Todos');
+        $sheet->setCellValue('C3', 'Inspector');
+        $sheet->setCellValue('D3', $inspector['name'] ?? 'Todos');
+        $sheet->setCellValue('E3', 'Sede');
+        $sheet->setCellValue('F3', $sede['name'] ?? 'Todas');
+        $sheet->setCellValue('A4', 'Conductores activos');
+        $sheet->setCellValue('B4', $activeCount);
+        $sheet->setCellValue('C4', 'De baja');
+        $sheet->setCellValue('D4', $bajaCount);
+
+        $headers = ['Inducción', 'Ya la tienen', 'Faltan', 'De baja', 'Cobertura %'];
+        foreach ($headers as $index => $header) {
+            $sheet->setCellValue([$index + 1, 6], $header);
+        }
+
+        $rowNumber = 7;
+
+        foreach ($topics as $topic) {
+            $percent = $activeCount > 0 ? (int) round(($topic['have'] / $activeCount) * 100) : 0;
+            $sheet->setCellValue([1, $rowNumber], $topic['label']);
+            $sheet->setCellValue([2, $rowNumber], $topic['have']);
+            $sheet->setCellValue([3, $rowNumber], $topic['missing']);
+            $sheet->setCellValue([4, $rowNumber], $bajaCount);
+            $sheet->setCellValue([5, $rowNumber], $percent);
+            $rowNumber++;
+        }
+
+        if ($topics === []) {
+            $sheet->setCellValue('A7', 'No hay inducciones para este filtro.');
+        }
+
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14)->getColor()->setRGB('1A2B4C');
+        $sheet->getStyle('A6:E6')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 9, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1A2B4C']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        ]);
+        $lastRow = max(6, $rowNumber - 1);
+        $sheet->getStyle("A6:E{$lastRow}")->applyFromArray([
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D7E3F0']]],
+        ]);
+        $sheet->freezePane('A7');
+
+        foreach (range(1, 6) as $index) {
+            $sheet->getColumnDimensionByColumn($index)->setWidth($index === 1 ? 42 : 22);
+        }
+    }
+
+    /**
+     * @param  Collection<string, array{coordinator: string|null, name: string, dni: string, active: bool}>  $drivers
+     * @param  list<array{label: string, covered: array<string, true>}>  $topics
+     */
+    private function driversSheet(Spreadsheet $spreadsheet, Collection $drivers, array $topics): void
+    {
+        $sheet = $spreadsheet->createSheet();
+        $sheet->setTitle('Conductores');
+        $headers = ['Conductor', 'DNI', 'Coordinador', 'Estado'];
+
+        foreach ($topics as $topic) {
+            $headers[] = $topic['label'];
+        }
+
+        foreach ($headers as $index => $header) {
+            $sheet->setCellValue([$index + 1, 1], $header);
+        }
+
+        $sorted = $drivers->sort(function (array $left, array $right): int {
+            if ($left['active'] !== $right['active']) {
+                return $left['active'] ? -1 : 1;
+            }
+
+            return strnatcasecmp($this->normalize($left['name']), $this->normalize($right['name']));
+        });
+
+        $rowNumber = 2;
+
+        foreach ($sorted as $key => $driver) {
+            $sheet->setCellValue([1, $rowNumber], $driver['name']);
+            $sheet->setCellValueExplicit([2, $rowNumber], $driver['dni'], DataType::TYPE_STRING);
+            $sheet->setCellValue([3, $rowNumber], $driver['coordinator'] ?? '');
+            $sheet->setCellValue([4, $rowNumber], $driver['active'] ? 'Activo' : 'De baja');
+
+            foreach ($topics as $index => $topic) {
+                $value = '—';
+
+                if ($driver['active']) {
+                    $value = isset($topic['covered'][$key]) ? 'Sí' : 'No';
+                }
+
+                $sheet->setCellValue([$index + 5, $rowNumber], $value);
+            }
+
+            $rowNumber++;
+        }
+
+        $lastColumn = max(4, count($headers));
+        $lastRow = max(1, $rowNumber - 1);
+        $lastLetter = Coordinate::stringFromColumnIndex($lastColumn);
+        $sheet->getStyle("A1:{$lastLetter}1")->applyFromArray([
+            'font' => ['bold' => true, 'size' => 9, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1A2B4C']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'wrapText' => true],
+        ]);
+        $sheet->getStyle("A1:{$lastLetter}{$lastRow}")->applyFromArray([
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D7E3F0']]],
+        ]);
+        $sheet->freezePane('A2');
+        $sheet->setAutoFilter("A1:{$lastLetter}{$lastRow}");
+
+        foreach (range(1, $lastColumn) as $index) {
+            $sheet->getColumnDimensionByColumn($index)->setWidth($index === 1 || $index >= 5 ? 36 : 18);
+        }
     }
 
     private function inductionLabel(Induction $induction): string
