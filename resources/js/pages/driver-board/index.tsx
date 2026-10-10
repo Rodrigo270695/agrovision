@@ -36,6 +36,7 @@ type PageProps = {
     items: Ring[];
     summary: {
         drivers: number;
+        baja: number;
         week_label: string;
         coordinators: string[];
     };
@@ -53,7 +54,7 @@ const TONE = {
     info: { bar: '#1a2b4c', text: 'text-[#1a2b4c]' },
 };
 
-const CHART_KEYS = new Set(['llegaron', 'no', 'pendiente']);
+const CHART_KEYS = new Set(['tienen', 'faltan']);
 
 const SOURCE: Record<Ring['source'], string> = {
     induccion: 'Inducción',
@@ -98,9 +99,9 @@ export default function DriverBoardPage() {
                         Tablero de mando SST conductores
                     </h1>
                     <p className="mt-1 text-xs text-[#5a7390]">
-                        {summary.drivers} conductores. {summary.week_label}. Cada
-                        tarjeta es una inducción. El anillo es cuántos
-                        llegaron de los citados.
+                        {summary.drivers} conductores activos y {summary.baja}{' '}
+                        de baja. {summary.week_label}. Cada tarjeta es un tema
+                        de inducción. El anillo es cuántos activos ya la tienen.
                     </p>
                     <div className="mt-4 flex flex-wrap items-end gap-3">
                         <div className="w-full sm:w-auto">
@@ -202,7 +203,7 @@ export default function DriverBoardPage() {
 
                 {items.length === 0 ? (
                     <section className="rounded-2xl border border-[#d7e3f0] bg-white p-8 text-center text-sm text-[#5a7390] shadow-sm">
-                        No hay datos de conductores para este filtro.
+                        No hay inducciones para este filtro.
                     </section>
                 ) : (
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -289,9 +290,7 @@ function RingCard({ ring }: { ring: Ring }) {
                     ring.metrics.length > 3 ? 'grid-cols-2' : 'grid-cols-3',
                 )}
             >
-                {ring.metrics
-                    .filter((metric) => metric.key !== 'pendiente' || metric.value > 0)
-                    .map((metric) => (
+                {ring.metrics.map((metric) => (
                         <Count
                             key={metric.key}
                             label={metric.label}

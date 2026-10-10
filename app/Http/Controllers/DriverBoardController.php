@@ -7,7 +7,6 @@ use App\Models\InductionAttendee;
 use App\Models\Site;
 use App\Models\Unit;
 use App\Models\User;
-use App\Support\InductionAttendeeStatuses;
 use App\Support\InductionFormOptions;
 use App\Support\InductionStatuses;
 use App\Support\ReportPeriod;
@@ -45,11 +44,8 @@ class DriverBoardController extends Controller
 
         $drivers = $this->drivers($coordinatorId, $siteId);
         $sessions = $this->sessions($range, $inspectorId);
-        $items = $this->inductionRings(
-            $sessions,
-            $drivers,
-            $coordinatorId !== null || $siteId !== null,
-        );
+        $items = $this->inductionRings($sessions, $drivers);
+        $activeDrivers = $drivers->where('active', true)->count();
 
         $coordinatorNames = $drivers
             ->pluck('coordinator')
@@ -62,7 +58,8 @@ class DriverBoardController extends Controller
         return Inertia::render('driver-board/index', [
             'items' => $items,
             'summary' => [
-                'drivers' => $drivers->count(),
+                'drivers' => $activeDrivers,
+                'baja' => $drivers->count() - $activeDrivers,
                 'week_label' => $range['label'],
                 'coordinators' => $coordinatorNames,
             ],
@@ -81,7 +78,7 @@ class DriverBoardController extends Controller
     }
 
     /**
-     * @return Collection<string, array{coordinator: string|null, name: string, units: list<int>}>
+     * @return Collection<string, array{coordinator: string|null, name: string, units: list<int>, active: bool}>
      */
     private function drivers(?int $coordinatorId, ?int $siteId): Collection
     {
@@ -101,7 +98,7 @@ class DriverBoardController extends Controller
             $query->where('coordinator_id', $coordinatorId);
         }
 
-        /** @var Collection<string, array{coordinator: string|null, name: string, units: list<int>}> $drivers */
+        /** @var Collection<string, array{coordinator: string|null, name: string, units: list<int>, active: bool}> $drivers */
         $drivers = collect();
 
         foreach ($query->get() as $unit) {
@@ -115,9 +112,15 @@ class DriverBoardController extends Controller
                 'coordinator' => null,
                 'name' => $this->normalize($unit->driver_name),
                 'units' => [],
+                'active' => false,
             ]);
             $current['units'][] = (int) $unit->id;
             $current['coordinator'] ??= $unit->coordinatorUser?->name;
+
+            if ((string) $unit->status !== 'inactive') {
+                $current['active'] = true;
+            }
+
             $drivers->put($key, $current);
         }
 
@@ -160,75 +163,88 @@ class DriverBoardController extends Controller
     }
 
     /**
+     * Una tarjeta por tema de inducción. El anillo es la cobertura de la
+     * flota activa: ya la tienen contra los que faltan. De baja son los
+     * conductores cuya unidad quedó inactiva en la última carga.
+     *
      * @param  Collection<int, Induction>  $sessions
-     * @param  Collection<string, array{license: string, coordinator: string|null, units?: list<int>, name?: string}>  $drivers
+     * @param  Collection<string, array{active?: bool, name?: string}>  $drivers
      * @return list<array<string, mixed>>
      */
-    private function inductionRings(Collection $sessions, Collection $drivers, bool $restrictAttendees): array
+    private function inductionRings(Collection $sessions, Collection $drivers): array
     {
-        $unitKey = [];
-        $names = [];
+        $active = [];
 
         foreach ($drivers as $key => $driver) {
-            foreach ($driver['units'] ?? [] as $unitId) {
-                $unitKey[(int) $unitId] = $key;
+            if ($driver['active'] ?? false) {
+                $active[$key] = true;
+            }
+        }
+
+        $activeCount = count($active);
+        $bajaCount = $drivers->count() - $activeCount;
+        $validFrom = now()->subYear()->startOfDay();
+        $topics = [];
+
+        foreach ($sessions as $induction) {
+            if ($induction->status === InductionStatuses::CANCELLED) {
+                continue;
             }
 
-            $name = $driver['name'] ?? '';
+            $titleKey = $this->normalize($this->inductionLabel($induction));
 
-            if ($name !== '' && ! isset($names[$name])) {
-                $names[$name] = $key;
+            if ($titleKey === '') {
+                continue;
+            }
+
+            if (! isset($topics[$titleKey])) {
+                $topics[$titleKey] = [
+                    'label' => $this->inductionLabel($induction),
+                    'covered' => [],
+                ];
+            }
+
+            $when = $induction->session_date ?? $induction->scheduled_at;
+
+            if ($when === null || $when->lt($validFrom)) {
+                continue;
+            }
+
+            foreach ($induction->attendees as $attendee) {
+                if (! $this->attended($attendee)) {
+                    continue;
+                }
+
+                $key = $this->identity($attendee->driver_dni, $attendee->driver_name);
+
+                if ($key !== null && isset($active[$key])) {
+                    $topics[$titleKey]['covered'][$key] = true;
+                }
             }
         }
 
         $rings = [];
 
-        foreach ($sessions as $induction) {
-            $cited = 0;
-            $arrived = 0;
-            $missed = 0;
-            $pending = 0;
-
-            foreach ($induction->attendees as $attendee) {
-                if ($restrictAttendees && $this->attendeeKey($attendee, $unitKey, $names, $drivers) === null) {
-                    continue;
-                }
-
-                $cited++;
-
-                if ($this->attended($attendee)) {
-                    $arrived++;
-                } elseif ($attendee->status === InductionAttendeeStatuses::ABSENT) {
-                    $missed++;
-                } else {
-                    $pending++;
-                }
-            }
+        foreach ($topics as $titleKey => $topic) {
+            $have = count($topic['covered']);
+            $missing = max(0, $activeCount - $have);
 
             $rings[] = $this->card(
-                'induccion-'.$induction->id,
-                $this->inductionLabel($induction),
-                $this->inductionDetail($induction),
-                $cited > 0 ? (int) round(($arrived / $cited) * 100) : 0,
+                'tema-'.$titleKey,
+                $topic['label'],
+                'Vigente por 1 año',
+                $activeCount > 0 ? (int) round(($have / $activeCount) * 100) : 0,
                 [
-                    $this->metric('citados', 'Citados', $cited, 'muted'),
-                    $this->metric('llegaron', 'Llegaron', $arrived, 'ok'),
-                    $this->metric('no', 'No llegaron', $missed, 'bad'),
-                    $this->metric('pendiente', 'Sin marcar', $pending, 'muted'),
+                    $this->metric('tienen', 'Ya la tienen', $have, 'ok'),
+                    $this->metric('faltan', 'Faltan', $missing, 'bad'),
+                    $this->metric('baja', 'De baja', $bajaCount, 'muted'),
                 ],
             );
         }
 
+        usort($rings, fn (array $left, array $right) => strnatcasecmp($left['label'], $right['label']));
+
         return $rings;
-    }
-
-    private function inductionDetail(Induction $induction): string
-    {
-        $when = $induction->scheduled_at
-            ? $induction->scheduled_at->timezone(config('app.timezone'))->format('d/m/Y H:i')
-            : ($induction->session_date?->format('d/m/Y') ?? 'Sin fecha');
-
-        return $when.' · '.InductionStatuses::label((string) $induction->status);
     }
 
     private function inductionLabel(Induction $induction): string
@@ -269,32 +285,6 @@ class DriverBoardController extends Controller
             'value' => $value,
             'tone' => $tone,
         ];
-    }
-
-    /**
-     * @param  array<int, string>  $unitKey
-     * @param  array<string, string>  $names
-     * @param  Collection<string, mixed>  $drivers
-     */
-    private function attendeeKey(
-        InductionAttendee $attendee,
-        array $unitKey,
-        array $names,
-        Collection $drivers,
-    ): ?string {
-        if ($attendee->unit_id && isset($unitKey[(int) $attendee->unit_id])) {
-            return $unitKey[(int) $attendee->unit_id];
-        }
-
-        $byDni = $this->identity($attendee->driver_dni, null);
-
-        if ($byDni !== null && $drivers->has($byDni)) {
-            return $byDni;
-        }
-
-        $name = $this->normalize($attendee->driver_name);
-
-        return ($name !== '' && isset($names[$name])) ? $names[$name] : null;
     }
 
     private function attended(InductionAttendee $attendee): bool
