@@ -27,8 +27,12 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DriverBoardController extends Controller
 {
-    public function __invoke(Request $request): Response
+    public function __invoke(Request $request): Response|StreamedResponse
     {
+        if ($request->query('export') === 'excel') {
+            return $this->excel($request);
+        }
+
         $selection = $this->selection($request);
         $range = $selection['range'];
         $coordinatorId = $selection['coordinator_id'];

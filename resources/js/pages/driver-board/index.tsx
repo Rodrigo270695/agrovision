@@ -246,11 +246,9 @@ function excelHref(filters: Filters): string {
         params.set('sede', String(filters.sede));
     }
 
-    const query = params.toString();
+    params.set('export', 'excel');
 
-    return query === ''
-        ? '/tablero-conductores/excel'
-        : `/tablero-conductores/excel?${query}`;
+    return `/tablero-conductores?${params.toString()}`;
 }
 
 function RingCard({ ring }: { ring: Ring }) {
