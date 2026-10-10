@@ -662,11 +662,38 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
         key: keyof AnswerState,
         value: string,
     ) => {
-        setAnswers((prev) =>
-            prev.map((answer, i) =>
+        setAnswers((prev) => {
+            const next = prev.map((answer, i) =>
                 i === index ? { ...answer, [key]: value } : answer,
-            ),
-        );
+            );
+
+            if (
+                (key === 'first_value' || key === 'second_value') &&
+                value === 'no'
+            ) {
+                let parentId = checklist.items[index]?.parent_id ?? null;
+                let guard = 0;
+
+                while (parentId && guard < 30) {
+                    guard += 1;
+                    const parentIndex = checklist.items.findIndex(
+                        (item) => item.id === parentId,
+                    );
+
+                    if (parentIndex < 0) {
+                        break;
+                    }
+
+                    next[parentIndex] = {
+                        ...next[parentIndex],
+                        [key]: 'no',
+                    };
+                    parentId = checklist.items[parentIndex]?.parent_id ?? null;
+                }
+            }
+
+            return next;
+        });
     };
 
     const uploadEvidence = async (itemId: number, file: File) => {

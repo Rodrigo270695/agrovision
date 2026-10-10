@@ -448,21 +448,10 @@ class ChecklistController extends Controller
         $this->ensureCanAccessUnit($unit);
 
         $inspectedOn = Carbon::parse($data['inspected_on'])->toDateString();
-
-        $existing = UnitChecklist::query()
-            ->where('unit_id', $unit->id)
-            ->where('template_id', $data['template_id'])
-            ->where('period_id', $unit->period_id)
-            ->whereDate('first_inspected_on', $inspectedOn)
-            ->first();
+        $existing = $this->inspectionForPlateOnDate($unit, $inspectedOn);
 
         if ($existing) {
-            return redirect()
-                ->route('checklists.edit', $existing)
-                ->with('toast', [
-                    'type' => 'success',
-                    'message' => 'Esa placa ya tiene inspección en esa fecha. Se abrió la existente.',
-                ]);
+            return $this->duplicateInspectionResponse($existing, $inspectedOn);
         }
 
         $undated = UnitChecklist::query()
@@ -733,6 +722,7 @@ class ChecklistController extends Controller
         }
 
         $data = $request->validated();
+        $data['answers'] = $this->forceParentNo($data['answers'] ?? []);
         $shouldSeal = (bool) ($data['seal'] ?? false);
         $firstAlreadyDecided = $checklist->hasFirstInspectionDecision();
         $firstAlreadyApproved = $checklist->first_result === 'approved';
@@ -1390,6 +1380,100 @@ class ChecklistController extends Controller
     }
 
     /**
+     * Si un subítem está en NO, el ítem padre también queda en NO.
+     *
+     * @param  list<array<string, mixed>>  $answers
+     * @return list<array<string, mixed>>
+     */
+    private function forceParentNo(array $answers): array
+    {
+        if ($answers === []) {
+            return $answers;
+        }
+
+        $ids = collect($answers)->pluck('checklist_item_id')->filter()->map(fn ($id) => (int) $id)->all();
+        $parents = ChecklistItem::query()->whereIn('id', $ids)->pluck('parent_id', 'id');
+        $indexByItem = [];
+
+        foreach ($answers as $index => $answer) {
+            $indexByItem[(int) ($answer['checklist_item_id'] ?? 0)] = $index;
+        }
+
+        foreach (['first_value', 'second_value'] as $key) {
+            $pending = [];
+
+            foreach ($answers as $answer) {
+                if (($answer[$key] ?? null) === 'no') {
+                    $pending[] = (int) ($answer['checklist_item_id'] ?? 0);
+                }
+            }
+
+            $guard = 0;
+
+            while ($pending !== [] && $guard < 30) {
+                $guard++;
+                $itemId = array_shift($pending);
+                $parentId = (int) ($parents[$itemId] ?? 0);
+
+                if ($parentId === 0 || ! isset($indexByItem[$parentId])) {
+                    continue;
+                }
+
+                $index = $indexByItem[$parentId];
+
+                if (($answers[$index][$key] ?? null) === 'no') {
+                    continue;
+                }
+
+                $answers[$index][$key] = 'no';
+                $pending[] = $parentId;
+            }
+        }
+
+        return $answers;
+    }
+
+    private function inspectionForPlateOnDate(Unit $unit, string $date): ?UnitChecklist
+    {
+        $plate = mb_strtoupper(trim((string) ($unit->plate_number ?: '')));
+
+        return UnitChecklist::query()
+            ->with('creator:id,name')
+            ->whereDate('first_inspected_on', $date)
+            ->where(function ($query) use ($unit, $plate): void {
+                $query->where('unit_id', $unit->id);
+
+                if ($plate !== '') {
+                    $query->orWhereRaw('upper(trim(plate_number)) = ?', [$plate]);
+                }
+            })
+            ->orderBy('id')
+            ->first();
+    }
+
+    private function duplicateInspectionResponse(UnitChecklist $existing, string $date): RedirectResponse
+    {
+        $when = Carbon::parse($date)->format('d/m/Y');
+        $plate = $existing->plate_number ?: 'esta placa';
+
+        if ((int) $existing->created_by === (int) Auth::id()) {
+            return redirect()
+                ->route('checklists.edit', $existing)
+                ->with('toast', [
+                    'type' => 'success',
+                    'message' => "La placa {$plate} ya tiene inspección el {$when}. Se abrió la tuya.",
+                ]);
+        }
+
+        $inspector = $existing->creator?->name ?: 'otro inspector';
+
+        return back()->with('toast', [
+            'type' => 'error',
+            'message' => "La placa {$plate} ya tiene una inspección el {$when}, registrada por {$inspector}.",
+        ]);
+    }
+
+    /**
      * @return Collection<int, array{id: int, name: string, plates: list<array<string, mixed>>}>
      */
     private function dayGroups(string $date): Collection
@@ -1442,8 +1526,11 @@ class ChecklistController extends Controller
         }
 
         $existing = UnitChecklist::query()
-            ->whereIn('unit_id', $units->pluck('id'))
-            ->get(['id', 'unit_id', 'template_id', 'period_id', 'first_inspected_on']);
+            ->where(function ($query) use ($units, $date): void {
+                $query->whereIn('unit_id', $units->pluck('id'))
+                    ->orWhereDate('first_inspected_on', $date);
+            })
+            ->get(['id', 'unit_id', 'template_id', 'period_id', 'first_inspected_on', 'plate_number']);
 
         return collect($byCoordinator)
             ->sortBy('name')
@@ -1460,11 +1547,20 @@ class ChecklistController extends Controller
                     }
 
                     $periodId = (int) $unit->period_id;
-                    $sameDay = $existing->first(function (UnitChecklist $checklist) use ($unit, $template, $periodId, $date) {
-                        return (int) $checklist->unit_id === (int) $unit->id
-                            && (int) $checklist->template_id === (int) $template->id
-                            && (int) $checklist->period_id === $periodId
-                            && $checklist->first_inspected_on?->toDateString() === $date;
+                    $plateKey = mb_strtoupper(trim((string) ($movement?->plate_number ?: $unit->plate_number ?: '')));
+                    $sameDay = $existing->first(function (UnitChecklist $checklist) use ($unit, $template, $periodId, $date, $plateKey) {
+                        $samePlate = $plateKey !== ''
+                            && mb_strtoupper(trim((string) $checklist->plate_number)) === $plateKey;
+
+                        return $checklist->first_inspected_on?->toDateString() === $date
+                            && (
+                                $samePlate
+                                || (
+                                    (int) $checklist->unit_id === (int) $unit->id
+                                    && (int) $checklist->template_id === (int) $template->id
+                                    && (int) $checklist->period_id === $periodId
+                                )
+                            );
                     });
 
                     $plates[] = [
@@ -1496,11 +1592,16 @@ class ChecklistController extends Controller
      */
     private function ensureChecklistForPlate(array $plate, string $date): string
     {
+        $plateKey = mb_strtoupper(trim((string) ($plate['plate'] ?? '')));
         $existing = UnitChecklist::query()
-            ->where('unit_id', $plate['unit_id'])
-            ->where('template_id', $plate['template_id'])
-            ->where('period_id', $plate['period_id'])
             ->whereDate('first_inspected_on', $date)
+            ->where(function ($query) use ($plate, $plateKey): void {
+                $query->where('unit_id', $plate['unit_id']);
+
+                if ($plateKey !== '') {
+                    $query->orWhereRaw('upper(trim(plate_number)) = ?', [$plateKey]);
+                }
+            })
             ->first();
 
         if ($existing) {
