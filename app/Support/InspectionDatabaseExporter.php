@@ -156,6 +156,7 @@ final class InspectionDatabaseExporter
                 $items = $template
                     ? ChecklistItem::query()
                         ->where('template_id', $template->id)
+                        ->whereHas('pareto', fn ($query) => $query->where('is_active', true))
                         ->orderBy('sort_order')
                         ->orderBy('id')
                         ->get()
