@@ -242,6 +242,7 @@ class DriverBoardController extends Controller
             $rings[] = $this->card(
                 'tema-'.$topic['key'],
                 $topic['label'],
+                $topic['activity'],
                 'Vigente por 1 año',
                 $activeCount > 0 ? (int) round(($topic['have'] / $activeCount) * 100) : 0,
                 [
@@ -258,7 +259,7 @@ class DriverBoardController extends Controller
     /**
      * @param  Collection<int, Induction>  $sessions
      * @param  Collection<string, array{active?: bool}>  $drivers
-     * @return list<array{key: string, label: string, covered: array<string, true>, have: int, missing: int}>
+     * @return list<array{key: string, label: string, activity: string, covered: array<string, true>, have: int, missing: int}>
      */
     private function topics(Collection $sessions, Collection $drivers): array
     {
@@ -289,6 +290,7 @@ class DriverBoardController extends Controller
                 $topics[$titleKey] = [
                     'key' => $titleKey,
                     'label' => $this->inductionLabel($induction),
+                    'activity' => $this->activityLabel($induction),
                     'covered' => [],
                 ];
             }
@@ -352,7 +354,7 @@ class DriverBoardController extends Controller
         $sheet->setCellValue('C4', 'De baja');
         $sheet->setCellValue('D4', $bajaCount);
 
-        $headers = ['Inducción', 'Ya la tienen', 'Faltan', 'De baja', 'Cobertura %'];
+        $headers = ['Actividad', 'Inducción', 'Ya la tienen', 'Faltan', 'De baja', 'Cobertura %'];
         foreach ($headers as $index => $header) {
             $sheet->setCellValue([$index + 1, 6], $header);
         }
@@ -361,11 +363,12 @@ class DriverBoardController extends Controller
 
         foreach ($topics as $topic) {
             $percent = $activeCount > 0 ? (int) round(($topic['have'] / $activeCount) * 100) : 0;
-            $sheet->setCellValue([1, $rowNumber], $topic['label']);
-            $sheet->setCellValue([2, $rowNumber], $topic['have']);
-            $sheet->setCellValue([3, $rowNumber], $topic['missing']);
-            $sheet->setCellValue([4, $rowNumber], $bajaCount);
-            $sheet->setCellValue([5, $rowNumber], $percent);
+            $sheet->setCellValue([1, $rowNumber], $topic['activity']);
+            $sheet->setCellValue([2, $rowNumber], $topic['label']);
+            $sheet->setCellValue([3, $rowNumber], $topic['have']);
+            $sheet->setCellValue([4, $rowNumber], $topic['missing']);
+            $sheet->setCellValue([5, $rowNumber], $bajaCount);
+            $sheet->setCellValue([6, $rowNumber], $percent);
             $rowNumber++;
         }
 
@@ -374,19 +377,19 @@ class DriverBoardController extends Controller
         }
 
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14)->getColor()->setRGB('1A2B4C');
-        $sheet->getStyle('A6:E6')->applyFromArray([
+        $sheet->getStyle('A6:F6')->applyFromArray([
             'font' => ['bold' => true, 'size' => 9, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1A2B4C']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
         ]);
         $lastRow = max(6, $rowNumber - 1);
-        $sheet->getStyle("A6:E{$lastRow}")->applyFromArray([
+        $sheet->getStyle("A6:F{$lastRow}")->applyFromArray([
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D7E3F0']]],
         ]);
         $sheet->freezePane('A7');
 
         foreach (range(1, 6) as $index) {
-            $sheet->getColumnDimensionByColumn($index)->setWidth($index === 1 ? 42 : 22);
+            $sheet->getColumnDimensionByColumn($index)->setWidth($index === 2 ? 42 : 22);
         }
     }
 
@@ -456,6 +459,11 @@ class DriverBoardController extends Controller
         }
     }
 
+    private function activityLabel(Induction $induction): string
+    {
+        return InductionFormOptions::activities()[$induction->activity] ?? 'Inducción';
+    }
+
     private function inductionLabel(Induction $induction): string
     {
         $title = trim((string) $induction->title);
@@ -471,11 +479,12 @@ class DriverBoardController extends Controller
      * @param  list<array{key: string, label: string, value: int, tone: string}>  $metrics
      * @return array<string, mixed>
      */
-    private function card(string $key, string $label, string $detail, int $percent, array $metrics): array
+    private function card(string $key, string $label, string $activity, string $detail, int $percent, array $metrics): array
     {
         return [
             'key' => $key,
             'label' => $label,
+            'activity' => $activity,
             'detail' => $detail,
             'source' => 'induccion',
             'percent' => $percent,

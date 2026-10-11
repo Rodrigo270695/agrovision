@@ -13,8 +13,8 @@ type Metric = {
 type Ring = {
     key: string;
     label: string;
+    activity: string;
     detail: string;
-    source: 'induccion';
     percent: number;
     metrics: Metric[];
 };
@@ -55,10 +55,6 @@ const TONE = {
 };
 
 const CHART_KEYS = new Set(['tienen', 'faltan']);
-
-const SOURCE: Record<Ring['source'], string> = {
-    induccion: 'Inducción',
-};
 
 const selectClass =
     'mt-1 h-10 w-full cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c] normal-case disabled:cursor-not-allowed disabled:opacity-60';
@@ -280,7 +276,7 @@ function RingCard({ ring }: { ring: Ring }) {
     return (
         <article className="flex flex-col rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
             <p className="text-center text-[10px] font-semibold tracking-wide text-[#6b8ead] uppercase">
-                {SOURCE[ring.source]}
+                {ring.activity}
             </p>
             <h2 className="mt-1 line-clamp-2 min-h-10 text-center text-xs font-bold tracking-wide text-[#1a2b4c] uppercase">
                 {ring.label}
