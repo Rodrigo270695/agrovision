@@ -404,7 +404,10 @@ class DriverBoardController extends Controller
         $headers = ['Conductor', 'DNI', 'Coordinador', 'Estado'];
 
         foreach ($topics as $topic) {
-            $headers[] = $topic['label'];
+            $activity = trim((string) ($topic['activity'] ?? ''));
+            $headers[] = $activity !== ''
+                ? $activity.' — '.$topic['label']
+                : $topic['label'];
         }
 
         foreach ($headers as $index => $header) {
