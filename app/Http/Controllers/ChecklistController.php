@@ -1952,13 +1952,13 @@ class ChecklistController extends Controller
 
         return back()->with('toast', [
             'type' => 'success',
-            'message' => "Solicitud enviada. Un superadmin debe autorizar la edición de la {$label} inspección.",
+            'message' => "Solicitud enviada. Quien tenga permiso debe autorizar la edición de la {$label} inspección.",
         ]);
     }
 
     public function approveEdit(InspectionEditRequest $editRequest): RedirectResponse
     {
-        $this->ensureSuperadmin();
+        $this->ensureCanAuthorizeEdit();
 
         if ($editRequest->status !== InspectionEditRequest::PENDING) {
             return back()->with('toast', [
@@ -1983,7 +1983,7 @@ class ChecklistController extends Controller
 
     public function rejectEdit(InspectionEditRequest $editRequest): RedirectResponse
     {
-        $this->ensureSuperadmin();
+        $this->ensureCanAuthorizeEdit();
 
         if ($editRequest->status !== InspectionEditRequest::PENDING) {
             return back()->with('toast', [
@@ -2014,12 +2014,12 @@ class ChecklistController extends Controller
         }
     }
 
-    private function ensureSuperadmin(): void
+    private function ensureCanAuthorizeEdit(): void
     {
         $user = Auth::user();
 
-        if (! $user || ! method_exists($user, 'hasRole') || ! $user->hasRole(SystemRoles::SUPERADMIN)) {
-            abort(403, 'Solo un superadmin puede autorizar la edición.');
+        if (! $user || ! $user->can('checklists.authorize_edit')) {
+            abort(403, 'No tienes permiso para autorizar la edición.');
         }
     }
 
@@ -2054,8 +2054,8 @@ class ChecklistController extends Controller
         if (! $grant) {
             throw new \RuntimeException(
                 $editPass === 'first'
-                    ? 'La 1ra inspección está cerrada. Un superadmin debe autorizar la edición.'
-                    : 'La 2da inspección está cerrada. Un superadmin debe autorizar la edición.',
+                    ? 'La 1ra inspección está cerrada. Alguien con permiso debe autorizar la edición.'
+                    : 'La 2da inspección está cerrada. Alguien con permiso debe autorizar la edición.',
             );
         }
 
@@ -2117,7 +2117,7 @@ class ChecklistController extends Controller
                 ->route('checklists.index')
                 ->with('toast', [
                     'type' => 'error',
-                    'message' => "La {$label} inspección está cerrada. Pide autorización a un superadmin.",
+                    'message' => "La {$label} inspección está cerrada. Pide autorización para editarla.",
                 ]);
         }
 

@@ -46,6 +46,7 @@ final class PermissionCatalog
             'checklists.create' => ['label' => 'Crear checklists', 'module' => 'Checklists'],
             'checklists.update' => ['label' => 'Editar checklists', 'module' => 'Checklists'],
             'checklists.delete' => ['label' => 'Eliminar checklists', 'module' => 'Checklists'],
+            'checklists.authorize_edit' => ['label' => 'Autorizar edición de inspecciones', 'module' => 'Checklists'],
 
             'consolidations.view' => ['label' => 'Ver consolidados', 'module' => 'Consolidados'],
             'consolidations.respond' => ['label' => 'Responder consolidados', 'module' => 'Consolidados'],

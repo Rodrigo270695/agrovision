@@ -24,12 +24,12 @@ type ApprovalProps = {
 };
 
 export function InspectionEditApprovals() {
-    const { isSuperAdmin } = useCan();
+    const { can } = useCan();
     const approvals = (
         usePage().props as { inspectionApprovals?: ApprovalProps }
     ).inspectionApprovals;
 
-    if (!isSuperAdmin) {
+    if (!can('checklists.authorize_edit')) {
         return null;
     }
 
@@ -175,7 +175,7 @@ export function InspectionEditGrants() {
 
         if (knownApproved.current !== null && approvedCount > knownApproved.current) {
             toast.success(
-                'Un superadmin autorizó la edición. Ya puedes corregir la inspección.',
+                'Autorizaron la edición. Ya puedes corregir la inspección.',
             );
         }
 
@@ -230,8 +230,8 @@ export function InspectionEditGrants() {
                 </p>
                 <p className="mt-1 text-xs text-[#5a7390]">
                     {waiting
-                        ? 'Un superadmin todavía no responde la solicitud.'
-                        : 'El superadmin autorizó estas inspecciones.'}
+                        ? 'Todavía no responden la solicitud.'
+                        : 'Autorizaron estas inspecciones.'}
                 </p>
                 <ul className="mt-3 max-h-80 space-y-2 overflow-y-auto">
                     {approved.map((item) => (
@@ -271,7 +271,7 @@ export function InspectionEditGrants() {
                                 {item.pass_label} inspección
                             </p>
                             <p className="mt-0.5 text-[11px] text-amber-800">
-                                Esperando al superadmin
+                                Esperando autorización
                             </p>
                         </li>
                     ))}

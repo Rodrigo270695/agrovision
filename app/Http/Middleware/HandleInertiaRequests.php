@@ -119,8 +119,7 @@ class HandleInertiaRequests extends Middleware
                 if (
                     ! $isTenant
                     || ! $user
-                    || ! method_exists($user, 'hasRole')
-                    || ! $user->hasRole(SystemRoles::SUPERADMIN)
+                    || ! $this->canAuthorizeInspectionEdit($user)
                     || ! Schema::hasTable('inspection_edit_requests')
                 ) {
                     return $empty;
@@ -159,5 +158,24 @@ class HandleInertiaRequests extends Middleware
                 ];
             },
         ];
+    }
+
+    private function canAuthorizeInspectionEdit(mixed $user): bool
+    {
+        if (($user->is_support ?? false) === true) {
+            return true;
+        }
+
+        if (method_exists($user, 'hasRole') && $user->hasRole(SystemRoles::SUPERADMIN)) {
+            return true;
+        }
+
+        if (! method_exists($user, 'getAllPermissions')) {
+            return false;
+        }
+
+        return $user->getAllPermissions()->contains(
+            fn ($permission) => $permission->name === 'checklists.authorize_edit',
+        );
     }
 }
