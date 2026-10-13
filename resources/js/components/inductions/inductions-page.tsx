@@ -1,8 +1,13 @@
-import { usePage } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
+import { router, usePage } from '@inertiajs/react';
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { InductionDeleteModal } from '@/components/inductions/induction-delete-modal';
 import { InductionAttendeesModal } from '@/components/inductions/induction-attendees-modal';
 import { InductionFormModal } from '@/components/inductions/induction-form-modal';
+import {
+    InductionShowPage,
+    type InductionShowProps,
+} from '@/components/inductions/induction-show-page';
 import type { InductionFormOptions } from '@/components/inductions/induction-form-fields';
 import type { PeriodOption } from '@/components/inductions/induction-form-fields';
 import { InductionsHeader } from '@/components/inductions/inductions-header';
@@ -15,6 +20,9 @@ import {
 } from '@/components/inductions/inductions-table';
 import type { InductionStatsData } from '@/components/inductions/inductions-stats';
 import { useCan } from '@/hooks/use-can';
+import { prefetchInductionShows } from '@/lib/offline/induction-cache';
+import { isBrowserOnline } from '@/lib/offline/ids';
+import { getInductionSnapshot } from '@/lib/offline/store';
 import { usePendingPosts } from '@/lib/offline/use-pending-posts';
 
 type PageProps = {
@@ -51,7 +59,9 @@ export function InductionsPage() {
         statusOptions,
         formOptions,
     } = usePage().props as unknown as PageProps;
+    const page = usePage();
     const { can } = useCan();
+    const [localShow, setLocalShow] = useState<InductionShowProps | null>(null);
 
     const [formOpen, setFormOpen] = useState(false);
     const [editing, setEditing] = useState<InductionItem | null>(null);
@@ -112,6 +122,48 @@ export function InductionsPage() {
         };
     }, [localInductions, stats]);
 
+    useEffect(() => {
+        void prefetchInductionShows(
+            inductions.data.map((item) => item.id),
+            page.version,
+        );
+    }, [inductions.data, page.version]);
+
+    const openInduction = async (item: InductionItem) => {
+        if (item.pending_sync) {
+            toast.info('Esta inducción se guarda al reconectar.');
+
+            return;
+        }
+
+        if (!isBrowserOnline()) {
+            const saved = await getInductionSnapshot(item.id);
+
+            if (!saved || !('induction' in saved)) {
+                toast.error(
+                    'Esta inducción no está en el dispositivo. Ábrela con conexión una vez.',
+                );
+
+                return;
+            }
+
+            setLocalShow(saved as unknown as InductionShowProps);
+
+            return;
+        }
+
+        router.visit(`/inducciones/${item.id}`);
+    };
+
+    if (localShow) {
+        return (
+            <InductionShowPage
+                snapshot={localShow}
+                onBack={() => setLocalShow(null)}
+            />
+        );
+    }
+
     return (
         <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
             <InductionsHeader
@@ -153,6 +205,9 @@ export function InductionsPage() {
                     }
 
                     setCopyTarget(item);
+                }}
+                onOpen={(item) => {
+                    void openInduction(item);
                 }}
                 onViewAttendees={(item) => {
                     setViewingAttendees(item);

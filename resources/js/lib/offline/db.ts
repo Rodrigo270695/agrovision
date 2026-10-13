@@ -88,6 +88,12 @@ export type OfflinePhoto = {
     accuracy: number | null;
 };
 
+export type InductionShowSnapshot = {
+    key: string;
+    props: Record<string, unknown>;
+    updatedAt: number;
+};
+
 export type QueuedMutation = {
     id: string;
     method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -105,6 +111,7 @@ type OfflineDatabase = Dexie & {
     photos: Table<OfflinePhoto, string>;
     idMap: Table<OfflineIdMap, string>;
     mutations: Table<QueuedMutation, string>;
+    inductionSnapshots: Table<InductionShowSnapshot, string>;
 };
 
 let instance: OfflineDatabase | null = null;
@@ -129,6 +136,7 @@ export async function offlineDb(): Promise<OfflineDatabase | null> {
                     photos!: Table<OfflinePhoto, string>;
                     idMap!: Table<OfflineIdMap, string>;
                     mutations!: Table<QueuedMutation, string>;
+                    inductionSnapshots!: Table<InductionShowSnapshot, string>;
 
                     constructor() {
                         super('agrovision-offline');
@@ -143,6 +151,10 @@ export async function offlineDb(): Promise<OfflineDatabase | null> {
 
                         this.version(2).stores({
                             mutations: 'id, createdAt, url',
+                        });
+
+                        this.version(3).stores({
+                            inductionSnapshots: 'key, updatedAt',
                         });
                     }
                 }
@@ -164,4 +176,8 @@ export async function offlineDb(): Promise<OfflineDatabase | null> {
 
 export function editSnapshotKey(id: number | string): string {
     return `edit:${id}`;
+}
+
+export function inductionSnapshotKey(id: number | string): string {
+    return `induction:${id}`;
 }

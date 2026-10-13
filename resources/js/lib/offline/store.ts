@@ -7,7 +7,9 @@ import type {
 import type { ChecklistItemRow } from '@/components/checklists/checklists-table';
 import {
     editSnapshotKey,
+    inductionSnapshotKey,
     offlineDb,
+    type InductionShowSnapshot,
     type InspectionIndexSnapshot,
     type OfflineCatalogTemplate,
     type OfflinePhoto,
@@ -463,4 +465,35 @@ export function applyUpdateToChecklist(
             };
         }),
     };
+}
+
+export async function saveInductionSnapshot(
+    id: number | string,
+    props: InductionShowSnapshot['props'],
+): Promise<void> {
+    const db = await offlineDb();
+
+    if (!db) {
+        return;
+    }
+
+    await db.inductionSnapshots.put({
+        key: inductionSnapshotKey(id),
+        props,
+        updatedAt: Date.now(),
+    });
+}
+
+export async function getInductionSnapshot(
+    id: number | string,
+): Promise<InductionShowSnapshot['props'] | null> {
+    const db = await offlineDb();
+
+    if (!db) {
+        return null;
+    }
+
+    const row = await db.inductionSnapshots.get(inductionSnapshotKey(id));
+
+    return row?.props ?? null;
 }

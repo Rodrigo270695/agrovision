@@ -44,7 +44,7 @@ export function OfflineBanner() {
                 )}
                 <p className="min-w-0 flex-1 truncate text-xs">
                     {!online
-                        ? 'Sin conexión. Ves los datos ya cargados. Crear o editar espera a que vuelva internet, salvo inspecciones y fotos.'
+                        ? 'Sin conexión. Ves lo ya guardado. Las inspecciones se editan aquí; las inducciones abiertas se pueden consultar.'
                         : syncing
                           ? `Sincronizando ${pending} cambio${pending === 1 ? '' : 's'}…`
                           : lastError

@@ -115,6 +115,7 @@ type Props = {
     onDelete: (induction: InductionItem) => void;
     onCopy: (induction: InductionItem) => void;
     onViewAttendees: (induction: InductionItem) => void;
+    onOpen: (induction: InductionItem) => void;
 };
 
 function formatDateTime(value?: string | null): string {
@@ -206,11 +207,13 @@ function UnitActions({
     onEdit,
     onDelete,
     onCopy,
+    onOpen,
 }: {
     induction: InductionItem;
     onEdit: (induction: InductionItem) => void;
     onDelete: (induction: InductionItem) => void;
     onCopy: (induction: InductionItem) => void;
+    onOpen: (induction: InductionItem) => void;
 }) {
     const { can } = useCan();
     const canUpdate = can('inductions.update');
@@ -271,8 +274,7 @@ function UnitActions({
                     key: 'attendees',
                     label: 'Asistentes',
                     icon: UserRoundPlus,
-                    onSelect: () =>
-                        router.visit(`/inducciones/${induction.id}`),
+                    onSelect: () => onOpen(induction),
                 },
                 canCopy
                     ? {
@@ -366,6 +368,7 @@ export function InductionsTable({
     onDelete,
     onCopy,
     onViewAttendees,
+    onOpen,
 }: Props) {
     const visit = useCallback(
         (params: Partial<InductionsFilters> & { page?: number }) => {
@@ -540,12 +543,13 @@ export function InductionsTable({
                             onEdit={onEdit}
                             onDelete={onDelete}
                             onCopy={onCopy}
+                            onOpen={onOpen}
                         />
                     </div>
                 ),
             },
         ],
-        [onCopy, onDelete, onEdit, onViewAttendees, statusOptions],
+        [onCopy, onDelete, onEdit, onOpen, onViewAttendees, statusOptions],
     );
 
     const hasFilters = Boolean(filters.search || filters.status);

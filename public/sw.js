@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'agrovision-pwa-v9';
+const CACHE_VERSION = 'agrovision-pwa-v10';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const PAGES_CACHE = `${CACHE_VERSION}-pages`;
@@ -48,8 +48,12 @@ function pageCacheKey(request) {
   return new Request(key.toString(), { method: 'GET' });
 }
 
-function isInspectionPhoto(pathname) {
-  return pathname.startsWith('/storage/checklists/');
+function isOfflineMedia(pathname) {
+  return (
+    pathname.startsWith('/storage/checklists/') ||
+    pathname.startsWith('/storage/inductions/') ||
+    pathname.startsWith('/storage/drivers/')
+  );
 }
 
 function isStaticAsset(pathname) {
@@ -225,7 +229,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (isInspectionPhoto(url.pathname)) {
+  if (isOfflineMedia(url.pathname)) {
     event.respondWith(cacheFirst(request, RUNTIME_CACHE));
     return;
   }

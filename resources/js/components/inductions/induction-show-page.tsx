@@ -10,7 +10,7 @@ import {
     Users,
     X,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { SignaturePad } from '@/components/checklists/signature-pad';
 import { FingerprintCameraCapture } from '@/components/inductions/fingerprint-camera-capture';
@@ -35,6 +35,8 @@ import {
 } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { useCan } from '@/hooks/use-can';
+import { isBrowserOnline } from '@/lib/offline/ids';
+import { saveInductionSnapshot } from '@/lib/offline/store';
 import { cn } from '@/lib/utils';
 
 type Attendee = {
@@ -101,7 +103,7 @@ type InductionDetail = {
 
 type StatusOption = { value: string; label: string };
 
-type PageProps = {
+export type InductionShowProps = {
     induction: InductionDetail;
     availableUnits: UnitOption[];
     attendeeStatusOptions: StatusOption[];
@@ -154,7 +156,13 @@ function labelOf(status: string, options: StatusOption[]): string {
     return options.find((item) => item.value === status)?.label ?? status;
 }
 
-export function InductionShowPage() {
+type Props = {
+    snapshot?: InductionShowProps | null;
+    onBack?: () => void;
+};
+
+export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
+    const pageProps = usePage().props as unknown as InductionShowProps;
     const {
         induction,
         availableUnits,
@@ -163,7 +171,20 @@ export function InductionShowPage() {
         formOptions,
         periodOptions,
         unitFilters,
-    } = usePage().props as unknown as PageProps;
+    } = snapshot ?? pageProps;
+    const viewOnly = snapshot !== null;
+
+    const blockOffline = () => {
+        if (!viewOnly && isBrowserOnline()) {
+            return false;
+        }
+
+        toast.info(
+            'Sin conexión. Puedes ver la inducción. Los cambios esperan a internet.',
+        );
+
+        return true;
+    };
     const { can } = useCan();
     const canUpdate = can('inductions.update');
     const canCopy =
@@ -205,6 +226,31 @@ export function InductionShowPage() {
     );
     const [savingSignature, setSavingSignature] = useState(false);
 
+    useEffect(() => {
+        if (viewOnly || !induction?.id) {
+            return;
+        }
+
+        void saveInductionSnapshot(induction.id, {
+            induction,
+            availableUnits,
+            attendeeStatusOptions,
+            statusOptions,
+            formOptions,
+            periodOptions,
+            unitFilters,
+        });
+    }, [
+        attendeeStatusOptions,
+        availableUnits,
+        formOptions,
+        induction,
+        periodOptions,
+        statusOptions,
+        unitFilters,
+        viewOnly,
+    ]);
+
     const signedCount = useMemo(
         () => induction.attendees.filter((item) => item.is_signed).length,
         [induction.attendees],
@@ -229,6 +275,10 @@ export function InductionShowPage() {
     }, [induction.attendees, signedCount]);
 
     const visitUnits = (params: { unit_search?: string }) => {
+        if (blockOffline()) {
+            return;
+        }
+
         const nextSearch = params.unit_search ?? unitFilters.unit_search;
 
         router.get(
@@ -254,7 +304,7 @@ export function InductionShowPage() {
     };
 
     const pull = () => {
-        if (!canUpdate || locked || selected.length === 0 || pulling) {
+        if (blockOffline() || !canUpdate || locked || selected.length === 0 || pulling) {
             return;
         }
 
@@ -271,7 +321,7 @@ export function InductionShowPage() {
     };
 
     const setAttendeeStatus = (attendee: Attendee, status: string) => {
-        if (!canUpdate || locked || !canManageAttendance) {
+        if (blockOffline() || !canUpdate || locked || !canManageAttendance) {
             return;
         }
 
@@ -288,6 +338,7 @@ export function InductionShowPage() {
 
     const markAllAttended = () => {
         if (
+            blockOffline() ||
             !canUpdate ||
             locked ||
             !canManageAttendance ||
@@ -309,7 +360,7 @@ export function InductionShowPage() {
     };
 
     const removeAttendee = (attendee: Attendee) => {
-        if (!canUpdate || locked) {
+        if (blockOffline() || !canUpdate || locked) {
             return;
         }
 
@@ -324,7 +375,7 @@ export function InductionShowPage() {
     };
 
     const patchInductionStatus = (status: string) => {
-        if (!canUpdate) {
+        if (blockOffline() || !canUpdate) {
             return;
         }
 
@@ -336,7 +387,7 @@ export function InductionShowPage() {
     };
 
     const saveVerificationPhoto = (dataUrl: string) => {
-        if (!canUpdate || savingVerificationPhoto || locked || !induction.id) {
+        if (blockOffline() || !canUpdate || savingVerificationPhoto || locked || !induction.id) {
             return;
         }
 
@@ -372,7 +423,7 @@ export function InductionShowPage() {
     };
 
     const removeVerificationPhoto = () => {
-        if (!canUpdate || savingVerificationPhoto || locked) {
+        if (blockOffline() || !canUpdate || savingVerificationPhoto || locked) {
             return;
         }
 
@@ -384,7 +435,7 @@ export function InductionShowPage() {
     };
 
     const openSign = (attendee: Attendee) => {
-        if (!canManageAttendance) {
+        if (blockOffline() || !canManageAttendance) {
             return;
         }
 
@@ -411,7 +462,7 @@ export function InductionShowPage() {
         : reuseSaved || Boolean(signatureDataUrl && fingerprintDataUrl);
 
     const saveSignature = () => {
-        if (!canSaveSign || savingSignature) {
+        if (blockOffline() || !canSaveSign || savingSignature) {
             return;
         }
 
@@ -457,17 +508,35 @@ export function InductionShowPage() {
             <div className="shrink-0 rounded-2xl border border-[#d7e3f0] bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="space-y-2">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            asChild
-                            className="-ml-2 h-8 cursor-pointer px-2 text-[#2e5a9e] hover:bg-[#e8f1fa] hover:text-[#1a2b4c]"
-                        >
-                            <Link href="/inducciones">
+                        {onBack ? (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={onBack}
+                                className="-ml-2 h-8 cursor-pointer px-2 text-[#2e5a9e] hover:bg-[#e8f1fa] hover:text-[#1a2b4c]"
+                            >
                                 <ArrowLeft className="size-4" />
                                 Volver a configuración
-                            </Link>
-                        </Button>
+                            </Button>
+                        ) : (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                asChild
+                                className="-ml-2 h-8 cursor-pointer px-2 text-[#2e5a9e] hover:bg-[#e8f1fa] hover:text-[#1a2b4c]"
+                            >
+                                <Link href="/inducciones">
+                                    <ArrowLeft className="size-4" />
+                                    Volver a configuración
+                                </Link>
+                            </Button>
+                        )}
+                        {viewOnly ? (
+                            <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                                Sin conexión. Estás viendo la última copia
+                                guardada en este teléfono.
+                            </p>
+                        ) : null}
                         <div className="flex flex-wrap items-center gap-2">
                             <h1 className="font-display text-2xl font-semibold text-[#1a2b4c]">
                                 {induction.title}
@@ -476,7 +545,11 @@ export function InductionShowPage() {
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    onClick={() => setCopyOpen(true)}
+                                    onClick={() => {
+                                        if (!blockOffline()) {
+                                            setCopyOpen(true);
+                                        }
+                                    }}
                                     className="h-8 cursor-pointer border-[#c5d5e6] text-[#1a2b4c] hover:bg-[#e8f1fa]"
                                 >
                                     <Copy className="size-4" />
@@ -757,6 +830,10 @@ export function InductionShowPage() {
                                         type="button"
                                         size="sm"
                                         onClick={() => {
+                                            if (blockOffline()) {
+                                                return;
+                                            }
+
                                             setSigning(null);
                                             setSigningSpeaker(true);
                                             setSignatureDataUrl(null);
