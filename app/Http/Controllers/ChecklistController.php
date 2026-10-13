@@ -559,6 +559,11 @@ class ChecklistController extends Controller
             ];
         }
 
+        app(ParetoChecklistSync::class)->nestInspectionItems(
+            $checklist->answers->pluck('item'),
+            $checklist->template?->type,
+        );
+
         $items = ChecklistItem::sortAnswers($checklist->answers)
             ->map(function (UnitChecklistAnswer $answer) {
                 /** @var ChecklistItem $item */
@@ -1118,6 +1123,11 @@ class ChecklistController extends Controller
 
         $scored = 0.0;
         $catalog = 0.0;
+
+        app(ParetoChecklistSync::class)->nestInspectionItems(
+            $checklist->answers->pluck('item'),
+            $checklist->template?->type,
+        );
 
         $rows = ChecklistItem::sortAnswers($checklist->answers)
             ->map(function (UnitChecklistAnswer $answer) use (&$scored, &$catalog) {

@@ -6,6 +6,7 @@ use App\Models\InspectionBatch;
 use App\Models\UnitChecklist;
 use App\Models\UnitChecklistAnswer;
 use App\Models\User;
+use App\Services\ParetoChecklistSync;
 use App\Services\PushNotificationService;
 use App\Support\InspectionDatabaseExporter;
 use App\Support\PdfLogo;
@@ -450,6 +451,11 @@ class InspectionBatchController extends Controller
             ->values()
             ->map(function (UnitChecklist $checklist) {
                 $usesSecond = $checklist->second_result !== null;
+
+                app(ParetoChecklistSync::class)->nestInspectionItems(
+                    $checklist->answers->pluck('item'),
+                    $checklist->template?->type,
+                );
 
                 $items = \App\Models\ChecklistItem::sortAnswers($checklist->answers)
                     ->values()

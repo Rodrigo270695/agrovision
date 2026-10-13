@@ -6,6 +6,7 @@ use App\Models\ChecklistItem;
 use App\Models\ChecklistTemplate;
 use App\Models\Pareto;
 use App\Support\ParetoCheckTypes;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -71,21 +72,23 @@ class ParetoChecklistSync
                 ->get()
                 ->keyBy('pareto_id');
 
+            $byCatalogOrder = fn (Pareto $item) => sprintf('%010d-%010d', (int) $item->sort_order, (int) $item->id);
+            $parents = $paretoItems
+                ->filter(fn (Pareto $item) => $item->parent_id === null)
+                ->sortBy($byCatalogOrder)
+                ->values();
+            $children = $paretoItems
+                ->filter(fn (Pareto $item) => $item->parent_id !== null)
+                ->sortBy($byCatalogOrder)
+                ->values();
+
             $parentChecklistIds = [];
-            $synced = [];
+            $syncedByPareto = [];
 
-            // Primero padres, luego hijos (mantiene parent_id correcto).
-            $ordered = $paretoItems->sortBy([
-                fn (Pareto $item) => $item->parent_id === null ? 0 : 1,
-                fn (Pareto $item) => $item->sort_order,
-                fn (Pareto $item) => $item->id,
-            ])->values();
-
-            foreach ($ordered as $pareto) {
-                $parentId = null;
-                if ($pareto->parent_id !== null) {
-                    $parentId = $parentChecklistIds[$pareto->parent_id] ?? null;
-                }
+            foreach ($parents->concat($children) as $pareto) {
+                $parentId = $pareto->parent_id !== null
+                    ? ($parentChecklistIds[$pareto->parent_id] ?? null)
+                    : null;
 
                 $existing = $checklistByParetoId->get($pareto->id)
                     ?? $this->findLegacyMatch($template->id, $pareto, $parentId);
@@ -93,7 +96,6 @@ class ParetoChecklistSync
                 $payload = [
                     'template_id' => $template->id,
                     'pareto_id' => $pareto->id,
-                    'parent_id' => $parentId,
                     'item_number' => $pareto->item_number,
                     'label' => $pareto->label,
                     'sort_order' => $pareto->sort_order,
@@ -102,6 +104,10 @@ class ParetoChecklistSync
                     'weight' => $pareto->weight,
                     'allows_photo' => (bool) $pareto->allows_photo,
                 ];
+
+                if ($pareto->parent_id === null || $parentId !== null) {
+                    $payload['parent_id'] = $parentId;
+                }
 
                 if ($existing) {
                     $existing->update($payload);
@@ -114,11 +120,105 @@ class ParetoChecklistSync
                     $parentChecklistIds[$pareto->id] = $item->id;
                 }
 
-                $synced[] = $item;
+                $syncedByPareto[$pareto->id] = $item;
             }
 
-            return $synced;
+            foreach ($children as $pareto) {
+                $item = $syncedByPareto[$pareto->id] ?? null;
+                $parentId = $parentChecklistIds[$pareto->parent_id] ?? null;
+
+                if (! $item || $parentId === null || (int) $item->parent_id === (int) $parentId) {
+                    continue;
+                }
+
+                $item->update(['parent_id' => $parentId]);
+                $syncedByPareto[$pareto->id] = $item->fresh();
+            }
+
+            return array_values($syncedByPareto);
         });
+    }
+
+    /**
+     * El catálogo Pareto manda el padre (Botiquín → a, b, c).
+     * Las inspecciones ya creadas siguen apuntando al ítem suelto si el padre se asignó después.
+     *
+     * @param  Collection<int, ChecklistItem|null>  $items
+     */
+    public function nestInspectionItems(Collection $items, ?string $templateType = null): void
+    {
+        /** @var Collection<int, ChecklistItem> $items */
+        $items = $items
+            ->filter(fn ($item) => $item instanceof ChecklistItem)
+            ->unique('id')
+            ->values();
+
+        if ($items->isEmpty()) {
+            return;
+        }
+
+        $templateId = (int) $items->first()->template_id;
+
+        if ($templateType === null || $templateType === '') {
+            $templateType = ChecklistTemplate::query()->whereKey($templateId)->value('type');
+        }
+
+        if (! is_string($templateType) || $templateType === '') {
+            return;
+        }
+
+        $paretos = Pareto::query()->where('template_type', $templateType)->get();
+
+        if ($paretos->isEmpty()) {
+            return;
+        }
+
+        $paretoById = $paretos->keyBy('id');
+        $paretoByKey = [];
+
+        foreach ($paretos as $pareto) {
+            $paretoByKey[$this->identityKey($pareto->item_number, $pareto->label)][] = $pareto;
+        }
+
+        $templateItems = ChecklistItem::query()
+            ->where('template_id', $templateId)
+            ->get();
+        $byParetoId = $templateItems
+            ->filter(fn (ChecklistItem $item) => $item->pareto_id !== null)
+            ->keyBy('pareto_id');
+        $presentIds = $items->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $present = array_fill_keys($presentIds, true);
+
+        foreach ($items as $item) {
+            $pareto = $this->matchPareto($item, $paretoById, $paretoByKey);
+
+            if (! $pareto || $pareto->parent_id === null) {
+                continue;
+            }
+
+            $parentPareto = $paretoById->get($pareto->parent_id);
+
+            if (! $parentPareto) {
+                continue;
+            }
+
+            $canonical = $byParetoId->get($parentPareto->id);
+            $displayParent = ($canonical && isset($present[(int) $canonical->id]))
+                ? $canonical
+                : $this->findPresentParent($items, $parentPareto);
+
+            $storedParent = $canonical ?? $displayParent;
+
+            if ($storedParent && (int) $item->parent_id !== (int) $storedParent->id) {
+                $item->parent_id = $storedParent->id;
+                $item->save();
+            }
+
+            if ($displayParent && (int) $item->parent_id !== (int) $displayParent->id) {
+                $item->parent_id = $displayParent->id;
+                $item->syncOriginalAttribute('parent_id');
+            }
+        }
     }
 
     /**
@@ -159,5 +259,45 @@ class ParetoChecklistSync
             )
             ->orderBy('id')
             ->first();
+    }
+
+    /**
+     * @param  Collection<int, Pareto>  $paretoById
+     * @param  array<string, list<Pareto>>  $paretoByKey
+     */
+    private function matchPareto(ChecklistItem $item, Collection $paretoById, array $paretoByKey): ?Pareto
+    {
+        if ($item->pareto_id !== null && $paretoById->has($item->pareto_id)) {
+            return $paretoById->get($item->pareto_id);
+        }
+
+        $matches = $paretoByKey[$this->identityKey($item->item_number, $item->label)] ?? [];
+
+        return count($matches) === 1 ? $matches[0] : null;
+    }
+
+    /**
+     * @param  Collection<int, ChecklistItem>  $items
+     */
+    private function findPresentParent(Collection $items, Pareto $parentPareto): ?ChecklistItem
+    {
+        $key = $this->identityKey($parentPareto->item_number, $parentPareto->label);
+
+        return $items->first(function (ChecklistItem $item) use ($parentPareto, $key) {
+            if ($item->pareto_id !== null && (int) $item->pareto_id === (int) $parentPareto->id) {
+                return true;
+            }
+
+            return $this->identityKey($item->item_number, $item->label) === $key;
+        });
+    }
+
+    private function identityKey(?string $number, ?string $label): string
+    {
+        $number = mb_strtolower(trim((string) $number));
+        $label = mb_strtolower(trim((string) $label));
+        $label = preg_replace('/[^\p{L}\p{N}]+/u', '', $label) ?? '';
+
+        return $number.'|'.$label;
     }
 }
