@@ -19,6 +19,19 @@ final class InductionDocumentPackage
             'period',
         ]);
 
+        $disk = Storage::disk('local');
+        $pdfPath = 'inductions/packages/'.$induction->id.'.pdf';
+        $stampPath = 'inductions/packages/'.$induction->id.'.stamp';
+        $stamp = self::stamp($induction);
+        $cached = $disk->get($pdfPath);
+
+        if (is_string($cached) && $cached !== '' && $disk->get($stampPath) === $stamp) {
+            return self::pdfResponse($cached, $induction);
+        }
+
+        @set_time_limit(180);
+        @ini_set('memory_limit', '512M');
+
         if (! filled($induction->document_code)) {
             $induction->document_code = 'GH-GD-FO-0609';
         }
@@ -115,12 +128,43 @@ final class InductionDocumentPackage
             ])->setPaper('a4', 'portrait')->output();
         }
 
-        $acta = $induction->acta_number ?: str_pad((string) $induction->id, 6, '0', STR_PAD_LEFT);
-        $filename = 'induccion_'.$acta.'.pdf';
+        $binary = self::merge($documents);
+        $disk->put($pdfPath, $binary);
+        $disk->put($stampPath, $stamp);
 
-        return response(self::merge($documents), 200, [
+        return self::pdfResponse($binary, $induction);
+    }
+
+    private static function stamp(Induction $induction): string
+    {
+        $parts = [
+            (string) $induction->updated_at,
+            (string) $induction->speaker_signature_path,
+            (string) $induction->verification_photo_path,
+            (string) $induction->attendees->count(),
+        ];
+
+        foreach ($induction->attendees as $attendee) {
+            $parts[] = implode('|', [
+                $attendee->id,
+                (string) $attendee->updated_at,
+                (string) $attendee->status,
+                (string) $attendee->signature_path,
+                (string) $attendee->fingerprint_path,
+                (string) $attendee->driver_name,
+            ]);
+        }
+
+        return hash('sha256', implode("\n", $parts));
+    }
+
+    private static function pdfResponse(string $binary, Induction $induction): Response
+    {
+        $acta = $induction->acta_number ?: str_pad((string) $induction->id, 6, '0', STR_PAD_LEFT);
+
+        return response($binary, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Content-Disposition' => 'inline; filename="induccion_'.$acta.'.pdf"',
         ]);
     }
 

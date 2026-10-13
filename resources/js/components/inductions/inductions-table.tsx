@@ -25,6 +25,7 @@ import {
 import { RowActionsMenu } from '@/components/shared/row-actions-menu';
 import { useCan } from '@/hooks/use-can';
 import { isBrowserOnline } from '@/lib/offline/ids';
+import { openInductionPdf } from '@/lib/open-induction-pdf';
 import { asPaginated } from '@/lib/paginated';
 import { toast } from 'sonner';
 
@@ -289,8 +290,9 @@ function UnitActions({
                           key: 'pdf',
                           label: 'Ver documentos',
                           icon: FileText,
-                          href: `/inducciones/${induction.id}/pdf`,
-                          target: '_blank',
+                          onSelect: () => {
+                              void openInductionPdf(induction.id);
+                          },
                       }
                     : null,
                 canUpdate && !locked

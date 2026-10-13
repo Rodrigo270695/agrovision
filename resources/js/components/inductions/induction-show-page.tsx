@@ -36,6 +36,7 @@ import {
 import { Spinner } from '@/components/ui/spinner';
 import { useCan } from '@/hooks/use-can';
 import { isBrowserOnline } from '@/lib/offline/ids';
+import { openInductionPdf } from '@/lib/open-induction-pdf';
 import { saveInductionSnapshot } from '@/lib/offline/store';
 import { cn } from '@/lib/utils';
 
@@ -637,11 +638,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                 <Button
                                     type="button"
                                     onClick={() => {
-                                        window.open(
-                                            `/inducciones/${induction.id}/pdf`,
-                                            '_blank',
-                                            'noopener,noreferrer',
-                                        );
+                                        void openInductionPdf(induction.id);
                                     }}
                                     className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
                                 >

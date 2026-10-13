@@ -893,7 +893,7 @@ class InductionController extends Controller
         ]);
     }
 
-    public function pdf(Induction $induction): HttpResponse|RedirectResponse
+    public function pdf(Request $request, Induction $induction): HttpResponse|RedirectResponse
     {
         $this->ensureCanAccess($induction);
 
@@ -935,11 +935,17 @@ class InductionController extends Controller
         } catch (\Throwable $e) {
             report($e);
 
+            $message = 'No se pudo generar el PDF. Revisa firmas/fotos e inténtalo de nuevo.';
+
+            if ($request->expectsJson() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+                return response()->json(['message' => $message], 500);
+            }
+
             return redirect()
                 ->route('inductions.show', $induction)
                 ->with('toast', [
                     'type' => 'error',
-                    'message' => 'No se pudo generar el PDF. Revisa firmas/fotos e inténtalo de nuevo.',
+                    'message' => $message,
                 ]);
         }
     }
