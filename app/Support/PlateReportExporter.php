@@ -50,7 +50,6 @@ final class PlateReportExporter
             'Conductor',
             'DNI',
             'Proveedor',
-            'Periodo',
             'Estado unidad',
             'Coordinador',
             'Documentos',
@@ -83,7 +82,6 @@ final class PlateReportExporter
                 $row['driver_name'],
                 $row['driver_dni'],
                 $row['provider'],
-                $row['period'],
                 $row['unit_status'],
                 $row['coordinator'],
                 $row['docs_done'].'/'.$row['docs_total'],
@@ -104,12 +102,12 @@ final class PlateReportExporter
                 $latest['signed_at'] ?? '',
                 collect($row['inductions'])->map(fn (array $item) => trim($item['date'].' '.$item['title']))->implode("\n"),
             ], null, 'A'.$line);
-            $sheet->getStyle('A'.$line.':Y'.$line)->getAlignment()->setVertical(Alignment::VERTICAL_TOP)->setWrapText(true);
+            $sheet->getStyle('A'.$line.':X'.$line)->getAlignment()->setVertical(Alignment::VERTICAL_TOP)->setWrapText(true);
         }
 
-        $this->widths($sheet, [14, 12, 28, 14, 24, 18, 14, 24, 12, 14, 14, 14, 16, 18, 12, 16, 14, 40, 16, 14, 40, 12, 24, 18, 40]);
+        $this->widths($sheet, [14, 12, 28, 14, 24, 14, 24, 12, 14, 14, 14, 16, 18, 12, 16, 14, 40, 16, 14, 40, 12, 24, 18, 40]);
         $sheet->freezePane('A2');
-        $sheet->setAutoFilter('A1:Y1');
+        $sheet->setAutoFilter('A1:X1');
     }
 
     /**
