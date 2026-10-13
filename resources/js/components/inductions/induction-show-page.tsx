@@ -14,7 +14,12 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { SignaturePad } from '@/components/checklists/signature-pad';
 import { FingerprintCameraCapture } from '@/components/inductions/fingerprint-camera-capture';
-import { InductionCopyModal } from '@/components/inductions/induction-copy-modal';
+import { InductionFormModal } from '@/components/inductions/induction-form-modal';
+import type {
+    InductionFormOptions,
+    PeriodOption,
+} from '@/components/inductions/induction-form-fields';
+import type { InductionItem } from '@/components/inductions/inductions-table';
 import { InductionMailPanels } from '@/components/inductions/induction-mail-panels';
 import { VerificationPhotoCapture } from '@/components/inductions/verification-photo-capture';
 import { AppModal } from '@/components/shared/app-modal';
@@ -101,6 +106,8 @@ type PageProps = {
     availableUnits: UnitOption[];
     attendeeStatusOptions: StatusOption[];
     statusOptions: StatusOption[];
+    formOptions?: InductionFormOptions;
+    periodOptions?: PeriodOption[];
     unitFilters: {
         unit_search: string;
     };
@@ -153,11 +160,14 @@ export function InductionShowPage() {
         availableUnits,
         attendeeStatusOptions,
         statusOptions,
+        formOptions,
+        periodOptions,
         unitFilters,
     } = usePage().props as unknown as PageProps;
     const { can } = useCan();
     const canUpdate = can('inductions.update');
-    const canCopy = can('inductions.create');
+    const canCopy =
+        can('inductions.duplicate') && induction.status === 'closed';
     const [copyOpen, setCopyOpen] = useState(false);
     const locked =
         induction.status === 'closed' || induction.status === 'cancelled';
@@ -1156,9 +1166,20 @@ export function InductionShowPage() {
                 </div>
             </AppModal>
 
-            <InductionCopyModal
+            <InductionFormModal
                 open={copyOpen}
-                induction={induction}
+                copying
+                induction={induction as unknown as InductionItem}
+                periodOptions={periodOptions ?? []}
+                formOptions={
+                    formOptions ?? {
+                        activities: [],
+                        modalities: [],
+                        schools: [],
+                        categories: [],
+                        sites: [],
+                    }
+                }
                 onClose={() => setCopyOpen(false)}
             />
         </div>

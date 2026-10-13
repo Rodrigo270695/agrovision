@@ -69,6 +69,7 @@ class PermissionSeeder extends Seeder
                 'pareto.view',
                 'alcoholtests.view',
                 'alcoholtests.create',
+                'inductions.duplicate',
             ], true))
             ->all();
         $inspector->syncPermissions($inspectorPermissions);

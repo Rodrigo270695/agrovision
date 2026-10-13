@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 final class PermissionCatalog
@@ -58,6 +59,7 @@ final class PermissionCatalog
             'inductions.create' => ['label' => 'Crear inducciones', 'module' => 'Inducción'],
             'inductions.update' => ['label' => 'Editar inducciones', 'module' => 'Inducción'],
             'inductions.delete' => ['label' => 'Eliminar inducciones', 'module' => 'Inducción'],
+            'inductions.duplicate' => ['label' => 'Copiar inducciones', 'module' => 'Inducción'],
 
             'certificates.view' => ['label' => 'Ver certificados', 'module' => 'Certificados'],
             'certificates.create' => ['label' => 'Crear certificados', 'module' => 'Certificados'],
@@ -86,8 +88,33 @@ final class PermissionCatalog
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
         foreach (self::names() as $name) {
+            $existed = Permission::query()
+                ->where('name', $name)
+                ->where('guard_name', 'web')
+                ->exists();
+
             Permission::findOrCreate($name, 'web');
+
+            if (! $existed && $name === 'inductions.duplicate') {
+                self::giveIfRoleExists(SystemRoles::INSPECTOR, $name);
+            }
         }
+
+        self::giveIfRoleExists(SystemRoles::SUPERADMIN, 'inductions.duplicate');
+    }
+
+    private static function giveIfRoleExists(string $roleName, string $permission): void
+    {
+        $role = Role::query()
+            ->where('name', $roleName)
+            ->where('guard_name', 'web')
+            ->first();
+
+        if ($role === null || $role->hasPermissionTo($permission)) {
+            return;
+        }
+
+        $role->givePermissionTo($permission);
     }
 
     /**

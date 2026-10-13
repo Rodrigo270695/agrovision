@@ -16,6 +16,7 @@ type Props = {
     periodOptions: PeriodOption[];
     formOptions: InductionFormOptions;
     onClose: () => void;
+    copying?: boolean;
 };
 
 function sameName(left?: string | null, right?: string | null): boolean {
@@ -119,8 +120,9 @@ export function InductionFormModal({
     periodOptions,
     formOptions,
     onClose,
+    copying = false,
 }: Props) {
-    const isEditing = Boolean(induction);
+    const isEditing = Boolean(induction) && !copying;
     const form = useForm(emptyValues);
     const [regulationFiles, setRegulationFiles] = useState<File[]>([]);
 
@@ -171,7 +173,7 @@ export function InductionFormModal({
             speaker_institution:
                 induction?.speaker_institution ?? 'AGROVISION PERÚ SAC',
             period_id: induction?.period_id ? String(induction.period_id) : '',
-            status: induction?.status ?? 'scheduled',
+            status: copying ? 'scheduled' : (induction?.status ?? 'scheduled'),
             notes: induction?.notes ?? '',
         });
         form.clearErrors();
@@ -209,6 +211,7 @@ export function InductionFormModal({
 
         form.transform((data) => ({
             ...data,
+            status: copying ? 'scheduled' : data.status,
             period_id: data.period_id === '' ? null : Number(data.period_id),
             estimated_minutes:
                 data.estimated_minutes === ''
@@ -217,8 +220,19 @@ export function InductionFormModal({
             corrective_action: Boolean(data.corrective_action),
             site_id: data.site_id === '' ? null : Number(data.site_id),
             place_id: data.place_id === '' ? null : Number(data.place_id),
-            ...(regulationFiles.length > 0 ? { regulations: regulationFiles } : {}),
+            ...(!copying && regulationFiles.length > 0
+                ? { regulations: regulationFiles }
+                : {}),
         }));
+
+        if (copying && induction) {
+            form.post(`/inducciones/${induction.id}/copiar`, {
+                preserveScroll: true,
+                onSuccess: () => handleClose(),
+                onFinish: () => form.transform((data) => data),
+            });
+            return;
+        }
 
         if (isEditing && induction) {
             form.put(`/inducciones/${induction.id}`, {
@@ -241,8 +255,18 @@ export function InductionFormModal({
         <AppModal
             open={open}
             onClose={handleClose}
-            title={isEditing ? 'Editar inducción' : 'Nueva inducción'}
-            description="Completa los campos del formato GH-GD-FO-0609."
+            title={
+                copying
+                    ? 'Copiar inducción'
+                    : isEditing
+                      ? 'Editar inducción'
+                      : 'Nueva inducción'
+            }
+            description={
+                copying
+                    ? 'Mismos datos de la inducción. Se copian los conductores con firma y huella. Los reglamentos quedan vacíos: luego solo inicias y cierras.'
+                    : 'Completa los campos del formato GH-GD-FO-0609.'
+            }
             className="sm:max-w-3xl"
             bodyClassName="max-h-[70vh]"
             footer={
@@ -262,7 +286,11 @@ export function InductionFormModal({
                         className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c] disabled:opacity-50"
                     >
                         {form.processing ? <Spinner /> : null}
-                        {isEditing ? 'Guardar cambios' : 'Crear inducción'}
+                        {copying
+                            ? 'Copiar'
+                            : isEditing
+                              ? 'Guardar cambios'
+                              : 'Crear inducción'}
                     </Button>
                 </>
             }
@@ -274,9 +302,9 @@ export function InductionFormModal({
                     onChange={(field, value) => form.setData(field, value)}
                     periodOptions={periodOptions}
                     formOptions={formOptions}
-                    isEditing={isEditing}
+                    isEditing={isEditing || copying}
                 />
-                {isEditing ? null : (
+                {isEditing || copying ? null : (
                     <div className="mt-5 grid gap-1.5">
                         <p className="border-b border-[#e2eaf3] pb-1 text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
                             Reglamentos

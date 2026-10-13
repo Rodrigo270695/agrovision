@@ -2,7 +2,6 @@ import { usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import { InductionDeleteModal } from '@/components/inductions/induction-delete-modal';
 import { InductionAttendeesModal } from '@/components/inductions/induction-attendees-modal';
-import { InductionCopyModal } from '@/components/inductions/induction-copy-modal';
 import { InductionFormModal } from '@/components/inductions/induction-form-modal';
 import type { InductionFormOptions } from '@/components/inductions/induction-form-fields';
 import type { PeriodOption } from '@/components/inductions/induction-form-fields';
@@ -149,7 +148,7 @@ export function InductionsPage() {
                     setDeleteOpen(true);
                 }}
                 onCopy={(item) => {
-                    if (!can('inductions.create') || item.pending_sync) {
+                    if (!can('inductions.duplicate') || item.pending_sync || item.status !== 'closed') {
                         return;
                     }
 
@@ -161,9 +160,20 @@ export function InductionsPage() {
                 }}
             />
 
-            <InductionCopyModal
+            <InductionFormModal
                 open={copyTarget !== null}
+                copying
                 induction={copyTarget}
+                periodOptions={periodOptions ?? []}
+                formOptions={
+                    formOptions ?? {
+                        activities: [],
+                        modalities: [],
+                        schools: [],
+                        categories: [],
+                        sites: [],
+                    }
+                }
                 onClose={() => setCopyTarget(null)}
             />
 

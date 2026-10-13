@@ -463,7 +463,7 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->name('inductions.store');
 
         Route::post('inducciones/{induction}/copiar', [InductionController::class, 'duplicate'])
-            ->middleware('permission:inductions.create')
+            ->middleware('permission:inductions.duplicate')
             ->name('inductions.duplicate');
 
         Route::get('inducciones/{induction}', [InductionController::class, 'show'])

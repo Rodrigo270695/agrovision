@@ -215,7 +215,7 @@ function UnitActions({
     const { can } = useCan();
     const canUpdate = can('inductions.update');
     const canDelete = can('inductions.delete');
-    const canCopy = can('inductions.create');
+    const canCopy = can('inductions.duplicate') && induction.status === 'closed';
     const locked =
         induction.status === 'closed' || induction.status === 'cancelled';
     const canStart =

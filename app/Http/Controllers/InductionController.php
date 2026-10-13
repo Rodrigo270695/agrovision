@@ -141,18 +141,21 @@ class InductionController extends Controller
         ]);
     }
 
-    public function duplicate(Request $request, Induction $induction): RedirectResponse
+    public function duplicate(InductionRequest $request, Induction $induction): RedirectResponse
     {
         $this->ensureCanAccess($induction);
 
-        $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'temario' => ['nullable', 'string', 'max:5000'],
-        ], [
-            'title.required' => 'Escribe el nombre de la nueva inducción.',
-        ]);
+        if ($induction->status !== InductionStatuses::CLOSED) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Solo se puede copiar una inducción cerrada.',
+            ]);
+        }
 
-        $copy = DB::transaction(function () use ($induction, $validated) {
+        $data = $this->payloadFromValidated($request->validated());
+        unset($data['status'], $data['regulations']);
+
+        $copy = DB::transaction(function () use ($induction, $data) {
             $induction->load('attendees');
 
             $replica = $induction->replicate([
@@ -163,10 +166,8 @@ class InductionController extends Controller
                 'verification_photo_at',
                 'closed_at',
             ]);
-            $replica->title = $validated['title'];
-            $replica->temario = $validated['temario'] ?? null;
-            $replica->notes = $validated['temario'] ?? null;
-            $replica->status = InductionStatuses::IN_PROGRESS;
+            $replica->fill($data);
+            $replica->status = InductionStatuses::SCHEDULED;
             $replica->created_by = Auth::id();
             $replica->speaker_signature_path = null;
             $replica->speaker_signed_at = null;
@@ -442,6 +443,9 @@ class InductionController extends Controller
                 ->values()
                 ->all(),
             'formOptions' => $this->formOptions(),
+            'periodOptions' => Period::query()
+                ->orderByDesc('date')
+                ->get(['id', 'name', 'status', 'date']),
             'unitFilters' => [
                 'unit_search' => $search,
             ],
