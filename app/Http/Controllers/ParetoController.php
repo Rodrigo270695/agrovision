@@ -64,13 +64,15 @@ class ParetoController extends Controller
             'item_number' => 'COALESCE(pareto_parents.item_number, pareto.item_number)',
             'weight' => 'COALESCE(pareto_parents.weight, pareto.weight)',
             'created_at' => 'COALESCE(pareto_parents.created_at, pareto.created_at)',
-            default => 'COALESCE(pareto_parents.sort_order, pareto.sort_order)',
+            default => "CASE WHEN COALESCE(pareto_parents.item_number, pareto.item_number) ~ '^[0-9]+$' THEN COALESCE(pareto_parents.item_number, pareto.item_number)::int ELSE 1000000 END",
         };
 
         $query
             ->orderByRaw($familySort.' '.$directionSql)
             ->orderByRaw('CASE WHEN pareto.parent_id IS NULL THEN 0 ELSE 1 END')
-            ->orderBy('pareto.sort_order')
+            ->orderByRaw("CASE WHEN pareto.item_number ~ '^[0-9]+$' THEN 0 ELSE 1 END")
+            ->orderByRaw("CASE WHEN pareto.item_number ~ '^[0-9]+$' THEN pareto.item_number::int ELSE 0 END")
+            ->orderBy('pareto.item_number')
             ->orderBy('pareto.id');
 
         $items = $query->paginate($perPage)->withQueryString();

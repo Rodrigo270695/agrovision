@@ -451,12 +451,7 @@ class InspectionBatchController extends Controller
             ->map(function (UnitChecklist $checklist) {
                 $usesSecond = $checklist->second_result !== null;
 
-                $items = $checklist->answers
-                    ->filter(fn (UnitChecklistAnswer $answer) => $answer->item !== null)
-                    ->sortBy(fn (UnitChecklistAnswer $answer) => [
-                        $answer->item->sort_order,
-                        $answer->item->id,
-                    ])
+                $items = \App\Models\ChecklistItem::sortAnswers($checklist->answers)
                     ->values()
                     ->map(function (UnitChecklistAnswer $answer) use ($usesSecond) {
                         $value = $usesSecond

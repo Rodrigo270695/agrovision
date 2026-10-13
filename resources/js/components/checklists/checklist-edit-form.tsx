@@ -3,6 +3,7 @@ import {
     ArrowLeft,
     Camera,
     CheckCircle2,
+    ChevronDown,
     FileDown,
     Lock,
     ShieldCheck,
@@ -119,6 +120,64 @@ export type ChecklistFormData = {
 
 function itemAllowsEvidence(item: ChecklistFormItem): boolean {
     return item.allows_photo === true;
+}
+
+function compareItemNumber(left: string | null, right: string | null): number {
+    const a = (left ?? '').trim();
+    const b = (right ?? '').trim();
+    const aNum = /^\d+$/.test(a);
+    const bNum = /^\d+$/.test(b);
+
+    if (aNum && bNum) {
+        return Number(a) - Number(b);
+    }
+
+    if (aNum !== bNum) {
+        return aNum ? -1 : 1;
+    }
+
+    return a.localeCompare(b, 'es', { numeric: true, sensitivity: 'base' });
+}
+
+function arrangeChecklistItems(items: ChecklistFormItem[]): {
+    ordered: { item: ChecklistFormItem; index: number }[];
+    childCount: Map<number, number>;
+} {
+    const indexed = items.map((item, index) => ({ item, index }));
+    const ids = new Set(indexed.map((row) => row.item.id));
+    const children = new Map<number, { item: ChecklistFormItem; index: number }[]>();
+    const roots: { item: ChecklistFormItem; index: number }[] = [];
+
+    for (const row of indexed) {
+        if (row.item.parent_id != null && ids.has(row.item.parent_id)) {
+            const list = children.get(row.item.parent_id) ?? [];
+            list.push(row);
+            children.set(row.item.parent_id, list);
+        } else {
+            roots.push(row);
+        }
+    }
+
+    roots.sort((a, b) =>
+        compareItemNumber(a.item.item_number, b.item.item_number),
+    );
+
+    for (const list of children.values()) {
+        list.sort((a, b) =>
+            compareItemNumber(a.item.item_number, b.item.item_number),
+        );
+    }
+
+    const ordered: { item: ChecklistFormItem; index: number }[] = [];
+    const childCount = new Map<number, number>();
+
+    for (const root of roots) {
+        const nested = children.get(root.item.id) ?? [];
+        childCount.set(root.item.id, nested.length);
+        ordered.push(root, ...nested);
+    }
+
+    return { ordered, childCount };
 }
 
 function toDateInputValue(value: string): string {
@@ -380,6 +439,11 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
     const [observations, setObservations] = useState(
         checklist.additional_observations ?? '',
     );
+    const arrangedItems = useMemo(
+        () => arrangeChecklistItems(checklist.items),
+        [checklist.items],
+    );
+    const [openParents, setOpenParents] = useState<Set<number>>(new Set());
     const [answers, setAnswers] = useState<AnswerState[]>(
         checklist.items.map((item) => ({
             checklist_item_id: item.id,
@@ -1267,7 +1331,17 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
 
                 <div className="overflow-hidden rounded-xl border border-[#d7e3f0] bg-white">
                     <div className="divide-y divide-[#e6eef6]">
-                    {checklist.items.map((item, index) => {
+                    {arrangedItems.ordered.map(({ item, index }) => {
+                        const childCount = arrangedItems.childCount.get(item.id) ?? 0;
+                        const expanded = openParents.has(item.id);
+
+                        if (
+                            item.parent_id != null &&
+                            !openParents.has(item.parent_id)
+                        ) {
+                            return null;
+                        }
+
                         const answer = answers[index];
                         const isChild = item.parent_id !== null;
                         const isExpiry =
@@ -1319,7 +1393,53 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                     isChild && 'text-[#3d5674]',
                                                 )}
                                             >
-                                                {item.label}
+                                                {childCount > 0 ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setOpenParents(
+                                                                (current) => {
+                                                                    const next =
+                                                                        new Set(
+                                                                            current,
+                                                                        );
+
+                                                                    if (
+                                                                        next.has(
+                                                                            item.id,
+                                                                        )
+                                                                    ) {
+                                                                        next.delete(
+                                                                            item.id,
+                                                                        );
+                                                                    } else {
+                                                                        next.add(
+                                                                            item.id,
+                                                                        );
+                                                                    }
+
+                                                                    return next;
+                                                                },
+                                                            )
+                                                        }
+                                                        className="inline-flex cursor-pointer items-center gap-1 text-left font-semibold"
+                                                        aria-expanded={expanded}
+                                                    >
+                                                        <ChevronDown
+                                                            className={cn(
+                                                                'size-3.5 shrink-0 text-[#2e5a9e]',
+                                                                !expanded &&
+                                                                    '-rotate-90',
+                                                            )}
+                                                        />
+                                                        {item.label}
+                                                        <span className="text-[10px] font-medium text-[#6b8ead]">
+                                                            {childCount}
+                                                        </span>
+                                                    </button>
+                                                ) : (
+                                                    item.label
+                                                )}
                                             </p>
                                             <YesNoToggle
                                                 value={value}

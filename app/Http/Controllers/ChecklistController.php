@@ -201,9 +201,7 @@ class ChecklistController extends Controller
                     'name' => $template->name,
                     'version' => $template->version,
                     'notes_hint' => $template->notes_hint,
-                    'items' => $template->items
-                        ->sortBy(fn (ChecklistItem $item) => [$item->sort_order, $item->id])
-                        ->values()
+                    'items' => ChecklistItem::sortForDisplay($template->items)
                         ->map(fn (ChecklistItem $item) => [
                             'id' => $item->id,
                             'parent_id' => $item->parent_id,
@@ -561,13 +559,7 @@ class ChecklistController extends Controller
             ];
         }
 
-        $items = $checklist->answers
-            ->filter(fn (UnitChecklistAnswer $answer) => $answer->item !== null)
-            ->sortBy(fn (UnitChecklistAnswer $answer) => [
-                $answer->item->sort_order,
-                $answer->item->id,
-            ])
-            ->values()
+        $items = ChecklistItem::sortAnswers($checklist->answers)
             ->map(function (UnitChecklistAnswer $answer) {
                 /** @var ChecklistItem $item */
                 $item = $answer->item;
@@ -1127,13 +1119,7 @@ class ChecklistController extends Controller
         $scored = 0.0;
         $catalog = 0.0;
 
-        $rows = $checklist->answers
-            ->filter(fn (UnitChecklistAnswer $answer) => $answer->item !== null)
-            ->sortBy(fn (UnitChecklistAnswer $answer) => [
-                $answer->item->sort_order,
-                $answer->item->id,
-            ])
-            ->values()
+        $rows = ChecklistItem::sortAnswers($checklist->answers)
             ->map(function (UnitChecklistAnswer $answer) use (&$scored, &$catalog) {
                 $item = $answer->item;
                 $weight = (float) ($item->weight ?? 0);

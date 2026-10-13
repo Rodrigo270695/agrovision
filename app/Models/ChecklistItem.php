@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
 /**
  * @property int $id
@@ -64,6 +65,81 @@ class ChecklistItem extends Model
     public function children(): HasMany
     {
         return $this->hasMany(self::class, 'parent_id')->orderBy('sort_order');
+    }
+
+    /**
+     * @param  Collection<int, \App\Models\UnitChecklistAnswer>  $answers
+     * @return Collection<int, \App\Models\UnitChecklistAnswer>
+     */
+    public static function sortAnswers(Collection $answers): Collection
+    {
+        $withItem = $answers->filter(fn ($answer) => $answer->item !== null);
+        $sorted = self::sortForDisplay(
+            $withItem->map(fn ($answer) => $answer->item)->values(),
+        );
+        $position = [];
+
+        foreach ($sorted as $index => $item) {
+            $position[$item->id] = $index;
+        }
+
+        return $withItem
+            ->sortBy(fn ($answer) => $position[$answer->item->id] ?? PHP_INT_MAX)
+            ->values();
+    }
+
+    /**
+     * @param  Collection<int, self>  $items
+     * @return Collection<int, self>
+     */
+    public static function sortForDisplay(Collection $items): Collection
+    {
+        $numbers = [];
+
+        foreach ($items as $item) {
+            $numbers[$item->id] = self::numberParts((string) $item->item_number);
+        }
+
+        return $items
+            ->sortBy(fn (self $item) => self::displayOrderKey($item, $numbers))
+            ->values();
+    }
+
+    /**
+     * @param  array<int, array{0: int, 1: int, 2: string}>  $numbers
+     * @return array{0: int, 1: int, 2: string, 3: int, 4: int, 5: int, 6: string, 7: int}
+     */
+    public static function displayOrderKey(self $item, array $numbers): array
+    {
+        $own = $numbers[$item->id] ?? self::numberParts((string) $item->item_number);
+        $family = $item->parent_id !== null
+            ? ($numbers[$item->parent_id] ?? $own)
+            : $own;
+
+        return [
+            $family[0],
+            $family[1],
+            $family[2],
+            $item->parent_id === null ? 0 : 1,
+            $own[0],
+            $own[1],
+            $own[2],
+            $item->id,
+        ];
+    }
+
+    /**
+     * @return array{0: int, 1: int, 2: string}
+     */
+    public static function numberParts(string $number): array
+    {
+        $number = trim($number);
+
+        if (preg_match('/^\d+$/', $number) === 1) {
+            return [0, (int) $number, ''];
+        }
+
+        return [1, 0, mb_strtolower($number)];
     }
 
     public function resolvedCheckType(): string
