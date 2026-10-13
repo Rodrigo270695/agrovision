@@ -13,6 +13,7 @@ use App\Http\Controllers\InspectionBatchController;
 use App\Http\Controllers\LookupController;
 use App\Http\Controllers\ParetoController;
 use App\Http\Controllers\PeriodController;
+use App\Http\Controllers\PlateReportController;
 use App\Http\Controllers\PlaceController;
 use App\Http\Controllers\PublicFileController;
 use App\Http\Controllers\PushSubscriptionController;
@@ -249,6 +250,18 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
         Route::get('reporte-sst', SecurityReportController::class)
             ->middleware('permission:checklists.view')
             ->name('checklists.security-report');
+
+        Route::get('reporte-placas', [PlateReportController::class, 'index'])
+            ->middleware('permission:checklists.view')
+            ->name('plate-report.index');
+
+        Route::post('reporte-placas', [PlateReportController::class, 'search'])
+            ->middleware('permission:checklists.view')
+            ->name('plate-report.search');
+
+        Route::post('reporte-placas/excel', [PlateReportController::class, 'excel'])
+            ->middleware('permission:checklists.view')
+            ->name('plate-report.excel');
 
         Route::get('tablero-conductores/excel', [DriverBoardController::class, 'excel'])
             ->middleware('permission:inductions.view')
