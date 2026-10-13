@@ -100,7 +100,34 @@ final class PermissionCatalog
             }
         }
 
-        self::giveIfRoleExists(SystemRoles::SUPERADMIN, 'inductions.duplicate');
+        self::grantAllToSuperadmin();
+    }
+
+    private static function grantAllToSuperadmin(): void
+    {
+        $role = Role::query()
+            ->where('name', SystemRoles::SUPERADMIN)
+            ->where('guard_name', 'web')
+            ->first();
+
+        if ($role === null) {
+            return;
+        }
+
+        $permissionIds = Permission::query()
+            ->where('guard_name', 'web')
+            ->pluck('id');
+
+        $ownedIds = $role->permissions()->pluck('permissions.id');
+        $missingIds = $permissionIds->diff($ownedIds);
+
+        if ($missingIds->isEmpty()) {
+            return;
+        }
+
+        $role->givePermissionTo(
+            Permission::query()->whereIn('id', $missingIds)->get(),
+        );
     }
 
     private static function giveIfRoleExists(string $roleName, string $permission): void
