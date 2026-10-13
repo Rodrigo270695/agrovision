@@ -93,6 +93,26 @@ test('se puede editar el nombre de un tenant', function () {
     expect($tenant->fresh()->name)->toBe('Agrovision SST');
 });
 
+test('se puede cambiar el subdominio publico sin cambiar el id', function () {
+    $this->actingOnCentral();
+
+    $user = User::factory()->create();
+    $tenant = Tenant::query()->find('agrovision');
+    $tenant->domains()->firstOrCreate(['domain' => 'agrovision.localhost']);
+
+    $this->actingAs($user)
+        ->put(route('central.tenants.update', $tenant), [
+            'name' => 'Agrovision',
+            'subdomain' => 'flota',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($tenant->fresh()->id)->toBe('agrovision')
+        ->and($tenant->domains()->where('domain', 'flota.localhost')->exists())->toBeTrue()
+        ->and($tenant->domains()->where('domain', 'agrovision.localhost')->exists())->toBeFalse();
+});
+
 test('el buscador filtra tenants sin coincidencia', function () {
     $this->actingOnCentral();
 

@@ -54,4 +54,32 @@ class TenantCreator
             }
         }
     }
+
+    public function renamePublicSubdomain(Tenant $tenant, string $subdomain): void
+    {
+        $subdomain = strtolower(trim($subdomain));
+
+        foreach (config('tenancy.base_domains', []) as $base) {
+            $base = trim((string) $base);
+
+            if ($base === '') {
+                continue;
+            }
+
+            $hostname = $subdomain.'.'.$base;
+            $current = $tenant->domains()
+                ->where('domain', 'like', '%.'.$base)
+                ->first();
+
+            if ($current) {
+                if ($current->domain !== $hostname) {
+                    $current->update(['domain' => $hostname]);
+                }
+
+                continue;
+            }
+
+            $tenant->domains()->create(['domain' => $hostname]);
+        }
+    }
 }

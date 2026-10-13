@@ -63,10 +63,12 @@ class Tenant extends BaseTenant implements TenantWithDatabase
         $request ??= request();
         $host = $request->getHost();
 
-        $exact = $this->domains->firstWhere('domain', $this->id.'.'.$host);
+        $onThisHost = $this->domains->first(
+            fn ($domain) => str_ends_with((string) $domain->domain, '.'.$host),
+        );
 
-        if ($exact) {
-            return $exact->domain;
+        if ($onThisHost) {
+            return $onThisHost->domain;
         }
 
         return $this->domains->first()?->domain;

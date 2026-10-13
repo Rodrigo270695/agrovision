@@ -94,9 +94,13 @@ class TenantController extends Controller
         ]);
     }
 
-    public function update(UpdateTenantRequest $request, Tenant $tenant): RedirectResponse
+    public function update(UpdateTenantRequest $request, Tenant $tenant, TenantCreator $creator): RedirectResponse
     {
         $tenant->update($request->safe()->only(['name', 'status']));
+
+        if ($request->filled('subdomain')) {
+            $creator->renamePublicSubdomain($tenant, (string) $request->input('subdomain'));
+        }
 
         if ($request->has('modules')) {
             $tenant->run(function () use ($request): void {

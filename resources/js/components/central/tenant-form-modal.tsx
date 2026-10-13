@@ -12,7 +12,23 @@ import { Spinner } from '@/components/ui/spinner';
 type TenantEditRow = {
     id: string;
     name: string;
+    domains?: string[];
 };
+
+function subdomainOnThisHost(tenant: TenantEditRow | null): string {
+    if (!tenant) {
+        return '';
+    }
+
+    const host = window.location.hostname;
+    const match = tenant.domains?.find((domain) => domain.endsWith(`.${host}`));
+
+    if (!match) {
+        return tenant.id;
+    }
+
+    return match.slice(0, -(host.length + 1));
+}
 
 type Props = {
     open: boolean;
@@ -47,7 +63,7 @@ export function TenantFormModal({ open, tenant = null, modules, onClose }: Props
         }
 
         form.setData({
-            id: tenant?.id ?? '',
+            id: tenant ? subdomainOnThisHost(tenant) : '',
             name: tenant?.name ?? '',
             admin_name: '',
             admin_email: '',
@@ -64,7 +80,7 @@ export function TenantFormModal({ open, tenant = null, modules, onClose }: Props
         }
 
         if (isEditing) {
-            return true;
+            return form.data.id.trim().length > 0;
         }
 
         return (
@@ -91,6 +107,7 @@ export function TenantFormModal({ open, tenant = null, modules, onClose }: Props
         if (isEditing && tenant) {
             form.transform((data) => ({
                 name: data.name,
+                subdomain: data.id.trim().toLowerCase(),
                 modules: data.modules,
             }));
             form.put(`/plataforma/empresas/${tenant.id}`, {
@@ -118,7 +135,7 @@ export function TenantFormModal({ open, tenant = null, modules, onClose }: Props
             title={isEditing ? 'Editar empresa' : 'Nueva empresa'}
             description={
                 isEditing
-                    ? 'Actualiza el nombre y los módulos de la empresa.'
+                    ? 'Actualiza el nombre, el subdominio y los módulos.'
                     : 'Crea el tenant, el schema y el administrador inicial.'
             }
             size="lg"
@@ -146,16 +163,31 @@ export function TenantFormModal({ open, tenant = null, modules, onClose }: Props
         >
             <div className="grid gap-4">
                 <div className="grid gap-1.5">
-                    <Label htmlFor="tenant-id">Slug / subdominio</Label>
+                    <Label htmlFor="tenant-id">
+                        {isEditing ? 'Subdominio' : 'Slug / subdominio'}
+                    </Label>
                     <Input
                         id="tenant-id"
                         value={form.data.id}
-                        disabled={isEditing}
                         onChange={(event) => form.setData('id', event.target.value)}
                         placeholder="agrovision"
                         className={inputClassName}
                     />
-                    <InputError message={form.errors.id} />
+                    {isEditing ? (
+                        <p className="text-xs text-[#6b8ead]">
+                            La dirección queda en{' '}
+                            {(form.data.id.trim() || 'subdominio') +
+                                '.' +
+                                window.location.hostname}
+                        </p>
+                    ) : null}
+                    <InputError
+                        message={
+                            (
+                                form.errors as { subdomain?: string }
+                            ).subdomain || form.errors.id
+                        }
+                    />
                 </div>
 
                 <div className="grid gap-1.5">
