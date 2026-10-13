@@ -141,6 +141,80 @@ class InductionController extends Controller
         ]);
     }
 
+    public function duplicate(Request $request, Induction $induction): RedirectResponse
+    {
+        $this->ensureCanAccess($induction);
+
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'temario' => ['nullable', 'string', 'max:5000'],
+        ], [
+            'title.required' => 'Escribe el nombre de la nueva inducción.',
+        ]);
+
+        $copy = DB::transaction(function () use ($induction, $validated) {
+            $induction->load('attendees');
+
+            $replica = $induction->replicate([
+                'acta_number',
+                'speaker_signature_path',
+                'speaker_signed_at',
+                'verification_photo_path',
+                'verification_photo_at',
+                'closed_at',
+            ]);
+            $replica->title = $validated['title'];
+            $replica->temario = $validated['temario'] ?? null;
+            $replica->notes = $validated['temario'] ?? null;
+            $replica->status = InductionStatuses::IN_PROGRESS;
+            $replica->created_by = Auth::id();
+            $replica->speaker_signature_path = null;
+            $replica->speaker_signed_at = null;
+            $replica->verification_photo_path = null;
+            $replica->verification_photo_at = null;
+            $replica->closed_at = null;
+            $replica->save();
+            $replica->update([
+                'acta_number' => str_pad((string) $replica->id, 6, '0', STR_PAD_LEFT),
+            ]);
+
+            foreach ($induction->attendees as $attendee) {
+                $row = $attendee->replicate([
+                    'signature_path',
+                    'fingerprint_path',
+                ]);
+                $row->induction_id = $replica->id;
+                $row->signature_path = DriverBiometrics::copyFile(
+                    $attendee->signature_path,
+                    "inductions/{$replica->id}/signatures",
+                );
+                $row->fingerprint_path = DriverBiometrics::copyFile(
+                    $attendee->fingerprint_path,
+                    "inductions/{$replica->id}/fingerprints",
+                );
+
+                if ($row->signature_path === null) {
+                    $row->signed_at = null;
+                }
+
+                if ($row->fingerprint_path === null) {
+                    $row->fingerprint_at = null;
+                }
+
+                $row->save();
+            }
+
+            return $replica;
+        });
+
+        return redirect()
+            ->route('inductions.show', $copy)
+            ->with('toast', [
+                'type' => 'success',
+                'message' => 'Inducción copiada con los conductores. Los reglamentos quedaron vacíos.',
+            ]);
+    }
+
     public function update(InductionRequest $request, Induction $induction): RedirectResponse
     {
         $this->ensureCanAccess($induction);

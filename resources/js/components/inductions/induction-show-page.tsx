@@ -2,6 +2,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
     Check,
+    Copy,
     Download,
     FileText,
     PenLine,
@@ -13,6 +14,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { SignaturePad } from '@/components/checklists/signature-pad';
 import { FingerprintCameraCapture } from '@/components/inductions/fingerprint-camera-capture';
+import { InductionCopyModal } from '@/components/inductions/induction-copy-modal';
 import { InductionMailPanels } from '@/components/inductions/induction-mail-panels';
 import { VerificationPhotoCapture } from '@/components/inductions/verification-photo-capture';
 import { AppModal } from '@/components/shared/app-modal';
@@ -155,6 +157,8 @@ export function InductionShowPage() {
     } = usePage().props as unknown as PageProps;
     const { can } = useCan();
     const canUpdate = can('inductions.update');
+    const canCopy = can('inductions.create');
+    const [copyOpen, setCopyOpen] = useState(false);
     const locked =
         induction.status === 'closed' || induction.status === 'cancelled';
     const canStart =
@@ -454,9 +458,22 @@ export function InductionShowPage() {
                                 Volver a configuración
                             </Link>
                         </Button>
-                        <h1 className="font-display text-2xl font-semibold text-[#1a2b4c]">
-                            {induction.title}
-                        </h1>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h1 className="font-display text-2xl font-semibold text-[#1a2b4c]">
+                                {induction.title}
+                            </h1>
+                            {canCopy ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setCopyOpen(true)}
+                                    className="h-8 cursor-pointer border-[#c5d5e6] text-[#1a2b4c] hover:bg-[#e8f1fa]"
+                                >
+                                    <Copy className="size-4" />
+                                    Copiar
+                                </Button>
+                            ) : null}
+                        </div>
                         <p className="text-sm text-[#5a7390]">
                             Acta {induction.acta_number || '—'} ·{' '}
                             {formatDateTime(induction.scheduled_at)}
@@ -1138,6 +1155,12 @@ export function InductionShowPage() {
                     ) : null}
                 </div>
             </AppModal>
+
+            <InductionCopyModal
+                open={copyOpen}
+                induction={induction}
+                onClose={() => setCopyOpen(false)}
+            />
         </div>
     );
 }

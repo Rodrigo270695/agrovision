@@ -1,4 +1,5 @@
 import {
+    Copy,
     FileText,
     GraduationCap,
     Lock,
@@ -112,6 +113,7 @@ type Props = {
     statusOptions: StatusOption[];
     onEdit: (induction: InductionItem) => void;
     onDelete: (induction: InductionItem) => void;
+    onCopy: (induction: InductionItem) => void;
     onViewAttendees: (induction: InductionItem) => void;
 };
 
@@ -203,14 +205,17 @@ function UnitActions({
     induction,
     onEdit,
     onDelete,
+    onCopy,
 }: {
     induction: InductionItem;
     onEdit: (induction: InductionItem) => void;
     onDelete: (induction: InductionItem) => void;
+    onCopy: (induction: InductionItem) => void;
 }) {
     const { can } = useCan();
     const canUpdate = can('inductions.update');
     const canDelete = can('inductions.delete');
+    const canCopy = can('inductions.create');
     const locked =
         induction.status === 'closed' || induction.status === 'cancelled';
     const canStart =
@@ -269,6 +274,14 @@ function UnitActions({
                     onSelect: () =>
                         router.visit(`/inducciones/${induction.id}`),
                 },
+                canCopy
+                    ? {
+                          key: 'copy',
+                          label: 'Copiar',
+                          icon: Copy,
+                          onSelect: () => onCopy(induction),
+                      }
+                    : null,
                 induction.status === 'closed'
                     ? {
                           key: 'pdf',
@@ -351,6 +364,7 @@ export function InductionsTable({
     statusOptions,
     onEdit,
     onDelete,
+    onCopy,
     onViewAttendees,
 }: Props) {
     const visit = useCallback(
@@ -525,12 +539,13 @@ export function InductionsTable({
                             induction={induction}
                             onEdit={onEdit}
                             onDelete={onDelete}
+                            onCopy={onCopy}
                         />
                     </div>
                 ),
             },
         ],
-        [onDelete, onEdit, onViewAttendees, statusOptions],
+        [onCopy, onDelete, onEdit, onViewAttendees, statusOptions],
     );
 
     const hasFilters = Boolean(filters.search || filters.status);

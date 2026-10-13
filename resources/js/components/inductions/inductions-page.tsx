@@ -2,6 +2,7 @@ import { usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import { InductionDeleteModal } from '@/components/inductions/induction-delete-modal';
 import { InductionAttendeesModal } from '@/components/inductions/induction-attendees-modal';
+import { InductionCopyModal } from '@/components/inductions/induction-copy-modal';
 import { InductionFormModal } from '@/components/inductions/induction-form-modal';
 import type { InductionFormOptions } from '@/components/inductions/induction-form-fields';
 import type { PeriodOption } from '@/components/inductions/induction-form-fields';
@@ -57,6 +58,7 @@ export function InductionsPage() {
     const [editing, setEditing] = useState<InductionItem | null>(null);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleting, setDeleting] = useState<InductionItem | null>(null);
+    const [copyTarget, setCopyTarget] = useState<InductionItem | null>(null);
     const [attendeesOpen, setAttendeesOpen] = useState(false);
     const [viewingAttendees, setViewingAttendees] =
         useState<InductionItem | null>(null);
@@ -146,14 +148,27 @@ export function InductionsPage() {
                     setDeleting(item);
                     setDeleteOpen(true);
                 }}
+                onCopy={(item) => {
+                    if (!can('inductions.create') || item.pending_sync) {
+                        return;
+                    }
+
+                    setCopyTarget(item);
+                }}
                 onViewAttendees={(item) => {
                     setViewingAttendees(item);
                     setAttendeesOpen(true);
                 }}
             />
 
+            <InductionCopyModal
+                open={copyTarget !== null}
+                induction={copyTarget}
+                onClose={() => setCopyTarget(null)}
+            />
+
             {can('inductions.create') || can('inductions.update') ? (
-                <InductionFormModal
+            <InductionFormModal
                     open={formOpen}
                     induction={editing}
                     periodOptions={periodOptions ?? []}
