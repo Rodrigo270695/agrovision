@@ -3,7 +3,6 @@ import {
     ArrowLeft,
     Camera,
     CheckCircle2,
-    ChevronDown,
     FileDown,
     Lock,
     ShieldCheck,
@@ -17,11 +16,6 @@ import {
 } from '@/components/checklists/checklist-photos-section';
 import { SignaturePad } from '@/components/checklists/signature-pad';
 import { Button } from '@/components/ui/button';
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
@@ -61,6 +55,7 @@ export type ChecklistFormSignature = {
     label: string;
     signer_name: string | null;
     signature_url?: string | null;
+    saved_signature_url?: string | null;
     signed_at?: string | null;
 };
 
@@ -124,86 +119,6 @@ export type ChecklistFormData = {
 
 function itemAllowsEvidence(item: ChecklistFormItem): boolean {
     return item.allows_photo === true;
-}
-
-const REQUIREMENT_SECTIONS: { id: string; title: string; test: RegExp }[] = [
-    {
-        id: 'docs',
-        title: 'Documentos',
-        test: /tarjeta de propiedad|soat|sctr|revisi[oó]n t[eé]cnica/i,
-    },
-    {
-        id: 'lights',
-        title: 'Luces',
-        test: /luz|luces|intermitente/i,
-    },
-    {
-        id: 'rolling',
-        title: 'Señales y llantas',
-        test: /claxon|alarma|llanta|gata|rueda|plumilla/i,
-    },
-    {
-        id: 'emergency',
-        title: 'Emergencia',
-        test: /botiqu[ií]n|extintor|cono|tri[aá]ngulo|taco/i,
-    },
-    {
-        id: 'cabin',
-        title: 'Cabina y seguridad',
-        test: /espejo|cintur|salida|ventana|estrobo|cinta|paso|pasadizo|asiento|luna|pedal|herramienta|qu[ií]mico|flayer/i,
-    },
-];
-
-function sectionForLabel(label: string): { id: string; title: string } {
-    const rule = REQUIREMENT_SECTIONS.find((item) => item.test.test(label));
-
-    return rule ?? { id: 'other', title: 'Otros' };
-}
-
-function buildRequirementGroups(items: ChecklistFormItem[]): {
-    id: string;
-    title: string;
-    rows: { item: ChecklistFormItem; index: number }[];
-}[] {
-    const parentSection = new Map<number, { id: string; title: string }>();
-    const groups = new Map<
-        string,
-        {
-            id: string;
-            title: string;
-            rows: { item: ChecklistFormItem; index: number }[];
-        }
-    >();
-    const order: string[] = [];
-
-    items.forEach((item, index) => {
-        const inherited =
-            item.parent_id != null
-                ? parentSection.get(item.parent_id)
-                : undefined;
-        const section = inherited ?? sectionForLabel(item.label);
-
-        if (item.parent_id == null) {
-            parentSection.set(item.id, section);
-        }
-
-        const current = groups.get(section.id);
-
-        if (!current) {
-            groups.set(section.id, {
-                id: section.id,
-                title: section.title,
-                rows: [{ item, index }],
-            });
-            order.push(section.id);
-
-            return;
-        }
-
-        current.rows.push({ item, index });
-    });
-
-    return order.map((id) => groups.get(id)!);
 }
 
 function toDateInputValue(value: string): string {
@@ -527,6 +442,39 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
         })),
     );
 
+    const reuseDriverSignature = async (index: number, url: string) => {
+        const response = await fetch(url, { credentials: 'same-origin' });
+
+        if (!response.ok) {
+            return;
+        }
+
+        const blob = await response.blob();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result ?? ''));
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(blob);
+        });
+
+        if (!dataUrl.startsWith('data:image/')) {
+            return;
+        }
+
+        setSignatures((prev) =>
+            prev.map((item, itemIndex) =>
+                itemIndex === index
+                    ? {
+                          ...item,
+                          signature_data_url: dataUrl,
+                          clear_signature: false,
+                          existing_url: dataUrl,
+                      }
+                    : item,
+            ),
+        );
+    };
+
     const firstStats = useMemo(() => {
         const marked = answers.filter((a) => a.first_value !== '').length;
         const yes = answers.filter((a) => a.first_value === 'yes').length;
@@ -632,30 +580,6 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
         activeStats.allMarked &&
         !activeStats.missingExpiry &&
         livePareto.passes;
-
-    const requirementGroups = useMemo(
-        () => buildRequirementGroups(checklist.items),
-        [checklist.items],
-    );
-    const [openSections, setOpenSections] = useState<Record<string, boolean>>(
-        {},
-    );
-
-    useEffect(() => {
-        setOpenSections({});
-    }, [checklist.id]);
-
-    const firstPendingSectionId =
-        requirementGroups.find((group) =>
-            group.rows.some((row) => {
-                const value =
-                    activePass === 'first'
-                        ? answers[row.index]?.first_value
-                        : answers[row.index]?.second_value;
-
-                return !value;
-            }),
-        )?.id ?? requirementGroups[0]?.id;
 
     const updateAnswer = (
         index: number,
@@ -1297,8 +1221,8 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                         </h2>
                         <p className="text-xs text-[#5a7390]">
                             {activePass === 'first'
-                                ? 'Abre cada grupo y marca SÍ o NO. La fecha de caducidad solo aparece si marcas SÍ.'
-                                : '1ra bloqueada. Marca ahora la segunda inspección, grupo por grupo.'}
+                                ? 'Marca SÍ o NO. La fecha de caducidad solo aparece si marcas SÍ.'
+                                : '1ra bloqueada. Marca ahora la segunda inspección.'}
                         </p>
                     </div>
                     <div className="flex flex-col items-start gap-1 sm:items-end">
@@ -1341,65 +1265,9 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                     </div>
                 ) : null}
 
-                <div className="grid gap-2">
-                    {requirementGroups.map((group) => {
-                        const valueKey =
-                            activePass === 'first' ? 'first_value' : 'second_value';
-                        const marked = group.rows.filter(
-                            (row) => (answers[row.index]?.[valueKey] ?? '') !== '',
-                        ).length;
-                        const nos = group.rows.filter(
-                            (row) => answers[row.index]?.[valueKey] === 'no',
-                        ).length;
-                        const pending = group.rows.length - marked;
-                        const complete = group.rows.length > 0 && pending === 0;
-                        const open =
-                            openSections[group.id] ?? group.id === firstPendingSectionId;
-
-                        return (
-                            <Collapsible
-                                key={group.id}
-                                open={open}
-                                onOpenChange={(next) =>
-                                    setOpenSections((current) => ({
-                                        ...current,
-                                        [group.id]: next,
-                                    }))
-                                }
-                                className="overflow-hidden rounded-xl border border-[#d7e3f0] bg-white"
-                            >
-                                <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left hover:bg-[#f8fafc]">
-                                    <span className="min-w-0 flex-1">
-                                        <span className="block text-sm font-semibold text-[#12355b]">
-                                            {group.title}
-                                        </span>
-                                        <span className="mt-0.5 block text-[11px] text-[#6b8ead]">
-                                            {complete
-                                                ? 'Completo'
-                                                : `${pending} pendiente${pending === 1 ? '' : 's'}`}
-                                            {nos > 0 ? ` · ${nos} en NO` : ''}
-                                        </span>
-                                    </span>
-                                    <span
-                                        className={cn(
-                                            'rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums',
-                                            complete
-                                                ? 'bg-emerald-50 text-emerald-800'
-                                                : 'bg-[#eef3f8] text-[#3d5674]',
-                                        )}
-                                    >
-                                        {marked}/{group.rows.length}
-                                    </span>
-                                    <ChevronDown
-                                        className={cn(
-                                            'size-4 shrink-0 text-[#6b8ead] transition',
-                                            open && 'rotate-180',
-                                        )}
-                                    />
-                                </CollapsibleTrigger>
-                                <CollapsibleContent className="border-t border-[#e6eef6]">
-                                    <div className="divide-y divide-[#e6eef6]">
-                    {group.rows.map(({ item, index }) => {
+                <div className="overflow-hidden rounded-xl border border-[#d7e3f0] bg-white">
+                    <div className="divide-y divide-[#e6eef6]">
+                    {checklist.items.map((item, index) => {
                         const answer = answers[index];
                         const isChild = item.parent_id !== null;
                         const isExpiry =
@@ -1554,6 +1422,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                         <input
                                                             type="file"
                                                             accept="image/*"
+                                                            capture="environment"
                                                             disabled={
                                                                 evidenceBusy ===
                                                                 item.id
@@ -1585,8 +1454,8 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                             <Camera className="size-3.5" />
                                                         )}
                                                         {evidencePhoto
-                                                            ? 'Cambiar foto'
-                                                            : 'Subir foto'}
+                                                            ? 'Tomar otra'
+                                                            : 'Tomar foto'}
                                                     </label>
                                                 ) : null}
                                                 {evidencePhoto && !photoLocked ? (
@@ -1615,11 +1484,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                             </article>
                         );
                     })}
-                                    </div>
-                                </CollapsibleContent>
-                            </Collapsible>
-                        );
-                    })}
+                    </div>
                 </div>
             </div>
 
@@ -1724,6 +1589,24 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                 placeholder="Nombre completo"
                                                 className="mt-2 h-10 border-[#c5d5e6] bg-white"
                                             />
+                                            {signature.slot === 'driver' &&
+                                            signature.saved_signature_url &&
+                                            !state?.existing_url &&
+                                            !state?.signature_data_url ? (
+                                                <button
+                                                    type="button"
+                                                    disabled={passLocked}
+                                                    onClick={() =>
+                                                        void reuseDriverSignature(
+                                                            index,
+                                                            signature.saved_signature_url as string,
+                                                        )
+                                                    }
+                                                    className="mt-2 cursor-pointer text-xs font-semibold text-[#2e5a9e] underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                    Usar firma guardada
+                                                </button>
+                                            ) : null}
                                             <div className="mt-2">
                                                 <SignaturePad
                                                     disabled={passLocked}

@@ -266,6 +266,10 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:checklists.create')
             ->name('checklists.day.store');
 
+        Route::get('inspecciones/paquetes/pendientes', [InspectionBatchController::class, 'pending'])
+            ->middleware('permission:checklists.update')
+            ->name('inspection-batches.pending');
+
         Route::get('inspecciones/paquetes/vista', [InspectionBatchController::class, 'preview'])
             ->middleware('permission:checklists.update')
             ->name('inspection-batches.preview');

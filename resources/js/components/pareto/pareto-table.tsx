@@ -1,6 +1,6 @@
-import { ChartPie, Pencil, Trash2 } from 'lucide-react';
+import { ChartPie, ChevronDown, Pencil, Trash2 } from 'lucide-react';
 import { router } from '@inertiajs/react';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
     DataPagination,
     DataTable,
@@ -92,6 +92,55 @@ export function ParetoTable({
     const { can } = useCan();
     const canUpdate = can('pareto.update');
     const canDelete = can('pareto.delete');
+    const [openParents, setOpenParents] = useState<Set<string>>(new Set());
+    const childrenByParent = useMemo(() => {
+        const map = new Map<string, number>();
+
+        for (const item of items.data) {
+            if (item.parent_id == null) {
+                continue;
+            }
+
+            const key = String(item.parent_id);
+            map.set(key, (map.get(key) ?? 0) + 1);
+        }
+
+        return map;
+    }, [items.data]);
+    const visibleItems = useMemo(() => {
+        if (filters.search) {
+            return items.data;
+        }
+
+        return items.data.filter((item) => {
+            if (item.parent_id == null) {
+                return true;
+            }
+
+            const parentKey = String(item.parent_id);
+
+            if (!items.data.some((row) => String(row.id) === parentKey)) {
+                return true;
+            }
+
+            return openParents.has(parentKey);
+        });
+    }, [filters.search, items.data, openParents]);
+
+    const toggleParent = (id: number | string) => {
+        const key = String(id);
+        setOpenParents((current) => {
+            const next = new Set(current);
+
+            if (next.has(key)) {
+                next.delete(key);
+            } else {
+                next.add(key);
+            }
+
+            return next;
+        });
+    };
 
     const visit = useCallback(
         (params: Partial<ParetoFilters> & { page?: number }) => {
@@ -147,16 +196,47 @@ export function ParetoTable({
             {
                 key: 'item_number',
                 header: 'N°',
-                cell: (item) =>
-                    item.parent_id ? (
-                        <span className="ml-3 border-l-2 border-[#4a90e2] pl-2 font-mono text-xs text-foreground">
+                cell: (item) => {
+                    const childCount = childrenByParent.get(String(item.id)) ?? 0;
+                    const expanded = openParents.has(String(item.id));
+
+                    if (item.parent_id) {
+                        return (
+                            <span className="ml-6 border-l-2 border-[#4a90e2] pl-2 font-mono text-xs text-foreground">
+                                {item.item_number}
+                            </span>
+                        );
+                    }
+
+                    if (childCount === 0) {
+                        return (
+                            <span className="font-mono text-xs font-semibold text-foreground">
+                                {item.item_number}
+                            </span>
+                        );
+                    }
+
+                    return (
+                        <button
+                            type="button"
+                            onClick={() => toggleParent(item.id)}
+                            className="inline-flex cursor-pointer items-center gap-1 font-mono text-xs font-semibold text-foreground"
+                            aria-expanded={expanded}
+                        >
+                            <ChevronDown
+                                className={
+                                    expanded
+                                        ? 'size-3.5 text-[#2e5a9e]'
+                                        : 'size-3.5 -rotate-90 text-[#6b8ead]'
+                                }
+                            />
                             {item.item_number}
-                        </span>
-                    ) : (
-                        <span className="font-mono text-xs font-semibold text-foreground">
-                            {item.item_number}
-                        </span>
-                    ),
+                            <span className="font-sans text-[10px] font-medium text-[#6b8ead]">
+                                {childCount}
+                            </span>
+                        </button>
+                    );
+                },
             },
             {
                 key: 'label',
@@ -259,7 +339,16 @@ export function ParetoTable({
                 ),
             },
         ],
-        [canDelete, canUpdate, checkTypeOptions, onDelete, onEdit, templates],
+        [
+            canDelete,
+            canUpdate,
+            checkTypeOptions,
+            childrenByParent,
+            onDelete,
+            onEdit,
+            openParents,
+            templates,
+        ],
     );
 
     const hasFilters =
@@ -268,7 +357,7 @@ export function ParetoTable({
     return (
         <DataTable
             columns={columns}
-            data={items.data}
+            data={visibleItems}
             rowKey={(item) => item.id}
             getRowClassName={(item) =>
                 item.parent_id ? 'bg-[#f5f9fd]' : undefined

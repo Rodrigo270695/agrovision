@@ -10,6 +10,7 @@ use App\Models\Period;
 use App\Models\Place;
 use App\Models\Site;
 use App\Models\Unit;
+use App\Support\DriverBiometrics;
 use App\Support\IndexedRedirect;
 use App\Support\InductionAttendeeStatuses;
 use App\Support\InductionDocumentPackage;
@@ -325,12 +326,16 @@ class InductionController extends Controller
 
         $inductionPayload = $induction->toArray();
         $inductionPayload['attendees'] = $induction->attendees->map(function (InductionAttendee $attendee) {
+            $saved = DriverBiometrics::find($attendee->driver_dni, $attendee->driver_name);
+
             return [
                 ...$attendee->toArray(),
                 'signature_url' => $attendee->signatureUrl(),
                 'fingerprint_url' => $attendee->fingerprintUrl(),
                 'is_signed' => $attendee->isSigned(),
                 'has_fingerprint' => $attendee->hasFingerprint(),
+                'saved_signature_url' => $attendee->isSigned() ? null : $saved?->signatureUrl(),
+                'saved_fingerprint_url' => $attendee->hasFingerprint() ? null : $saved?->fingerprintUrl(),
             ];
         })->values();
         $inductionPayload['all_signed'] = $induction->allAttendeesSigned();
@@ -578,6 +583,38 @@ class InductionController extends Controller
             ]);
         }
 
+        $saved = DriverBiometrics::find($attendee->driver_dni, $attendee->driver_name);
+
+        if ($request->boolean('reuse') && $saved?->signature_path && $saved?->fingerprint_path) {
+            if ($attendee->signature_path) {
+                Storage::disk('public')->delete($attendee->signature_path);
+            }
+
+            if ($attendee->fingerprint_path) {
+                Storage::disk('public')->delete($attendee->fingerprint_path);
+            }
+
+            $attendee->update([
+                'signature_path' => DriverBiometrics::copyFile(
+                    $saved->signature_path,
+                    "inductions/{$induction->id}/signatures",
+                ),
+                'signed_at' => now(),
+                'fingerprint_path' => DriverBiometrics::copyFile(
+                    $saved->fingerprint_path,
+                    "inductions/{$induction->id}/fingerprints",
+                ),
+                'fingerprint_at' => now(),
+                'status' => InductionAttendeeStatuses::ATTENDED,
+                'attended_at' => $attendee->attended_at ?? now(),
+            ]);
+
+            return back()->with('toast', [
+                'type' => 'success',
+                'message' => 'Se reutilizó la firma y la huella guardadas.',
+            ]);
+        }
+
         $validated = $request->validate([
             'signature_data_url' => ['required', 'string'],
             'fingerprint_data_url' => ['required', 'string'],
@@ -631,6 +668,13 @@ class InductionController extends Controller
             'status' => InductionAttendeeStatuses::ATTENDED,
             'attended_at' => $attendee->attended_at ?? now(),
         ]);
+
+        DriverBiometrics::remember(
+            $attendee->driver_dni,
+            $attendee->driver_name,
+            $signaturePath,
+            $fingerprintPath,
+        );
 
         return back()->with('toast', [
             'type' => 'success',

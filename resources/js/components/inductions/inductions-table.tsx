@@ -141,6 +141,46 @@ function formatDateTime(value?: string | null): string {
         .trim();
 }
 
+function nextInduction(induction: InductionItem): {
+    label: string;
+    hint: string;
+    tone: 'ok' | 'soon' | 'late';
+} | null {
+    const raw = induction.session_date || induction.scheduled_at;
+    const match = raw?.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+    if (!match) {
+        return null;
+    }
+
+    const start = new Date(
+        Number(match[1]),
+        Number(match[2]) - 1,
+        Number(match[3]),
+    );
+    const next = new Date(start);
+    next.setFullYear(next.getFullYear() + 1);
+    const days = Math.ceil((next.getTime() - Date.now()) / 86_400_000);
+    const label = next
+        .toLocaleDateString('es-PE', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+        })
+        .replace(/\./g, '')
+        .replace(/[\u00a0\u202f\u2009]/g, ' ');
+
+    if (days < 0) {
+        return { label, hint: 'Vencida · duraba 1 año', tone: 'late' };
+    }
+
+    if (days <= 30) {
+        return { label, hint: 'Por vencer · vigencia 1 año', tone: 'soon' };
+    }
+
+    return { label, hint: 'Vigencia 1 año', tone: 'ok' };
+}
+
 function statusLabel(status: string, options: StatusOption[]): string {
     return options.find((item) => item.value === status)?.label ?? status;
 }
@@ -393,6 +433,40 @@ export function InductionsTable({
                         {formatDateTime(induction.scheduled_at)}
                     </span>
                 ),
+            },
+            {
+                key: 'next_on',
+                header: 'Próxima',
+                cell: (induction) => {
+                    const next = nextInduction(induction);
+
+                    if (!next) {
+                        return (
+                            <span className="text-xs text-muted-foreground">
+                                —
+                            </span>
+                        );
+                    }
+
+                    return (
+                        <div className="flex flex-col leading-tight">
+                            <span
+                                className={
+                                    next.tone === 'late'
+                                        ? 'text-xs font-semibold text-[#b91c1c]'
+                                        : next.tone === 'soon'
+                                          ? 'text-xs font-semibold text-[#8a5a12]'
+                                          : 'text-xs font-medium text-[#1a2b4c]'
+                                }
+                            >
+                                {next.label}
+                            </span>
+                            <span className="text-[10px] text-[#6b8ead]">
+                                {next.hint}
+                            </span>
+                        </div>
+                    );
+                },
             },
             {
                 key: 'status',

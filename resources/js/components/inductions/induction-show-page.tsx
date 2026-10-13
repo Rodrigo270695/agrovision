@@ -42,6 +42,8 @@ type Attendee = {
     fingerprint_url?: string | null;
     is_signed?: boolean;
     has_fingerprint?: boolean;
+    saved_signature_url?: string | null;
+    saved_fingerprint_url?: string | null;
 };
 
 type UnitOption = {
@@ -179,6 +181,7 @@ export function InductionShowPage() {
     const [savingVerificationPhoto, setSavingVerificationPhoto] =
         useState(false);
     const [signing, setSigning] = useState<Attendee | null>(null);
+    const [reuseSaved, setReuseSaved] = useState(false);
     const [signingSpeaker, setSigningSpeaker] = useState(false);
     const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(
         null,
@@ -373,6 +376,7 @@ export function InductionShowPage() {
 
         setSigningSpeaker(false);
         setSigning(attendee);
+        setReuseSaved(false);
         setSignatureDataUrl(null);
         setFingerprintDataUrl(null);
     };
@@ -380,13 +384,17 @@ export function InductionShowPage() {
     const closeSignModal = () => {
         setSigning(null);
         setSigningSpeaker(false);
+        setReuseSaved(false);
         setSignatureDataUrl(null);
         setFingerprintDataUrl(null);
     };
 
+    const canReuseSaved = Boolean(
+        signing?.saved_signature_url && signing?.saved_fingerprint_url,
+    );
     const canSaveSign = signingSpeaker
         ? Boolean(signatureDataUrl)
-        : Boolean(signatureDataUrl && fingerprintDataUrl);
+        : reuseSaved || Boolean(signatureDataUrl && fingerprintDataUrl);
 
     const saveSignature = () => {
         if (!canSaveSign || savingSignature) {
@@ -416,10 +424,12 @@ export function InductionShowPage() {
 
         router.post(
             `/inducciones/${induction.id}/asistentes/${signing.id}/firma`,
-            {
-                signature_data_url: signatureDataUrl,
-                fingerprint_data_url: fingerprintDataUrl,
-            },
+            reuseSaved
+                ? { reuse: true }
+                : {
+                      signature_data_url: signatureDataUrl,
+                      fingerprint_data_url: fingerprintDataUrl,
+                  },
             {
                 preserveScroll: true,
                 onSuccess: () => closeSignModal(),
@@ -805,6 +815,11 @@ export function InductionShowPage() {
                                                         ? ' + huella'
                                                         : ''}
                                                 </span>
+                                            ) : attendee.saved_signature_url &&
+                                              attendee.saved_fingerprint_url ? (
+                                                <span className="inline-flex rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-800">
+                                                    Firma guardada
+                                                </span>
                                             ) : (
                                                 <span className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
                                                     Sin firma
@@ -1074,6 +1089,21 @@ export function InductionShowPage() {
                 }
             >
                 <div className="space-y-4">
+                    {canReuseSaved ? (
+                        <button
+                            type="button"
+                            onClick={() => setReuseSaved((current) => !current)}
+                            className={
+                                reuseSaved
+                                    ? 'w-full cursor-pointer rounded-xl border border-[#166534] bg-emerald-50 px-3 py-2 text-left text-xs font-semibold text-[#166534]'
+                                    : 'w-full cursor-pointer rounded-xl border border-[#c5d5e6] bg-[#f8fafc] px-3 py-2 text-left text-xs font-semibold text-[#1a2b4c]'
+                            }
+                        >
+                            {reuseSaved
+                                ? 'Se usará la firma y la huella guardadas'
+                                : 'Usar firma y huella guardadas'}
+                        </button>
+                    ) : null}
                     <div className="space-y-1.5">
                         <p className="text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
                             Firma
@@ -1084,7 +1114,10 @@ export function InductionShowPage() {
                                     ? induction.speaker_signature_url
                                     : signing?.signature_url
                             }
-                            onChange={setSignatureDataUrl}
+                            onChange={(value) => {
+                                setReuseSaved(false);
+                                setSignatureDataUrl(value);
+                            }}
                         />
                     </div>
 
@@ -1095,7 +1128,10 @@ export function InductionShowPage() {
                             </p>
                             <FingerprintCameraCapture
                                 valueUrl={signing?.fingerprint_url}
-                                onChange={setFingerprintDataUrl}
+                                onChange={(value) => {
+                                    setReuseSaved(false);
+                                    setFingerprintDataUrl(value);
+                                }}
                                 disabled={savingSignature}
                             />
                         </div>

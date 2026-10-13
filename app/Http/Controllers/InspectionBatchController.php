@@ -150,6 +150,42 @@ class InspectionBatchController extends Controller
         ]);
     }
 
+    public function pending(): JsonResponse
+    {
+        $query = UnitChecklist::query()
+            ->whereHas('period', fn ($builder) => $builder->where('status', 'active'))
+            ->whereIn('first_result', ['approved', 'rejected'])
+            ->whereNotNull('first_inspected_on')
+            ->where(function ($builder) {
+                $builder
+                    ->whereNull('inspection_batch_id')
+                    ->orWhereHas('inspectionBatch', fn ($batch) => $batch->whereNotIn('status', [
+                        InspectionBatch::STATUS_SENT,
+                        InspectionBatch::STATUS_SIGNED,
+                    ]));
+            });
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $query->whereHas('unit', fn ($builder) => $builder->where('coordinator_id', Auth::id()));
+        }
+
+        $dates = $query
+            ->selectRaw('first_inspected_on as day, count(*) as unsent')
+            ->groupBy('first_inspected_on')
+            ->orderBy('first_inspected_on')
+            ->limit(60)
+            ->get()
+            ->map(fn ($row) => [
+                'date' => Carbon::parse($row->day)->toDateString(),
+                'unsent' => (int) $row->unsent,
+            ])
+            ->values();
+
+        return response()->json([
+            'dates' => $dates,
+        ]);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([

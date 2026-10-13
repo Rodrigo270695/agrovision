@@ -21,6 +21,11 @@ type Preview = {
     total: number;
 };
 
+type MissingDay = {
+    date: string;
+    unsent: number;
+};
+
 type Props = {
     open: boolean;
     onClose: () => void;
@@ -36,6 +41,7 @@ function todayInput(): string {
 export function SendInspectionBatchModal({ open, onClose }: Props) {
     const [date, setDate] = useState(todayInput);
     const [preview, setPreview] = useState<Preview | null>(null);
+    const [missing, setMissing] = useState<MissingDay[]>([]);
     const [loading, setLoading] = useState(false);
     const [sending, setSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -46,6 +52,33 @@ export function SendInspectionBatchModal({ open, onClose }: Props) {
         }
 
         setDate(todayInput());
+
+        const controller = new AbortController();
+
+        void fetch('/inspecciones/paquetes/pendientes', {
+            credentials: 'same-origin',
+            signal: controller.signal,
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        })
+            .then(async (response) => {
+                const payload = (await response.json().catch(() => null)) as {
+                    dates?: MissingDay[];
+                } | null;
+
+                if (!response.ok || !payload?.dates) {
+                    return;
+                }
+
+                setMissing(payload.dates);
+            })
+            .catch(() => {
+                setMissing([]);
+            });
+
+        return () => controller.abort();
     }, [open]);
 
     useEffect(() => {
@@ -146,6 +179,35 @@ export function SendInspectionBatchModal({ open, onClose }: Props) {
         >
             <div className="grid gap-3">
                 <div className="grid gap-1.5">
+                    <p className="text-xs font-semibold text-[#1a2b4c]">
+                        Fechas que faltan por enviar
+                    </p>
+                    {missing.length === 0 ? (
+                        <p className="rounded-lg bg-[#f8fafc] px-3 py-2 text-xs text-[#5a7390]">
+                            No hay fechas pendientes. Los días con la 1ra
+                            cerrada ya tienen paquete enviado.
+                        </p>
+                    ) : (
+                        <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
+                            {missing.map((day) => (
+                                <button
+                                    key={day.date}
+                                    type="button"
+                                    onClick={() => setDate(day.date)}
+                                    className={
+                                        date === day.date
+                                            ? 'cursor-pointer rounded-lg bg-[#1a2b4c] px-2 py-1 text-[11px] font-semibold text-white'
+                                            : 'cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 py-1 text-[11px] font-medium text-[#1a2b4c]'
+                                    }
+                                >
+                                    {day.date.split('-').reverse().join('/')} ·{' '}
+                                    {day.unsent} sin enviar
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+                <div className="grid gap-1.5">
                     <Label className="text-xs text-[#1a2b4c]">
                         Fecha de la 1ra inspección
                     </Label>
@@ -197,7 +259,14 @@ export function SendInspectionBatchModal({ open, onClose }: Props) {
                         {preview.already_signed > 0 ? (
                             <p className="text-[#5a7390]">
                                 {preview.already_signed} ya están en un paquete
-                                firmado.
+                                enviado.
+                            </p>
+                        ) : null}
+                        {preview.groups.length === 0 &&
+                        preview.already_signed > 0 &&
+                        preview.pending === 0 ? (
+                            <p className="font-medium text-[#166534]">
+                                Este día ya se envió.
                             </p>
                         ) : null}
                     </div>

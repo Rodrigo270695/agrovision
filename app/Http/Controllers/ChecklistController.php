@@ -16,6 +16,7 @@ use App\Models\UnitChecklistPhoto;
 use App\Models\UnitChecklistSignature;
 use App\Models\UnitMovement;
 use App\Services\ParetoChecklistSync;
+use App\Support\DriverBiometrics;
 use App\Support\IndexedRedirect;
 use App\Support\InspectionDatabaseExporter;
 use App\Support\InspectionPlace;
@@ -590,7 +591,11 @@ class ChecklistController extends Controller
             ->values();
 
         $this->ensurePassSignatures($checklist);
-        $checklist->load('signatures');
+        $checklist->load(['signatures', 'unit:id,driver_dni,driver_name']);
+        $savedDriver = DriverBiometrics::find(
+            $checklist->unit?->driver_dni,
+            $checklist->driver_name ?: $checklist->unit?->driver_name,
+        );
 
         $signatures = $checklist->signatures
             ->filter(fn (UnitChecklistSignature $signature) => in_array($signature->slot, ['driver', 'sst'], true))
@@ -607,6 +612,9 @@ class ChecklistController extends Controller
                 'label' => $this->signatureSlotLabel((string) $signature->slot),
                 'signer_name' => $signature->signer_name,
                 'signature_url' => $signature->signatureUrl(),
+                'saved_signature_url' => $signature->slot === 'driver' && ! $signature->signature_path
+                    ? $savedDriver?->signatureUrl()
+                    : null,
                 'signed_at' => $signature->signed_at
                     ?->timezone(config('app.timezone'))
                     ->format('d/m/Y H:i'),
@@ -891,6 +899,20 @@ class ChecklistController extends Controller
                     }
 
                     $signature->update($updates);
+
+                    if (($signatureData['slot'] ?? '') === 'driver' && ! empty($updates['signature_path'])) {
+                        $checklist->loadMissing('unit:id,driver_dni,driver_name');
+                        $signer = trim((string) ($signatureData['signer_name'] ?? $checklist->driver_name));
+                        $unitName = DriverBiometrics::normalize($checklist->unit?->driver_name);
+                        $sameDriver = $unitName !== '' && $unitName === DriverBiometrics::normalize($signer);
+
+                        DriverBiometrics::remember(
+                            $sameDriver ? $checklist->unit?->driver_dni : null,
+                            $signer !== '' ? $signer : $checklist->driver_name,
+                            $updates['signature_path'],
+                            null,
+                        );
+                    }
                 }
 
                 if ($shouldSeal) {
