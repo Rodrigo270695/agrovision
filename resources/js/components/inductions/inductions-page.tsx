@@ -129,7 +129,21 @@ export function InductionsPage() {
         );
     }, [inductions.data, page.version]);
 
-    const openInduction = async (item: InductionItem) => {
+    const openSavedInduction = async (id: number | string) => {
+        const saved = await getInductionSnapshot(id);
+
+        if (!saved || !('induction' in saved)) {
+            toast.error(
+                'Esta inducción no está en el teléfono. Ábrela con internet una vez.',
+            );
+
+            return;
+        }
+
+        setLocalShow(saved as unknown as InductionShowProps);
+    };
+
+    const openInduction = (item: InductionItem) => {
         if (item.pending_sync) {
             toast.info('Esta inducción se guarda al reconectar.');
 
@@ -137,22 +151,29 @@ export function InductionsPage() {
         }
 
         if (!isBrowserOnline()) {
-            const saved = await getInductionSnapshot(item.id);
-
-            if (!saved || !('induction' in saved)) {
-                toast.error(
-                    'Esta inducción no está en el dispositivo. Ábrela con conexión una vez.',
-                );
-
-                return;
-            }
-
-            setLocalShow(saved as unknown as InductionShowProps);
+            void openSavedInduction(item.id);
 
             return;
         }
 
-        router.visit(`/inducciones/${item.id}`);
+        router.visit(`/inducciones/${item.id}`, {
+            onHttpException: (response) => {
+                const data = response.data;
+
+                if (typeof data !== 'string' || !data.includes('Sin conexión')) {
+                    return;
+                }
+
+                void openSavedInduction(item.id);
+
+                return false;
+            },
+            onNetworkError: () => {
+                void openSavedInduction(item.id);
+
+                return false;
+            },
+        });
     };
 
     if (localShow) {

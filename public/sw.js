@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'agrovision-pwa-v10';
+const CACHE_VERSION = 'agrovision-pwa-v11';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const PAGES_CACHE = `${CACHE_VERSION}-pages`;
@@ -80,7 +80,53 @@ async function cachePut(cacheName, request, response) {
   }
 
   const cache = await caches.open(cacheName);
-  await cache.put(request, response.clone());
+
+  try {
+    await cache.put(request, response.clone());
+  } catch (error) {
+    if (!error || error.name !== 'QuotaExceededError') {
+      return;
+    }
+
+    const keys = await cache.keys();
+    await Promise.all(
+      keys.slice(0, Math.ceil(keys.length / 2)).map((key) => cache.delete(key)),
+    );
+
+    try {
+      await cache.put(request, response.clone());
+    } catch {
+      // La respuesta de red sigue válida aunque el teléfono no tenga espacio.
+    }
+  }
+}
+
+async function matchCachedPage(request, cacheName) {
+  const exact = await caches.match(pageCacheKey(request));
+
+  if (exact) {
+    return exact;
+  }
+
+  const cache = await caches.open(cacheName);
+  const keys = await cache.keys();
+  const url = new URL(request.url);
+  const want = request.headers.get('X-Inertia') ? 'inertia' : 'document';
+  const matches = keys.filter((key) => {
+    const keyUrl = new URL(key.url);
+
+    return (
+      keyUrl.origin === url.origin &&
+      keyUrl.pathname === url.pathname &&
+      keyUrl.searchParams.get('__sw') === want
+    );
+  });
+
+  if (matches.length === 0) {
+    return null;
+  }
+
+  return cache.match(matches[matches.length - 1]);
 }
 
 async function networkFirstPage(request, cacheName) {
@@ -92,7 +138,7 @@ async function networkFirstPage(request, cacheName) {
 
     return response;
   } catch (error) {
-    const cached = await caches.match(key);
+    const cached = await matchCachedPage(request, cacheName);
 
     if (cached) {
       return cached;
@@ -220,7 +266,13 @@ self.addEventListener('fetch', (event) => {
 
   if ((isDocument || isInertia) && isAppPage(url.pathname)) {
     event.respondWith(
-      networkFirstPage(request, PAGES_CACHE).catch(() => offlineDocument()),
+      networkFirstPage(request, PAGES_CACHE).catch((error) => {
+        if (isInertia) {
+          throw error;
+        }
+
+        return offlineDocument();
+      }),
     );
     return;
   }

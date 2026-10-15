@@ -100,6 +100,7 @@ async function ensureServiceWorker(): Promise<ServiceWorkerRegistration> {
     const existing = await navigator.serviceWorker.getRegistration('/');
 
     if (existing?.active) {
+        void existing.update().catch(() => undefined);
         await ensureControllingPage();
 
         return existing;
