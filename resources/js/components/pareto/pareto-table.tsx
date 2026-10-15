@@ -370,7 +370,6 @@ export function ParetoTable({
                     placeholder="Buscar exigencia o número..."
                 >
                     <FilterChips
-                        key={templates.map((item) => item.value).join('|')}
                         ariaLabel="Filtrar por plantilla"
                         value={filters.template_type}
                         onChange={(template_type) =>

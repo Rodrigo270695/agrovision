@@ -565,7 +565,6 @@ export function ChecklistsTable({
                     placeholder="Buscar placa, conductor..."
                 >
                     <FilterChips
-                        key={typeChips.map((item) => item.value).join('|')}
                         ariaLabel="Filtrar por tipo"
                         value={(filters.template_type ?? 'all') as TypeFilter}
                         onChange={(value) =>
@@ -590,26 +589,33 @@ export function ChecklistsTable({
                         }
                         options={statusOptions}
                     />
-                    <select
-                        value={filters.inspector_id ?? ''}
-                        onChange={(event) =>
+                    <FilterChips
+                        ariaLabel="Filtrar por inspector"
+                        value={
+                            filters.inspector_id
+                                ? String(filters.inspector_id)
+                                : 'all'
+                        }
+                        onChange={(value) =>
                             visit({
                                 inspector_id:
-                                    event.target.value === ''
-                                        ? null
-                                        : Number(event.target.value),
+                                    value === 'all' ? null : Number(value),
                                 page: 1,
                             })
                         }
-                        className="h-9 min-w-44 cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c]"
-                    >
-                        <option value="">Todos los inspectores</option>
-                        {inspectors.map((inspector) => (
-                            <option key={inspector.id} value={inspector.id}>
-                                {inspector.name}
-                            </option>
-                        ))}
-                    </select>
+                        options={[
+                            {
+                                value: 'all',
+                                label: 'Todos los inspectores',
+                                tone: 'default',
+                            },
+                            ...inspectors.map((inspector) => ({
+                                value: String(inspector.id),
+                                label: inspector.name,
+                            })),
+                        ]}
+                        className="min-w-44"
+                    />
                     <DateRangeFilter
                         desde={filters.date_from ?? null}
                         hasta={filters.date_to ?? null}

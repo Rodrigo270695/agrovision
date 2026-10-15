@@ -1,4 +1,4 @@
-import * as SelectPrimitive from '@radix-ui/react-select';
+import { router } from '@inertiajs/react';
 import {
     CheckCircle2,
     CheckIcon,
@@ -11,7 +11,16 @@ import {
     XCircle,
     type LucideIcon,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import {
+    useEffect,
+    useId,
+    useLayoutEffect,
+    useRef,
+    useState,
+    type CSSProperties,
+    type ReactNode,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 
 export type FilterChipTone = 'default' | 'success' | 'muted' | 'warning' | 'danger' | 'info';
@@ -209,10 +218,9 @@ function labelWithCount(label: string, count?: number): string {
 }
 
 /**
- * Filtro de estado tipo select enriquecido (icono + etiqueta / badge + descripción).
- *
- * API compatible con el antiguo segmented control: mismos props
- * (`ariaLabel`, `value`, `onChange`, `options`).
+ * Filtro de listados. No usa el select de Radix: ese bloquea el clic en toda
+ * la página mientras espera la respuesta, y con internet lento se queda pegado.
+ * La opción elegida se ve al instante; la consulta sale cuando el menú ya cerró.
  */
 export function FilterChips<TValue extends string>({
     ariaLabel,
@@ -223,23 +231,146 @@ export function FilterChips<TValue extends string>({
     disabled = false,
     triggerClassName,
 }: FilterChipsProps<TValue>) {
-    const selected = options.find((o) => o.value === value) ?? options[0];
-    const selectedTone = selected ? inferTone(selected.value, selected.tone) : 'default';
+    const listId = useId();
+    const rootRef = useRef<HTMLDivElement>(null);
+    const valueRef = useRef(value);
+    const [open, setOpen] = useState(false);
+    const [pending, setPending] = useState<TValue | null>(null);
+    const [menuStyle, setMenuStyle] = useState<CSSProperties>({});
+    const shown = pending ?? value;
+    const selected =
+        options.find((option) => option.value === shown) ??
+        options.find((option) => option.value === value) ??
+        options[0];
+    const selectedTone = selected
+        ? inferTone(selected.value, selected.tone)
+        : 'default';
+
+    valueRef.current = value;
+
+    useEffect(() => {
+        if (pending !== null && pending === value) {
+            setPending(null);
+        }
+    }, [pending, value]);
+
+    useEffect(() => {
+        return router.on('finish', () => {
+            requestAnimationFrame(() => {
+                setPending((current) =>
+                    current !== null && current !== valueRef.current
+                        ? null
+                        : current,
+                );
+            });
+        });
+    }, []);
+
+    useLayoutEffect(() => {
+        if (!open) {
+            return;
+        }
+
+        const place = () => {
+            const trigger = rootRef.current;
+
+            if (!trigger) {
+                return;
+            }
+
+            const rect = trigger.getBoundingClientRect();
+            const width = Math.max(rect.width, 232);
+            const estimated = Math.min(options.length * 44 + 12, 320);
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const openUp = spaceBelow < estimated && rect.top > spaceBelow;
+            const left = Math.max(
+                8,
+                Math.min(rect.left, window.innerWidth - width - 8),
+            );
+
+            setMenuStyle({
+                position: 'fixed',
+                top: openUp ? undefined : rect.bottom + 6,
+                bottom: openUp ? window.innerHeight - rect.top + 6 : undefined,
+                left,
+                width,
+                zIndex: 80,
+            });
+        };
+
+        place();
+        window.addEventListener('resize', place);
+        window.addEventListener('scroll', place, true);
+
+        const onPointerDown = (event: PointerEvent) => {
+            const target = event.target;
+
+            if (!(target instanceof Node) || rootRef.current?.contains(target)) {
+                return;
+            }
+
+            if (
+                target instanceof Element &&
+                target.closest('[data-filter-select-menu]')
+            ) {
+                return;
+            }
+
+            setOpen(false);
+        };
+
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setOpen(false);
+            }
+        };
+
+        document.addEventListener('pointerdown', onPointerDown);
+        document.addEventListener('keydown', onKeyDown);
+
+        return () => {
+            window.removeEventListener('resize', place);
+            window.removeEventListener('scroll', place, true);
+            document.removeEventListener('pointerdown', onPointerDown);
+            document.removeEventListener('keydown', onKeyDown);
+        };
+    }, [open, options.length]);
+
+    const choose = (next: TValue) => {
+        setOpen(false);
+
+        if (next === value && pending === null) {
+            return;
+        }
+
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            window.setTimeout(() => onChange(next), 0);
+
+            return;
+        }
+
+        setPending(next);
+        window.setTimeout(() => onChange(next), 0);
+    };
 
     return (
-        <SelectPrimitive.Root
-            value={value}
-            onValueChange={(v) => onChange(v as TValue)}
-            disabled={disabled}
+        <div
+            ref={rootRef}
+            className={cn('relative w-full min-w-0 sm:w-auto', className)}
         >
-            <SelectPrimitive.Trigger
+            <button
+                type="button"
                 aria-label={ariaLabel}
+                aria-haspopup="listbox"
+                aria-expanded={open}
+                aria-controls={listId}
+                disabled={disabled}
+                onClick={() => setOpen((current) => !current)}
                 className={cn(
                     'border-input flex h-9 w-full min-w-[11rem] cursor-pointer items-center justify-between gap-2 rounded-lg border bg-white px-2.5 text-sm shadow-xs outline-none transition-[color,border-color]',
-                    'hover:border-brand-300 hover:bg-white focus-visible:border-brand-400 focus-visible:ring-0',
-                    'data-[state=open]:border-brand-400 data-[state=open]:ring-0',
-                    'disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto dark:bg-card',
-                    className,
+                    'hover:border-brand-300 hover:bg-white focus-visible:border-brand-400',
+                    open && 'border-brand-400',
+                    'disabled:cursor-not-allowed disabled:opacity-50 dark:bg-card',
                     triggerClassName,
                 )}
             >
@@ -259,82 +390,105 @@ export function FilterChips<TValue extends string>({
                         </span>
                     </span>
                 ) : (
-                    <SelectPrimitive.Value placeholder="…" />
+                    <span className="text-muted-foreground">…</span>
                 )}
-                <SelectPrimitive.Icon asChild>
-                    <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground/70" />
-                </SelectPrimitive.Icon>
-            </SelectPrimitive.Trigger>
+                <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground/70" />
+            </button>
 
-            <SelectPrimitive.Portal>
-                <SelectPrimitive.Content
-                    position="popper"
-                    sideOffset={6}
-                    align="start"
-                    className={cn(
-                        'bg-white text-popover-foreground relative z-50 max-h-(--radix-select-content-available-height) min-w-[max(var(--radix-select-trigger-width),14.5rem)] overflow-hidden rounded-xl border border-border/60 shadow-lg dark:bg-popover',
-                        'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2',
-                    )}
-                >
-                    <SelectPrimitive.Viewport className="flex flex-col gap-0.5 p-1">
-                        {options.map((opt) => {
-                            const tone = inferTone(opt.value, opt.tone);
-                            const asAll = isAllValue(opt.value);
-                            const asBadge = !asAll && tone !== 'default';
+            {open
+                ? createPortal(
+                      <div
+                          id={listId}
+                          role="listbox"
+                          aria-label={ariaLabel}
+                          data-filter-select-menu=""
+                          style={menuStyle}
+                          className="max-h-80 overflow-y-auto rounded-xl border border-border/60 bg-white p-1 text-popover-foreground shadow-lg dark:bg-popover"
+                      >
+                          {options.map((opt) => {
+                              const tone = inferTone(opt.value, opt.tone);
+                              const asAll = isAllValue(opt.value);
+                              const asBadge =
+                                  !asAll &&
+                                  tone !== 'default' &&
+                                  !opt.description;
+                              const checked = opt.value === shown;
 
-                            return (
-                                <SelectPrimitive.Item
-                                    key={opt.value}
-                                    value={opt.value}
-                                    className={cn(
-                                        'relative flex w-full cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1.5 pr-7 text-sm outline-hidden select-none',
-                                        'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-                                        'focus:bg-brand-50/70 dark:focus:bg-brand-950/30',
-                                        'data-[state=checked]:bg-brand-50 data-[state=checked]:dark:bg-brand-950/40',
-                                    )}
-                                >
-                                    <span className="absolute right-1.5 top-1/2 flex size-3.5 -translate-y-1/2 items-center justify-center">
-                                        <SelectPrimitive.ItemIndicator>
-                                            <CheckIcon className="size-3 text-foreground/80" strokeWidth={2.5} />
-                                        </SelectPrimitive.ItemIndicator>
-                                    </span>
-
-                                    <span
-                                        className={cn(
-                                            'flex size-6 shrink-0 items-center justify-center rounded-md',
-                                            toneIconShell[tone],
-                                        )}
-                                        aria-hidden
-                                    >
-                                        <OptionIcon option={opt} className="size-3" />
-                                    </span>
-
-                                    {asBadge ? (
-                                        <span
-                                            className={cn(
-                                                'inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5 text-[0.7rem] font-medium',
-                                                toneBadge[tone],
-                                            )}
-                                        >
-                                            <OptionIcon option={opt} className="size-3" />
-                                            <SelectPrimitive.ItemText>
-                                                {labelWithCount(opt.label, opt.count)}
-                                            </SelectPrimitive.ItemText>
-                                        </span>
-                                    ) : (
-                                        <SelectPrimitive.ItemText asChild>
-                                            <span className="whitespace-nowrap text-sm font-normal text-foreground">
-                                                {labelWithCount(opt.label, opt.count)}
-                                            </span>
-                                        </SelectPrimitive.ItemText>
-                                    )}
-                                </SelectPrimitive.Item>
-                            );
-                        })}
-                    </SelectPrimitive.Viewport>
-                </SelectPrimitive.Content>
-            </SelectPrimitive.Portal>
-        </SelectPrimitive.Root>
+                              return (
+                                  <button
+                                      key={opt.value}
+                                      type="button"
+                                      role="option"
+                                      aria-selected={checked}
+                                      onClick={() => choose(opt.value)}
+                                      className={cn(
+                                          'relative flex w-full cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1.5 pr-7 text-left text-sm outline-hidden',
+                                          'hover:bg-brand-50/70 focus-visible:bg-brand-50/70 dark:hover:bg-brand-950/30',
+                                          checked &&
+                                              'bg-brand-50 dark:bg-brand-950/40',
+                                      )}
+                                  >
+                                      <span className="absolute top-1/2 right-1.5 flex size-3.5 -translate-y-1/2 items-center justify-center">
+                                          {checked ? (
+                                              <CheckIcon
+                                                  className="size-3 text-foreground/80"
+                                                  strokeWidth={2.5}
+                                              />
+                                          ) : null}
+                                      </span>
+                                      <span
+                                          className={cn(
+                                              'flex size-6 shrink-0 items-center justify-center rounded-md',
+                                              toneIconShell[tone],
+                                          )}
+                                          aria-hidden
+                                      >
+                                          <OptionIcon
+                                              option={opt}
+                                              className="size-3"
+                                          />
+                                      </span>
+                                      {asBadge ? (
+                                          <span
+                                              className={cn(
+                                                  'inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5 text-[0.7rem] font-medium',
+                                                  toneBadge[tone],
+                                              )}
+                                          >
+                                              <OptionIcon
+                                                  option={opt}
+                                                  className="size-3"
+                                              />
+                                              <span className="truncate">
+                                                  {labelWithCount(
+                                                      opt.label,
+                                                      opt.count,
+                                                  )}
+                                              </span>
+                                          </span>
+                                      ) : (
+                                          <span className="min-w-0">
+                                              <span className="block truncate text-sm font-normal text-foreground">
+                                                  {labelWithCount(
+                                                      opt.label,
+                                                      opt.count,
+                                                  )}
+                                              </span>
+                                              {opt.description ? (
+                                                  <span className="block truncate text-[11px] text-[#6b8ead]">
+                                                      {opt.description}
+                                                  </span>
+                                              ) : null}
+                                          </span>
+                                      )}
+                                  </button>
+                              );
+                          })}
+                      </div>,
+                      document.body,
+                  )
+                : null}
+        </div>
     );
 }
 

@@ -930,6 +930,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                             {canUpdate && canManageAttendance ? (
                                                 <>
                                                     <Select
+                                                        modal={false}
                                                         value={
                                                             attendee.status ||
                                                             'registered'

@@ -1,13 +1,8 @@
+import { CheckCircle2, Layers, PauseCircle } from 'lucide-react';
 import {
-    CalendarRange,
-    CheckCircle2,
-    Layers,
-    PauseCircle,
-} from 'lucide-react';
-import {
-    ElegantFilterSelect,
-    type ElegantFilterOption,
-} from '@/components/shared/elegant-filter-select';
+    FilterChips,
+    type FilterChip,
+} from '@/components/data-page/filter-chips';
 import { cn } from '@/lib/utils';
 
 export type PeriodFilterOption = {
@@ -50,36 +45,41 @@ export function PeriodFilterSelect({
     onChange,
     className,
 }: Props) {
-    const filterOptions: ElegantFilterOption[] = options.map((option) => {
-        const active = option.status === 'active';
+    const filterOptions: FilterChip<string>[] = [
+        {
+            value: 'all',
+            label: 'Todos los periodos',
+            description: 'Ver unidades sin filtrar',
+            icon: <Layers className="size-3.5" />,
+            tone: 'default',
+        },
+        ...options.map((option) => {
+            const active = option.status === 'active';
 
-        return {
-            value: String(option.id),
-            label: option.name,
-            description: `${active ? 'Activo' : 'Inactivo'}${
-                option.date ? ` · ${formatDate(option.date)}` : ''
-            }`,
-            icon: active ? CheckCircle2 : PauseCircle,
-            iconClassName: active
-                ? 'bg-[#e8f7ef] text-[#15803d]'
-                : 'bg-[#eef1f5] text-[#64748b]',
-        };
-    });
+            return {
+                value: String(option.id),
+                label: option.name,
+                description: `${active ? 'Activo' : 'Inactivo'}${
+                    option.date ? ` · ${formatDate(option.date)}` : ''
+                }`,
+                icon: active ? (
+                    <CheckCircle2 className="size-3.5" />
+                ) : (
+                    <PauseCircle className="size-3.5" />
+                ),
+                tone: active ? ('success' as const) : ('muted' as const),
+            };
+        }),
+    ];
 
     return (
-        <ElegantFilterSelect
-            value={value ? String(value) : null}
+        <FilterChips
+            ariaLabel="Filtrar por periodo"
+            value={value ? String(value) : 'all'}
+            onChange={(next) => onChange(next === 'all' ? null : Number(next))}
             options={filterOptions}
-            onChange={(next) => {
-                onChange(next ? Number(next) : null);
-            }}
-            triggerIcon={CalendarRange}
-            allIcon={Layers}
-            allLabel="Todos los periodos"
-            allDescription="Ver unidades sin filtrar"
-            placeholder="Todos los periodos"
-            className={cn('sm:w-[240px]', className)}
-            contentClassName="min-w-[240px]"
+            triggerClassName={cn('h-10', className)}
+            className="sm:w-[240px]"
         />
     );
 }
