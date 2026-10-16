@@ -363,7 +363,16 @@
     }
 }
 
-/* Radix Dialog bloquea el body. El select se pinta fuera del modal. */
+/*
+ * El Dialog pone overlay z-50 y bloquea pointer-events del body.
+ * El Select/Popover de Radix sale a un wrapper SIN z-index, así que
+ * el listado queda detrás del overlay: parece que no abre.
+ */
+[data-radix-popper-content-wrapper] {
+    z-index: 200 !important;
+    pointer-events: auto !important;
+}
+
 body[data-scroll-locked] [data-portal-dropdown] {
     pointer-events: auto;
 }

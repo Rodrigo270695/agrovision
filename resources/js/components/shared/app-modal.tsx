@@ -29,7 +29,11 @@ type AppModalProps = {
 function isPortalDropdownTarget(target: EventTarget | null): boolean {
     return (
         target instanceof Element &&
-        Boolean(target.closest('[data-portal-dropdown]'))
+        Boolean(
+            target.closest(
+                '[data-portal-dropdown], [data-radix-popper-content-wrapper], [data-slot="select-content"], [data-slot="dropdown-menu-content"], [data-slot="popover-content"]',
+            ),
+        )
     );
 }
 
@@ -64,13 +68,6 @@ export function AppModal({
                         event.preventDefault();
                     }}
                     onInteractOutside={(event) => {
-                        if (isPortalDropdownTarget(event.target)) {
-                            return;
-                        }
-
-                        event.preventDefault();
-                    }}
-                    onFocusOutside={(event) => {
                         if (isPortalDropdownTarget(event.target)) {
                             return;
                         }

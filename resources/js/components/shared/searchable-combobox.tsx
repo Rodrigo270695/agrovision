@@ -48,9 +48,8 @@ function normalize(value: string): string {
 }
 
 /**
- * Combo con búsqueda. La lista se renderiza DENTRO del árbol del modal
- * (sin portal a body) para evitar el bloqueo de pointer-events/scroll
- * que aplica Radix Dialog + RemoveScroll a nodos fuera del diálogo.
+ * Combo con búsqueda. La lista sale en portal al body, por encima del
+ * overlay del modal, con altura mínima para que no quede en 0 px.
  */
 export function SearchableCombobox({
     value,
@@ -145,7 +144,7 @@ export function SearchableCombobox({
             const spaceAbove = rect.top - gap - 8;
             const openUp = spaceBelow < 160 && spaceAbove > spaceBelow;
             const available = Math.max(openUp ? spaceAbove : spaceBelow, 0);
-            const limit = Math.min(240, available);
+            const limit = Math.min(240, Math.max(available, 160));
 
             if (openUp) {
                 list.style.top = 'auto';
@@ -462,7 +461,7 @@ export function SearchableCombobox({
                     role="listbox"
                     data-portal-dropdown=""
                     data-scroll-lock-scrollable=""
-                    className="fixed z-[200] overflow-y-auto overscroll-contain rounded-lg border border-[#d7e3f0] bg-white py-1 shadow-lg"
+                    className="pointer-events-auto fixed z-[200] overflow-y-auto overscroll-contain rounded-lg border border-[#d7e3f0] bg-white py-1 shadow-lg"
                 >
                     {filtered.length === 0 && !canCreate ? (
                         <p className="px-3 py-3 text-center text-sm text-[#6b8ead]">
