@@ -19,6 +19,7 @@ import {
     Shield,
     Users,
     UsersRound,
+    ContactRound,
     Wine,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
@@ -139,6 +140,13 @@ const mainNavItems: NavItem[] = [
                 title: 'Tablero conductores',
                 href: '/tablero-conductores',
                 icon: Users,
+                permission: 'inductions.view',
+                module: 'inductions',
+            },
+            {
+                title: 'Consulta de conductores',
+                href: '/consulta-conductores',
+                icon: ContactRound,
                 permission: 'inductions.view',
                 module: 'inductions',
             },

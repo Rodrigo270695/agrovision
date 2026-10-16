@@ -32,31 +32,30 @@ final class InductionDocumentPackage
         @set_time_limit(300);
         @ini_set('memory_limit', '1024M');
 
+        $binary = self::actaBinary($induction);
+        $disk->put($pdfPath, $binary);
+        $disk->put($stampPath, $stamp);
+
+        return self::pdfResponse($binary, $induction);
+    }
+
+    /**
+     * Informe SST + formato de registro. Si hay DNI, esas filas salen resaltadas.
+     *
+     * @param  list<string>  $highlightDnis
+     */
+    public static function actaBinary(Induction $induction, array $highlightDnis = []): string
+    {
+        $induction->loadMissing([
+            'attendees' => fn ($q) => $q->orderBy('driver_name'),
+            'period',
+        ]);
+
         $formats = InductionDocumentSettings::forPdf($induction);
         $logoSrc = PdfLogo::dataUri();
-        $speakerSignatureSrc = self::dataUri($induction->speaker_signature_path, 320);
-        $verificationPhotoSrc = self::dataUri($induction->verification_photo_path, 480);
+        $rows = self::attendanceRows($induction);
 
-        $attendedSigned = $induction->attendees
-            ->filter(fn (InductionAttendee $attendee) => $attendee->status === InductionAttendeeStatuses::ATTENDED
-                && $attendee->isSigned())
-            ->sortBy(fn (InductionAttendee $attendee) => mb_strtoupper(trim((string) $attendee->driver_name)), SORT_NATURAL)
-            ->values();
-
-        $area = trim((string) ($induction->area ?? ''));
-        $attendanceRows = $attendedSigned->map(function (InductionAttendee $attendee, int $index) use ($area) {
-            return [
-                'n' => $index + 1,
-                'dni' => $attendee->driver_dni,
-                'area_cargo' => trim(($area !== '' ? $area.' / ' : '').'CONDUCTOR'),
-                'name' => $attendee->driver_name,
-                'signature_src' => self::dataUri($attendee->signature_path, 280),
-                'fingerprint_src' => self::dataUri($attendee->fingerprint_path, 160),
-                'attendee' => $attendee,
-            ];
-        });
-
-        $documents = [
+        return self::merge([
             self::renderView('pdfs.induction-sst-report', [
                 'induction' => $induction,
                 'formats' => $formats,
@@ -66,40 +65,103 @@ final class InductionDocumentPackage
             self::renderView('pdfs.induction-register', [
                 'induction' => $induction,
                 'formats' => $formats,
-                'attendees' => $attendanceRows,
+                'attendees' => $rows,
+                'highlightedDnis' => $highlightDnis,
                 'logoSrc' => $logoSrc,
-                'speakerSignatureSrc' => $speakerSignatureSrc,
-                'verificationPhotoSrc' => $verificationPhotoSrc,
+                'speakerSignatureSrc' => self::dataUri($induction->speaker_signature_path, 320),
+                'verificationPhotoSrc' => self::dataUri($induction->verification_photo_path, 480),
                 'activityLabels' => InductionFormOptions::activities(),
                 'modalityLabels' => InductionFormOptions::modalities(),
                 'schoolLabels' => InductionFormOptions::schools(),
                 'categoryLabels' => InductionFormOptions::categories(),
             ]),
+        ]);
+    }
+
+    /**
+     * @param  list<InductionAttendee>|\Illuminate\Support\Collection<int, InductionAttendee>  $attendees
+     */
+    public static function receiptBinary(Induction $induction, string $kind, iterable $attendees): string
+    {
+        $induction->loadMissing(['attendees', 'period']);
+        $rows = collect();
+        $index = 0;
+
+        foreach ($attendees as $attendee) {
+            $rows->push(self::rowFromAttendee($induction, $attendee, ++$index));
+        }
+
+        if ($rows->isEmpty()) {
+            throw new \RuntimeException('No hay asistentes para el comprobante.');
+        }
+
+        $view = $kind === 'ritran'
+            ? 'pdfs.induction-ritran-receipt'
+            : 'pdfs.induction-risst-receipt';
+
+        return self::renderView($view, [
+            'induction' => $induction,
+            'formats' => InductionDocumentSettings::forPdf($induction),
+            'logoSrc' => PdfLogo::dataUri(),
+            'rows' => $rows->values(),
+        ]);
+    }
+
+    /**
+     * @param  list<string>  $documents
+     */
+    public static function mergePdfs(array $documents): string
+    {
+        return self::merge($documents);
+    }
+
+    public static function pdfInline(string $binary, string $filename, bool $download = false): Response
+    {
+        $disposition = $download ? 'attachment' : 'inline';
+
+        return response($binary, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => $disposition.'; filename="'.$filename.'"',
+        ]);
+    }
+
+    public static function digits(?string $value): string
+    {
+        return preg_replace('/\D+/', '', (string) $value) ?: '';
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    private static function attendanceRows(Induction $induction): \Illuminate\Support\Collection
+    {
+        $attendedSigned = $induction->attendees
+            ->filter(fn (InductionAttendee $attendee) => $attendee->status === InductionAttendeeStatuses::ATTENDED
+                && $attendee->isSigned())
+            ->sortBy(fn (InductionAttendee $attendee) => mb_strtoupper(trim((string) $attendee->driver_name)), SORT_NATURAL)
+            ->values();
+
+        return $attendedSigned->map(
+            fn (InductionAttendee $attendee, int $index) => self::rowFromAttendee($induction, $attendee, $index + 1),
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function rowFromAttendee(Induction $induction, InductionAttendee $attendee, int $index): array
+    {
+        $area = trim((string) ($induction->area ?? ''));
+
+        return [
+            'n' => $index,
+            'dni' => $attendee->driver_dni,
+            'area_cargo' => trim(($area !== '' ? $area.' / ' : '').'CONDUCTOR'),
+            'name' => $attendee->driver_name,
+            'signature_src' => self::dataUri($attendee->signature_path, 280),
+            'fingerprint_src' => self::dataUri($attendee->fingerprint_path, 160),
+            'attendee' => $attendee,
         ];
-
-        foreach ($attendanceRows->chunk(5) as $chunk) {
-            $documents[] = self::renderView('pdfs.induction-risst-receipt', [
-                'induction' => $induction,
-                'formats' => $formats,
-                'logoSrc' => $logoSrc,
-                'rows' => $chunk->values(),
-            ]);
-        }
-
-        foreach ($attendanceRows->chunk(5) as $chunk) {
-            $documents[] = self::renderView('pdfs.induction-ritran-receipt', [
-                'induction' => $induction,
-                'formats' => $formats,
-                'logoSrc' => $logoSrc,
-                'rows' => $chunk->values(),
-            ]);
-        }
-
-        $binary = self::merge($documents);
-        $disk->put($pdfPath, $binary);
-        $disk->put($stampPath, $stamp);
-
-        return self::pdfResponse($binary, $induction);
     }
 
     private static function stamp(Induction $induction): string
@@ -125,7 +187,7 @@ final class InductionDocumentPackage
             ]);
         }
 
-        $parts[] = 'receipt-layout-v7';
+        $parts[] = 'acta-formato-v1';
 
         return hash('sha256', implode("\n", $parts));
     }

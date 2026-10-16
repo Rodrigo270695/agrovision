@@ -6,6 +6,7 @@ use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\ConsolidationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DriverBoardController;
+use App\Http\Controllers\DriverInductionReportController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\ImpersonationLeaveController;
 use App\Http\Controllers\InductionController;
@@ -270,6 +271,22 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
         Route::get('tablero-conductores', DriverBoardController::class)
             ->middleware('permission:inductions.view')
             ->name('inductions.board');
+
+        Route::get('consulta-conductores', [DriverInductionReportController::class, 'index'])
+            ->middleware('permission:inductions.view')
+            ->name('driver-induction-report.index');
+
+        Route::post('consulta-conductores', [DriverInductionReportController::class, 'search'])
+            ->middleware('permission:inductions.view')
+            ->name('driver-induction-report.search');
+
+        Route::get('consulta-conductores/documento', [DriverInductionReportController::class, 'document'])
+            ->middleware('permission:inductions.view')
+            ->name('driver-induction-report.document');
+
+        Route::post('consulta-conductores/archivo', [DriverInductionReportController::class, 'archive'])
+            ->middleware('permission:inductions.view')
+            ->name('driver-induction-report.archive');
 
         Route::get('inspecciones/dia', [ChecklistController::class, 'day'])
             ->middleware('permission:checklists.create')

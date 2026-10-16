@@ -63,6 +63,11 @@ const accents: Record<string, Accent> = {
         chip: 'bg-[#d1fae5]',
         activeChip: 'bg-[#047857]/15 text-[#065f46]',
     },
+    'Consulta de conductores': {
+        icon: 'text-[#0f766e]',
+        chip: 'bg-[#ccfbf1]',
+        activeChip: 'bg-[#0f766e]/15 text-[#115e59]',
+    },
     Paquetes: {
         icon: 'text-[#7c3aed]',
         chip: 'bg-[#ede9fe]',

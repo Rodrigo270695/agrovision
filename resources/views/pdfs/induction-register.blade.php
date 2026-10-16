@@ -18,6 +18,7 @@
         .item { display: inline-block; margin: 0 7px 1px 0; white-space: nowrap; }
         .att th { font-size: 7px; padding: 3px 3px; text-align: center; text-transform: uppercase; background: #fff; }
         .att td { padding: 3px 3px; vertical-align: middle; height: 18px; }
+        .att tr.mark td { background: #ffe08a; }
         .sig { max-height: 36px; max-width: 140px; }
         .center { text-align: center; }
         .expositor { padding: 8px 4px 2px; text-align: center; line-height: 1.3; }
@@ -42,8 +43,13 @@
     };
     $acta = $induction->acta_number ?: str_pad((string) $induction->id, 6, '0', STR_PAD_LEFT);
     $rows = collect($attendees);
+    $highlighted = collect($highlightedDnis ?? [])
+        ->map(fn ($dni) => preg_replace('/\D+/', '', (string) $dni))
+        ->filter()
+        ->values();
     $minRows = 12;
     $blank = max(0, $minRows - $rows->count());
+    $digitsOf = static fn ($dni) => preg_replace('/\D+/', '', (string) $dni);
 @endphp
 
 <table class="bordered hdr">
@@ -174,7 +180,7 @@
     </thead>
     <tbody>
         @foreach ($rows as $row)
-            <tr>
+            <tr @if($highlighted->contains($digitsOf($row['dni'] ?? ''))) class="mark" @endif>
                 <td class="center">{{ $row['n'] }}</td>
                 <td class="center">{{ $row['dni'] ?: '—' }}</td>
                 <td class="center">{{ $row['area_cargo'] }}</td>
