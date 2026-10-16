@@ -1,7 +1,8 @@
 import { Head, useForm } from '@inertiajs/react';
-import { ChevronDown, Download, FileText, ScanSearch } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, Download, ScanSearch } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import InputError from '@/components/input-error';
+import { AppModal } from '@/components/shared/app-modal';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Spinner } from '@/components/ui/spinner';
@@ -39,6 +40,7 @@ type DriverRow = {
     provider: string;
     plate: string;
     inductions: InductionRow[];
+    missing: string[];
     badges: Badge[];
 };
 
@@ -48,9 +50,21 @@ type Summary = {
     missing: number;
     activities: number;
     unsigned: number;
+    lacking: number;
 };
 
-type FilterKey = 'all' | 'missing' | 'found' | 'unsigned';
+type FilterKey = 'all' | 'missing' | 'found' | 'unsigned' | 'lacking';
+
+type DownloadGroup = {
+    induction_id: number;
+    title: string;
+    activity_label: string;
+    date: string;
+    date_iso: string;
+    acta: string;
+    drivers: { dni: string; name: string }[];
+    include: Record<DocKind, boolean>;
+};
 
 type PageProps = {
     dnis: string;
@@ -69,7 +83,7 @@ const toneClass: Record<Tone, string> = {
 };
 
 const docLabels: Record<DocKind, string> = {
-    acta: 'Acta + formato',
+    acta: 'Acta',
     risst: 'RISST',
     ritran: 'RITRAN',
 };
@@ -93,10 +107,6 @@ function countDnis(raw: string): number {
     return seen.size;
 }
 
-function itemKey(dni: string, inductionId: number): string {
-    return `${dni.replace(/\D+/g, '')}:${inductionId}`;
-}
-
 function matches(row: DriverRow, filter: FilterKey): boolean {
     if (filter === 'missing') {
         return !row.found;
@@ -110,6 +120,10 @@ function matches(row: DriverRow, filter: FilterKey): boolean {
         return row.found && row.inductions.some((item) => !item.signed);
     }
 
+    if (filter === 'lacking') {
+        return (row.missing ?? []).length > 0;
+    }
+
     return true;
 }
 
@@ -121,6 +135,51 @@ function csrfToken(): string {
     return cookie ? decodeURIComponent(cookie.split('=').slice(1).join('=')) : '';
 }
 
+function buildGroups(rows: DriverRow[]): DownloadGroup[] {
+    const map = new Map<number, DownloadGroup>();
+
+    rows.forEach((row) => {
+        row.inductions.forEach((induction) => {
+            const current = map.get(induction.id);
+
+            if (current) {
+                if (!current.drivers.some((driver) => driver.dni === row.key)) {
+                    current.drivers.push({
+                        dni: row.key,
+                        name: row.driver_name || row.dni,
+                    });
+                }
+
+                return;
+            }
+
+            map.set(induction.id, {
+                induction_id: induction.id,
+                title: induction.title,
+                activity_label: induction.activity_label,
+                date: induction.date,
+                date_iso: induction.date_iso,
+                acta: induction.acta,
+                drivers: [
+                    {
+                        dni: row.key,
+                        name: row.driver_name || row.dni,
+                    },
+                ],
+                include: { acta: true, risst: false, ritran: false },
+            });
+        });
+    });
+
+    return [...map.values()].sort((left, right) => {
+        if (left.date_iso === right.date_iso) {
+            return left.title.localeCompare(right.title, 'es');
+        }
+
+        return right.date_iso.localeCompare(left.date_iso);
+    });
+}
+
 export default function DriverReportPage({
     dnis,
     rows,
@@ -130,54 +189,59 @@ export default function DriverReportPage({
     const form = useForm({ dnis });
     const [filter, setFilter] = useState<FilterKey>('all');
     const [openKey, setOpenKey] = useState<string | null>(null);
+    const [modalOpen, setModalOpen] = useState(false);
+    const [groups, setGroups] = useState<DownloadGroup[]>([]);
     const [exporting, setExporting] = useState(false);
     const [exportError, setExportError] = useState('');
-    const [docs, setDocs] = useState<Record<DocKind, boolean>>({
-        acta: true,
-        risst: true,
-        ritran: true,
-    });
-    const [selected, setSelected] = useState<Record<string, boolean>>({});
     const detected = countDnis(form.data.dnis);
     const visible = useMemo(
         () => rows.filter((row) => matches(row, filter)),
         [rows, filter],
     );
-    const include = (Object.keys(docs) as DocKind[]).filter((key) => docs[key]);
 
-    useEffect(() => {
-        const next: Record<string, boolean> = {};
+    const openModal = () => {
+        setExportError('');
+        setGroups(buildGroups(visible.filter((row) => row.found)));
+        setModalOpen(true);
+    };
 
-        rows.forEach((row) => {
-            row.inductions.forEach((induction) => {
-                next[itemKey(row.key, induction.id)] = true;
-            });
-        });
-
-        setSelected(next);
-    }, [rows]);
-
-    const itemsOf = (subset: DriverRow[]) =>
-        subset.flatMap((row) =>
-            row.inductions
-                .filter((induction) => selected[itemKey(row.key, induction.id)])
-                .map((induction) => ({
-                    dni: row.key,
-                    induction_id: induction.id,
-                })),
+    const toggleDoc = (inductionId: number, kind: DocKind, checked: boolean) => {
+        setGroups((current) =>
+            current.map((group) =>
+                group.induction_id === inductionId
+                    ? {
+                          ...group,
+                          include: { ...group.include, [kind]: checked },
+                      }
+                    : group,
+            ),
         );
+    };
 
-    const download = async (subset: DriverRow[], grouped: boolean) => {
-        const items = itemsOf(subset);
+    const setAllDoc = (kind: DocKind, checked: boolean) => {
+        setGroups((current) =>
+            current.map((group) => ({
+                ...group,
+                include: { ...group.include, [kind]: checked },
+            })),
+        );
+    };
+
+    const payload = groups
+        .map((group) => ({
+            induction_id: group.induction_id,
+            include: (Object.keys(group.include) as DocKind[]).filter(
+                (kind) => group.include[kind],
+            ),
+            dnis: group.drivers.map((driver) => driver.dni),
+        }))
+        .filter((group) => group.include.length > 0);
+
+    const download = async () => {
         setExportError('');
 
-        if (include.length === 0) {
-            setExportError('Marca acta, RISST o RITRAN.');
-            return;
-        }
-
-        if (items.length === 0) {
-            setExportError('Marca al menos una inducción.');
+        if (payload.length === 0) {
+            setExportError('Marca acta, RISST o RITRAN en al menos una actividad.');
             return;
         }
 
@@ -193,16 +257,14 @@ export default function DriverReportPage({
                     'X-XSRF-TOKEN': csrfToken(),
                     'X-Requested-With': 'XMLHttpRequest',
                 },
-                body: JSON.stringify({ include, items, grouped }),
+                body: JSON.stringify({ groups: payload }),
             });
 
             if (!response.ok) {
-                const payload = (await response.json().catch(() => null)) as {
+                const data = (await response.json().catch(() => null)) as {
                     message?: string;
                 } | null;
-                setExportError(
-                    payload?.message || 'No se pudo generar el archivo.',
-                );
+                setExportError(data?.message || 'No se pudo generar el archivo.');
                 return;
             }
 
@@ -218,6 +280,7 @@ export default function DriverReportPage({
                 : 'consulta-conductores.pdf';
             link.click();
             URL.revokeObjectURL(url);
+            setModalOpen(false);
         } catch {
             setExportError('No se pudo generar el archivo.');
         } finally {
@@ -243,23 +306,18 @@ export default function DriverReportPage({
                             Consulta de conductores
                         </h1>
                         <p className="mt-1 max-w-2xl text-sm text-[#5a7390]">
-                            Pega uno o varios DNI. Verás las inducciones,
-                            capacitaciones y demás actividades, y podrás
-                            descargar el acta (con formato), el RISST y el
-                            RITRAN de cada persona. Si varios DNI coinciden en
-                            la misma acta, el ZIP incluye una sola y resalta a
-                            esos conductores.
+                            Pega los DNI. Cada fila muestra lo que ya cubrió y
+                            lo que le falta. Un solo botón descarga el paquete.
                         </p>
                     </div>
                     <Button
                         type="button"
-                        variant="outline"
-                        disabled={rows.length === 0 || exporting}
-                        onClick={() => download(visible, visible.length > 1)}
-                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                        disabled={rows.every((row) => !row.found) || exporting}
+                        onClick={openModal}
+                        className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
                     >
-                        {exporting ? <Spinner /> : <Download className="size-4" />}
-                        Descargar ZIP
+                        <Download className="size-4" />
+                        Descargar
                     </Button>
                 </header>
 
@@ -269,7 +327,9 @@ export default function DriverReportPage({
                         event.preventDefault();
                         setFilter('all');
                         setOpenKey(null);
-                        form.post('/consulta-conductores', { preserveScroll: true });
+                        form.post('/consulta-conductores', {
+                            preserveScroll: true,
+                        });
                     }}
                 >
                     <label
@@ -284,34 +344,13 @@ export default function DriverReportPage({
                     <textarea
                         id="dnis"
                         value={form.data.dnis}
-                        onChange={(event) => form.setData('dnis', event.target.value)}
-                        rows={6}
+                        onChange={(event) =>
+                            form.setData('dnis', event.target.value)
+                        }
+                        rows={5}
                         placeholder={'17626115\n48142513\n72774363'}
                         className="mt-3 w-full resize-y rounded-xl border border-[#c5d5e6] bg-white px-3 py-2 font-mono text-sm text-[#1a2b4c] outline-none focus:border-[#2e5a9e] focus:ring-2 focus:ring-[#4a90e2]/35"
                     />
-                    <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-[#e2eaf3] pt-3">
-                        <p className="text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
-                            En el consolidado
-                        </p>
-                        {(Object.keys(docLabels) as DocKind[]).map((kind) => (
-                            <label
-                                key={kind}
-                                className="flex cursor-pointer items-center gap-2 text-sm text-[#1a2b4c]"
-                            >
-                                <Checkbox
-                                    checked={docs[kind]}
-                                    onCheckedChange={(checked) =>
-                                        setDocs((current) => ({
-                                            ...current,
-                                            [kind]: checked === true,
-                                        }))
-                                    }
-                                    className="border-[#c5d5e6] data-[state=checked]:border-[#2e5a9e] data-[state=checked]:bg-[#2e5a9e]"
-                                />
-                                {docLabels[kind]}
-                            </label>
-                        ))}
-                    </div>
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                         <p className="text-xs text-[#5a7390]">
                             {detected === 0
@@ -323,14 +362,15 @@ export default function DriverReportPage({
                             disabled={form.processing || detected === 0}
                             className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
                         >
-                            {form.processing ? <Spinner /> : <ScanSearch className="size-4" />}
+                            {form.processing ? (
+                                <Spinner />
+                            ) : (
+                                <ScanSearch className="size-4" />
+                            )}
                             Consultar
                         </Button>
                     </div>
                     <InputError message={form.errors.dnis} className="mt-2" />
-                    {exportError ? (
-                        <p className="mt-2 text-sm text-red-700">{exportError}</p>
-                    ) : null}
                     {truncated ? (
                         <p className="mt-2 text-sm text-amber-800">
                             Se consultaron los primeros 400 DNI.
@@ -339,7 +379,7 @@ export default function DriverReportPage({
                 </form>
 
                 {summary ? (
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                    <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
                         <FilterStat
                             label="Consultados"
                             value={summary.consulted}
@@ -359,6 +399,12 @@ export default function DriverReportPage({
                             onClick={() => setFilter('missing')}
                         />
                         <FilterStat
+                            label="Les falta"
+                            value={summary.lacking}
+                            active={filter === 'lacking'}
+                            onClick={() => setFilter('lacking')}
+                        />
+                        <FilterStat
                             label="Actividades"
                             value={summary.activities}
                             active={false}
@@ -373,9 +419,9 @@ export default function DriverReportPage({
                     </div>
                 ) : (
                     <p className="rounded-2xl border border-dashed border-[#d7e3f0] bg-white px-4 py-8 text-center text-sm text-[#5a7390]">
-                        El resultado queda en una fila por conductor. Abre el
-                        detalle para ver cada inducción y abrir o descargar sus
-                        PDFs.
+                        Consulta los DNI y luego descarga. Si varios coinciden
+                        en la misma acta, se genera una sola y se resalta a
+                        esas personas.
                     </p>
                 )}
 
@@ -403,7 +449,9 @@ export default function DriverReportPage({
                                             <p className="truncate text-sm text-[#5a7390]">
                                                 {row.driver_name || 'Sin nombre'}
                                                 {row.plate ? ` · ${row.plate}` : ''}
-                                                {row.provider ? ` · ${row.provider}` : ''}
+                                                {row.provider
+                                                    ? ` · ${row.provider}`
+                                                    : ''}
                                             </p>
                                         </div>
                                         <div className="mt-2 flex flex-wrap gap-1.5">
@@ -420,58 +468,149 @@ export default function DriverReportPage({
                                             ))}
                                         </div>
                                     </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {row.found ? (
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                disabled={exporting}
-                                                onClick={() => download([row], false)}
-                                                className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
-                                            >
-                                                <Download className="size-4" />
-                                                Este conductor
-                                            </Button>
-                                        ) : null}
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            aria-expanded={open}
-                                            onClick={() =>
-                                                setOpenKey(open ? null : row.key)
-                                            }
-                                            className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
-                                        >
-                                            {open ? 'Ocultar detalle' : 'Ver detalle'}
-                                            <ChevronDown
-                                                className={cn(
-                                                    'size-4 transition-transform',
-                                                    open && 'rotate-180',
-                                                )}
-                                            />
-                                        </Button>
-                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        aria-expanded={open}
+                                        onClick={() =>
+                                            setOpenKey(open ? null : row.key)
+                                        }
+                                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                                    >
+                                        {open ? 'Ocultar' : 'Detalle'}
+                                        <ChevronDown
+                                            className={cn(
+                                                'size-4 transition-transform',
+                                                open && 'rotate-180',
+                                            )}
+                                        />
+                                    </Button>
                                 </div>
 
                                 {open ? (
-                                    <Detail
-                                        row={row}
-                                        selected={selected}
-                                        onToggle={(inductionId, checked) =>
-                                            setSelected((current) => ({
-                                                ...current,
-                                                [itemKey(row.key, inductionId)]:
-                                                    checked,
-                                            }))
-                                        }
-                                        onOpen={openDoc}
-                                    />
+                                    <Detail row={row} onOpen={openDoc} />
                                 ) : null}
                             </article>
                         );
                     })}
                 </div>
             </div>
+
+            <AppModal
+                open={modalOpen}
+                onClose={() => {
+                    if (!exporting) {
+                        setModalOpen(false);
+                    }
+                }}
+                title="Descargar documentos"
+                description="Por actividad. Si varios DNI están en la misma acta, sale un solo PDF y se resalta a esas personas."
+                className="max-h-[min(92vh,56rem)] sm:max-w-2xl"
+                bodyClassName="max-h-[min(62vh,38rem)]"
+                footer={
+                    <>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={exporting}
+                            onClick={() => setModalOpen(false)}
+                            className="cursor-pointer"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            type="button"
+                            disabled={exporting || payload.length === 0}
+                            onClick={() => void download()}
+                            className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                        >
+                            {exporting ? <Spinner /> : <Download className="size-4" />}
+                            Descargar
+                        </Button>
+                    </>
+                }
+            >
+                <div className="mb-3 flex flex-wrap gap-2">
+                    {(Object.keys(docLabels) as DocKind[]).map((kind) => {
+                        const on = groups.length > 0 && groups.every((group) => group.include[kind]);
+
+                        return (
+                            <button
+                                key={kind}
+                                type="button"
+                                onClick={() => setAllDoc(kind, !on)}
+                                className={cn(
+                                    'cursor-pointer rounded-full border px-3 py-1 text-xs font-medium',
+                                    on
+                                        ? 'border-[#1a2b4c] bg-[#1a2b4c] text-white'
+                                        : 'border-[#d7e3f0] text-[#1a2b4c] hover:bg-[#f8fafc]',
+                                )}
+                            >
+                                {on ? 'Quitar' : 'Marcar'} {docLabels[kind]}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {exportError ? (
+                    <p className="mb-3 text-sm text-red-700">{exportError}</p>
+                ) : null}
+
+                {groups.length === 0 ? (
+                    <p className="text-sm text-[#5a7390]">
+                        No hay actividades para descargar.
+                    </p>
+                ) : (
+                    <ul className="space-y-2">
+                        {groups.map((group) => (
+                            <li
+                                key={group.induction_id}
+                                className="rounded-xl border border-[#e2eaf3] p-3"
+                            >
+                                <p className="text-sm font-medium text-[#1a2b4c]">
+                                    {group.title}
+                                </p>
+                                <p className="mt-0.5 text-xs text-[#5a7390]">
+                                    {group.activity_label}
+                                    {group.date ? ` · ${group.date}` : ''}
+                                    {group.acta ? ` · Acta ${group.acta}` : ''}
+                                </p>
+                                <p className="mt-1 text-xs text-[#2e5a9e]">
+                                    {group.drivers
+                                        .map((driver) => driver.name)
+                                        .join(' · ')}
+                                    {group.drivers.length > 1
+                                        ? ' · un acta, resaltados'
+                                        : ''}
+                                </p>
+                                <div className="mt-2 flex flex-wrap gap-4">
+                                    {(Object.keys(docLabels) as DocKind[]).map(
+                                        (kind) => (
+                                            <label
+                                                key={kind}
+                                                className="flex cursor-pointer items-center gap-2 text-sm text-[#1a2b4c]"
+                                            >
+                                                <Checkbox
+                                                    checked={group.include[kind]}
+                                                    onCheckedChange={(checked) =>
+                                                        toggleDoc(
+                                                            group.induction_id,
+                                                            kind,
+                                                            checked === true,
+                                                        )
+                                                    }
+                                                    className="border-[#c5d5e6] data-[state=checked]:border-[#2e5a9e] data-[state=checked]:bg-[#2e5a9e]"
+                                                />
+                                                {docLabels[kind]}
+                                            </label>
+                                        ),
+                                    )}
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </AppModal>
         </>
     );
 }
@@ -513,94 +652,87 @@ function FilterStat({
 
 function Detail({
     row,
-    selected,
-    onToggle,
     onOpen,
 }: {
     row: DriverRow;
-    selected: Record<string, boolean>;
-    onToggle: (inductionId: number, checked: boolean) => void;
     onOpen: (dni: string, inductionId: number, doc: DocKind) => void;
 }) {
-    if (!row.found) {
-        return (
-            <div className="border-t border-[#e2eaf3] px-4 py-4 text-sm text-[#5a7390]">
-                Este DNI no figura en inducciones, capacitaciones ni otras
-                actividades.
-            </div>
-        );
-    }
-
     return (
-        <div className="border-t border-[#e2eaf3] px-4 py-4">
-            <h3 className="text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
-                Actividades
-            </h3>
-            <ul className="mt-2 space-y-2">
-                {row.inductions.map((induction) => {
-                    const checked =
-                        selected[itemKey(row.key, induction.id)] !== false;
-
-                    return (
-                        <li
-                            key={induction.id}
-                            className="rounded-xl border border-[#e2eaf3] px-3 py-2"
-                        >
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                <label className="flex min-w-0 cursor-pointer items-start gap-2">
-                                    <Checkbox
-                                        checked={checked}
-                                        onCheckedChange={(state) =>
-                                            onToggle(induction.id, state === true)
-                                        }
-                                        className="mt-0.5 border-[#c5d5e6] data-[state=checked]:border-[#2e5a9e] data-[state=checked]:bg-[#2e5a9e]"
-                                    />
-                                    <span>
-                                        <span className="block text-sm font-medium text-[#1a2b4c]">
-                                            {induction.title}
-                                        </span>
-                                        <span className="mt-0.5 block text-xs text-[#5a7390]">
-                                            {induction.activity_label || 'Actividad'}
-                                            {induction.date
-                                                ? ` · ${induction.date}`
-                                                : ''}
-                                            {induction.acta
-                                                ? ` · Acta ${induction.acta}`
-                                                : ''}
-                                            {` · ${induction.status}`}
-                                            {` · ${induction.attendance}`}
-                                            {induction.signed
-                                                ? ' · Firmó'
-                                                : ' · Sin firma'}
-                                            {induction.location
-                                                ? ` · ${induction.location}`
-                                                : ''}
-                                        </span>
-                                    </span>
-                                </label>
-                                <div className="flex flex-wrap gap-1.5 sm:justify-end">
+        <div className="grid gap-4 border-t border-[#e2eaf3] px-4 py-4 lg:grid-cols-2">
+            <section>
+                <h3 className="text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
+                    Cubiertas
+                </h3>
+                {row.inductions.length === 0 ? (
+                    <p className="mt-2 text-sm text-[#5a7390]">
+                        Sin inducciones ni capacitaciones.
+                    </p>
+                ) : (
+                    <ul className="mt-2 space-y-2">
+                        {row.inductions.map((induction) => (
+                            <li
+                                key={induction.id}
+                                className="rounded-xl border border-[#e2eaf3] px-3 py-2"
+                            >
+                                <p className="text-sm font-medium text-[#1a2b4c]">
+                                    {induction.title}
+                                </p>
+                                <p className="mt-0.5 text-xs text-[#5a7390]">
+                                    {induction.activity_label}
+                                    {induction.date ? ` · ${induction.date}` : ''}
+                                    {induction.acta
+                                        ? ` · Acta ${induction.acta}`
+                                        : ''}
+                                    {` · ${induction.status}`}
+                                    {induction.signed ? ' · Firmó' : ' · Sin firma'}
+                                </p>
+                                <div className="mt-1.5 flex flex-wrap gap-2 text-xs">
                                     {(Object.keys(docLabels) as DocKind[]).map(
                                         (doc) => (
-                                            <Button
+                                            <button
                                                 key={doc}
                                                 type="button"
-                                                variant="outline"
                                                 onClick={() =>
-                                                    onOpen(row.key, induction.id, doc)
+                                                    onOpen(
+                                                        row.key,
+                                                        induction.id,
+                                                        doc,
+                                                    )
                                                 }
-                                                className="h-8 cursor-pointer border-[#c5d5e6] px-2 text-xs text-[#1a2b4c]"
+                                                className="cursor-pointer font-medium text-[#2e5a9e] underline-offset-2 hover:underline"
                                             >
-                                                <FileText className="size-3.5" />
-                                                Ver {doc === 'acta' ? 'acta' : doc.toUpperCase()}
-                                            </Button>
+                                                Ver {docLabels[doc]}
+                                            </button>
                                         ),
                                     )}
                                 </div>
-                            </div>
-                        </li>
-                    );
-                })}
-            </ul>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </section>
+            <section>
+                <h3 className="text-xs font-semibold tracking-wide text-[#b91c1c] uppercase">
+                    Les falta
+                </h3>
+                {(row.missing ?? []).length === 0 ? (
+                    <p className="mt-2 text-sm text-[#5a7390]">
+                        En este grupo no le falta una actividad que los demás
+                        sí tienen.
+                    </p>
+                ) : (
+                    <ul className="mt-2 flex flex-wrap gap-1.5">
+                        {row.missing.map((item) => (
+                            <li
+                                key={item}
+                                className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700"
+                            >
+                                {item}
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </section>
         </div>
     );
 }

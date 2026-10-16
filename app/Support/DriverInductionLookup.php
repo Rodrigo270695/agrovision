@@ -45,6 +45,8 @@ final class DriverInductionLookup
             );
         }
 
+        $rows = $this->withMissing($rows);
+
         return [
             'rows' => $rows,
             'summary' => $this->summary($rows),
@@ -166,18 +168,73 @@ final class DriverInductionLookup
             'provider' => $first?->provider ?: ($unit?->provider ?: ''),
             'plate' => $first?->plate_number ?: ($unit?->plate_number ?: ''),
             'inductions' => $inductions,
-            'badges' => $this->badges($inductions, $found && $inductions !== []),
+            'missing' => [],
+            'badges' => $this->badges($inductions, $found && $inductions !== [], []),
         ];
     }
 
     /**
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function withMissing(array $rows): array
+    {
+        $activityCatalog = collect($rows)
+            ->flatMap(fn (array $row) => collect($row['inductions'])->pluck('activity'))
+            ->filter()
+            ->unique()
+            ->values();
+        $titleCatalog = collect($rows)
+            ->flatMap(fn (array $row) => collect($row['inductions'])->pluck('title'))
+            ->map(fn ($title) => trim((string) $title))
+            ->filter()
+            ->unique(fn (string $title) => mb_strtolower($title))
+            ->values();
+
+        foreach ($rows as $index => $row) {
+            $haveActivities = collect($row['inductions'])->pluck('activity');
+            $haveTitles = collect($row['inductions'])
+                ->pluck('title')
+                ->map(fn ($title) => mb_strtolower(trim((string) $title)));
+
+            $missing = $activityCatalog
+                ->reject(fn (string $activity) => $haveActivities->contains($activity))
+                ->map(fn (string $activity) => InductionFormOptions::activities()[$activity] ?? $activity)
+                ->merge(
+                    $titleCatalog->reject(
+                        fn (string $title) => $haveTitles->contains(mb_strtolower($title)),
+                    ),
+                )
+                ->unique()
+                ->values()
+                ->all();
+
+            $rows[$index]['missing'] = $missing;
+            $rows[$index]['badges'] = $this->badges(
+                $row['inductions'],
+                (bool) $row['found'],
+                $missing,
+            );
+        }
+
+        return $rows;
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $inductions
+     * @param  list<string>  $missing
      * @return list<array{label: string, tone: string}>
      */
-    private function badges(array $inductions, bool $found): array
+    private function badges(array $inductions, bool $found, array $missing): array
     {
         if (! $found) {
-            return [['label' => 'Sin inducciones', 'tone' => 'muted']];
+            $badges = [['label' => 'Sin actividades', 'tone' => 'muted']];
+
+            foreach (array_slice($missing, 0, 3) as $label) {
+                $badges[] = ['label' => 'Falta '.$label, 'tone' => 'bad'];
+            }
+
+            return $badges;
         }
 
         $count = count($inductions);
@@ -203,6 +260,15 @@ final class DriverInductionLookup
             $badges[] = ['label' => (string) $label, 'tone' => 'info'];
         }
 
+        if ($missing !== []) {
+            $preview = array_slice($missing, 0, 2);
+            $extra = count($missing) - count($preview);
+            $badges[] = [
+                'label' => 'Falta '.implode(', ', $preview).($extra > 0 ? ' +'.$extra : ''),
+                'tone' => 'bad',
+            ];
+        }
+
         return $badges;
     }
 
@@ -216,6 +282,10 @@ final class DriverInductionLookup
         $summary['consulted'] = count($rows);
 
         foreach ($rows as $row) {
+            if (($row['missing'] ?? []) !== []) {
+                $summary['lacking']++;
+            }
+
             if (! $row['found']) {
                 $summary['missing']++;
 
@@ -245,6 +315,7 @@ final class DriverInductionLookup
             'missing' => 0,
             'activities' => 0,
             'unsigned' => 0,
+            'lacking' => 0,
         ];
     }
 }

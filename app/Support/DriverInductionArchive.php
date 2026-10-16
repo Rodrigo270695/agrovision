@@ -13,15 +13,14 @@ use ZipArchive;
 final class DriverInductionArchive
 {
     /**
-     * @param  list<array{dni: string, induction_id: int}>  $items
-     * @param  list<string>  $include
+     * @param  list<array{induction_id: int, include: list<string>, dnis: list<string>}>  $groups
      */
-    public function respond(array $items, array $include, bool $grouped): Response|BinaryFileResponse|JsonResponse
+    public function respond(array $groups): Response|BinaryFileResponse|JsonResponse
     {
         @set_time_limit(300);
         @ini_set('memory_limit', '1024M');
 
-        $files = $this->files($items, $include, $grouped);
+        $files = $this->filesFromGroups($groups);
 
         if ($files === []) {
             return response()->json([
@@ -78,9 +77,13 @@ final class DriverInductionArchive
         @set_time_limit(180);
         @ini_set('memory_limit', '1024M');
 
-        $files = $this->files([
-            ['dni' => $dni, 'induction_id' => $inductionId],
-        ], [$doc], false);
+        $files = $this->filesFromGroups([
+            [
+                'induction_id' => $inductionId,
+                'include' => [$doc],
+                'dnis' => [$dni],
+            ],
+        ]);
 
         if ($files === []) {
             return response()->json([
@@ -96,99 +99,82 @@ final class DriverInductionArchive
     }
 
     /**
-     * @param  list<array{dni: string, induction_id: int}>  $items
-     * @param  list<string>  $include
+     * @param  list<array{induction_id: int, include: list<string>, dnis: list<string>}>  $groups
      * @return list<array{path: string, binary: string}>
      */
-    private function files(array $items, array $include, bool $grouped): array
+    private function filesFromGroups(array $groups): array
     {
-        $include = array_values(array_intersect($include, ['acta', 'risst', 'ritran']));
+        $inductionIds = [];
 
-        if ($include === [] || $items === []) {
-            return [];
-        }
+        foreach ($groups as $group) {
+            $id = (int) ($group['induction_id'] ?? 0);
 
-        $pairs = [];
-
-        foreach ($items as $item) {
-            $dni = InductionDocumentPackage::digits($item['dni'] ?? '');
-            $inductionId = (int) ($item['induction_id'] ?? 0);
-
-            if ($dni === '' || $inductionId < 1) {
-                continue;
+            if ($id > 0) {
+                $inductionIds[] = $id;
             }
-
-            $pairs[] = ['dni' => $dni, 'induction_id' => $inductionId];
         }
 
-        if ($pairs === []) {
+        $inductionIds = array_values(array_unique($inductionIds));
+
+        if ($inductionIds === []) {
             return [];
         }
 
-        $inductionIds = array_values(array_unique(array_column($pairs, 'induction_id')));
-        $dnis = array_values(array_unique(array_column($pairs, 'dni')));
         $inductions = Induction::query()
             ->with(['attendees' => fn ($q) => $q->orderBy('driver_name'), 'period'])
             ->whereIn('id', $inductionIds)
             ->get()
             ->keyBy('id');
 
-        $highlightByInduction = [];
-
-        foreach ($pairs as $pair) {
-            $highlightByInduction[$pair['induction_id']][$pair['dni']] = $pair['dni'];
-        }
-
-        $actas = [];
         $files = [];
-        $seenReceipt = [];
 
-        foreach ($pairs as $pair) {
-            $induction = $inductions->get($pair['induction_id']);
+        foreach ($groups as $group) {
+            $induction = $inductions->get((int) ($group['induction_id'] ?? 0));
+            $include = array_values(array_intersect($group['include'] ?? [], ['acta', 'risst', 'ritran']));
+            $dnis = collect($group['dnis'] ?? [])
+                ->map(fn ($dni) => InductionDocumentPackage::digits((string) $dni))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
 
-            if (! $induction instanceof Induction) {
+            if (! $induction instanceof Induction || $include === [] || $dnis === []) {
                 continue;
             }
 
-            $attendee = $induction->attendees->first(
-                fn (InductionAttendee $row) => InductionDocumentPackage::digits($row->driver_dni) === $pair['dni'],
-            );
+            $folder = $this->inductionFolder($induction);
+            $attendees = $induction->attendees
+                ->filter(fn (InductionAttendee $row) => in_array(
+                    InductionDocumentPackage::digits($row->driver_dni),
+                    $dnis,
+                    true,
+                ))
+                ->values();
 
-            if ($attendee === null) {
+            if ($attendees->isEmpty()) {
                 continue;
             }
 
-            $folder = $this->driverFolder($attendee).'/'.$this->inductionFolder($induction);
-
-            if (in_array('acta', $include, true) && ! isset($actas[$induction->id])) {
-                $highlight = array_values($highlightByInduction[$induction->id] ?? [$pair['dni']]);
-                $binary = InductionDocumentPackage::actaBinary($induction, $highlight);
-                $actaName = $this->actaFilename($induction);
-                $actas[$induction->id] = true;
+            if (in_array('acta', $include, true)) {
                 $files[] = [
-                    'path' => $grouped
-                        ? 'Actas/'.$actaName
-                        : $folder.'/'.$actaName,
-                    'binary' => $binary,
+                    'path' => $folder.'/'.$this->actaFilename($induction),
+                    'binary' => InductionDocumentPackage::actaBinary($induction, $dnis),
                 ];
             }
 
-            foreach (['risst' => 'RISST', 'ritran' => 'RITRAN'] as $kind => $label) {
-                if (! in_array($kind, $include, true)) {
-                    continue;
+            foreach ($attendees as $attendee) {
+                $person = $this->driverFolder($attendee);
+
+                foreach (['risst' => 'RISST', 'ritran' => 'RITRAN'] as $kind => $label) {
+                    if (! in_array($kind, $include, true)) {
+                        continue;
+                    }
+
+                    $files[] = [
+                        'path' => $folder.'/'.$person.'/'.$label.'.pdf',
+                        'binary' => InductionDocumentPackage::receiptBinary($induction, $kind, [$attendee]),
+                    ];
                 }
-
-                $receiptKey = $kind.'-'.$attendee->id;
-
-                if (isset($seenReceipt[$receiptKey])) {
-                    continue;
-                }
-
-                $seenReceipt[$receiptKey] = true;
-                $files[] = [
-                    'path' => $folder.'/'.$label.'.pdf',
-                    'binary' => InductionDocumentPackage::receiptBinary($induction, $kind, [$attendee]),
-                ];
             }
         }
 

@@ -64,25 +64,18 @@ class DriverInductionReportController extends Controller
     public function archive(Request $request, DriverInductionArchive $archive): HttpResponse|BinaryFileResponse|JsonResponse
     {
         $validated = $request->validate([
-            'include' => ['required', 'array', 'min:1'],
-            'include.*' => ['in:acta,risst,ritran'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.dni' => ['required', 'string', 'max:32'],
-            'items.*.induction_id' => ['required', 'integer', 'min:1'],
-            'grouped' => ['sometimes', 'boolean'],
+            'groups' => ['required', 'array', 'min:1'],
+            'groups.*.induction_id' => ['required', 'integer', 'min:1'],
+            'groups.*.include' => ['required', 'array', 'min:1'],
+            'groups.*.include.*' => ['in:acta,risst,ritran'],
+            'groups.*.dnis' => ['required', 'array', 'min:1'],
+            'groups.*.dnis.*' => ['required', 'string', 'max:32'],
         ], [
-            'include.required' => 'Marca acta, RISST o RITRAN.',
-            'items.required' => 'Marca al menos una inducción.',
+            'groups.required' => 'Marca al menos una inducción.',
         ]);
 
-        $dnis = collect($validated['items'])->pluck('dni')->unique()->count();
-
         try {
-            return $archive->respond(
-                $validated['items'],
-                $validated['include'],
-                (bool) ($validated['grouped'] ?? $dnis > 1),
-            );
+            return $archive->respond($validated['groups']);
         } catch (\Throwable $e) {
             report($e);
 
