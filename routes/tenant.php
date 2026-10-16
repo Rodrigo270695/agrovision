@@ -288,6 +288,10 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:inductions.view')
             ->name('driver-induction-report.archive');
 
+        Route::post('consulta-conductores/excel', [DriverInductionReportController::class, 'excel'])
+            ->middleware('permission:inductions.view')
+            ->name('driver-induction-report.excel');
+
         Route::get('inspecciones/dia', [ChecklistController::class, 'day'])
             ->middleware('permission:checklists.create')
             ->name('checklists.day');

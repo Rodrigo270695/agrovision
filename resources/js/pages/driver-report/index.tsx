@@ -1,5 +1,5 @@
 import { Head, useForm } from '@inertiajs/react';
-import { ChevronDown, Download, ScanSearch } from 'lucide-react';
+import { ChevronDown, Download, FileSpreadsheet, ScanSearch } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import InputError from '@/components/input-error';
 import { AppModal } from '@/components/shared/app-modal';
@@ -201,6 +201,7 @@ export default function DriverReportPage({
     const [modalOpen, setModalOpen] = useState(false);
     const [groups, setGroups] = useState<DownloadGroup[]>([]);
     const [exporting, setExporting] = useState(false);
+    const [excelLoading, setExcelLoading] = useState(false);
     const [exportError, setExportError] = useState('');
     const detected = countDnis(form.data.dnis);
     const visible = useMemo(
@@ -315,6 +316,42 @@ export default function DriverReportPage({
         }
     };
 
+    const downloadExcel = async () => {
+        setExportError('');
+        setExcelLoading(true);
+
+        try {
+            const response = await fetch('/consulta-conductores/excel', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'X-XSRF-TOKEN': csrfToken(),
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({ dnis: form.data.dnis }),
+            });
+
+            if (!response.ok) {
+                setExportError('No se pudo generar el Excel.');
+                return;
+            }
+
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'consulta-conductores.xlsx';
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch {
+            setExportError('No se pudo generar el Excel.');
+        } finally {
+            setExcelLoading(false);
+        }
+    };
+
     const openDoc = (dni: string, inductionId: number, doc: DocKind) => {
         window.open(
             `/consulta-conductores/documento?dni=${encodeURIComponent(dni)}&induction_id=${inductionId}&doc=${doc}`,
@@ -337,15 +374,33 @@ export default function DriverReportPage({
                             lo que le falta. Un solo botón descarga el paquete.
                         </p>
                     </div>
-                    <Button
-                        type="button"
-                        disabled={rows.every((row) => !row.found) || exporting}
-                        onClick={openModal}
-                        className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
-                    >
-                        <Download className="size-4" />
-                        Descargar
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={rows.length === 0 || excelLoading}
+                            onClick={() => void downloadExcel()}
+                            className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                        >
+                            {excelLoading ? (
+                                <Spinner />
+                            ) : (
+                                <FileSpreadsheet className="size-4" />
+                            )}
+                            Excel
+                        </Button>
+                        <Button
+                            type="button"
+                            disabled={
+                                rows.every((row) => !row.found) || exporting
+                            }
+                            onClick={openModal}
+                            className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                        >
+                            <Download className="size-4" />
+                            Descargar
+                        </Button>
+                    </div>
                 </header>
 
                 <form

@@ -18,8 +18,9 @@ final class InductionReportExporter
     /**
      * @param  Collection<int, Induction>  $inductions
      * @param  Collection<int, Unit>  $units
+     * @param  list<string>  $onlyDnis  DNI en dígitos; si viene, el Excel solo trae esas filas y en ese orden.
      */
-    public function download(Collection $inductions, Collection $units): StreamedResponse
+    public function download(Collection $inductions, Collection $units, array $onlyDnis = []): StreamedResponse
     {
         $spreadsheet = new Spreadsheet;
         $spreadsheet->getProperties()
@@ -27,7 +28,7 @@ final class InductionReportExporter
             ->setTitle('Reporte de capacitación')
             ->setSubject('Cumplimiento de capacitaciones por conductor');
 
-        $this->writeMatrix($spreadsheet->getActiveSheet(), $inductions, $units);
+        $this->writeMatrix($spreadsheet->getActiveSheet(), $inductions, $units, $onlyDnis);
 
         $filename = 'capacitacion_reporte_'.now()->timezone(config('app.timezone'))->format('Ymd_His').'.xlsx';
 
@@ -43,14 +44,21 @@ final class InductionReportExporter
     /**
      * @param  Collection<int, Induction>  $inductions
      * @param  Collection<int, Unit>  $units
+     * @param  list<string>  $onlyDnis
      */
-    private function writeMatrix(Worksheet $sheet, Collection $inductions, Collection $units): void
+    private function writeMatrix(Worksheet $sheet, Collection $inductions, Collection $units, array $onlyDnis = []): void
     {
         $sheet->setTitle('Capacitaciones');
 
         $topics = $this->topics($inductions);
         $attended = $this->attendance($inductions);
-        $drivers = $this->drivers($units)->sortBy('name')->values();
+        $drivers = $this->drivers($units);
+
+        if ($onlyDnis !== []) {
+            $drivers = $this->onlyDrivers($drivers, $onlyDnis, $inductions);
+        } else {
+            $drivers = $drivers->sortBy('name')->values();
+        }
 
         $headers = [
             'N°',
@@ -249,6 +257,75 @@ final class InductionReportExporter
         }
 
         return $drivers;
+    }
+
+    /**
+     * @param  Collection<string, array<string, mixed>>  $drivers
+     * @param  list<string>  $onlyDnis
+     * @param  Collection<int, Induction>  $inductions
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function onlyDrivers(Collection $drivers, array $onlyDnis, Collection $inductions): Collection
+    {
+        $byDigits = collect();
+
+        foreach ($drivers as $driver) {
+            $digits = preg_replace('/\D+/', '', (string) $driver['dni']) ?: '';
+
+            if ($digits !== '') {
+                $byDigits->put($digits, $driver);
+            }
+        }
+
+        $fromAttendees = [];
+
+        foreach ($inductions as $induction) {
+            foreach ($induction->attendees as $attendee) {
+                $digits = preg_replace('/\D+/', '', (string) $attendee->driver_dni) ?: '';
+
+                if ($digits === '' || isset($fromAttendees[$digits])) {
+                    continue;
+                }
+
+                $fromAttendees[$digits] = [
+                    'key' => 'd:'.$digits,
+                    'name' => trim((string) $attendee->driver_name),
+                    'dni' => trim((string) $attendee->driver_dni),
+                    'plate' => trim((string) $attendee->plate_number),
+                    'provider' => trim((string) $attendee->provider),
+                    'coordinator' => '',
+                    'sede' => '',
+                    'ingreso' => '',
+                    'fecha' => '',
+                    'status' => 'ACTIVO',
+                    'stamp' => 0,
+                    'ingreso_stamp' => 0,
+                ];
+            }
+        }
+
+        $rows = collect();
+
+        foreach ($onlyDnis as $digits) {
+            $driver = $byDigits->get($digits) ?? $fromAttendees[$digits] ?? [
+                'key' => 'd:'.$digits,
+                'name' => '',
+                'dni' => $digits,
+                'plate' => '',
+                'provider' => '',
+                'coordinator' => '',
+                'sede' => '',
+                'ingreso' => '',
+                'fecha' => '',
+                'status' => 'INACTIVO',
+                'stamp' => 0,
+                'ingreso_stamp' => 0,
+            ];
+            $driver['key'] = 'd:'.$digits;
+            $rows->push($driver);
+        }
+
+        return $rows->values();
     }
 
     private function sede(Unit $unit): string

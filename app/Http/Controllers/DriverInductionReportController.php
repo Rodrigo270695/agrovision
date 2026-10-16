@@ -2,14 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Induction;
+use App\Models\Unit;
 use App\Support\DriverInductionArchive;
 use App\Support\DriverInductionLookup;
+use App\Support\InductionReportExporter;
+use App\Support\InductionStatuses;
+use App\Support\SystemRoles;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DriverInductionReportController extends Controller
 {
@@ -59,6 +66,43 @@ class DriverInductionReportController extends Controller
                 'message' => mb_substr($e->getMessage(), 0, 180),
             ], 500);
         }
+    }
+
+    public function excel(
+        Request $request,
+        DriverInductionLookup $lookup,
+        InductionReportExporter $exporter,
+    ): StreamedResponse {
+        $digits = array_column($lookup->parse($this->dnis($request)), 'key');
+
+        $units = Unit::query()
+            ->with([
+                'period:id,date,status',
+                'coordinatorUser:id,name',
+                'coordinatorUser.places.site:id,name',
+            ]);
+
+        if ($digits !== []) {
+            $placeholders = implode(', ', array_fill(0, count($digits), '?'));
+            $units->whereRaw(
+                "regexp_replace(coalesce(driver_dni, ''), '[^0-9]', '', 'g') in ({$placeholders})",
+                $digits,
+            );
+        } else {
+            $units->whereRaw('1 = 0');
+        }
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $units->where('coordinator_id', Auth::id());
+        }
+
+        $inductions = Induction::query()
+            ->with('attendees')
+            ->where('status', '!=', InductionStatuses::CANCELLED)
+            ->orderBy('scheduled_at')
+            ->get();
+
+        return $exporter->download($inductions, $units->get(), $digits);
     }
 
     public function archive(Request $request, DriverInductionArchive $archive): HttpResponse|BinaryFileResponse|JsonResponse
