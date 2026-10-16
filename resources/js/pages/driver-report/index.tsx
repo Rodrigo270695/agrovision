@@ -30,6 +30,7 @@ type InductionRow = {
     signed: boolean;
     location: string;
     closed: boolean;
+    allows_receipts: boolean;
 };
 
 type DriverRow = {
@@ -63,6 +64,7 @@ type DownloadGroup = {
     date_iso: string;
     acta: string;
     drivers: { dni: string; name: string }[];
+    allows_receipts: boolean;
     include: Record<DocKind, boolean>;
 };
 
@@ -166,7 +168,14 @@ function buildGroups(rows: DriverRow[]): DownloadGroup[] {
                         name: row.driver_name || row.dni,
                     },
                 ],
-                include: { acta: true, risst: false, ritran: false },
+                allows_receipts:
+                    induction.allows_receipts ??
+                    induction.activity === 'induccion',
+                include: {
+                    acta: true,
+                    risst: false,
+                    ritran: false,
+                },
             });
         });
     });
@@ -207,23 +216,41 @@ export default function DriverReportPage({
 
     const toggleDoc = (inductionId: number, kind: DocKind, checked: boolean) => {
         setGroups((current) =>
-            current.map((group) =>
-                group.induction_id === inductionId
-                    ? {
-                          ...group,
-                          include: { ...group.include, [kind]: checked },
-                      }
-                    : group,
-            ),
+            current.map((group) => {
+                if (group.induction_id !== inductionId) {
+                    return group;
+                }
+
+                if (
+                    (kind === 'risst' || kind === 'ritran') &&
+                    !group.allows_receipts
+                ) {
+                    return group;
+                }
+
+                return {
+                    ...group,
+                    include: { ...group.include, [kind]: checked },
+                };
+            }),
         );
     };
 
     const setAllDoc = (kind: DocKind, checked: boolean) => {
         setGroups((current) =>
-            current.map((group) => ({
-                ...group,
-                include: { ...group.include, [kind]: checked },
-            })),
+            current.map((group) => {
+                if (
+                    (kind === 'risst' || kind === 'ritran') &&
+                    !group.allows_receipts
+                ) {
+                    return group;
+                }
+
+                return {
+                    ...group,
+                    include: { ...group.include, [kind]: checked },
+                };
+            }),
         );
     };
 
@@ -504,7 +531,7 @@ export default function DriverReportPage({
                     }
                 }}
                 title="Descargar documentos"
-                description="Lo marcado se une en un PDF por persona y actividad: acta + formato + foto de evidencia, y debajo RISST y RITRAN. Si varios coinciden en el acta, se resalta a esas personas."
+                description="Lo marcado se une en un PDF. RISST y RITRAN solo en inducciones. Capacitaciones y el resto llevan acta, formato y foto."
                 className="max-h-[min(92vh,56rem)] sm:max-w-2xl"
                 bodyClassName="max-h-[min(62vh,38rem)]"
                 footer={
@@ -532,7 +559,18 @@ export default function DriverReportPage({
             >
                 <div className="mb-3 flex flex-wrap gap-2">
                     {(Object.keys(docLabels) as DocKind[]).map((kind) => {
-                        const on = groups.length > 0 && groups.every((group) => group.include[kind]);
+                        const targets =
+                            kind === 'acta'
+                                ? groups
+                                : groups.filter((group) => group.allows_receipts);
+
+                        if (kind !== 'acta' && targets.length === 0) {
+                            return null;
+                        }
+
+                        const on =
+                            targets.length > 0 &&
+                            targets.every((group) => group.include[kind]);
 
                         return (
                             <button
@@ -584,27 +622,32 @@ export default function DriverReportPage({
                                         : ''}
                                 </p>
                                 <div className="mt-2 flex flex-wrap gap-4">
-                                    {(Object.keys(docLabels) as DocKind[]).map(
-                                        (kind) => (
-                                            <label
-                                                key={kind}
-                                                className="flex cursor-pointer items-center gap-2 text-sm text-[#1a2b4c]"
-                                            >
-                                                <Checkbox
-                                                    checked={group.include[kind]}
-                                                    onCheckedChange={(checked) =>
-                                                        toggleDoc(
-                                                            group.induction_id,
-                                                            kind,
-                                                            checked === true,
-                                                        )
-                                                    }
-                                                    className="border-[#c5d5e6] data-[state=checked]:border-[#2e5a9e] data-[state=checked]:bg-[#2e5a9e]"
-                                                />
-                                                {docLabels[kind]}
-                                            </label>
-                                        ),
-                                    )}
+                                    {(
+                                        [
+                                            'acta',
+                                            ...(group.allows_receipts
+                                                ? (['risst', 'ritran'] as const)
+                                                : []),
+                                        ] as DocKind[]
+                                    ).map((kind) => (
+                                        <label
+                                            key={kind}
+                                            className="flex cursor-pointer items-center gap-2 text-sm text-[#1a2b4c]"
+                                        >
+                                            <Checkbox
+                                                checked={group.include[kind]}
+                                                onCheckedChange={(checked) =>
+                                                    toggleDoc(
+                                                        group.induction_id,
+                                                        kind,
+                                                        checked === true,
+                                                    )
+                                                }
+                                                className="border-[#c5d5e6] data-[state=checked]:border-[#2e5a9e] data-[state=checked]:bg-[#2e5a9e]"
+                                            />
+                                            {docLabels[kind]}
+                                        </label>
+                                    ))}
                                 </div>
                             </li>
                         ))}
@@ -687,24 +730,29 @@ function Detail({
                                     {induction.signed ? ' · Firmó' : ' · Sin firma'}
                                 </p>
                                 <div className="mt-1.5 flex flex-wrap gap-2 text-xs">
-                                    {(Object.keys(docLabels) as DocKind[]).map(
-                                        (doc) => (
-                                            <button
-                                                key={doc}
-                                                type="button"
-                                                onClick={() =>
-                                                    onOpen(
-                                                        row.key,
-                                                        induction.id,
-                                                        doc,
-                                                    )
-                                                }
-                                                className="cursor-pointer font-medium text-[#2e5a9e] underline-offset-2 hover:underline"
-                                            >
-                                                Ver {docLabels[doc]}
-                                            </button>
-                                        ),
-                                    )}
+                                    {(
+                                        [
+                                            'acta',
+                                            ...(induction.allows_receipts
+                                                ? (['risst', 'ritran'] as const)
+                                                : []),
+                                        ] as DocKind[]
+                                    ).map((doc) => (
+                                        <button
+                                            key={doc}
+                                            type="button"
+                                            onClick={() =>
+                                                onOpen(
+                                                    row.key,
+                                                    induction.id,
+                                                    doc,
+                                                )
+                                            }
+                                            className="cursor-pointer font-medium text-[#2e5a9e] underline-offset-2 hover:underline"
+                                        >
+                                            Ver {docLabels[doc]}
+                                        </button>
+                                    ))}
                                 </div>
                             </li>
                         ))}

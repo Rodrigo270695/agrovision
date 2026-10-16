@@ -155,6 +155,7 @@ final class DriverInductionLookup
                 'signed' => $attendee->isSigned(),
                 'location' => $induction->location ?: ($induction->sede ?: ''),
                 'closed' => $induction->status === InductionStatuses::CLOSED,
+                'allows_receipts' => $activity === 'induccion',
             ];
         }
 

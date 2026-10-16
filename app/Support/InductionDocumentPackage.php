@@ -48,7 +48,7 @@ final class InductionDocumentPackage
         @set_time_limit(300);
         @ini_set('memory_limit', '1024M');
 
-        $binary = self::actaBinary($induction);
+        $binary = self::consolidadoBinary($induction);
         self::resetCaches();
         $disk->put($pdfPath, $binary);
         $disk->put($stampPath, $stamp);
@@ -56,14 +56,52 @@ final class InductionDocumentPackage
         return self::pdfResponse($binary, $induction);
     }
 
+    public static function allowsReceipts(Induction $induction): bool
+    {
+        return (string) $induction->activity === 'induccion';
+    }
+
     /**
-     * Acta SST + formato + foto de evidencia. Si hay DNI, esas filas salen resaltadas.
-     *
-     * @param  list<string>  $highlightDnis
+     * @param  list<string>  $include
+     * @return list<string>
      */
+    public static function filterInclude(Induction $induction, array $include): array
+    {
+        $include = array_values(array_intersect($include, ['acta', 'risst', 'ritran']));
+
+        if (self::allowsReceipts($induction)) {
+            return $include;
+        }
+
+        return array_values(array_filter($include, fn (string $kind) => $kind === 'acta'));
+    }
+
     public static function actaBinary(Induction $induction, array $highlightDnis = []): string
     {
         return self::merge(self::actaParts($induction, $highlightDnis));
+    }
+
+    public static function consolidadoBinary(Induction $induction): string
+    {
+        $parts = self::actaParts($induction);
+
+        if (self::allowsReceipts($induction)) {
+            $attended = $induction->attendees
+                ->filter(fn (InductionAttendee $attendee) => $attendee->status === InductionAttendeeStatuses::ATTENDED
+                    && $attendee->isSigned())
+                ->sortBy(fn (InductionAttendee $attendee) => mb_strtoupper(trim((string) $attendee->driver_name)), SORT_NATURAL)
+                ->values();
+
+            foreach ($attended->chunk(5) as $chunk) {
+                $parts[] = self::receiptBinary($induction, 'risst', $chunk);
+            }
+
+            foreach ($attended->chunk(5) as $chunk) {
+                $parts[] = self::receiptBinary($induction, 'ritran', $chunk);
+            }
+        }
+
+        return self::merge($parts);
     }
 
     /**
@@ -79,7 +117,7 @@ final class InductionDocumentPackage
         array $highlightDnis,
         iterable $receiptAttendees = [],
     ): string {
-        $include = array_values(array_intersect($include, ['acta', 'risst', 'ritran']));
+        $include = self::filterInclude($induction, $include);
         $parts = [];
 
         if (in_array('acta', $include, true)) {
@@ -293,6 +331,7 @@ final class InductionDocumentPackage
         }
 
         $parts[] = 'acta-formato-evidencia-v1';
+        $parts[] = self::allowsReceipts($induction) ? 'receipts-induccion' : 'sin-receipts';
 
         return hash('sha256', implode("\n", $parts));
     }

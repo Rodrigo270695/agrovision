@@ -136,7 +136,15 @@ final class DriverInductionArchive
 
         foreach ($groups as $group) {
             $induction = $inductions->get((int) ($group['induction_id'] ?? 0));
-            $include = array_values(array_intersect($group['include'] ?? [], ['acta', 'risst', 'ritran']));
+
+            if (! $induction instanceof Induction) {
+                continue;
+            }
+
+            $include = InductionDocumentPackage::filterInclude(
+                $induction,
+                $group['include'] ?? [],
+            );
             $dnis = collect($group['dnis'] ?? [])
                 ->map(fn ($dni) => InductionDocumentPackage::digits((string) $dni))
                 ->filter()
@@ -144,7 +152,7 @@ final class DriverInductionArchive
                 ->values()
                 ->all();
 
-            if (! $induction instanceof Induction || $include === [] || $dnis === []) {
+            if ($include === [] || $dnis === []) {
                 continue;
             }
 
