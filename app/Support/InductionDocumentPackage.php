@@ -162,8 +162,11 @@ final class InductionDocumentPackage
                 (string) $attendee->signature_path,
                 (string) $attendee->fingerprint_path,
                 (string) $attendee->driver_name,
+                (string) $attendee->provider,
             ]);
         }
+
+        $parts[] = 'receipt-layout-v3';
 
         return hash('sha256', implode("\n", $parts));
     }
