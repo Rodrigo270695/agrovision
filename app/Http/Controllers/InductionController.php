@@ -933,12 +933,20 @@ class InductionController extends Controller
                 ]);
         }
 
+        @set_time_limit(300);
+        @ini_set('memory_limit', '1024M');
+
         try {
             return InductionDocumentPackage::download($induction);
         } catch (\Throwable $e) {
             report($e);
 
-            $message = 'No se pudo generar el PDF. Revisa firmas/fotos e inténtalo de nuevo.';
+            $detail = trim($e->getMessage());
+            $message = 'No se pudo generar el PDF.';
+
+            if ($detail !== '') {
+                $message .= ' '.mb_substr($detail, 0, 180);
+            }
 
             if ($request->expectsJson() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
                 return response()->json(['message' => $message], 500);

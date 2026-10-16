@@ -33,99 +33,66 @@ final class InductionDocumentPackage
         @ini_set('memory_limit', '1024M');
 
         $formats = InductionDocumentSettings::forPdf($induction);
-
-        $toDataUri = static function (?string $absolute): ?string {
-            if (! $absolute || ! is_file($absolute)) {
-                return null;
-            }
-
-            $mime = mime_content_type($absolute) ?: 'image/png';
-            $binary = file_get_contents($absolute);
-
-            if ($binary === false) {
-                return null;
-            }
-
-            return 'data:'.$mime.';base64,'.base64_encode($binary);
-        };
-
         $logoSrc = PdfLogo::dataUri();
-
-        $speakerSignatureSrc = $induction->speaker_signature_path
-            ? $toDataUri(Storage::disk('public')->path($induction->speaker_signature_path))
-            : null;
-
-        $verificationPhotoSrc = $induction->verification_photo_path
-            ? $toDataUri(Storage::disk('public')->path($induction->verification_photo_path))
-            : null;
+        $speakerSignatureSrc = self::dataUri($induction->speaker_signature_path, 320);
+        $verificationPhotoSrc = self::dataUri($induction->verification_photo_path, 480);
 
         $attendedSigned = $induction->attendees
             ->filter(fn (InductionAttendee $attendee) => $attendee->status === InductionAttendeeStatuses::ATTENDED
                 && $attendee->isSigned())
-            ->sortBy(fn (InductionAttendee $attendee) => mb_strtoupper(trim($attendee->driver_name)), SORT_NATURAL)
+            ->sortBy(fn (InductionAttendee $attendee) => mb_strtoupper(trim((string) $attendee->driver_name)), SORT_NATURAL)
             ->values();
 
-        $attendanceRows = $attendedSigned->map(function (InductionAttendee $attendee, int $index) use ($toDataUri, $induction) {
-            $signatureAbsolute = $attendee->signature_path
-                ? Storage::disk('public')->path($attendee->signature_path)
-                : null;
-            $fingerprintAbsolute = $attendee->fingerprint_path
-                ? Storage::disk('public')->path($attendee->fingerprint_path)
-                : null;
-
-            $area = trim((string) ($induction->area ?? ''));
-            $cargo = 'CONDUCTOR';
-
+        $area = trim((string) ($induction->area ?? ''));
+        $attendanceRows = $attendedSigned->map(function (InductionAttendee $attendee, int $index) use ($area) {
             return [
                 'n' => $index + 1,
                 'dni' => $attendee->driver_dni,
-                'area_cargo' => trim(($area !== '' ? $area.' / ' : '').$cargo),
+                'area_cargo' => trim(($area !== '' ? $area.' / ' : '').'CONDUCTOR'),
                 'name' => $attendee->driver_name,
-                'signature_src' => $toDataUri($signatureAbsolute),
-                'fingerprint_src' => $toDataUri($fingerprintAbsolute),
+                'signature_src' => self::dataUri($attendee->signature_path, 280),
+                'fingerprint_src' => self::dataUri($attendee->fingerprint_path, 160),
                 'attendee' => $attendee,
             ];
         });
 
-        $reportPdf = Pdf::loadView('pdfs.induction-sst-report', [
-            'induction' => $induction,
-            'formats' => $formats,
-            'logoSrc' => $logoSrc,
-            'attendeesCount' => $induction->attendees->count(),
-        ])->setPaper('a4', 'portrait');
-
-        $registerPdf = Pdf::loadView('pdfs.induction-register', [
-            'induction' => $induction,
-            'formats' => $formats,
-            'attendees' => $attendanceRows,
-            'logoSrc' => $logoSrc,
-            'speakerSignatureSrc' => $speakerSignatureSrc,
-            'verificationPhotoSrc' => $verificationPhotoSrc,
-            'activityLabels' => InductionFormOptions::activities(),
-            'modalityLabels' => InductionFormOptions::modalities(),
-            'schoolLabels' => InductionFormOptions::schools(),
-            'categoryLabels' => InductionFormOptions::categories(),
-        ])->setPaper('a4', 'portrait');
-
         $documents = [
-            $reportPdf->output(),
-            $registerPdf->output(),
-        ];
-
-        if ($attendanceRows->isNotEmpty()) {
-            $receipts = [
+            self::renderView('pdfs.induction-sst-report', [
                 'induction' => $induction,
                 'formats' => $formats,
                 'logoSrc' => $logoSrc,
-                'rows' => $attendanceRows,
-            ];
+                'attendeesCount' => $induction->attendees->count(),
+            ]),
+            self::renderView('pdfs.induction-register', [
+                'induction' => $induction,
+                'formats' => $formats,
+                'attendees' => $attendanceRows,
+                'logoSrc' => $logoSrc,
+                'speakerSignatureSrc' => $speakerSignatureSrc,
+                'verificationPhotoSrc' => $verificationPhotoSrc,
+                'activityLabels' => InductionFormOptions::activities(),
+                'modalityLabels' => InductionFormOptions::modalities(),
+                'schoolLabels' => InductionFormOptions::schools(),
+                'categoryLabels' => InductionFormOptions::categories(),
+            ]),
+        ];
 
-            $documents[] = Pdf::loadView('pdfs.induction-risst-receipt', $receipts)
-                ->setPaper('a4', 'portrait')
-                ->output();
-            $documents[] = Pdf::loadView('pdfs.induction-ritran-receipt', $receipts)
-                ->setPaper('a4', 'portrait')
-                ->output();
+        foreach ($attendanceRows->chunk(5) as $chunk) {
+            $documents[] = self::renderView('pdfs.induction-risst-receipt', [
+                'induction' => $induction,
+                'formats' => $formats,
+                'logoSrc' => $logoSrc,
+                'rows' => $chunk->values(),
+            ]);
+        }
+
+        foreach ($attendanceRows->chunk(5) as $chunk) {
+            $documents[] = self::renderView('pdfs.induction-ritran-receipt', [
+                'induction' => $induction,
+                'formats' => $formats,
+                'logoSrc' => $logoSrc,
+                'rows' => $chunk->values(),
+            ]);
         }
 
         $binary = self::merge($documents);
@@ -158,7 +125,7 @@ final class InductionDocumentPackage
             ]);
         }
 
-        $parts[] = 'receipt-layout-v6';
+        $parts[] = 'receipt-layout-v7';
 
         return hash('sha256', implode("\n", $parts));
     }
@@ -171,6 +138,121 @@ final class InductionDocumentPackage
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="induccion_'.$acta.'.pdf"',
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private static function renderView(string $view, array $data): string
+    {
+        try {
+            $binary = Pdf::loadView($view, $data)
+                ->setPaper('a4', 'portrait')
+                ->output();
+        } catch (\Throwable $e) {
+            throw new \RuntimeException('Falló '.$view.': '.$e->getMessage(), 0, $e);
+        }
+
+        if (! is_string($binary) || $binary === '') {
+            throw new \RuntimeException('Falló '.$view.': el PDF salió vacío.');
+        }
+
+        return $binary;
+    }
+
+    private static function dataUri(?string $path, int $maxWidth = 280): ?string
+    {
+        $absolute = self::publicFile($path);
+
+        if ($absolute === null) {
+            return null;
+        }
+
+        $binary = @file_get_contents($absolute);
+
+        if ($binary === false || $binary === '') {
+            return null;
+        }
+
+        if (function_exists('imagecreatefromstring')) {
+            $image = @imagecreatefromstring($binary);
+
+            if ($image !== false) {
+                $width = imagesx($image);
+                $height = imagesy($image);
+
+                if ($width > $maxWidth && $width > 0) {
+                    $nextHeight = max(1, (int) round($height * ($maxWidth / $width)));
+                    $resized = imagecreatetruecolor($maxWidth, $nextHeight);
+                    imagealphablending($resized, false);
+                    imagesavealpha($resized, true);
+                    imagecopyresampled(
+                        $resized,
+                        $image,
+                        0,
+                        0,
+                        0,
+                        0,
+                        $maxWidth,
+                        $nextHeight,
+                        $width,
+                        $height,
+                    );
+                    imagedestroy($image);
+                    $image = $resized;
+                }
+
+                ob_start();
+                imagepng($image, null, 6);
+                $binary = (string) ob_get_clean();
+                imagedestroy($image);
+                unset($image);
+
+                return 'data:image/png;base64,'.base64_encode($binary);
+            }
+        }
+
+        $mime = mime_content_type($absolute) ?: 'image/png';
+
+        return 'data:'.$mime.';base64,'.base64_encode($binary);
+    }
+
+    private static function publicFile(?string $path): ?string
+    {
+        if (! filled($path)) {
+            return null;
+        }
+
+        $path = ltrim(str_replace('\\', '/', (string) strtok($path, '?')), '/');
+
+        if (str_starts_with($path, 'storage/')) {
+            $path = substr($path, strlen('storage/'));
+        }
+
+        $tenantId = (string) tenant('id');
+        $prefix = 'tenants/'.$tenantId.'/';
+
+        if ($tenantId !== '' && str_starts_with($path, $prefix)) {
+            $path = substr($path, strlen($prefix));
+        }
+
+        if ($path === '' || str_contains($path, '..')) {
+            return null;
+        }
+
+        $candidates = [
+            Storage::disk('public')->path($path),
+            storage_path('app/public/tenants/'.$tenantId.'/'.$path),
+            storage_path('app/public/'.$path),
+        ];
+
+        foreach ($candidates as $absolute) {
+            if (is_file($absolute)) {
+                return $absolute;
+            }
+        }
+
+        return null;
     }
 
     /**
