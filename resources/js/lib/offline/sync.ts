@@ -7,7 +7,11 @@ import {
 } from '@/lib/offline/mutations';
 import { editSnapshotKey, offlineDb, type OutboxItem } from '@/lib/offline/db';
 import { isLocalChecklistId } from '@/lib/offline/ids';
-import { refreshPendingCount } from '@/lib/offline/store';
+import { maxSyncAttempts, offlineErrorMessage } from '@/lib/offline/errors';
+import {
+    deleteLocalDraft,
+    refreshPendingCount,
+} from '@/lib/offline/store';
 import {
     setOfflineError,
     setOfflineSyncing,
@@ -20,6 +24,57 @@ function jsonHeaders(): HeadersInit {
         'X-Requested-With': 'XMLHttpRequest',
         'X-XSRF-TOKEN': getCsrfToken(),
     };
+}
+
+async function refreshCsrf(): Promise<void> {
+    try {
+        await fetch(window.location.pathname || '/', {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {
+                Accept: 'text/html',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+    } catch {
+        // El token se reintenta igual con la cookie que haya.
+    }
+}
+
+async function fetchWithRetry(
+    input: RequestInfo | URL,
+    init: RequestInit,
+    tries = 3,
+): Promise<Response> {
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < tries; attempt++) {
+        try {
+            const headers = new Headers(init.headers);
+            headers.set('X-XSRF-TOKEN', getCsrfToken());
+
+            const response = await fetch(input, { ...init, headers });
+
+            if (response.status === 419 && attempt < tries - 1) {
+                await refreshCsrf();
+                continue;
+            }
+
+            return response;
+        } catch (error) {
+            lastError = error;
+
+            if (attempt < tries - 1) {
+                await new Promise((resolve) =>
+                    setTimeout(resolve, 400 * (attempt + 1)),
+                );
+            }
+        }
+    }
+
+    throw lastError instanceof Error
+        ? lastError
+        : new Error('Failed to fetch');
 }
 
 function parseChecklistIdFromUrl(url: string): number | null {
@@ -85,7 +140,7 @@ async function resolveChecklistId(checklistId: string): Promise<string> {
 }
 
 async function syncCreate(item: OutboxItem): Promise<void> {
-    const response = await fetch('/inspecciones', {
+    const response = await fetchWithRetry('/inspecciones', {
         method: 'POST',
         credentials: 'same-origin',
         headers: jsonHeaders(),
@@ -116,7 +171,7 @@ async function syncUpdate(item: OutboxItem): Promise<void> {
         throw new Error('La inspección local todavía no existe en el servidor.');
     }
 
-    const response = await fetch(`/inspecciones/${checklistId}`, {
+    const response = await fetchWithRetry(`/inspecciones/${checklistId}`, {
         method: 'PUT',
         credentials: 'same-origin',
         headers: jsonHeaders(),
@@ -168,7 +223,7 @@ async function syncPhoto(item: OutboxItem): Promise<void> {
         formData.append('checklist_item_id', String(photo.checklistItemId));
     }
 
-    const response = await fetch(`/inspecciones/${checklistId}/fotos`, {
+    const response = await fetchWithRetry(`/inspecciones/${checklistId}/fotos`, {
         method: 'POST',
         credentials: 'same-origin',
         headers: {
@@ -194,7 +249,7 @@ async function syncDeletePhoto(item: OutboxItem): Promise<void> {
         return;
     }
 
-    const response = await fetch(
+    const response = await fetchWithRetry(
         `/inspecciones/${checklistId}/fotos/${photoId}`,
         {
             method: 'DELETE',
@@ -250,29 +305,38 @@ export async function flushOutbox(): Promise<void> {
                 synced += 1;
                 setOfflineError(null);
             } catch (error) {
+                const message = offlineErrorMessage(error);
+                const attempts = item.attempts + 1;
+
+                if (attempts >= maxSyncAttempts()) {
+                    await db.outbox.delete(item.id);
+
+                    if (item.kind === 'create' && isLocalChecklistId(item.checklistId)) {
+                        await deleteLocalDraft(item.checklistId);
+                    }
+
+                    if (item.kind === 'photo' && item.payload.photoId) {
+                        await db.photos.delete(String(item.payload.photoId));
+                    }
+
+                    setOfflineError(
+                        'Un cambio no se pudo enviar y se quitó de este celular.',
+                    );
+                    continue;
+                }
+
                 await db.outbox.update(item.id, {
-                    attempts: item.attempts + 1,
-                    lastError:
-                        error instanceof Error
-                            ? error.message
-                            : 'Error de sincronización',
+                    attempts,
+                    lastError: message,
                 });
-                setOfflineError(
-                    error instanceof Error
-                        ? error.message
-                        : 'No se pudieron enviar los cambios.',
-                );
+                setOfflineError(message);
                 break;
             }
         }
         try {
             await flushMutations();
         } catch (error) {
-            setOfflineError(
-                error instanceof Error
-                    ? error.message
-                    : 'No se pudieron enviar los cambios.',
-            );
+            setOfflineError(offlineErrorMessage(error));
         }
     } finally {
         flushing = false;

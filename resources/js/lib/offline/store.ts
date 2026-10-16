@@ -20,7 +20,7 @@ import {
     newLocalChecklistId,
     newOutboxId,
 } from '@/lib/offline/ids';
-import { setOfflinePending } from '@/lib/offline/status';
+import { setOfflineError, setOfflinePending } from '@/lib/offline/status';
 
 export async function refreshPendingCount(): Promise<number> {
     const db = await offlineDb();
@@ -242,6 +242,44 @@ export function photoToView(photo: OfflinePhoto): ChecklistPhoto {
         longitude: photo.longitude,
         accuracy: photo.accuracy,
     };
+}
+
+export async function discardAllPending(): Promise<void> {
+    const db = await offlineDb();
+
+    if (!db) {
+        setOfflinePending(0);
+
+        return;
+    }
+
+    const drafts = await db.editSnapshots.toArray();
+    const localKeys = drafts
+        .filter((row) => isLocalChecklistId(row.checklist.id))
+        .map((row) => row.key);
+
+    await db.transaction(
+        'rw',
+        db.outbox,
+        db.mutations,
+        db.photos,
+        db.editSnapshots,
+        db.idMap,
+        async () => {
+            if (localKeys.length > 0) {
+                await db.editSnapshots.bulkDelete(localKeys);
+            }
+
+            await db.outbox.clear();
+            await db.mutations.clear();
+            await db.photos.clear();
+            await db.idMap.clear();
+        },
+    );
+
+    await refreshPendingCount();
+    setOfflineError(null);
+    window.dispatchEvent(new Event('agrovision:mutations'));
 }
 
 export async function deleteLocalDraft(id: number | string): Promise<void> {

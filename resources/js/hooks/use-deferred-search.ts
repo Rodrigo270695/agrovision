@@ -23,9 +23,11 @@ export function useDeferredSearch(
 
     useEffect(() => {
         setText((current) => {
-            if (current.trim() === sent.current) {
-                sent.current = value;
+            if (current.trim() !== sent.current) {
+                return current;
+            }
 
+            if (value === sent.current) {
                 return value;
             }
 

@@ -124,7 +124,9 @@ export function ChecklistsPage() {
             activeUnits: activeUnits ?? [],
             catalog: offlineCatalog ?? [],
         });
-        prefetchInspectionEdits(checklists.data, page.version);
+        if (!filters.search) {
+            prefetchInspectionEdits(checklists.data, page.version);
+        }
     }, [activeUnits, checklists, filters, offlineCatalog, page.version, stats, templates]);
 
     useEffect(() => {

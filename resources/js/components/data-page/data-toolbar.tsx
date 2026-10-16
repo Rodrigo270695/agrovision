@@ -87,7 +87,11 @@ export function DataToolbar({
                     />
                 )}
                 <Input
-                    type="search"
+                    type="text"
+                    inputMode="search"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                     value={text}
                     onChange={(event) => submit(event.target.value)}
                     onKeyDown={(event) => {

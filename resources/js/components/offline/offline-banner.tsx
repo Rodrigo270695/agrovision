@@ -1,6 +1,8 @@
-import { CloudOff, RefreshCw, Wifi } from 'lucide-react';
+import { CloudOff, RefreshCw, Trash2, Wifi } from 'lucide-react';
 import { usePage } from '@inertiajs/react';
 import { useOfflineStatus } from '@/hooks/use-offline-status';
+import { offlineErrorMessage } from '@/lib/offline/errors';
+import { discardAllPending } from '@/lib/offline/store';
 import { flushOutbox } from '@/lib/offline/sync';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -48,28 +50,47 @@ export function OfflineBanner() {
                         : syncing
                           ? `Sincronizando ${pending} cambio${pending === 1 ? '' : 's'}…`
                           : lastError
-                            ? lastError
+                            ? offlineErrorMessage(lastError)
                             : `${pending} cambio${pending === 1 ? '' : 's'} pendiente${pending === 1 ? '' : 's'} de enviar.`}
                 </p>
-                {online && pending > 0 ? (
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled={syncing}
-                        onClick={() => {
-                            void flushOutbox();
-                        }}
-                        className="h-7 shrink-0 cursor-pointer px-2.5 text-[0.7rem]"
-                    >
-                        <RefreshCw
-                            className={cn(
-                                'size-3',
-                                syncing && 'animate-spin',
-                            )}
-                        />
-                        {syncing ? 'Enviando' : 'Sincronizar'}
-                    </Button>
+                {online && (pending > 0 || lastError) ? (
+                    <div className="flex shrink-0 gap-1">
+                        {pending > 0 ? (
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={syncing}
+                                onClick={() => {
+                                    void flushOutbox();
+                                }}
+                                className="h-7 cursor-pointer px-2.5 text-[0.7rem]"
+                            >
+                                <RefreshCw
+                                    className={cn(
+                                        'size-3',
+                                        syncing && 'animate-spin',
+                                    )}
+                                />
+                                {syncing ? 'Enviando' : 'Sincronizar'}
+                            </Button>
+                        ) : null}
+                        {lastError ? (
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={syncing}
+                                onClick={() => {
+                                    void discardAllPending();
+                                }}
+                                className="h-7 cursor-pointer px-2.5 text-[0.7rem]"
+                            >
+                                <Trash2 className="size-3" />
+                                Quitar
+                            </Button>
+                        ) : null}
+                    </div>
                 ) : null}
             </div>
         </div>

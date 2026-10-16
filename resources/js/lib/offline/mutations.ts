@@ -2,6 +2,7 @@ import { router } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { getCsrfToken } from '@/lib/csrf';
 import { offlineDb, type QueuedMutation } from '@/lib/offline/db';
+import { maxSyncAttempts, offlineErrorMessage } from '@/lib/offline/errors';
 import { newOutboxId } from '@/lib/offline/ids';
 import { refreshPendingCount } from '@/lib/offline/store';
 
@@ -191,21 +192,46 @@ export async function flushMutations(): Promise<void> {
             payload = JSON.stringify(cleanBody(item.body));
         }
 
-        const response = await fetch(item.url, {
-            method,
-            credentials: 'same-origin',
-            headers: {
-                Accept: 'application/json',
-                ...(formData ? {} : { 'Content-Type': 'application/json' }),
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-XSRF-TOKEN': getCsrfToken(),
-            },
-            body: payload,
-        });
+        let response: Response;
+
+        try {
+            response = await fetch(item.url, {
+                method,
+                credentials: 'same-origin',
+                headers: {
+                    Accept: 'application/json',
+                    ...(formData ? {} : { 'Content-Type': 'application/json' }),
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-XSRF-TOKEN': getCsrfToken(),
+                },
+                body: payload,
+            });
+        } catch (error) {
+            const attempts = item.attempts + 1;
+            const message = offlineErrorMessage(error);
+
+            if (attempts >= maxSyncAttempts()) {
+                await db.mutations.delete(item.id);
+                continue;
+            }
+
+            await db.mutations.update(item.id, {
+                attempts,
+                lastError: message,
+            });
+            throw new Error(message);
+        }
 
         if (!response.ok && response.status !== 302) {
+            const attempts = item.attempts + 1;
+
+            if (attempts >= maxSyncAttempts()) {
+                await db.mutations.delete(item.id);
+                continue;
+            }
+
             await db.mutations.update(item.id, {
-                attempts: item.attempts + 1,
+                attempts,
                 lastError: 'No se pudo enviar este cambio.',
             });
             throw new Error('No se pudo enviar un cambio pendiente.');
