@@ -58,9 +58,7 @@
     };
     $hora = trim($fmtTime($induction->start_time).' - '.$fmtTime($induction->end_time));
     $acta = $induction->acta_number ?: str_pad((string) $induction->id, 6, '0', STR_PAD_LEFT);
-    $participants = is_countable($attendeesCount ?? null)
-        ? (int) $attendeesCount
-        : (int) ($induction->attendees_count ?? 0);
+    $participants = (int) ($attendeesCount ?? $induction->attendees->count());
 @endphp
 
 <table class="header">
@@ -105,8 +103,7 @@
     <div class="row"><strong>Departamento:</strong> {{ $induction->department ?: '—' }}</div>
     <div class="row"><strong>Área:</strong> {{ $induction->area ?: '—' }}</div>
     <div class="row"><strong>Sección:</strong> {{ $induction->section ?: '—' }}</div>
-    <div class="row"><strong>N° de participantes:</strong> {{ $participants > 0 ? $participants : '—' }}</div>
-    <div class="row"><strong>Periodo:</strong> {{ $induction->period?->name ?: '—' }}</div>
+    <div class="row"><strong>N° de participantes:</strong> {{ $participants }}</div>
     <div class="row"><strong>Código del material del tema:</strong> {{ $induction->document_code ?: 'Sin Material' }}</div>
 </div>
 

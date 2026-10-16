@@ -91,7 +91,7 @@ final class InductionDocumentPackage
             'induction' => $induction,
             'formats' => $formats,
             'logoSrc' => $logoSrc,
-            'attendeesCount' => $attendedSigned->count(),
+            'attendeesCount' => $induction->attendees->count(),
         ])->setPaper('a4', 'portrait');
 
         $registerPdf = Pdf::loadView('pdfs.induction-register', [
@@ -166,7 +166,7 @@ final class InductionDocumentPackage
             ]);
         }
 
-        $parts[] = 'receipt-layout-v4';
+        $parts[] = 'receipt-layout-v5';
 
         return hash('sha256', implode("\n", $parts));
     }
