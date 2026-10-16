@@ -306,6 +306,7 @@ export default function CentralTenantsIndex({
                         <DataToolbar
                             search={search}
                             onSearchChange={setSearch}
+                            debounceMs={0}
                             isSearching={isLoading}
                             placeholder="Buscar por nombre, slug o dominio..."
                         >

@@ -1,6 +1,8 @@
+import { router } from '@inertiajs/react';
 import { Loader2, Search, X } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Input } from '@/components/ui/input';
+import { useDeferredSearch } from '@/hooks/use-deferred-search';
 import { cn } from '@/lib/utils';
 
 export type DataToolbarProps = {
@@ -8,6 +10,11 @@ export type DataToolbarProps = {
     search: string;
     onSearchChange: (value: string) => void;
     placeholder?: string;
+    /**
+     * Espera antes de consultar. 0 entrega cada letra al padre
+     * (útil si el padre ya espera por su cuenta).
+     */
+    debounceMs?: number;
     /** Si true, muestra spinner en el ícono mientras llega la respuesta. */
     isSearching?: boolean;
     /** Slot para chips/selects de filtros adicionales. */
@@ -33,16 +40,40 @@ export function DataToolbar({
     search,
     onSearchChange,
     placeholder = 'Buscar...',
+    debounceMs = 450,
     isSearching = false,
     children,
     className,
     searchWrapperClassName,
     filtersClassName,
 }: DataToolbarProps) {
+    const [pending, setPending] = useState(false);
+    const { text, setText, flush } = useDeferredSearch(
+        search,
+        (value) => {
+            if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+                setPending(false);
+            } else {
+                setPending(true);
+            }
+
+            onSearchChange(value);
+        },
+        debounceMs,
+    );
+
+    useEffect(() => {
+        return router.on('finish', () => setPending(false));
+    }, []);
+
+    const submit = (value: string) => {
+        setText(value);
+    };
+
     return (
         <div className={cn('flex w-full flex-col gap-3', className)}>
             <div className={cn('relative w-full sm:max-w-sm', searchWrapperClassName)}>
-                {isSearching ? (
+                {isSearching || pending ? (
                     <Loader2
                         className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 animate-spin text-primary"
                         aria-hidden="true"
@@ -57,15 +88,21 @@ export function DataToolbar({
                 )}
                 <Input
                     type="search"
-                    value={search}
-                    onChange={(event) => onSearchChange(event.target.value)}
+                    value={text}
+                    onChange={(event) => submit(event.target.value)}
+                    onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                            flush();
+                        }
+                    }}
                     placeholder={placeholder}
                     className="h-10 pr-10 pl-10 [&::-webkit-search-cancel-button]:hidden"
                 />
-                {search.length > 0 && (
+                {text.length > 0 && (
                     <button
                         type="button"
-                        onClick={() => onSearchChange('')}
+                        onClick={() => submit('')}
                         aria-label="Limpiar búsqueda"
                         className="absolute top-1/2 right-2.5 z-10 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     >
