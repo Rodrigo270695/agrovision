@@ -20,7 +20,9 @@ final class DriverInductionArchive
         @set_time_limit(300);
         @ini_set('memory_limit', '1024M');
 
+        InductionDocumentPackage::resetCaches();
         $files = $this->filesFromGroups($groups);
+        InductionDocumentPackage::resetCaches();
 
         if ($files === []) {
             return response()->json([
@@ -63,6 +65,10 @@ final class DriverInductionArchive
 
             $used[$name] = true;
             $zip->addFromString($name, $file['binary']);
+
+            if (defined('ZipArchive::CM_STORE')) {
+                $zip->setCompressionName($name, ZipArchive::CM_STORE);
+            }
         }
 
         $zip->close();
@@ -160,25 +166,30 @@ final class DriverInductionArchive
                 : null;
 
             foreach ($attendees as $attendee) {
-                $folder = $this->driverFolder($attendee).'/'.$sessionFolder;
+                $parts = [];
 
                 if (is_string($actaBinary)) {
-                    $files[] = [
-                        'path' => $folder.'/'.$this->actaFilename($induction),
-                        'binary' => $actaBinary,
-                    ];
+                    $parts[] = $actaBinary;
                 }
 
-                foreach (['risst' => 'RISST', 'ritran' => 'RITRAN'] as $kind => $label) {
+                foreach (['risst', 'ritran'] as $kind) {
                     if (! in_array($kind, $include, true)) {
                         continue;
                     }
 
-                    $files[] = [
-                        'path' => $folder.'/'.$label.'.pdf',
-                        'binary' => InductionDocumentPackage::receiptBinary($induction, $kind, [$attendee]),
-                    ];
+                    $parts[] = InductionDocumentPackage::receiptBinary($induction, $kind, [$attendee]);
                 }
+
+                if ($parts === []) {
+                    continue;
+                }
+
+                $files[] = [
+                    'path' => $this->driverFolder($attendee).'/'.$sessionFolder.'/'.$this->documentFilename($include, $induction),
+                    'binary' => count($parts) === 1
+                        ? $parts[0]
+                        : InductionDocumentPackage::mergePdfs($parts),
+                ];
             }
         }
 
@@ -204,11 +215,23 @@ final class DriverInductionArchive
         return $day.'_'.$this->safe($activity).'_'.$title;
     }
 
-    private function actaFilename(Induction $induction): string
+    /**
+     * @param  list<string>  $include
+     */
+    private function documentFilename(array $include, Induction $induction): string
     {
         $acta = $induction->acta_number ?: str_pad((string) $induction->id, 6, '0', STR_PAD_LEFT);
+        $bits = [];
 
-        return 'Acta_'.$this->safe($acta).'_'.$this->safe($induction->title).'.pdf';
+        foreach (['acta' => 'Acta', 'risst' => 'RISST', 'ritran' => 'RITRAN'] as $key => $label) {
+            if (in_array($key, $include, true)) {
+                $bits[] = $label;
+            }
+        }
+
+        $name = $bits === [] ? 'Documentos' : implode('_', $bits);
+
+        return $name.'_'.$this->safe($acta).'.pdf';
     }
 
     private function safe(?string $value): string

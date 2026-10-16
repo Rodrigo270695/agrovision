@@ -504,7 +504,7 @@ export default function DriverReportPage({
                     }
                 }}
                 title="Descargar documentos"
-                description="Por actividad. Si varios DNI están en la misma acta, sale un solo PDF y se resalta a esas personas."
+                description="Lo marcado se une en un PDF por persona y actividad: acta + formato + foto de evidencia, y debajo RISST y RITRAN. Si varios coinciden en el acta, se resalta a esas personas."
                 className="max-h-[min(92vh,56rem)] sm:max-w-2xl"
                 bodyClassName="max-h-[min(62vh,38rem)]"
                 footer={
