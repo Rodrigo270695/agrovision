@@ -142,7 +142,6 @@ final class DriverInductionArchive
                 continue;
             }
 
-            $folder = $this->inductionFolder($induction);
             $attendees = $induction->attendees
                 ->filter(fn (InductionAttendee $row) => in_array(
                     InductionDocumentPackage::digits($row->driver_dni),
@@ -155,15 +154,20 @@ final class DriverInductionArchive
                 continue;
             }
 
-            if (in_array('acta', $include, true)) {
-                $files[] = [
-                    'path' => $folder.'/'.$this->actaFilename($induction),
-                    'binary' => InductionDocumentPackage::actaBinary($induction, $dnis),
-                ];
-            }
+            $sessionFolder = $this->inductionFolder($induction);
+            $actaBinary = in_array('acta', $include, true)
+                ? InductionDocumentPackage::actaBinary($induction, $dnis)
+                : null;
 
             foreach ($attendees as $attendee) {
-                $person = $this->driverFolder($attendee);
+                $folder = $this->driverFolder($attendee).'/'.$sessionFolder;
+
+                if (is_string($actaBinary)) {
+                    $files[] = [
+                        'path' => $folder.'/'.$this->actaFilename($induction),
+                        'binary' => $actaBinary,
+                    ];
+                }
 
                 foreach (['risst' => 'RISST', 'ritran' => 'RITRAN'] as $kind => $label) {
                     if (! in_array($kind, $include, true)) {
@@ -171,7 +175,7 @@ final class DriverInductionArchive
                     }
 
                     $files[] = [
-                        'path' => $folder.'/'.$person.'/'.$label.'.pdf',
+                        'path' => $folder.'/'.$label.'.pdf',
                         'binary' => InductionDocumentPackage::receiptBinary($induction, $kind, [$attendee]),
                     ];
                 }
