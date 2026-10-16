@@ -8,7 +8,15 @@ import {
 import type { InductionItem } from '@/components/inductions/inductions-table';
 import { AppModal } from '@/components/shared/app-modal';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Spinner } from '@/components/ui/spinner';
+
+export type InductionGapDraft = {
+    key: string;
+    title: string;
+    activity: string;
+    drivers: { dni: string; name: string }[];
+};
 
 type Props = {
     open: boolean;
@@ -17,6 +25,8 @@ type Props = {
     formOptions: InductionFormOptions;
     onClose: () => void;
     copying?: boolean;
+    gap?: InductionGapDraft | null;
+    onCreated?: (gap: InductionGapDraft) => void;
 };
 
 function sameName(left?: string | null, right?: string | null): boolean {
@@ -119,20 +129,25 @@ export function InductionFormModal({
     formOptions,
     onClose,
     copying = false,
+    gap = null,
+    onCreated,
 }: Props) {
-    const isEditing = Boolean(induction) && !copying;
+    const completing = Boolean(gap);
+    const isEditing = Boolean(induction) && !copying && !completing;
     const form = useForm(emptyValues);
     const [regulationFiles, setRegulationFiles] = useState<File[]>([]);
+    const [closeOnCreate, setCloseOnCreate] = useState(true);
 
     useEffect(() => {
         if (!open) {
             return;
         }
 
+        setCloseOnCreate(true);
         form.setData({
-            title: induction?.title ?? '',
+            title: gap?.title ?? induction?.title ?? '',
             temario: induction?.temario ?? '',
-            activity: induction?.activity ?? 'induccion',
+            activity: gap?.activity ?? induction?.activity ?? 'induccion',
             corrective_action: Boolean(induction?.corrective_action),
             modality: induction?.modality ?? 'interna',
             school: induction?.school ?? 'sig',
@@ -174,7 +189,7 @@ export function InductionFormModal({
         });
         form.clearErrors();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, induction?.id]);
+    }, [open, induction?.id, gap?.title, gap?.activity]);
 
     const canSubmit = useMemo(() => {
         return (
@@ -205,7 +220,7 @@ export function InductionFormModal({
 
         form.transform((data) => ({
             ...data,
-            status: copying ? 'scheduled' : data.status,
+            status: copying || completing ? 'scheduled' : data.status,
             period_id: data.period_id === '' ? null : Number(data.period_id),
             estimated_minutes:
                 data.estimated_minutes === ''
@@ -214,10 +229,32 @@ export function InductionFormModal({
             corrective_action: Boolean(data.corrective_action),
             site_id: data.site_id === '' ? null : Number(data.site_id),
             place_id: data.place_id === '' ? null : Number(data.place_id),
-            ...(!copying && regulationFiles.length > 0
+            ...(!copying && !completing && regulationFiles.length > 0
                 ? { regulations: regulationFiles }
                 : {}),
+            ...(completing && gap
+                ? {
+                      drivers: gap.drivers,
+                      close_on_create: closeOnCreate,
+                  }
+                : {}),
         }));
+
+        if (completing && gap) {
+            form.post('/consulta-conductores/completar', {
+                preserveScroll: true,
+                preserveState: true,
+                only: ['flash'],
+                onSuccess: () => {
+                    if (gap) {
+                        onCreated?.(gap);
+                    }
+                    handleClose();
+                },
+                onFinish: () => form.transform((data) => data),
+            });
+            return;
+        }
 
         if (copying && induction) {
             form.post(`/inducciones/${induction.id}/copiar`, {
@@ -250,16 +287,20 @@ export function InductionFormModal({
             open={open}
             onClose={handleClose}
             title={
-                copying
-                    ? 'Copiar inducción'
-                    : isEditing
-                      ? 'Editar inducción'
-                      : 'Nueva inducción'
+                completing
+                    ? 'Completar faltante'
+                    : copying
+                      ? 'Copiar inducción'
+                      : isEditing
+                        ? 'Editar inducción'
+                        : 'Nueva inducción'
             }
             description={
-                copying
-                    ? 'Mismos datos de la inducción. Se copian los conductores con firma y huella. Los reglamentos quedan vacíos: luego solo inicias y cierras.'
-                    : 'Completa el tema, la fecha y el lugar. Los códigos salen de Configuración.'
+                completing
+                    ? `Solo los conductores que no tienen «${gap?.title ?? ''}». Completa fecha, lugar, periodo y expositor.`
+                    : copying
+                      ? 'Mismos datos de la inducción. Se copian los conductores con firma y huella. Los reglamentos quedan vacíos: luego solo inicias y cierras.'
+                      : 'Completa el tema, la fecha y el lugar. Los códigos salen de Configuración.'
             }
             className="max-h-[min(92vh,56rem)] sm:max-w-3xl"
             bodyClassName="max-h-[min(72vh,42rem)]"
@@ -280,16 +321,59 @@ export function InductionFormModal({
                         className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c] disabled:opacity-50"
                     >
                         {form.processing ? <Spinner /> : null}
-                        {copying
-                            ? 'Copiar'
-                            : isEditing
-                              ? 'Guardar cambios'
-                              : 'Crear inducción'}
+                        {completing
+                            ? closeOnCreate
+                                ? 'Crear y cerrar'
+                                : 'Crear programada'
+                            : copying
+                              ? 'Copiar'
+                              : isEditing
+                                ? 'Guardar cambios'
+                                : 'Crear inducción'}
                     </Button>
                 </>
             }
         >
             <form id="induction-form" onSubmit={handleSubmit}>
+                {completing && gap ? (
+                    <div className="mb-5 rounded-xl border border-[#d7e3f0] bg-[#f7fafc] p-3">
+                        <p className="text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
+                            Conductores ({gap.drivers.length})
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-[#5a6f8c]">
+                            {gap.drivers
+                                .map((driver) =>
+                                    driver.name
+                                        ? `${driver.name} (${driver.dni})`
+                                        : driver.dni,
+                                )
+                                .join(' · ')}
+                        </p>
+                        {(form.errors as Record<string, string>).drivers ? (
+                            <p className="mt-2 text-xs text-red-700">
+                                {(form.errors as Record<string, string>).drivers}
+                            </p>
+                        ) : null}
+                        <label className="mt-3 flex cursor-pointer items-start gap-2">
+                            <Checkbox
+                                checked={closeOnCreate}
+                                onCheckedChange={(value) =>
+                                    setCloseOnCreate(value === true)
+                                }
+                                className="mt-0.5"
+                            />
+                            <span>
+                                <span className="block text-sm font-medium text-[#1a2b4c]">
+                                    Cerrar al crear
+                                </span>
+                                <span className="block text-xs text-[#5a6f8c]">
+                                    Queda como cerrada aunque falten firmas. El
+                                    PDF consolidado las pedirá después.
+                                </span>
+                            </span>
+                        </label>
+                    </div>
+                ) : null}
                 <InductionFormFields
                     values={form.data}
                     errors={form.errors}
@@ -298,7 +382,7 @@ export function InductionFormModal({
                     formOptions={formOptions}
                     isEditing={isEditing || copying}
                 />
-                {isEditing || copying ? null : (
+                {isEditing || copying || completing ? null : (
                     <div className="mt-5 grid gap-1.5">
                         <p className="border-b border-[#e2eaf3] pb-1 text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
                             Reglamentos

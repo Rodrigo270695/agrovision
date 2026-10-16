@@ -1,11 +1,26 @@
 import { Head, useForm } from '@inertiajs/react';
-import { ChevronDown, Download, FileSpreadsheet, ScanSearch } from 'lucide-react';
+import {
+    ChevronDown,
+    Download,
+    FileSpreadsheet,
+    ListPlus,
+    ScanSearch,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
+import {
+    InductionFormModal,
+    type InductionGapDraft,
+} from '@/components/inductions/induction-form-modal';
+import type {
+    InductionFormOptions,
+    PeriodOption,
+} from '@/components/inductions/induction-form-fields';
 import InputError from '@/components/input-error';
 import { AppModal } from '@/components/shared/app-modal';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Spinner } from '@/components/ui/spinner';
+import { useCan } from '@/hooks/use-can';
 import { dashboard } from '@/routes';
 import { cn } from '@/lib/utils';
 
@@ -68,12 +83,22 @@ type DownloadGroup = {
     include: Record<DocKind, boolean>;
 };
 
+type GapRow = {
+    key: string;
+    title: string;
+    activity: string;
+    activity_label: string;
+    drivers: { dni: string; name: string }[];
+};
+
 type PageProps = {
     dnis: string;
     rows: DriverRow[];
     summary: Summary | null;
     truncated: boolean;
     dniCount: number;
+    periodOptions?: PeriodOption[];
+    formOptions?: InductionFormOptions;
 };
 
 const toneClass: Record<Tone, string> = {
@@ -189,16 +214,68 @@ function buildGroups(rows: DriverRow[]): DownloadGroup[] {
     });
 }
 
+function buildGaps(rows: DriverRow[]): GapRow[] {
+    const topics = new Map<
+        string,
+        { title: string; activity: string; activity_label: string }
+    >();
+
+    rows.forEach((row) => {
+        row.inductions.forEach((induction) => {
+            const key = induction.title.trim().toLocaleLowerCase();
+
+            if (!key || topics.has(key)) {
+                return;
+            }
+
+            topics.set(key, {
+                title: induction.title.trim(),
+                activity: induction.activity,
+                activity_label: induction.activity_label,
+            });
+        });
+    });
+
+    return [...topics.entries()]
+        .map(([key, topic]) => ({
+            key,
+            ...topic,
+            drivers: rows
+                .filter(
+                    (row) =>
+                        !row.inductions.some(
+                            (induction) =>
+                                induction.title.trim().toLocaleLowerCase() ===
+                                key,
+                        ),
+                )
+                .map((row) => ({
+                    dni: row.key,
+                    name: row.driver_name || row.dni,
+                })),
+        }))
+        .filter((gap) => gap.drivers.length > 0)
+        .sort((left, right) =>
+            left.title.localeCompare(right.title, 'es'),
+        );
+}
+
 export default function DriverReportPage({
     dnis,
     rows,
     summary,
     truncated,
+    periodOptions = [],
+    formOptions,
 }: PageProps) {
+    const { can } = useCan();
     const form = useForm({ dnis });
     const [filter, setFilter] = useState<FilterKey>('all');
     const [openKey, setOpenKey] = useState<string | null>(null);
     const [modalOpen, setModalOpen] = useState(false);
+    const [gapsOpen, setGapsOpen] = useState(false);
+    const [gap, setGap] = useState<InductionGapDraft | null>(null);
+    const [doneGapKeys, setDoneGapKeys] = useState<string[]>([]);
     const [groups, setGroups] = useState<DownloadGroup[]>([]);
     const [exporting, setExporting] = useState(false);
     const [excelLoading, setExcelLoading] = useState(false);
@@ -208,6 +285,11 @@ export default function DriverReportPage({
         () => rows.filter((row) => matches(row, filter)),
         [rows, filter],
     );
+    const gaps = useMemo(
+        () => buildGaps(rows).filter((item) => !doneGapKeys.includes(item.key)),
+        [rows, doneGapKeys],
+    );
+    const canComplete = can('inductions.create');
 
     const openModal = () => {
         setExportError('');
@@ -375,6 +457,18 @@ export default function DriverReportPage({
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                        {canComplete ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={gaps.length === 0}
+                                onClick={() => setGapsOpen(true)}
+                                className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                            >
+                                <ListPlus className="size-4" />
+                                Completar faltantes
+                            </Button>
+                        ) : null}
                         <Button
                             type="button"
                             variant="outline"
@@ -409,6 +503,7 @@ export default function DriverReportPage({
                         event.preventDefault();
                         setFilter('all');
                         setOpenKey(null);
+                        setDoneGapKeys([]);
                         form.post('/consulta-conductores', {
                             preserveScroll: true,
                         });
@@ -709,6 +804,91 @@ export default function DriverReportPage({
                     </ul>
                 )}
             </AppModal>
+
+            <AppModal
+                open={gapsOpen}
+                onClose={() => setGapsOpen(false)}
+                title="Completar faltantes"
+                description="Un tema a la vez. Solo entran los conductores consultados que no lo tienen."
+                className="max-h-[min(92vh,56rem)] sm:max-w-2xl"
+                bodyClassName="max-h-[min(62vh,38rem)]"
+                footer={
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setGapsOpen(false)}
+                        className="cursor-pointer"
+                    >
+                        Cerrar
+                    </Button>
+                }
+            >
+                {gaps.length === 0 ? (
+                    <p className="text-sm text-[#5a7390]">
+                        En este grupo no hay temas pendientes.
+                    </p>
+                ) : (
+                    <ul className="space-y-2">
+                        {gaps.map((item) => (
+                            <li
+                                key={item.key}
+                                className="flex items-start justify-between gap-3 rounded-xl border border-[#e2eaf3] p-3"
+                            >
+                                <div>
+                                    <p className="text-sm font-medium text-[#1a2b4c]">
+                                        {item.title}
+                                    </p>
+                                    <p className="mt-0.5 text-xs text-[#5a7390]">
+                                        {item.activity_label} ·{' '}
+                                        {item.drivers.length} conductor
+                                        {item.drivers.length === 1 ? '' : 'es'}
+                                    </p>
+                                    <p className="mt-1 text-xs text-[#2e5a9e]">
+                                        {item.drivers
+                                            .map((driver) => driver.name)
+                                            .join(' · ')}
+                                    </p>
+                                </div>
+                                <Button
+                                    type="button"
+                                    onClick={() => {
+                                        setGapsOpen(false);
+                                        setGap({
+                                            key: item.key,
+                                            title: item.title,
+                                            activity: item.activity,
+                                            drivers: item.drivers,
+                                        });
+                                    }}
+                                    className="shrink-0 cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c]"
+                                >
+                                    Crear
+                                </Button>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </AppModal>
+
+            {formOptions ? (
+                <InductionFormModal
+                    open={Boolean(gap)}
+                    gap={gap}
+                    periodOptions={periodOptions}
+                    formOptions={formOptions}
+                    onClose={() => {
+                        setGap(null);
+                        setGapsOpen(true);
+                    }}
+                    onCreated={(created) => {
+                        setDoneGapKeys((current) =>
+                            current.includes(created.key)
+                                ? current
+                                : [...current, created.key],
+                        );
+                    }}
+                />
+            ) : null}
         </>
     );
 }
