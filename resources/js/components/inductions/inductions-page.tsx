@@ -50,6 +50,18 @@ function inductionExportHref(filters: InductionsFilters): string {
         params.set('status', filters.status);
     }
 
+    if (filters.activity) {
+        params.set('activity', filters.activity);
+    }
+
+    if (filters.date_from) {
+        params.set('date_from', filters.date_from);
+    }
+
+    if (filters.date_to) {
+        params.set('date_to', filters.date_to);
+    }
+
     const query = params.toString();
 
     return query ? `/inducciones/exportar?${query}` : '/inducciones/exportar';
@@ -217,6 +229,7 @@ export function InductionsPage() {
                 inductions={mergedInductions}
                 filters={filters}
                 statusOptions={statusOptions ?? []}
+                activityOptions={formOptions?.activities ?? []}
                 onEdit={(item) => {
                     if (!can('inductions.update')) {
                         return;

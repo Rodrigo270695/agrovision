@@ -22,7 +22,9 @@ import {
     type FilterChip,
     type SortState,
 } from '@/components/data-page';
+import { DateRangeFilter } from '@/components/shared/date-range-filter';
 import { RowActionsMenu } from '@/components/shared/row-actions-menu';
+import type { FormOption } from '@/components/inductions/induction-form-fields';
 import { useCan } from '@/hooks/use-can';
 import { isBrowserOnline } from '@/lib/offline/ids';
 import { openInductionPdf } from '@/lib/open-induction-pdf';
@@ -101,6 +103,9 @@ export type InductionsPagination = {
 export type InductionsFilters = {
     search: string;
     status?: string | null;
+    activity?: string | null;
+    date_from?: string | null;
+    date_to?: string | null;
     sort: 'title' | 'scheduled_at' | 'status' | 'created_at' | 'attendees_count';
     direction: 'asc' | 'desc';
     per_page: number;
@@ -112,6 +117,7 @@ type Props = {
     inductions: InductionsPagination;
     filters: InductionsFilters;
     statusOptions: StatusOption[];
+    activityOptions: FormOption[];
     onEdit: (induction: InductionItem) => void;
     onDelete: (induction: InductionItem) => void;
     onCopy: (induction: InductionItem) => void;
@@ -362,10 +368,34 @@ function statusVariant(
     return 'muted';
 }
 
+function matchingAttendees(
+    induction: InductionItem,
+    search: string,
+): InductionAttendeePreview[] {
+    const needle = search.trim().toLowerCase();
+
+    if (needle.length < 2) {
+        return [];
+    }
+
+    return (induction.attendees ?? []).filter((attendee) => {
+        const name = (attendee.driver_name ?? '').toLowerCase();
+        const dni = (attendee.driver_dni ?? '').toLowerCase();
+        const plate = (attendee.plate_number ?? '').toLowerCase();
+
+        return (
+            name.includes(needle) ||
+            dni.includes(needle) ||
+            plate.includes(needle)
+        );
+    });
+}
+
 export function InductionsTable({
     inductions,
     filters,
     statusOptions,
+    activityOptions,
     onEdit,
     onDelete,
     onCopy,
@@ -388,12 +418,33 @@ export function InductionsTable({
             )
                 ? params.status
                 : filters.status;
+            const nextActivity = Object.prototype.hasOwnProperty.call(
+                params,
+                'activity',
+            )
+                ? params.activity
+                : filters.activity;
+            const nextFrom = Object.prototype.hasOwnProperty.call(
+                params,
+                'date_from',
+            )
+                ? params.date_from
+                : filters.date_from;
+            const nextTo = Object.prototype.hasOwnProperty.call(
+                params,
+                'date_to',
+            )
+                ? params.date_to
+                : filters.date_to;
 
             router.get(
                 '/inducciones',
                 {
                     search: params.search ?? filters.search,
                     ...(nextStatus ? { status: nextStatus } : {}),
+                    ...(nextActivity ? { activity: nextActivity } : {}),
+                    ...(nextFrom ? { date_from: nextFrom } : {}),
+                    ...(nextTo ? { date_to: nextTo } : {}),
                     sort: params.sort ?? filters.sort,
                     direction: params.direction ?? filters.direction,
                     per_page: params.per_page ?? filters.per_page,
@@ -415,7 +466,7 @@ export function InductionsTable({
 
     const chipOptions = useMemo<FilterChip<string>[]>(
         () => [
-            { value: 'all', label: 'Todos', tone: 'default' },
+            { value: 'all', label: 'Todos los estados', tone: 'default' },
             ...statusOptions.map((option) => ({
                 value: option.value,
                 label: option.label,
@@ -425,23 +476,68 @@ export function InductionsTable({
         [statusOptions],
     );
 
+    const activityChips = useMemo<FilterChip<string>[]>(
+        () => [
+            { value: 'all', label: 'Todas las actividades', tone: 'default' },
+            ...activityOptions.map((option, index) => ({
+                value: option.value,
+                label: option.label,
+                tone: (
+                    ['info', 'success', 'warning', 'danger', 'muted'] as const
+                )[index % 5],
+            })),
+        ],
+        [activityOptions],
+    );
+
+    const activityLabel = (value?: string | null) =>
+        activityOptions.find((option) => option.value === value)?.label ??
+        value ??
+        '';
+
     const columns = useMemo<DataTableColumn<InductionItem>[]>(
         () => [
             {
                 key: 'title',
                 header: 'Inducción',
                 sortable: true,
-                cell: (induction) => (
-                    <div className="flex min-w-0 flex-col leading-tight">
-                        <span className="truncate text-sm font-semibold text-foreground">
-                            {induction.title}
-                        </span>
-                        <span className="truncate font-mono text-xs text-muted-foreground">
-                            {induction.document_code || 'Sin código'}
-                            {induction.location ? ` · ${induction.location}` : ''}
-                        </span>
-                    </div>
-                ),
+                cell: (induction) => {
+                    const matches = matchingAttendees(
+                        induction,
+                        filters.search,
+                    );
+
+                    return (
+                        <div className="flex min-w-0 flex-col leading-tight">
+                            <span className="truncate text-sm font-semibold text-foreground">
+                                {induction.title}
+                            </span>
+                            <span className="truncate text-xs text-muted-foreground">
+                                {activityLabel(induction.activity)}
+                                {induction.location
+                                    ? ` · ${induction.location}`
+                                    : ''}
+                            </span>
+                            {matches.length > 0 ? (
+                                <span className="mt-0.5 truncate text-[11px] text-[#2e5a9e]">
+                                    {matches
+                                        .slice(0, 2)
+                                        .map((attendee) => {
+                                            const dni = attendee.driver_dni
+                                                ? ` · DNI ${attendee.driver_dni}`
+                                                : '';
+
+                                            return `${attendee.driver_name}${dni}`;
+                                        })
+                                        .join(' · ')}
+                                    {matches.length > 2
+                                        ? ` +${matches.length - 2}`
+                                        : ''}
+                                </span>
+                            ) : null}
+                        </div>
+                    );
+                },
             },
             {
                 key: 'scheduled_at',
@@ -551,10 +647,25 @@ export function InductionsTable({
                 ),
             },
         ],
-        [onCopy, onDelete, onEdit, onOpen, onViewAttendees, statusOptions],
+        [
+            activityOptions,
+            filters.search,
+            onCopy,
+            onDelete,
+            onEdit,
+            onOpen,
+            onViewAttendees,
+            statusOptions,
+        ],
     );
 
-    const hasFilters = Boolean(filters.search || filters.status);
+    const hasFilters = Boolean(
+        filters.search ||
+            filters.status ||
+            filters.activity ||
+            filters.date_from ||
+            filters.date_to,
+    );
 
     return (
         <DataTable
@@ -579,8 +690,19 @@ export function InductionsTable({
                 <DataToolbar
                     search={filters.search}
                     onSearchChange={(search) => visit({ search, page: 1 })}
-                    placeholder="Buscar título o lugar..."
+                    placeholder="Buscar tema, conductor o DNI..."
                 >
+                    <FilterChips
+                        ariaLabel="Filtrar por actividad"
+                        value={filters.activity || 'all'}
+                        onChange={(value) =>
+                            visit({
+                                activity: value === 'all' ? null : value,
+                                page: 1,
+                            })
+                        }
+                        options={activityChips}
+                    />
                     <FilterChips
                         ariaLabel="Filtrar por estado"
                         value={filters.status || 'all'}
@@ -591,6 +713,24 @@ export function InductionsTable({
                             })
                         }
                         options={chipOptions}
+                    />
+                    <DateRangeFilter
+                        desde={filters.date_from ?? null}
+                        hasta={filters.date_to ?? null}
+                        onApply={(dateFrom, dateTo) =>
+                            visit({
+                                date_from: dateFrom,
+                                date_to: dateTo,
+                                page: 1,
+                            })
+                        }
+                        onClear={() =>
+                            visit({
+                                date_from: null,
+                                date_to: null,
+                                page: 1,
+                            })
+                        }
                     />
                 </DataToolbar>
             }
@@ -604,6 +744,9 @@ export function InductionsTable({
                         sort: filters.sort,
                         direction: filters.direction,
                         status: filters.status || undefined,
+                        activity: filters.activity || undefined,
+                        date_from: filters.date_from || undefined,
+                        date_to: filters.date_to || undefined,
                     }}
                 />
             }

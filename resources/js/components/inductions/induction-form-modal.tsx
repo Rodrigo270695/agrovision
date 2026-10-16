@@ -261,8 +261,8 @@ export function InductionFormModal({
                     ? 'Mismos datos de la inducción. Se copian los conductores con firma y huella. Los reglamentos quedan vacíos: luego solo inicias y cierras.'
                     : 'Completa el tema, la fecha y el lugar. Los códigos salen de Configuración.'
             }
-            className="sm:max-w-3xl"
-            bodyClassName="max-h-[70vh]"
+            className="max-h-[min(92vh,56rem)] sm:max-w-3xl"
+            bodyClassName="max-h-[min(72vh,42rem)]"
             footer={
                 <>
                     <Button

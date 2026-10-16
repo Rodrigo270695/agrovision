@@ -44,6 +44,9 @@ class InductionController extends Controller
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:255'],
             'status' => ['nullable', 'string', Rule::in(InductionStatuses::keys())],
+            'activity' => ['nullable', 'string', Rule::in(array_keys(InductionFormOptions::activities()))],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date'],
             'sort' => ['nullable', Rule::in(['title', 'scheduled_at', 'status', 'created_at', 'attendees_count'])],
             'direction' => ['nullable', Rule::in(['asc', 'desc'])],
             'per_page' => ['nullable', Rule::in([5, 10, 25, 50])],
@@ -53,6 +56,9 @@ class InductionController extends Controller
 
         $search = trim((string) ($validated['search'] ?? ''));
         $status = $validated['status'] ?? null;
+        $activity = $validated['activity'] ?? null;
+        $dateFrom = $validated['date_from'] ?? null;
+        $dateTo = $validated['date_to'] ?? null;
         $sort = $validated['sort'] ?? 'scheduled_at';
         $direction = $validated['direction'] ?? 'desc';
         $perPage = (int) ($validated['per_page'] ?? 10);
@@ -77,17 +83,7 @@ class InductionController extends Controller
                 ]),
         ]);
 
-        if ($search !== '') {
-            $query->where(function ($builder) use ($search) {
-                $builder
-                    ->where('title', 'ilike', "%{$search}%")
-                    ->orWhere('location', 'ilike', "%{$search}%");
-            });
-        }
-
-        if ($status) {
-            $query->where('status', $status);
-        }
+        $this->applyListFilters($query, $search, $status, $activity, $dateFrom, $dateTo);
 
         $query->orderBy($sort, $direction);
 
@@ -98,6 +94,9 @@ class InductionController extends Controller
             'filters' => [
                 'search' => $search,
                 'status' => $status,
+                'activity' => $activity,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
                 'sort' => $sort,
                 'direction' => $direction,
                 'per_page' => $perPage,
@@ -984,13 +983,30 @@ class InductionController extends Controller
     /**
      * @return Builder<Induction>
      */
-    public function export(InductionReportExporter $exporter): StreamedResponse
+    public function export(Request $request, InductionReportExporter $exporter): StreamedResponse
     {
-        $inductions = $this->scopedInductionsQuery()
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'status' => ['nullable', 'string', Rule::in(InductionStatuses::keys())],
+            'activity' => ['nullable', 'string', Rule::in(array_keys(InductionFormOptions::activities()))],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date'],
+        ]);
+
+        $query = $this->scopedInductionsQuery()
             ->with('attendees')
-            ->where('status', '!=', InductionStatuses::CANCELLED)
-            ->orderBy('scheduled_at')
-            ->get();
+            ->where('status', '!=', InductionStatuses::CANCELLED);
+
+        $this->applyListFilters(
+            $query,
+            trim((string) ($validated['search'] ?? '')),
+            $validated['status'] ?? null,
+            $validated['activity'] ?? null,
+            $validated['date_from'] ?? null,
+            $validated['date_to'] ?? null,
+        );
+
+        $inductions = $query->orderBy('scheduled_at')->get();
 
         $units = Unit::query()
             ->with([
@@ -1004,6 +1020,47 @@ class InductionController extends Controller
         }
 
         return $exporter->download($inductions, $units->get());
+    }
+
+    private function applyListFilters(
+        Builder $query,
+        string $search,
+        ?string $status,
+        ?string $activity,
+        ?string $dateFrom,
+        ?string $dateTo,
+    ): void {
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search) {
+                $builder
+                    ->where('title', 'ilike', "%{$search}%")
+                    ->orWhere('location', 'ilike', "%{$search}%")
+                    ->orWhere('sede', 'ilike', "%{$search}%")
+                    ->orWhere('zone', 'ilike', "%{$search}%")
+                    ->orWhereHas('attendees', function ($attendees) use ($search) {
+                        $attendees
+                            ->where('driver_name', 'ilike', "%{$search}%")
+                            ->orWhere('driver_dni', 'ilike', "%{$search}%")
+                            ->orWhere('plate_number', 'ilike', "%{$search}%");
+                    });
+            });
+        }
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        if ($activity) {
+            $query->where('activity', $activity);
+        }
+
+        if ($dateFrom) {
+            $query->whereRaw('coalesce(session_date, scheduled_at::date) >= ?', [$dateFrom]);
+        }
+
+        if ($dateTo) {
+            $query->whereRaw('coalesce(session_date, scheduled_at::date) <= ?', [$dateTo]);
+        }
     }
 
     private function scopedInductionsQuery(): Builder

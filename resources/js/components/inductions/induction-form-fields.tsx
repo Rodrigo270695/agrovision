@@ -149,6 +149,7 @@ export function InductionFormFields({
                             Actividad <span className="text-red-500">*</span>
                         </Label>
                         <Select
+                            modal={false}
                             value={values.activity}
                             onValueChange={(v) => onChange('activity', v)}
                         >
@@ -170,6 +171,7 @@ export function InductionFormFields({
                             Modalidad <span className="text-red-500">*</span>
                         </Label>
                         <Select
+                            modal={false}
                             value={values.modality}
                             onValueChange={(v) => onChange('modality', v)}
                         >
@@ -191,6 +193,7 @@ export function InductionFormFields({
                             Escuela <span className="text-red-500">*</span>
                         </Label>
                         <Select
+                            modal={false}
                             value={values.school}
                             onValueChange={(v) => onChange('school', v)}
                         >
@@ -279,6 +282,7 @@ export function InductionFormFields({
                             Periodo <span className="text-red-500">*</span>
                         </Label>
                         <Select
+                            modal={false}
                             value={values.period_id || '__none'}
                             onValueChange={(v) =>
                                 onChange(
@@ -469,6 +473,7 @@ export function InductionFormFields({
                 <div className="grid gap-1.5">
                     <Label className="text-xs text-[#1a2b4c]">Estado inicial</Label>
                     <Select
+                        modal={false}
                         value={values.status || 'scheduled'}
                         onValueChange={(v) => onChange('status', v)}
                     >
