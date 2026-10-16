@@ -233,6 +233,7 @@ export function FilterChips<TValue extends string>({
 }: FilterChipsProps<TValue>) {
     const listId = useId();
     const rootRef = useRef<HTMLDivElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
     const valueRef = useRef(value);
     const [open, setOpen] = useState(false);
     const [pending, setPending] = useState<TValue | null>(null);
@@ -273,32 +274,56 @@ export function FilterChips<TValue extends string>({
 
         const place = () => {
             const trigger = rootRef.current;
+            const menu = menuRef.current;
 
             if (!trigger) {
                 return;
             }
 
+            const gap = 6;
+            const edge = 8;
+            const maxMenu = 320;
             const rect = trigger.getBoundingClientRect();
             const width = Math.max(rect.width, 232);
-            const estimated = Math.min(options.length * 44 + 12, 320);
-            const spaceBelow = window.innerHeight - rect.bottom;
-            const openUp = spaceBelow < estimated && rect.top > spaceBelow;
             const left = Math.max(
-                8,
-                Math.min(rect.left, window.innerWidth - width - 8),
+                edge,
+                Math.min(rect.left, window.innerWidth - width - edge),
             );
+            const spaceBelow = window.innerHeight - rect.bottom - gap - edge;
+            const spaceAbove = rect.top - gap - edge;
+            const contentHeight = menu
+                ? (() => {
+                      menu.style.height = 'auto';
+                      menu.style.maxHeight = 'none';
+
+                      return menu.scrollHeight;
+                  })()
+                : options.length * 40 + 8;
+            const openUp =
+                contentHeight > spaceBelow && spaceAbove > spaceBelow;
+            const available = Math.max(
+                48,
+                openUp ? spaceAbove : spaceBelow,
+            );
+            const height = Math.min(contentHeight, maxMenu, available);
 
             setMenuStyle({
                 position: 'fixed',
-                top: openUp ? undefined : rect.bottom + 6,
-                bottom: openUp ? window.innerHeight - rect.top + 6 : undefined,
+                top: openUp ? 'auto' : rect.bottom + gap,
+                bottom: openUp
+                    ? window.innerHeight - rect.top + gap
+                    : 'auto',
                 left,
                 width,
+                height,
+                maxHeight: height,
+                overflowY: contentHeight > height + 1 ? 'auto' : 'hidden',
                 zIndex: 80,
             });
         };
 
         place();
+        const frame = window.requestAnimationFrame(place);
         window.addEventListener('resize', place);
         window.addEventListener('scroll', place, true);
 
@@ -329,6 +354,7 @@ export function FilterChips<TValue extends string>({
         document.addEventListener('keydown', onKeyDown);
 
         return () => {
+            window.cancelAnimationFrame(frame);
             window.removeEventListener('resize', place);
             window.removeEventListener('scroll', place, true);
             document.removeEventListener('pointerdown', onPointerDown);
@@ -398,12 +424,13 @@ export function FilterChips<TValue extends string>({
             {open
                 ? createPortal(
                       <div
+                          ref={menuRef}
                           id={listId}
                           role="listbox"
                           aria-label={ariaLabel}
                           data-filter-select-menu=""
                           style={menuStyle}
-                          className="max-h-80 overflow-y-auto rounded-xl border border-border/60 bg-white p-1 text-popover-foreground shadow-lg dark:bg-popover"
+                          className="h-fit overflow-hidden rounded-xl border border-border/60 bg-white p-1 text-popover-foreground shadow-lg dark:bg-popover"
                       >
                           {options.map((opt) => {
                               const tone = inferTone(opt.value, opt.tone);
