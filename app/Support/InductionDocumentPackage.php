@@ -29,8 +29,8 @@ final class InductionDocumentPackage
             return self::pdfResponse($cached, $induction);
         }
 
-        @set_time_limit(180);
-        @ini_set('memory_limit', '512M');
+        @set_time_limit(300);
+        @ini_set('memory_limit', '1024M');
 
         $formats = InductionDocumentSettings::forPdf($induction);
 
@@ -112,29 +112,21 @@ final class InductionDocumentPackage
             $registerPdf->output(),
         ];
 
-        $receipts = [];
-
-        foreach ($attendanceRows as $row) {
-            /** @var InductionAttendee $attendee */
-            $attendee = $row['attendee'];
-            $shared = [
+        if ($attendanceRows->isNotEmpty()) {
+            $receipts = [
                 'induction' => $induction,
                 'formats' => $formats,
-                'attendee' => $attendee,
                 'logoSrc' => $logoSrc,
-                'signatureSrc' => $row['signature_src'],
-                'fingerprintSrc' => $row['fingerprint_src'],
+                'rows' => $attendanceRows,
             ];
 
-            $documents[] = Pdf::loadView('pdfs.induction-risst-receipt', $shared)
+            $documents[] = Pdf::loadView('pdfs.induction-risst-receipt', $receipts)
                 ->setPaper('a4', 'portrait')
                 ->output();
-            $receipts[] = Pdf::loadView('pdfs.induction-ritran-receipt', $shared)
+            $documents[] = Pdf::loadView('pdfs.induction-ritran-receipt', $receipts)
                 ->setPaper('a4', 'portrait')
                 ->output();
         }
-
-        array_push($documents, ...$receipts);
 
         $binary = self::merge($documents);
         $disk->put($pdfPath, $binary);
@@ -166,7 +158,7 @@ final class InductionDocumentPackage
             ]);
         }
 
-        $parts[] = 'receipt-layout-v5';
+        $parts[] = 'receipt-layout-v6';
 
         return hash('sha256', implode("\n", $parts));
     }
