@@ -221,9 +221,14 @@ class SecurityReportController extends Controller
             'date_to' => ['nullable', 'date'],
             'coordinator_id' => ['nullable', 'integer'],
             'inspector_id' => ['nullable', 'integer'],
+            'all_dates' => ['nullable', 'boolean'],
         ]);
 
-        $range = ReportPeriod::range($validated['date_from'] ?? null, $validated['date_to'] ?? null);
+        $range = ReportPeriod::range(
+            $validated['date_from'] ?? null,
+            $validated['date_to'] ?? null,
+            $request->boolean('all_dates'),
+        );
         $coordinatorId = isset($validated['coordinator_id'])
             ? (int) $validated['coordinator_id']
             : null;

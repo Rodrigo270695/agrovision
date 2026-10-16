@@ -329,11 +329,13 @@ export function DateRangeFilter({
     const hasRange = Boolean(committedFrom && committedTo);
     const activePresetId = presets.find((preset) => preset.desde === desde && preset.hasta === hasta)?.id;
     const triggerLabel =
-        committedFrom && committedTo
-            ? isSameDay(committedFrom, committedTo)
-                ? formatDay(committedFrom)
-                : `${formatDay(committedFrom)} — ${formatDay(committedTo)}`
-            : 'Todas las fechas';
+        activePresetId === 'this_month'
+            ? 'Este mes'
+            : committedFrom && committedTo
+              ? isSameDay(committedFrom, committedTo)
+                  ? formatDay(committedFrom)
+                  : `${formatDay(committedFrom)} — ${formatDay(committedTo)}`
+              : 'Todas las fechas';
 
     const openPanel = () => {
         const from = committedFrom ?? startOfDay(new Date());

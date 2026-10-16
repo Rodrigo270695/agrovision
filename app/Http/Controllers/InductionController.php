@@ -22,6 +22,7 @@ use App\Support\InductionReportExporter;
 use App\Support\InductionStatuses;
 use App\Support\PermissionCatalog;
 use App\Support\PublicDisk;
+use App\Support\ReportPeriod;
 use App\Support\SignatureImage;
 use App\Support\SystemRoles;
 use Carbon\Carbon;
@@ -47,6 +48,7 @@ class InductionController extends Controller
             'activity' => ['nullable', 'string', Rule::in(array_keys(InductionFormOptions::activities()))],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
+            'all_dates' => ['nullable', 'boolean'],
             'sort' => ['nullable', Rule::in(['title', 'scheduled_at', 'status', 'created_at', 'attendees_count'])],
             'direction' => ['nullable', Rule::in(['asc', 'desc'])],
             'per_page' => ['nullable', Rule::in([5, 10, 25, 50])],
@@ -57,8 +59,13 @@ class InductionController extends Controller
         $search = trim((string) ($validated['search'] ?? ''));
         $status = $validated['status'] ?? null;
         $activity = $validated['activity'] ?? null;
-        $dateFrom = $validated['date_from'] ?? null;
-        $dateTo = $validated['date_to'] ?? null;
+        $range = ReportPeriod::range(
+            $validated['date_from'] ?? null,
+            $validated['date_to'] ?? null,
+            $request->boolean('all_dates'),
+        );
+        $dateFrom = $range['from'];
+        $dateTo = $range['to'];
         $sort = $validated['sort'] ?? 'scheduled_at';
         $direction = $validated['direction'] ?? 'desc';
         $perPage = (int) ($validated['per_page'] ?? 10);
@@ -68,6 +75,9 @@ class InductionController extends Controller
         $query = (clone $baseQuery)->withCount([
             'attendees',
             'attendees as attended_count' => fn ($q) => $q->where('status', InductionAttendeeStatuses::ATTENDED),
+            'attendees as unsigned_count' => fn ($q) => $q->where(function ($inner) {
+                $inner->whereNull('signature_path')->orWhere('signature_path', '');
+            }),
         ])->with([
             'period:id,name',
             'creator:id,name',
@@ -991,7 +1001,14 @@ class InductionController extends Controller
             'activity' => ['nullable', 'string', Rule::in(array_keys(InductionFormOptions::activities()))],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
+            'all_dates' => ['nullable', 'boolean'],
         ]);
+
+        $range = ReportPeriod::range(
+            $validated['date_from'] ?? null,
+            $validated['date_to'] ?? null,
+            $request->boolean('all_dates'),
+        );
 
         $query = $this->scopedInductionsQuery()
             ->with('attendees')
@@ -1002,8 +1019,8 @@ class InductionController extends Controller
             trim((string) ($validated['search'] ?? '')),
             $validated['status'] ?? null,
             $validated['activity'] ?? null,
-            $validated['date_from'] ?? null,
-            $validated['date_to'] ?? null,
+            $range['from'],
+            $range['to'],
         );
 
         $inductions = $query->orderBy('scheduled_at')->get();

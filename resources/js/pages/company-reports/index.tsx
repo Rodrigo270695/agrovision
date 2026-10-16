@@ -100,10 +100,14 @@ export default function CompanyReportsPage({
                             )
                         }
                         onClear={() =>
-                            router.get(baseUrl, {}, {
-                                preserveScroll: true,
-                                preserveState: true,
-                            })
+                            router.get(
+                                baseUrl,
+                                { all_dates: 1 },
+                                {
+                                    preserveScroll: true,
+                                    preserveState: true,
+                                },
+                            )
                         }
                     />
                 </div>

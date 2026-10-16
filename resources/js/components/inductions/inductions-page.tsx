@@ -62,6 +62,10 @@ function inductionExportHref(filters: InductionsFilters): string {
         params.set('date_to', filters.date_to);
     }
 
+    if (!filters.date_from && !filters.date_to) {
+        params.set('all_dates', '1');
+    }
+
     const query = params.toString();
 
     return query ? `/inducciones/exportar?${query}` : '/inducciones/exportar';

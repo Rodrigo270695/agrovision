@@ -84,6 +84,7 @@ export type InductionItem = {
     closed_at?: string | null;
     attendees_count?: number;
     attended_count?: number;
+    unsigned_count?: number;
     attendees?: InductionAttendeePreview[];
     period?: { id: number; name: string } | null;
     creator?: { id: number; name: string } | null;
@@ -445,6 +446,7 @@ export function InductionsTable({
                     ...(nextActivity ? { activity: nextActivity } : {}),
                     ...(nextFrom ? { date_from: nextFrom } : {}),
                     ...(nextTo ? { date_to: nextTo } : {}),
+                    ...(!nextFrom && !nextTo ? { all_dates: 1 } : {}),
                     sort: params.sort ?? filters.sort,
                     direction: params.direction ?? filters.direction,
                     per_page: params.per_page ?? filters.per_page,
@@ -588,19 +590,28 @@ export function InductionsTable({
                 header: 'Estado',
                 sortable: true,
                 cell: (induction) => (
-                    <StatBadge
-                        label={
-                            induction.pending_sync
-                                ? 'En dispositivo'
-                                : statusLabel(induction.status, statusOptions)
-                        }
-                        value=""
-                        variant={
-                            induction.pending_sync
-                                ? 'warning'
-                                : statusVariant(induction.status)
-                        }
-                    />
+                    <div className="flex flex-col items-start gap-1">
+                        <StatBadge
+                            label={
+                                induction.pending_sync
+                                    ? 'En dispositivo'
+                                    : statusLabel(induction.status, statusOptions)
+                            }
+                            value=""
+                            variant={
+                                induction.pending_sync
+                                    ? 'warning'
+                                    : statusVariant(induction.status)
+                            }
+                        />
+                        {(induction.unsigned_count ?? 0) > 0 ? (
+                            <StatBadge
+                                label="Falta firmar"
+                                value={induction.unsigned_count ?? 0}
+                                variant="danger"
+                            />
+                        ) : null}
+                    </div>
                 ),
             },
             {
@@ -747,6 +758,9 @@ export function InductionsTable({
                         activity: filters.activity || undefined,
                         date_from: filters.date_from || undefined,
                         date_to: filters.date_to || undefined,
+                        ...(!filters.date_from && !filters.date_to
+                            ? { all_dates: 1 }
+                            : {}),
                     }}
                 />
             }

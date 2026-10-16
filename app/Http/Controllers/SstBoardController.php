@@ -29,11 +29,16 @@ class SstBoardController extends Controller
             'vehicle_types.*' => ['string', 'max:80'],
             'template' => ['nullable', 'string', 'max:50', Rule::exists('checklist_templates', 'type')->where('is_active', true)],
             'inspection' => ['nullable', Rule::in(['actual', 'first', 'second'])],
+            'all_dates' => ['nullable', 'boolean'],
         ]);
 
         $template = $validated['template'] ?? 'tdp';
         $inspection = $validated['inspection'] ?? 'actual';
-        $range = ReportPeriod::range($validated['date_from'] ?? null, $validated['date_to'] ?? null);
+        $range = ReportPeriod::range(
+            $validated['date_from'] ?? null,
+            $validated['date_to'] ?? null,
+            $request->boolean('all_dates'),
+        );
         $coordinatorId = isset($validated['coordinator_id'])
             ? (int) $validated['coordinator_id']
             : null;

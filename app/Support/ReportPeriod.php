@@ -9,8 +9,16 @@ class ReportPeriod
     /**
      * @return array{from: string|null, to: string|null, label: string}
      */
-    public static function range(mixed $from, mixed $to): array
+    public static function range(mixed $from, mixed $to, bool $allDates = false): array
     {
+        if ($allDates) {
+            return [
+                'from' => null,
+                'to' => null,
+                'label' => 'Todas las fechas',
+            ];
+        }
+
         $start = self::date($from);
         $end = self::date($to);
 
@@ -19,10 +27,12 @@ class ReportPeriod
         }
 
         if ($start === null && $end === null) {
+            $month = CarbonImmutable::now()->startOfMonth();
+
             return [
-                'from' => null,
-                'to' => null,
-                'label' => 'Todas las fechas',
+                'from' => $month->toDateString(),
+                'to' => $month->endOfMonth()->toDateString(),
+                'label' => $month->format('d/m/Y').' — '.$month->endOfMonth()->format('d/m/Y'),
             ];
         }
 

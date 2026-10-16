@@ -78,6 +78,9 @@ export default function DriverBoardPage() {
             {
                 date_from: merged.date_from || undefined,
                 date_to: merged.date_to || undefined,
+                ...(!merged.date_from && !merged.date_to
+                    ? { all_dates: 1 }
+                    : {}),
                 coordinator_id: merged.coordinator_id ?? undefined,
                 inspector_id: merged.inspector_id ?? undefined,
                 sede: merged.sede ?? undefined,

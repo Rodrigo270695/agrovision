@@ -49,6 +49,7 @@ final class OwnerReports
         $range = ReportPeriod::range(
             $request->input('date_from'),
             $request->input('date_to'),
+            $request->boolean('all_dates'),
         );
         $inspectors = SystemRoles::inspectors();
         $quotaMap = InspectorQuota::query()

@@ -109,6 +109,7 @@ class DriverBoardController extends Controller
             'coordinator_id' => ['nullable', 'integer'],
             'inspector_id' => ['nullable', 'integer'],
             'sede' => ['nullable', 'integer'],
+            'all_dates' => ['nullable', 'boolean'],
         ]);
 
         $coordinatorId = isset($validated['coordinator_id'])
@@ -124,7 +125,11 @@ class DriverBoardController extends Controller
         }
 
         return [
-            'range' => ReportPeriod::range($validated['date_from'] ?? null, $validated['date_to'] ?? null),
+            'range' => ReportPeriod::range(
+                $validated['date_from'] ?? null,
+                $validated['date_to'] ?? null,
+                $request->boolean('all_dates'),
+            ),
             'coordinator_id' => $coordinatorId,
             'inspector_id' => $inspectorId,
             'site_id' => $siteId,
