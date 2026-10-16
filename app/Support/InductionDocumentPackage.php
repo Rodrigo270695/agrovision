@@ -166,7 +166,7 @@ final class InductionDocumentPackage
             ]);
         }
 
-        $parts[] = 'receipt-layout-v3';
+        $parts[] = 'receipt-layout-v4';
 
         return hash('sha256', implode("\n", $parts));
     }

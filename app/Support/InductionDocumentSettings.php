@@ -71,16 +71,15 @@ final class InductionDocumentSettings
     public static function forPdf(Induction $induction): array
     {
         $current = self::current();
-        $savedDate = self::date($induction->document_date);
 
         return [
-            'register_code' => self::text($induction->document_code, $current['register_code']),
-            'register_revision' => self::text($induction->document_revision, $current['register_revision']),
-            'register_date' => self::displayDate($savedDate ?? $current['register_date']),
-            'risst_code' => self::text($induction->risst_code, $current['risst_code']),
-            'risst_revision' => self::text($induction->risst_revision, $current['risst_revision']),
-            'ritran_code' => self::text($induction->ritran_code, $current['ritran_code']),
-            'ritran_revision' => self::text($induction->ritran_revision, $current['ritran_revision']),
+            'register_code' => $current['register_code'],
+            'register_revision' => $current['register_revision'],
+            'register_date' => self::displayDate($current['register_date']),
+            'risst_code' => $current['risst_code'],
+            'risst_revision' => $current['risst_revision'],
+            'ritran_code' => $current['ritran_code'],
+            'ritran_revision' => $current['ritran_revision'],
         ];
     }
 

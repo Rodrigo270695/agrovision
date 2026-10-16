@@ -256,8 +256,8 @@ export default function ConsolidationsIndexPage() {
                     footer={
                         <DataPagination
                             meta={asPaginated(items, '/consolidados')}
-                            onPerPageChange={(per_page) =>
-                                visit({ per_page, page: 1 })
+                        onPerPageChange={(per_page) =>
+                            visit({ per_page, page: 1 })
                             }
                             preservedQuery={{
                                 search: filters.search || undefined,

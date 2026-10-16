@@ -23,7 +23,7 @@
             height: 118px;
             border: 1.5px solid #222;
             text-align: center;
-            margin-left: auto;
+            margin: 0 36px 0 auto;
         }
         .print { max-height: 108px; max-width: 100px; }
         .footer {

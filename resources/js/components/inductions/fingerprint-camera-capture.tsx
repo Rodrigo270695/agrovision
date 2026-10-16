@@ -795,16 +795,16 @@ export function FingerprintCameraCapture({
     return (
         <div className={cn('space-y-2', className)}>
             <div className="relative mx-auto aspect-4/5 w-full max-w-48 overflow-hidden rounded-xl border border-dashed border-[#c5d5e6] bg-[#0f172a]">
-                <video
-                    ref={videoRef}
-                    muted
-                    playsInline
-                    autoPlay
-                    className={cn(
-                        'h-full w-full object-cover',
-                        !active && 'opacity-0',
-                    )}
-                />
+                    <video
+                        ref={videoRef}
+                        muted
+                        playsInline
+                        autoPlay
+                        className={cn(
+                            'h-full w-full object-cover',
+                            !active && 'opacity-0',
+                        )}
+                    />
                 {preview && !active ? (
                     <img
                         src={preview}

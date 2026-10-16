@@ -324,7 +324,7 @@ export function UnitsTable({
             {
                 key: 'plate_number',
                 header: 'Placa',
-                sortable: true,
+            sortable: true,
                 cell: (unit) => (
                     <span className="text-xs text-muted-foreground">
                         {unit.plate_number || '—'}
@@ -374,7 +374,7 @@ export function UnitsTable({
                 sortable: true,
                 cell: (unit) => (
                     <span className="text-xs text-muted-foreground">
-                        {unit.driver_name || '—'}
+                                        {unit.driver_name || '—'}
                     </span>
                 ),
             },
@@ -384,7 +384,7 @@ export function UnitsTable({
                 sortable: true,
                 cell: (unit) => (
                     <span className="text-xs text-muted-foreground">
-                        {unit.vehicle_type || '—'}
+                                        {unit.vehicle_type || '—'}
                     </span>
                 ),
             },
@@ -394,7 +394,7 @@ export function UnitsTable({
                 sortable: true,
                 cell: (unit) => (
                     <span className="text-xs text-muted-foreground">
-                        {unit.provider}
+                                        {unit.provider}
                     </span>
                 ),
             },
@@ -403,7 +403,7 @@ export function UnitsTable({
                 header: 'Coordinador',
                 cell: (unit) => (
                     <span className="text-xs text-muted-foreground">
-                        {unit.coordinatorUser?.name || '—'}
+                                        {unit.coordinatorUser?.name || '—'}
                     </span>
                 ),
             },
@@ -415,18 +415,18 @@ export function UnitsTable({
                     const expiry = getWorstDocumentExpiry(unit.documents ?? []);
 
                     return (
-                        <div className="flex flex-col gap-1">
-                            <DocumentsProgressBar
-                                progress={
-                                    unit.documents_progress ?? {
-                                        done: 0,
-                                        total: 6,
-                                        percent: 0,
-                                    }
-                                }
-                            />
+                                        <div className="flex flex-col gap-1">
+                                            <DocumentsProgressBar
+                                                progress={
+                                                    unit.documents_progress ?? {
+                                                        done: 0,
+                                                        total: 6,
+                                                        percent: 0,
+                                                    }
+                                                }
+                                            />
                             <DocumentExpiryBadge info={expiry} compact />
-                        </div>
+                                        </div>
                     );
                 },
             },
@@ -436,7 +436,7 @@ export function UnitsTable({
                 sortable: true,
                 cell: (unit) => (
                     <span className="text-xs text-muted-foreground">
-                        {formatDate(unit.service_date)}
+                                        {formatDate(unit.service_date)}
                     </span>
                 ),
             },
@@ -448,13 +448,13 @@ export function UnitsTable({
                 className: 'w-12',
                 cell: (unit) => (
                     <div className="flex justify-end">
-                        <UnitActions
-                            unit={unit}
-                            onEdit={onEdit}
-                            onDelete={onDelete}
-                            onDocuments={onDocuments}
-                        />
-                    </div>
+                                <UnitActions
+                                    unit={unit}
+                                    onEdit={onEdit}
+                                    onDelete={onDelete}
+                                    onDocuments={onDocuments}
+                                />
+                            </div>
                 ),
             },
         ],
@@ -590,7 +590,7 @@ export function UnitsTable({
             >
                 Historial
             </button>
-        </div>
+            </div>
     );
 
     const historyRows = movements?.data ?? [];

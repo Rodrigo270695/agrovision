@@ -23,7 +23,7 @@
             height: 118px;
             border: 1.5px solid #222;
             text-align: center;
-            margin-left: auto;
+            margin: 0 36px 0 auto;
         }
         .print { max-height: 108px; max-width: 100px; }
         .footer {
@@ -40,6 +40,10 @@
 </head>
 <body>
 @php
+    $sessionAt = $induction->session_date ?? $induction->scheduled_at ?? null;
+    $receivedOn = $sessionAt
+        ? \Carbon\Carbon::parse($sessionAt)->format('d/m/Y')
+        : '____ / ____ / ________';
     $company = trim((string) ($attendee->provider ?? ''));
 @endphp
 
@@ -93,7 +97,7 @@
                     ______________________________
                 @endif
             </p>
-            <p class="bullet">• &nbsp; Fecha de recepción: ____ / ____ / ________</p>
+            <p class="bullet">• &nbsp; Fecha de recepción: <span class="fill">{{ $receivedOn }}</span></p>
         </td>
         <td style="width: 28%; text-align: right;">
             <div class="box">
