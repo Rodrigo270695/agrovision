@@ -31,6 +31,13 @@ class TenantSetting extends Model
         'login_logo_path',
         'primary_color',
         'modules',
+        'register_code',
+        'register_revision',
+        'register_date',
+        'risst_code',
+        'risst_revision',
+        'ritran_code',
+        'ritran_revision',
     ];
 
     /**
@@ -40,6 +47,7 @@ class TenantSetting extends Model
     {
         return [
             'modules' => 'array',
+            'register_date' => 'date',
         ];
     }
 
@@ -63,6 +71,13 @@ class TenantSetting extends Model
             'login_logo_path' => null,
             'primary_color' => '#1a2b4c',
             'modules' => TenantModules::defaults(),
+            'register_code' => 'GH-GD-FO-0609',
+            'register_revision' => '006',
+            'register_date' => null,
+            'risst_code' => 'PE-M-SST-002',
+            'risst_revision' => '2',
+            'ritran_code' => 'PE-M-SST-004',
+            'ritran_revision' => '1',
         ];
     }
 

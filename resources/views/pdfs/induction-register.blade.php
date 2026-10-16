@@ -59,9 +59,9 @@
             Entrenamiento y Simulacro
         </td>
         <td style="width: 26%;" class="meta">
-            <strong>Código:</strong> {{ $induction->document_code ?: '—' }}<br>
-            <strong>Revisión:</strong> {{ $induction->document_revision ?: '—' }}<br>
-            <strong>Fecha:</strong> {{ $fmtSessionDate }}<br>
+            <strong>Código:</strong> {{ $formats['register_code'] }}<br>
+            <strong>Revisión:</strong> {{ $formats['register_revision'] }}<br>
+            <strong>Fecha:</strong> {{ $formats['register_date'] }}<br>
             <strong>Página:</strong> 1 de 1
         </td>
     </tr>

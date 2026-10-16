@@ -2,6 +2,7 @@ import {
     CheckCircle2,
     Clock3,
     Download,
+    FileText,
     GraduationCap,
     LoaderCircle,
     Plus,
@@ -15,9 +16,15 @@ type Props = {
     stats: InductionStatsData;
     exportHref: string;
     onCreate: () => void;
+    onFormats: () => void;
 };
 
-export function InductionsHeader({ stats, exportHref, onCreate }: Props) {
+export function InductionsHeader({
+    stats,
+    exportHref,
+    onCreate,
+    onFormats,
+}: Props) {
     const { can } = useCan();
 
     return (
@@ -66,6 +73,17 @@ export function InductionsHeader({ stats, exportHref, onCreate }: Props) {
                                 </span>
                                 <span className="sm:hidden">Excel</span>
                             </a>
+                        </Button>
+                    ) : null}
+                    {can('inductions.update') ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={onFormats}
+                            className="cursor-pointer gap-2 border-[#1a2b4c] text-[#1a2b4c] hover:bg-[#e8f1fa]"
+                        >
+                            <FileText className="size-4" />
+                            Códigos
                         </Button>
                     ) : null}
                     {can('inductions.create') ? (

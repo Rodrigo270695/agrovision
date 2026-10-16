@@ -68,8 +68,6 @@ function matchedPlaceId(
 
 const emptyValues = {
     title: '',
-    document_code: 'GH-GD-FO-0609',
-    document_revision: '006',
     temario: '',
     activity: 'induccion',
     corrective_action: false,
@@ -133,8 +131,6 @@ export function InductionFormModal({
 
         form.setData({
             title: induction?.title ?? '',
-            document_code: induction?.document_code ?? 'GH-GD-FO-0609',
-            document_revision: induction?.document_revision ?? '006',
             temario: induction?.temario ?? '',
             activity: induction?.activity ?? 'induccion',
             corrective_action: Boolean(induction?.corrective_action),
@@ -183,8 +179,6 @@ export function InductionFormModal({
     const canSubmit = useMemo(() => {
         return (
             form.data.title.trim().length > 0 &&
-            form.data.document_code.trim().length > 0 &&
-            form.data.document_revision.trim().length > 0 &&
             form.data.period_id.length > 0 &&
             form.data.session_date.length > 0 &&
             form.data.start_time.length > 0 &&
@@ -265,7 +259,7 @@ export function InductionFormModal({
             description={
                 copying
                     ? 'Mismos datos de la inducción. Se copian los conductores con firma y huella. Los reglamentos quedan vacíos: luego solo inicias y cierras.'
-                    : 'Completa los campos del formato GH-GD-FO-0609.'
+                    : 'Completa el tema, la fecha y el lugar. Los códigos salen de Configuración.'
             }
             className="sm:max-w-3xl"
             bodyClassName="max-h-[70vh]"

@@ -473,6 +473,10 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:inductions.view')
             ->name('inductions.export');
 
+        Route::put('inducciones/formatos', [InductionController::class, 'updateFormats'])
+            ->middleware('permission:inductions.update')
+            ->name('inductions.formats.update');
+
         Route::post('inducciones', [InductionController::class, 'store'])
             ->middleware('permission:inductions.create')
             ->name('inductions.store');

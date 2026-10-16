@@ -15,8 +15,6 @@ import { cn } from '@/lib/utils';
 
 export type InductionFormValues = {
     title: string;
-    document_code: string;
-    document_revision: string;
     temario: string;
     activity: string;
     corrective_action: boolean;
@@ -117,45 +115,6 @@ export function InductionFormFields({
     return (
         <div className="space-y-5">
             <div className="space-y-3">
-                <SectionTitle>Código del formato</SectionTitle>
-                <p className="text-xs text-[#5a6f8c]">
-                    Este código y revisión aparecen en la cabecera del acta y del
-                    comprobante. La fecha se toma de la sesión (dd-mm-yyyy).
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">
-                            Código <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                            value={values.document_code}
-                            onChange={(e) =>
-                                onChange('document_code', e.target.value)
-                            }
-                            placeholder="GH-GD-FO-0609"
-                            className={inputClass}
-                            autoFocus
-                        />
-                        <InputError message={errors.document_code} />
-                    </div>
-                    <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">
-                            Revisión <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                            value={values.document_revision}
-                            onChange={(e) =>
-                                onChange('document_revision', e.target.value)
-                            }
-                            placeholder="006"
-                            className={inputClass}
-                        />
-                        <InputError message={errors.document_revision} />
-                    </div>
-                </div>
-            </div>
-
-            <div className="space-y-3">
                 <SectionTitle>Tema y temario</SectionTitle>
                 <div className="grid gap-1.5">
                     <Label className="text-xs text-[#1a2b4c]">
@@ -166,6 +125,7 @@ export function InductionFormFields({
                         onChange={(e) => onChange('title', e.target.value)}
                         placeholder="Ej. Identificación de peligros..."
                         className={inputClass}
+                        autoFocus
                     />
                     <InputError message={errors.title} />
                 </div>

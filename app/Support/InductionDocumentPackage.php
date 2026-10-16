@@ -32,12 +32,7 @@ final class InductionDocumentPackage
         @set_time_limit(180);
         @ini_set('memory_limit', '512M');
 
-        if (! filled($induction->document_code)) {
-            $induction->document_code = 'GH-GD-FO-0609';
-        }
-        if (! filled($induction->document_revision)) {
-            $induction->document_revision = '006';
-        }
+        $formats = InductionDocumentSettings::forPdf($induction);
 
         $toDataUri = static function (?string $absolute): ?string {
             if (! $absolute || ! is_file($absolute)) {
@@ -94,12 +89,14 @@ final class InductionDocumentPackage
 
         $reportPdf = Pdf::loadView('pdfs.induction-sst-report', [
             'induction' => $induction,
+            'formats' => $formats,
             'logoSrc' => $logoSrc,
             'attendeesCount' => $attendedSigned->count(),
         ])->setPaper('a4', 'portrait');
 
         $registerPdf = Pdf::loadView('pdfs.induction-register', [
             'induction' => $induction,
+            'formats' => $formats,
             'attendees' => $attendanceRows,
             'logoSrc' => $logoSrc,
             'speakerSignatureSrc' => $speakerSignatureSrc,
@@ -115,18 +112,29 @@ final class InductionDocumentPackage
             $registerPdf->output(),
         ];
 
+        $receipts = [];
+
         foreach ($attendanceRows as $row) {
             /** @var InductionAttendee $attendee */
             $attendee = $row['attendee'];
-
-            $documents[] = Pdf::loadView('pdfs.induction-risst-receipt', [
+            $shared = [
                 'induction' => $induction,
+                'formats' => $formats,
                 'attendee' => $attendee,
                 'logoSrc' => $logoSrc,
                 'signatureSrc' => $row['signature_src'],
                 'fingerprintSrc' => $row['fingerprint_src'],
-            ])->setPaper('a4', 'portrait')->output();
+            ];
+
+            $documents[] = Pdf::loadView('pdfs.induction-risst-receipt', $shared)
+                ->setPaper('a4', 'portrait')
+                ->output();
+            $receipts[] = Pdf::loadView('pdfs.induction-ritran-receipt', $shared)
+                ->setPaper('a4', 'portrait')
+                ->output();
         }
+
+        array_push($documents, ...$receipts);
 
         $binary = self::merge($documents);
         $disk->put($pdfPath, $binary);
@@ -137,11 +145,13 @@ final class InductionDocumentPackage
 
     private static function stamp(Induction $induction): string
     {
+        $formats = InductionDocumentSettings::forPdf($induction);
         $parts = [
             (string) $induction->updated_at,
             (string) $induction->speaker_signature_path,
             (string) $induction->verification_photo_path,
             (string) $induction->attendees->count(),
+            implode('|', $formats),
         ];
 
         foreach ($induction->attendees as $attendee) {

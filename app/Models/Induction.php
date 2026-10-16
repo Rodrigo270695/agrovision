@@ -57,6 +57,8 @@ class Induction extends Model
         'risst_date',
         'risst_approval_date',
         'risst_version',
+        'ritran_code',
+        'ritran_revision',
         'title',
         'temario',
         'activity',

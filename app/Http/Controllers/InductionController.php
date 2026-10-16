@@ -9,11 +9,13 @@ use App\Models\InductionRegulation;
 use App\Models\Period;
 use App\Models\Place;
 use App\Models\Site;
+use App\Models\TenantSetting;
 use App\Models\Unit;
 use App\Support\DriverBiometrics;
 use App\Support\IndexedRedirect;
 use App\Support\InductionAttendeeStatuses;
 use App\Support\InductionDocumentPackage;
+use App\Support\InductionDocumentSettings;
 use App\Support\InductionFormOptions;
 use App\Support\InductionRegulationMailer;
 use App\Support\InductionReportExporter;
@@ -108,6 +110,7 @@ class InductionController extends Controller
                 ->values()
                 ->all(),
             'formOptions' => $this->formOptions(),
+            'formats' => InductionDocumentSettings::current(),
             'stats' => [
                 'total' => (clone $baseQuery)->count(),
                 'scheduled' => (clone $baseQuery)->where('status', InductionStatuses::SCHEDULED)->count(),
@@ -120,7 +123,7 @@ class InductionController extends Controller
 
     public function store(InductionRequest $request): RedirectResponse
     {
-        $data = $this->payloadFromValidated($request->validated());
+        $data = InductionDocumentSettings::stamp($this->payloadFromValidated($request->validated()));
         $data['status'] = $data['status'] ?? InductionStatuses::SCHEDULED;
         $data['created_by'] = Auth::id();
 
@@ -152,7 +155,7 @@ class InductionController extends Controller
             ]);
         }
 
-        $data = $this->payloadFromValidated($request->validated());
+        $data = InductionDocumentSettings::stamp($this->payloadFromValidated($request->validated()));
         unset($data['status'], $data['regulations']);
 
         $copy = DB::transaction(function () use ($induction, $data) {
@@ -1226,6 +1229,36 @@ class InductionController extends Controller
         return $stored;
     }
 
+    public function updateFormats(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'register_code' => ['required', 'string', 'max:50'],
+            'register_revision' => ['required', 'string', 'max:20'],
+            'register_date' => ['nullable', 'date'],
+            'risst_code' => ['required', 'string', 'max:50'],
+            'risst_revision' => ['required', 'string', 'max:20'],
+            'ritran_code' => ['required', 'string', 'max:50'],
+            'ritran_revision' => ['required', 'string', 'max:20'],
+        ]);
+
+        $settings = TenantSetting::current();
+        $settings->fill([
+            'register_code' => trim($validated['register_code']),
+            'register_revision' => trim($validated['register_revision']),
+            'register_date' => $validated['register_date'] ?? null,
+            'risst_code' => trim($validated['risst_code']),
+            'risst_revision' => trim($validated['risst_revision']),
+            'ritran_code' => trim($validated['ritran_code']),
+            'ritran_revision' => trim($validated['ritran_revision']),
+        ]);
+        $settings->save();
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => 'Códigos de los documentos guardados.',
+        ]);
+    }
+
     /**
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
@@ -1273,13 +1306,6 @@ class InductionController extends Controller
         $data['start_time'] = strlen($start) === 5 ? "{$start}:00" : $start;
         $data['end_time'] = strlen($end) === 5 ? "{$end}:00" : $end;
         $data['notes'] = $data['temario'] ?? null;
-        // Un solo código/revisión para acta y comprobante; fechas = sesión
-        $data['document_date'] = $date;
-        $data['risst_code'] = $data['document_code'] ?? null;
-        $data['risst_revision'] = $data['document_revision'] ?? null;
-        $data['risst_version'] = $data['document_revision'] ?? null;
-        $data['risst_date'] = $date;
-        $data['risst_approval_date'] = $date;
 
         return $data;
     }

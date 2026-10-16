@@ -24,8 +24,6 @@ class InductionRequest extends FormRequest
             'title' => ['required', 'string', 'max:255'],
             'regulations' => ['nullable', 'array', 'max:10'],
             'regulations.*' => ['file', 'mimes:pdf', 'max:20480'],
-            'document_code' => ['required', 'string', 'max:50'],
-            'document_revision' => ['required', 'string', 'max:20'],
             'temario' => ['nullable', 'string', 'max:5000'],
             'activity' => ['required', 'string', Rule::in(array_keys(InductionFormOptions::activities()))],
             'corrective_action' => ['nullable', 'boolean'],
@@ -63,8 +61,6 @@ class InductionRequest extends FormRequest
     {
         return [
             'title.required' => 'El tema es obligatorio.',
-            'document_code.required' => 'El código del formato es obligatorio.',
-            'document_revision.required' => 'La revisión del formato es obligatoria.',
             'activity.required' => 'Selecciona la actividad.',
             'modality.required' => 'Selecciona la modalidad.',
             'school.required' => 'Selecciona la escuela.',
@@ -86,8 +82,6 @@ class InductionRequest extends FormRequest
     {
         return [
             'title' => 'tema',
-            'document_code' => 'código',
-            'document_revision' => 'revisión',
             'temario' => 'temario',
             'activity' => 'actividad',
             'corrective_action' => 'acción correctiva',
@@ -142,8 +136,6 @@ class InductionRequest extends FormRequest
 
         $this->merge([
             'title' => trim((string) $this->input('title', '')),
-            'document_code' => trim((string) $this->input('document_code', '')) ?: null,
-            'document_revision' => trim((string) $this->input('document_revision', '')) ?: null,
             'temario' => trim((string) $this->input('temario', '')) ?: null,
             'category_other' => trim((string) $this->input('category_other', '')) ?: null,
             'categories' => array_values(array_unique(array_filter((array) $categories))),

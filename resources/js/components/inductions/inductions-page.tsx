@@ -5,6 +5,10 @@ import { InductionDeleteModal } from '@/components/inductions/induction-delete-m
 import { InductionAttendeesModal } from '@/components/inductions/induction-attendees-modal';
 import { InductionFormModal } from '@/components/inductions/induction-form-modal';
 import {
+    InductionFormatsModal,
+    type InductionFormats,
+} from '@/components/inductions/induction-formats-modal';
+import {
     InductionShowPage,
     type InductionShowProps,
 } from '@/components/inductions/induction-show-page';
@@ -32,6 +36,7 @@ type PageProps = {
     periodOptions: PeriodOption[];
     statusOptions: StatusOption[];
     formOptions: InductionFormOptions;
+    formats: InductionFormats;
 };
 
 function inductionExportHref(filters: InductionsFilters): string {
@@ -58,12 +63,14 @@ export function InductionsPage() {
         periodOptions,
         statusOptions,
         formOptions,
+        formats,
     } = usePage().props as unknown as PageProps;
     const page = usePage();
     const { can } = useCan();
     const [localShow, setLocalShow] = useState<InductionShowProps | null>(null);
 
     const [formOpen, setFormOpen] = useState(false);
+    const [formatsOpen, setFormatsOpen] = useState(false);
     const [editing, setEditing] = useState<InductionItem | null>(null);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleting, setDeleting] = useState<InductionItem | null>(null);
@@ -198,6 +205,12 @@ export function InductionsPage() {
                     setEditing(null);
                     setFormOpen(true);
                 }}
+                onFormats={() => setFormatsOpen(true)}
+            />
+            <InductionFormatsModal
+                open={formatsOpen}
+                formats={formats}
+                onClose={() => setFormatsOpen(false)}
             />
 
             <InductionsTable

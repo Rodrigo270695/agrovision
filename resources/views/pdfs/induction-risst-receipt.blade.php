@@ -45,15 +45,6 @@
 </head>
 <body>
 @php
-    $sessionAt = $induction->session_date
-        ?? $induction->scheduled_at
-        ?? null;
-    $sessionCarbon = $sessionAt
-        ? \Carbon\Carbon::parse($sessionAt)
-        : null;
-    // Fecha del encabezado y del contenido = fecha en que se dictó la inducción
-    $fmtHeaderDate = $sessionCarbon ? $sessionCarbon->format('d-m-Y') : '—';
-    $fmtApproval = $sessionCarbon ? $sessionCarbon->format('d-m-Y') : '—';
     $closed = $induction->closed_at
         ? \Carbon\Carbon::parse($induction->closed_at)
         : null;
@@ -77,9 +68,8 @@
             Reglamento Interno de Seguridad y Salud en el Trabajo
         </td>
         <td style="width: 30%;" class="meta">
-            <strong>Código:</strong> {{ $induction->document_code ?: '—' }}<br>
-            <strong>Revisión:</strong> {{ $induction->document_revision ?: '—' }}<br>
-            <strong>Fecha:</strong> {{ $fmtHeaderDate }}<br>
+            <strong>Código:</strong> {{ $formats['risst_code'] }}<br>
+            <strong>Revisión:</strong> {{ $formats['risst_revision'] }}<br>
             <strong>Página:</strong> 1 de 1
         </td>
     </tr>
@@ -94,9 +84,8 @@
         Yo, <strong>{{ $attendee->driver_name }}</strong>,
         con DNI N° <strong>{{ $attendee->driver_dni ?: '____________' }}</strong>,
         dejo constancia de haber recibido una copia impresa del Reglamento Interno de
-        Seguridad y Salud en el Trabajo con Fecha de aprobación:
-        <strong>{{ $fmtApproval }}</strong> – Versión:
-        <strong>{{ $induction->document_revision ?: '—' }}</strong>
+        Seguridad y Salud en el Trabajo, versión
+        <strong>{{ $formats['risst_revision'] }}</strong>,
         de la Empresa AGROVISIÓN PERÚ S.A.C., de acuerdo a lo establecido en el
         Decreto Supremo N° 005-2012-TR art. 75°: Facilitar a todo Trabajador una copia
         del Reglamento Interno de Seguridad y Salud en el Trabajo.
