@@ -5,12 +5,15 @@ import {
     CheckCircle2,
     ChevronDown,
     FileDown,
+    Fingerprint,
     Lock,
     ShieldCheck,
     Trash2,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
+import { FingerprintCameraCapture } from '@/components/inductions/fingerprint-camera-capture';
+import { AppDeleteModal } from '@/components/shared/app-delete-modal';
 import {
     ChecklistPhotosSection,
     type ChecklistPhoto,
@@ -23,8 +26,10 @@ import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { getCsrfToken } from '@/lib/csrf';
 import { isBrowserOnline, isLocalChecklistId, newLocalPhotoId } from '@/lib/offline/ids';
+import { enqueueMutation } from '@/lib/offline/mutations';
 import {
     applyUpdateToChecklist,
+    deleteLocalDraft,
     listPendingPhotos,
     photoToView,
     queueDeletePhoto,
@@ -63,7 +68,9 @@ export type ChecklistFormSignature = {
     label: string;
     signer_name: string | null;
     signature_url?: string | null;
+    fingerprint_url?: string | null;
     saved_signature_url?: string | null;
+    saved_fingerprint_url?: string | null;
     signed_at?: string | null;
 };
 
@@ -267,6 +274,10 @@ type SignatureState = {
     signature_data_url: string | null;
     clear_signature: boolean;
     existing_url: string | null;
+    fingerprint_data_url: string | null;
+    clear_fingerprint: boolean;
+    existing_fingerprint_url: string | null;
+    captureFingerprint: boolean;
 };
 
 function toDateTimeLocal(date?: string | null, time?: string | null): string {
@@ -277,6 +288,53 @@ function toDateTimeLocal(date?: string | null, time?: string | null): string {
     const hhmm = time && time.length >= 5 ? time.slice(0, 5) : '00:00';
 
     return `${date}T${hhmm}`;
+}
+
+async function imageUrlToDataUrl(url: string): Promise<string | null> {
+    const response = await fetch(url, { credentials: 'same-origin' });
+
+    if (!response.ok) {
+        return null;
+    }
+
+    const blob = await response.blob();
+
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result ?? ''));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+    });
+}
+
+function passCloseBlocked(
+    pass: 'first' | 'second',
+    rows: SignatureState[],
+): string | null {
+    const labels: Record<'driver' | 'sst', string> = {
+        driver: 'conductor',
+        sst: 'inspector (V°B° SST)',
+    };
+
+    for (const slot of ['driver', 'sst'] as const) {
+        const row = rows.find(
+            (item) => item.slot === slot && item.inspection_pass === pass,
+        );
+        const named = (row?.signer_name ?? '').trim() !== '';
+        const signed = Boolean(
+            row &&
+                !row.clear_signature &&
+                (row.signature_data_url || row.existing_url),
+        );
+
+        if (!named || !signed) {
+            const passLabel = pass === 'first' ? '1ra' : '2da';
+
+            return `Para cerrar la ${passLabel} hacen falta el nombre y la firma del ${labels[slot]}.`;
+        }
+    }
+
+    return null;
 }
 
 function splitDateTime(value: string): {
@@ -510,37 +568,59 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
             signature_data_url: null,
             clear_signature: false,
             existing_url: signature.signature_url ?? null,
+            fingerprint_data_url: null,
+            clear_fingerprint: false,
+            existing_fingerprint_url: signature.fingerprint_url ?? null,
+            captureFingerprint: Boolean(signature.fingerprint_url),
         })),
     );
+    const [leaveOpen, setLeaveOpen] = useState(false);
+    const [leaving, setLeaving] = useState(false);
+    const inspectionStillOpen = !sealed && !firstLocked;
 
-    const reuseDriverSignature = async (index: number, url: string) => {
-        const response = await fetch(url, { credentials: 'same-origin' });
-
-        if (!response.ok) {
+    useEffect(() => {
+        if (!inspectionStillOpen) {
             return;
         }
 
-        const blob = await response.blob();
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(String(reader.result ?? ''));
-            reader.onerror = () => reject(reader.error);
-            reader.readAsDataURL(blob);
-        });
+        const warn = (event: BeforeUnloadEvent) => {
+            event.preventDefault();
+            event.returnValue = '';
+        };
 
-        if (!dataUrl.startsWith('data:image/')) {
+        window.addEventListener('beforeunload', warn);
+
+        return () => window.removeEventListener('beforeunload', warn);
+    }, [inspectionStillOpen]);
+
+    const reuseDriverImage = async (
+        index: number,
+        url: string,
+        kind: 'signature' | 'fingerprint',
+    ) => {
+        const dataUrl = await imageUrlToDataUrl(url);
+
+        if (!dataUrl || !dataUrl.startsWith('data:image/')) {
             return;
         }
 
         setSignatures((prev) =>
             prev.map((item, itemIndex) =>
                 itemIndex === index
-                    ? {
-                          ...item,
-                          signature_data_url: dataUrl,
-                          clear_signature: false,
-                          existing_url: dataUrl,
-                      }
+                    ? kind === 'signature'
+                        ? {
+                              ...item,
+                              signature_data_url: dataUrl,
+                              clear_signature: false,
+                              existing_url: dataUrl,
+                          }
+                        : {
+                              ...item,
+                              fingerprint_data_url: dataUrl,
+                              clear_fingerprint: false,
+                              existing_fingerprint_url: dataUrl,
+                              captureFingerprint: true,
+                          }
                     : item,
             ),
         );
@@ -957,6 +1037,8 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                 signer_name: signature.signer_name || null,
                 signature_data_url: signature.signature_data_url,
                 clear_signature: signature.clear_signature,
+                fingerprint_data_url: signature.fingerprint_data_url,
+                clear_fingerprint: signature.clear_fingerprint,
             })),
             ...extra,
         };
@@ -965,6 +1047,22 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
     const save = (extra: Record<string, unknown> = {}) => {
         if (sealed || processing) {
             return;
+        }
+
+        const closingPass: 'first' | 'second' | null = extra.first_result
+            ? 'first'
+            : extra.second_result
+              ? 'second'
+              : null;
+
+        if (closingPass) {
+            const blocked = passCloseBlocked(closingPass, signatures);
+
+            if (blocked) {
+                toast.error(blocked);
+
+                return;
+            }
         }
 
         if (extra.seal && (!isBrowserOnline() || isLocalChecklistId(checklist.id))) {
@@ -1001,12 +1099,80 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
         });
     };
 
+    const leaveWithoutSaving = () => {
+        if (onBack) {
+            onBack();
+
+            return;
+        }
+
+        router.visit('/inspecciones');
+    };
+
+    const confirmLeave = () => {
+        if (leaving) {
+            return;
+        }
+
+        if (!inspectionStillOpen) {
+            leaveWithoutSaving();
+
+            return;
+        }
+
+        setLeaving(true);
+
+        void (async () => {
+            try {
+                await deleteLocalDraft(checklist.id);
+
+                if (isLocalChecklistId(checklist.id)) {
+                    toast.success('Inspección descartada.');
+                    leaveWithoutSaving();
+
+                    return;
+                }
+
+                if (!isBrowserOnline()) {
+                    await enqueueMutation({
+                        method: 'DELETE',
+                        url: `/inspecciones/${checklist.id}`,
+                    });
+                    toast.success(
+                        'Se eliminará al reconectar. No quedó guardada.',
+                    );
+                    leaveWithoutSaving();
+
+                    return;
+                }
+
+                router.delete(`/inspecciones/${checklist.id}`, {
+                    onFinish: () => setLeaving(false),
+                });
+            } catch {
+                toast.error('No se pudo descartar la inspección.');
+                setLeaving(false);
+            }
+        })();
+    };
+
+    const requestLeave = () => {
+        if (inspectionStillOpen) {
+            setLeaveOpen(true);
+
+            return;
+        }
+
+        leaveWithoutSaving();
+    };
+
     const handleSubmit = (event: FormEvent) => {
         event.preventDefault();
         save({ status: 'draft' });
     };
 
     return (
+        <>
         <form
             onSubmit={handleSubmit}
             className="mx-auto w-full max-w-5xl space-y-3 pb-24 sm:space-y-4 sm:pb-6"
@@ -1015,12 +1181,8 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                 <Link
                     href="/inspecciones"
                     onClick={(event) => {
-                        if (!onBack) {
-                            return;
-                        }
-
                         event.preventDefault();
-                        onBack();
+                        requestLeave();
                     }}
                     className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-[#2e5a9e] hover:underline"
                 >
@@ -1790,9 +1952,10 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                     type="button"
                                                     disabled={passLocked}
                                                     onClick={() =>
-                                                        void reuseDriverSignature(
+                                                        void reuseDriverImage(
                                                             index,
                                                             signature.saved_signature_url as string,
+                                                            'signature',
                                                         )
                                                     }
                                                     className="mt-2 cursor-pointer text-xs font-semibold text-[#2e5a9e] underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
@@ -1839,6 +2002,154 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                     {signature.signed_at}
                                                 </p>
                                             ) : null}
+                                            {signature.slot === 'driver' ? (
+                                                <div className="mt-3 border-t border-[#e2eaf3] pt-3">
+                                                    {!state?.captureFingerprint &&
+                                                    !state?.existing_fingerprint_url &&
+                                                    !state?.fingerprint_data_url ? (
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            disabled={passLocked}
+                                                            onClick={() =>
+                                                                setSignatures(
+                                                                    (prev) =>
+                                                                        prev.map(
+                                                                            (
+                                                                                item,
+                                                                                i,
+                                                                            ) =>
+                                                                                i ===
+                                                                                index
+                                                                                    ? {
+                                                                                          ...item,
+                                                                                          captureFingerprint:
+                                                                                              true,
+                                                                                      }
+                                                                                    : item,
+                                                                        ),
+                                                                )
+                                                            }
+                                                            className="h-9 cursor-pointer gap-1.5 border-[#c5d5e6] text-[#1a2b4c]"
+                                                        >
+                                                            <Fingerprint className="size-3.5" />
+                                                            ¿Guardar huella
+                                                            también?
+                                                        </Button>
+                                                    ) : (
+                                                        <div className="space-y-2">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <p className="text-xs font-medium text-[#1a2b4c]">
+                                                                    Huella
+                                                                    (opcional)
+                                                                </p>
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={
+                                                                        passLocked
+                                                                    }
+                                                                    onClick={() =>
+                                                                        setSignatures(
+                                                                            (
+                                                                                prev,
+                                                                            ) =>
+                                                                                prev.map(
+                                                                                    (
+                                                                                        item,
+                                                                                        i,
+                                                                                    ) =>
+                                                                                        i ===
+                                                                                        index
+                                                                                            ? {
+                                                                                                  ...item,
+                                                                                                  captureFingerprint:
+                                                                                                      false,
+                                                                                                  fingerprint_data_url:
+                                                                                                      null,
+                                                                                                  clear_fingerprint:
+                                                                                                      true,
+                                                                                                  existing_fingerprint_url:
+                                                                                                      null,
+                                                                                              }
+                                                                                            : item,
+                                                                                ),
+                                                                        )
+                                                                    }
+                                                                    className="cursor-pointer text-[11px] font-medium text-[#6b8ead] underline-offset-2 hover:underline"
+                                                                >
+                                                                    No guardar
+                                                                    huella
+                                                                </button>
+                                                            </div>
+                                                            {signature.saved_fingerprint_url &&
+                                                            !state?.existing_fingerprint_url &&
+                                                            !state?.fingerprint_data_url ? (
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={
+                                                                        passLocked
+                                                                    }
+                                                                    onClick={() =>
+                                                                        void reuseDriverImage(
+                                                                            index,
+                                                                            signature.saved_fingerprint_url as string,
+                                                                            'fingerprint',
+                                                                        )
+                                                                    }
+                                                                    className="cursor-pointer text-xs font-semibold text-[#2e5a9e] underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                                                                >
+                                                                    Usar huella
+                                                                    guardada
+                                                                </button>
+                                                            ) : null}
+                                                            <FingerprintCameraCapture
+                                                                disabled={
+                                                                    passLocked
+                                                                }
+                                                                valueUrl={
+                                                                    state?.clear_fingerprint
+                                                                        ? null
+                                                                        : (state?.fingerprint_data_url ??
+                                                                          state?.existing_fingerprint_url)
+                                                                }
+                                                                onChange={(
+                                                                    dataUrl,
+                                                                ) => {
+                                                                    setSignatures(
+                                                                        (
+                                                                            prev,
+                                                                        ) =>
+                                                                            prev.map(
+                                                                                (
+                                                                                    item,
+                                                                                    i,
+                                                                                ) =>
+                                                                                    i ===
+                                                                                    index
+                                                                                        ? {
+                                                                                              ...item,
+                                                                                              fingerprint_data_url:
+                                                                                                  dataUrl,
+                                                                                              clear_fingerprint:
+                                                                                                  dataUrl ===
+                                                                                                  null,
+                                                                                              existing_fingerprint_url:
+                                                                                                  dataUrl ===
+                                                                                                  null
+                                                                                                      ? null
+                                                                                                      : item.existing_fingerprint_url,
+                                                                                              captureFingerprint:
+                                                                                                  true,
+                                                                                          }
+                                                                                        : item,
+                                                                            ),
+                                                                    );
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : null}
                                         </div>
                                     );
                                 })}
@@ -1870,7 +2181,11 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                             : !secondStats.allMarked
                                               ? 'Marca todos los ítems en SÍ/NO para aprobar la 2da.'
                                               : `Necesitas ≥ ${PARETO_PASS_THRESHOLD}% Pareto para aprobar la 2da.`
-                                        : 'Las firmas de la 1ra y de la 2da son independientes: conductor y V°B° SST. Puedes guardar en cualquier momento.'}
+                                        : passCloseBlocked(
+                                                activePass,
+                                                signatures,
+                                            ) ??
+                                          'Las firmas de la 1ra y de la 2da son independientes: conductor y V°B° SST. Puedes guardar en cualquier momento.'}
                         </p>
                         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                             <Button
@@ -1955,6 +2270,22 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                 </div>
             ) : null}
         </form>
+        <AppDeleteModal
+            open={leaveOpen}
+            onClose={() => {
+                if (!leaving) {
+                    setLeaveOpen(false);
+                }
+            }}
+            onConfirm={confirmLeave}
+            processing={leaving}
+            title="Salir sin guardar"
+            description="Si sales ahora se borra esta inspección y no quedará guardada."
+            confirmLabel="Salir y borrar"
+            cancelLabel="Seguir aquí"
+            itemName={checklist.plate_number}
+        />
+        </>
     );
 }
 

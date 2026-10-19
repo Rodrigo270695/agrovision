@@ -420,6 +420,9 @@ export function buildLocalDraft(input: {
                 signer_name:
                     slot === 'driver' ? (input.unit.driver_name ?? null) : null,
                 signature_url: null,
+                fingerprint_url: null,
+                saved_signature_url: null,
+                saved_fingerprint_url: null,
                 signed_at: null,
             })),
         ),

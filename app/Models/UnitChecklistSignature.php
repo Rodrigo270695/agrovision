@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $slot
  * @property string|null $signer_name
  * @property string|null $signature_path
+ * @property string|null $fingerprint_path
  * @property Carbon|null $signed_at
  */
 class UnitChecklistSignature extends Model
@@ -26,6 +27,7 @@ class UnitChecklistSignature extends Model
         'slot',
         'signer_name',
         'signature_path',
+        'fingerprint_path',
         'signed_at',
     ];
 
@@ -58,10 +60,26 @@ class UnitChecklistSignature extends Model
         return \App\Support\PublicDisk::url($this->signature_path);
     }
 
+    public function fingerprintUrl(): ?string
+    {
+        if (! $this->fingerprint_path) {
+            return null;
+        }
+
+        return \App\Support\PublicDisk::url($this->fingerprint_path);
+    }
+
     public function deleteSignatureFile(): void
     {
         if ($this->signature_path) {
             Storage::disk('public')->delete($this->signature_path);
+        }
+    }
+
+    public function deleteFingerprintFile(): void
+    {
+        if ($this->fingerprint_path) {
+            Storage::disk('public')->delete($this->fingerprint_path);
         }
     }
 }

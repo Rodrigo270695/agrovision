@@ -49,6 +49,8 @@ class UpdateUnitChecklistRequest extends FormRequest
             'signatures.*.signer_name' => ['nullable', 'string', 'max:255'],
             'signatures.*.signature_data_url' => ['nullable', 'string'],
             'signatures.*.clear_signature' => ['nullable', 'boolean'],
+            'signatures.*.fingerprint_data_url' => ['nullable', 'string'],
+            'signatures.*.clear_fingerprint' => ['nullable', 'boolean'],
         ];
     }
 
@@ -128,6 +130,8 @@ class UpdateUnitChecklistRequest extends FormRequest
                         'signer_name' => $name === '' ? null : $name,
                         'signature_data_url' => $signature['signature_data_url'] ?? null,
                         'clear_signature' => (bool) ($signature['clear_signature'] ?? false),
+                        'fingerprint_data_url' => $signature['fingerprint_data_url'] ?? null,
+                        'clear_fingerprint' => (bool) ($signature['clear_fingerprint'] ?? false),
                     ];
                 })
                 ->all();

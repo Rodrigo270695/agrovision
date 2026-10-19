@@ -639,8 +639,12 @@ class ChecklistController extends Controller
                 'label' => $this->signatureSlotLabel((string) $signature->slot),
                 'signer_name' => $signature->signer_name,
                 'signature_url' => $signature->signatureUrl(),
+                'fingerprint_url' => $signature->fingerprintUrl(),
                 'saved_signature_url' => $signature->slot === 'driver' && ! $signature->signature_path
                     ? $savedDriver?->signatureUrl()
+                    : null,
+                'saved_fingerprint_url' => $signature->slot === 'driver' && ! $signature->fingerprint_path
+                    ? $savedDriver?->fingerprintUrl()
                     : null,
                 'signed_at' => $signature->signed_at
                     ?->timezone(config('app.timezone'))
@@ -925,19 +929,34 @@ class ChecklistController extends Controller
                         $updates['signed_at'] = now();
                     }
 
+                    if (! empty($signatureData['clear_fingerprint'])) {
+                        $signature->deleteFingerprintFile();
+                        $updates['fingerprint_path'] = null;
+                    } elseif (! empty($signatureData['fingerprint_data_url'])) {
+                        $signature->deleteFingerprintFile();
+                        $updates['fingerprint_path'] = SignatureImage::storeFromDataUrl(
+                            $signatureData['fingerprint_data_url'],
+                            "checklists/{$checklist->id}/fingerprints",
+                        );
+                    }
+
                     $signature->update($updates);
 
-                    if (($signatureData['slot'] ?? '') === 'driver' && ! empty($updates['signature_path'])) {
+                    if (($signatureData['slot'] ?? '') === 'driver') {
                         $checklist->loadMissing('unit:id,driver_dni,driver_name');
                         $signer = trim((string) ($signatureData['signer_name'] ?? $checklist->driver_name));
                         $unitName = DriverBiometrics::normalize($checklist->unit?->driver_name);
                         $sameDriver = $unitName !== '' && $unitName === DriverBiometrics::normalize($signer);
+                        $signaturePath = $updates['signature_path'] ?? $signature->signature_path;
+                        $fingerprintPath = array_key_exists('fingerprint_path', $updates)
+                            ? $updates['fingerprint_path']
+                            : $signature->fingerprint_path;
 
                         DriverBiometrics::remember(
                             $sameDriver ? $checklist->unit?->driver_dni : null,
                             $signer !== '' ? $signer : $checklist->driver_name,
-                            $updates['signature_path'],
-                            null,
+                            $signaturePath,
+                            $fingerprintPath,
                         );
                     }
                 }
@@ -1339,8 +1358,28 @@ class ChecklistController extends Controller
         $incomingSecond = $data['second_result'] ?? null;
         $answers = collect($data['answers'] ?? []);
 
+        $closingFirst = in_array($incomingFirst, ['approved', 'rejected'], true)
+            && $checklist->first_result !== $incomingFirst;
+        $closingSecond = in_array($incomingSecond, ['approved', 'rejected'], true)
+            && $checklist->second_result !== $incomingSecond;
+
+        if ($closingFirst) {
+            $this->assertPassSignaturesReady($checklist, $data, 'first');
+        }
+
         if ($incomingFirst === 'approved' && ! $firstAlreadyApproved) {
             $this->assertPassAnswersReady($checklist, $answers, 'first');
+        }
+
+        if ($closingSecond) {
+            $firstReady = $checklist->hasFirstInspectionDecision()
+                || in_array($incomingFirst, ['approved', 'rejected'], true);
+
+            if (! $firstReady) {
+                throw new \RuntimeException('Debes cerrar la 1ra inspección (aprobar o desaprobar) antes de la 2da.');
+            }
+
+            $this->assertPassSignaturesReady($checklist, $data, 'second');
         }
 
         if ($incomingSecond === 'approved' && ! $secondAlreadyApproved) {
@@ -1361,6 +1400,37 @@ class ChecklistController extends Controller
             'type' => 'error',
             'message' => 'El coordinador recibe el paquete del día. Ciérralo en Inspecciones → Enviar paquete.',
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function assertPassSignaturesReady(UnitChecklist $checklist, array $data, string $pass): void
+    {
+        $passLabel = $pass === 'first' ? '1ra' : '2da';
+        $incoming = collect($data['signatures'] ?? []);
+
+        foreach (['driver' => 'conductor', 'sst' => 'inspector (V°B° SST)'] as $slot => $label) {
+            $row = $incoming->first(
+                fn (array $signature): bool => ($signature['slot'] ?? '') === $slot
+                    && ($signature['inspection_pass'] ?? 'first') === $pass
+            );
+            $existing = $checklist->signatures->first(
+                fn (UnitChecklistSignature $signature): bool => $signature->slot === $slot
+                    && $signature->inspection_pass === $pass
+            );
+
+            $name = trim((string) (($row['signer_name'] ?? null) ?: ($existing?->signer_name ?? '')));
+            $cleared = (bool) ($row['clear_signature'] ?? false);
+            $hasImage = ! empty($row['signature_data_url'])
+                || (filled($existing?->signature_path) && ! $cleared);
+
+            if ($name === '' || ! $hasImage) {
+                throw new \RuntimeException(
+                    "Para cerrar la {$passLabel} inspección hacen falta el nombre y la firma del {$label}."
+                );
+            }
+        }
     }
 
     /**
