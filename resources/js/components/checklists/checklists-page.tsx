@@ -6,6 +6,7 @@ import { ChecklistExportModal } from '@/components/checklists/checklist-export-m
 import type {
     ActiveUnitOption,
     ChecklistTemplateOption,
+    VehicleTypeOption,
 } from '@/components/checklists/checklist-create-modal';
 import { ChecklistDeleteModal } from '@/components/checklists/checklist-delete-modal';
 import { ChecklistEditForm, type ChecklistFormData } from '@/components/checklists/checklist-edit-form';
@@ -37,6 +38,7 @@ type PageProps = {
     filters: ChecklistsFilters;
     templates: ChecklistTemplateOption[];
     activeUnits: ActiveUnitOption[];
+    vehicleTypes?: VehicleTypeOption[];
     offlineCatalog?: OfflineCatalogTemplate[];
     inspectors?: { id: number; name: string }[];
 };
@@ -98,6 +100,7 @@ export function ChecklistsPage() {
         filters,
         templates,
         activeUnits,
+        vehicleTypes,
         offlineCatalog,
         inspectors,
     } = page.props as unknown as PageProps;
@@ -122,12 +125,13 @@ export function ChecklistsPage() {
             filters,
             templates: templates ?? [],
             activeUnits: activeUnits ?? [],
+            vehicleTypes: vehicleTypes ?? [],
             catalog: offlineCatalog ?? [],
         });
         if (!filters.search) {
             prefetchInspectionEdits(checklists.data, page.version);
         }
-    }, [activeUnits, checklists, filters, offlineCatalog, page.version, stats, templates]);
+    }, [activeUnits, checklists, filters, offlineCatalog, page.version, stats, templates, vehicleTypes]);
 
     useEffect(() => {
         let cancelled = false;
@@ -277,6 +281,7 @@ export function ChecklistsPage() {
                     open={createOpen}
                     templates={templates ?? []}
                     activeUnits={activeUnits ?? []}
+                    vehicleTypes={vehicleTypes ?? []}
                     catalog={offlineCatalog ?? []}
                     onClose={() => setCreateOpen(false)}
                     onCreatedOffline={(draft) => {

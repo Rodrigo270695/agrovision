@@ -4,6 +4,10 @@ import { ParetoDeleteModal } from '@/components/pareto/pareto-delete-modal';
 import { ParetoFormModal } from '@/components/pareto/pareto-form-modal';
 import { ParetoHeader } from '@/components/pareto/pareto-header';
 import {
+    ParetoVehicleTypesModal,
+    type VehicleTypeAssignment,
+} from '@/components/pareto/pareto-vehicle-types-modal';
+import {
     ParetoTable,
     type ParetoFilters,
     type ParetoItem,
@@ -22,14 +26,23 @@ type PageProps = {
     checkTypeOptions: { value: string; label: string }[];
     parentOptions: ParentOption[];
     templates: ParetoTemplateOption[];
+    vehicleTypes: VehicleTypeAssignment[];
 };
 
 export function ParetoPage() {
-    const { items, stats, filters, checkTypeOptions, parentOptions, templates } =
-        usePage().props as unknown as PageProps;
+    const {
+        items,
+        stats,
+        filters,
+        checkTypeOptions,
+        parentOptions,
+        templates,
+        vehicleTypes,
+    } = usePage().props as unknown as PageProps;
     const { can } = useCan();
 
     const [formOpen, setFormOpen] = useState(false);
+    const [vehicleTypesOpen, setVehicleTypesOpen] = useState(false);
     const [editing, setEditing] = useState<ParetoItem | null>(null);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleting, setDeleting] = useState<ParetoItem | null>(null);
@@ -70,6 +83,7 @@ export function ParetoPage() {
         <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
             <ParetoHeader
                 stats={stats}
+                onVehicleTypes={() => setVehicleTypesOpen(true)}
                 onCreate={() => {
                     if (!can('pareto.create')) {
                         return;
@@ -119,6 +133,16 @@ export function ParetoPage() {
                         setFormOpen(false);
                         setEditing(null);
                     }}
+                />
+            ) : null}
+
+            {can('pareto.view') ? (
+                <ParetoVehicleTypesModal
+                    open={vehicleTypesOpen}
+                    templates={templates ?? []}
+                    vehicleTypes={vehicleTypes ?? []}
+                    canEdit={can('pareto.update')}
+                    onClose={() => setVehicleTypesOpen(false)}
                 />
             ) : null}
 

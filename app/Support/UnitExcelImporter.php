@@ -463,7 +463,10 @@ final class UnitExcelImporter
             ];
         }
 
-        $plates = array_values(array_unique(array_column($pending, 'plate_number')));
+        $plates = array_values(array_unique(array_map(
+            fn ($plate) => mb_strtoupper((string) $plate),
+            array_column($pending, 'plate_number'),
+        )));
         $unitsByPlate = Unit::query()
             ->where('period_id', $period->id)
             ->whereIn(DB::raw('upper(plate_number)'), $plates)
@@ -487,7 +490,7 @@ final class UnitExcelImporter
 
         foreach ($pending as $excelRow => $data) {
             $rowMessages = [];
-            $plate = (string) $data['plate_number'];
+            $plate = mb_strtoupper((string) $data['plate_number']);
             $correlative = (string) ($data['correlative'] ?? '');
             $matches = $unitsByPlate->get($plate, collect());
             $unitId = $matches->isNotEmpty()
@@ -618,7 +621,6 @@ final class UnitExcelImporter
             $createdUnitIds = [];
             $createdByCorrelative = [];
             $movementIdByRow = [];
-            $presentPlates = [];
             $latestByUnit = [];
 
             foreach ($pending as $excelRow => $data) {
@@ -649,7 +651,7 @@ final class UnitExcelImporter
                     $data['responsible_person'] = $responsible->name;
                 }
 
-                $plate = (string) $data['plate_number'];
+                $plate = mb_strtoupper((string) $data['plate_number']);
                 $attributes = $this->presentAttributes($data);
                 $attributes['plate_number'] = $plate;
 
@@ -705,7 +707,6 @@ final class UnitExcelImporter
                     $created++;
                 }
 
-                $presentPlates[$plate] = true;
                 $serviceDate = (string) ($data['service_date'] ?? '');
 
                 if (
@@ -716,7 +717,7 @@ final class UnitExcelImporter
                 }
             }
 
-            $deactivated = $this->syncImportedPresence($period, $presentPlates, $latestByUnit);
+            $deactivated = $this->syncImportedPresence($period, $latestByUnit);
         });
     }
 
@@ -724,10 +725,9 @@ final class UnitExcelImporter
      * La unidad queda con los datos del día más reciente del archivo.
      * Las placas del periodo que no vinieron en el Excel pasan a inactivas.
      *
-     * @param  array<string, true>  $presentPlates
      * @param  array<int, array<string, mixed>>  $latestByUnit
      */
-    private function syncImportedPresence(Period $period, array $presentPlates, array $latestByUnit): int
+    private function syncImportedPresence(Period $period, array $latestByUnit): int
     {
         foreach ($latestByUnit as $unitId => $data) {
             $previous = Unit::query()->whereKey($unitId)->value('status') ?: 'active';
@@ -751,9 +751,9 @@ final class UnitExcelImporter
             }
         }
 
-        $plates = array_keys($presentPlates);
+        $presentIds = array_map('intval', array_keys($latestByUnit));
 
-        if ($plates === []) {
+        if ($presentIds === []) {
             return 0;
         }
 
@@ -761,7 +761,7 @@ final class UnitExcelImporter
             ->where('period_id', $period->id)
             ->whereNotNull('plate_number')
             ->where('plate_number', '!=', '')
-            ->whereNotIn(DB::raw('upper(plate_number)'), $plates);
+            ->whereNotIn('id', $presentIds);
 
         if (SystemRoles::currentIsScopedCoordinator()) {
             $missing->where('coordinator_id', Auth::id());

@@ -11,6 +11,7 @@ use App\Models\InspectionEditRequest;
 use App\Models\Period;
 use App\Models\Unit;
 use App\Models\UnitChecklist;
+use App\Models\VehicleType;
 use App\Models\UnitChecklistAnswer;
 use App\Models\UnitChecklistPhoto;
 use App\Models\UnitChecklistSignature;
@@ -21,6 +22,7 @@ use App\Support\IndexedRedirect;
 use App\Support\InspectionDatabaseExporter;
 use App\Support\InspectionPlace;
 use App\Support\ParetoCheckTypes;
+use App\Support\ChecklistTemplateResolver;
 use App\Support\ParetoPassThreshold;
 use App\Support\ParetoPieChart;
 use App\Support\PdfLogo;
@@ -85,6 +87,8 @@ class ChecklistController extends Controller
                 'template:id,type,code,name',
                 'period:id,name,date,status',
                 'unit:id,correlative,plate_number,period_id,coordinator_id',
+                'answers:id,unit_checklist_id,checklist_item_id,first_value,second_value',
+                'answers.item:id,weight',
                 ...InspectionPlace::withCreator(),
             ])
             ->whereHas('period', fn ($q) => $q->where('status', 'active'));
@@ -132,6 +136,15 @@ class ChecklistController extends Controller
                 $checklist->setAttribute('sede', $place['sede']);
                 $checklist->setAttribute('lugar', $place['lugar']);
                 $checklist->unsetRelation('creator');
+
+                $hasAnswers = $checklist->answers->isNotEmpty();
+                $first = ParetoPassThreshold::snapshot($checklist->answers, 'first_value');
+                $second = ParetoPassThreshold::snapshot($checklist->answers, 'second_value');
+                $checklist->setAttribute('first_pareto_percent', $hasAnswers ? $first['percent'] : null);
+                $checklist->setAttribute('first_has_no', $hasAnswers ? $first['has_no'] : null);
+                $checklist->setAttribute('second_pareto_percent', $hasAnswers ? $second['percent'] : null);
+                $checklist->setAttribute('second_has_no', $hasAnswers ? $second['has_no'] : null);
+                $checklist->unsetRelation('answers');
 
                 return $checklist;
             });
@@ -191,6 +204,10 @@ class ChecklistController extends Controller
                 'vehicle_type',
                 'coordinator_id',
             ]),
+            'vehicleTypes' => VehicleType::query()
+                ->orderBy('sort')
+                ->orderBy('name')
+                ->get(['id', 'name', 'checklist_template_id']),
             'offlineCatalog' => $templates->map(function (ChecklistTemplate $template) use ($paretoSync) {
                 $weightTotal = $paretoSync->activeWeightTotal($template->type);
 
@@ -453,9 +470,22 @@ class ChecklistController extends Controller
             return $this->duplicateInspectionResponse($existing, $inspectedOn);
         }
 
+        $resolved = ChecklistTemplateResolver::forVehicleName($unit->vehicle_type);
+
+        if (! $resolved) {
+            $label = trim((string) $unit->vehicle_type);
+
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => $label === ''
+                    ? 'Esta unidad no tiene tipo de vehículo. Asigna uno en Unidades y luego el checklist en Pareto.'
+                    : "El tipo {$label} no tiene un checklist asignado. Configúralo en Pareto → Tipos de vehículo.",
+            ]);
+        }
+
         $undated = UnitChecklist::query()
             ->where('unit_id', $unit->id)
-            ->where('template_id', $data['template_id'])
+            ->where('template_id', $resolved->id)
             ->where('period_id', $unit->period_id)
             ->whereNull('first_inspected_on')
             ->first();
@@ -472,10 +502,10 @@ class ChecklistController extends Controller
         }
 
         try {
-            $checklist = DB::transaction(function () use ($unit, $data, $inspectedOn) {
+            $checklist = DB::transaction(function () use ($unit, $resolved, $inspectedOn) {
                 $template = ChecklistTemplate::query()
                     ->with(['signatureRoles'])
-                    ->findOrFail($data['template_id']);
+                    ->findOrFail($resolved->id);
 
                 $items = app(ParetoChecklistSync::class)
                     ->syncForInspection($template->type);
@@ -1518,11 +1548,6 @@ class ChecklistController extends Controller
             ->unique('unit_id')
             ->keyBy('unit_id');
 
-        $templates = ChecklistTemplate::query()
-            ->where('is_active', true)
-            ->get()
-            ->keyBy('type');
-
         $byCoordinator = [];
 
         foreach ($units as $unit) {
@@ -1552,17 +1577,20 @@ class ChecklistController extends Controller
 
         return collect($byCoordinator)
             ->sortBy('name')
-            ->map(function (array $group) use ($templates, $existing, $movements, $date) {
+            ->map(function (array $group) use ($existing, $movements, $date) {
                 $plates = [];
 
                 foreach ($group['rows'] as $unit) {
                     $movement = $movements->get($unit->id);
-                    $type = $this->templateTypeForVehicle($movement?->vehicle_type ?: $unit->vehicle_type);
-                    $template = $templates->get($type);
+                    $template = ChecklistTemplateResolver::forVehicleName(
+                        $movement?->vehicle_type ?: $unit->vehicle_type,
+                    );
 
                     if (! $template) {
                         continue;
                     }
+
+                    $type = $template->type;
 
                     $periodId = (int) $unit->period_id;
                     $plateKey = mb_strtoupper(trim((string) ($movement?->plate_number ?: $unit->plate_number ?: '')));
@@ -1735,21 +1763,6 @@ class ChecklistController extends Controller
         if ($updates !== []) {
             $checklist->update($updates);
         }
-    }
-
-    private function templateTypeForVehicle(?string $vehicleType): string
-    {
-        $value = mb_strtoupper(trim((string) $vehicleType));
-
-        if (
-            str_contains($value, 'CAMIONETA')
-            || str_contains($value, 'PICK')
-            || $value === 'TDC'
-        ) {
-            return 'tdc';
-        }
-
-        return 'tdp';
     }
 
     /**

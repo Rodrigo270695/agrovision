@@ -14,6 +14,7 @@ import {
     type DataTableColumn,
     type FilterChip,
     type SortState,
+    type StatBadgeVariant,
 } from '@/components/data-page';
 import {
     RowActionsMenu,
@@ -21,6 +22,11 @@ import {
 } from '@/components/shared/row-actions-menu';
 import { useCan } from '@/hooks/use-can';
 import { asPaginated } from '@/lib/paginated';
+import {
+    inspectionGrade,
+    inspectionGradeLabel,
+    type InspectionGrade,
+} from '@/lib/pareto-grade';
 
 export type ChecklistItemRow = {
     id: number | string;
@@ -33,7 +39,11 @@ export type ChecklistItemRow = {
     status: 'draft' | 'completed';
     sealed_at?: string | null;
     first_result?: 'approved' | 'rejected' | null;
+    first_pareto_percent?: number | null;
+    first_has_no?: boolean | null;
     second_result?: 'approved' | 'rejected' | null;
+    second_pareto_percent?: number | null;
+    second_has_no?: boolean | null;
     edit_first?: 'pending' | 'approved' | null;
     edit_second?: 'pending' | 'approved' | null;
     coordinator_status?: 'observed' | 'reviewed' | null;
@@ -125,27 +135,50 @@ function formatInspectionTime(value?: string | null): string | null {
     return match ? `${match[1]}:${match[2]}` : null;
 }
 
-function resultLabel(value?: string | null): string {
-    if (value === 'approved') {
-        return 'Aprobado';
-    }
+function ResultChip({
+    value,
+    percent,
+    hasNo,
+}: {
+    value?: string | null;
+    percent?: number | null;
+    hasNo?: boolean | null;
+}) {
+    const grade = inspectionGrade(value, percent, hasNo);
+    const variant: Record<InspectionGrade, StatBadgeVariant> = {
+        pending: 'muted',
+        rejected: 'danger',
+        approved_notes: 'warning',
+        approved: 'success',
+    };
 
-    if (value === 'rejected') {
-        return 'Desaprobado';
-    }
-
-    return 'Pendiente';
+    return (
+        <StatBadge
+            label={inspectionGradeLabel(grade)}
+            value=""
+            variant={variant[grade]}
+        />
+    );
 }
 
-function ResultChip({ value }: { value?: string | null }) {
-    const variant =
-                value === 'approved'
-            ? 'success'
-                    : value === 'rejected'
-              ? 'danger'
-              : 'muted';
-
-    return <StatBadge label={resultLabel(value)} value="" variant={variant} />;
+function ResultLegend() {
+    return (
+        <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[11px] text-[#5a7390]">
+            <span className="font-medium text-[#1a2b4c]">Leyenda Pareto:</span>
+            <span className="inline-flex items-center gap-1.5">
+                <span className="size-2 rounded-full bg-red-500" />
+                Desaprobado (&lt; 85%)
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+                <span className="size-2 rounded-full bg-amber-500" />
+                Aprobado c/ obs. (85%–99% o algún ítem en NO)
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+                <span className="size-2 rounded-full bg-emerald-600" />
+                Aprobado (100%, todos SÍ)
+            </span>
+        </div>
+    );
 }
 
 function statusBadge(item: ChecklistItemRow) {
@@ -417,14 +450,24 @@ export function ChecklistsTable({
                 key: 'first_result',
                 header: '1ra insp.',
                 sortable: true,
-                cell: (item) => <ResultChip value={item.first_result} />,
+                cell: (item) => (
+                    <ResultChip
+                        value={item.first_result}
+                        percent={item.first_pareto_percent}
+                        hasNo={item.first_has_no}
+                    />
+                ),
             },
             {
                 key: 'second_result',
                 header: '2da insp.',
                 cell: (item) =>
                     item.coordinator_status === 'reviewed' ? (
-                        <ResultChip value={item.second_result} />
+                        <ResultChip
+                            value={item.second_result}
+                            percent={item.second_pareto_percent}
+                            hasNo={item.second_has_no}
+                        />
                     ) : item.coordinator_status === 'observed' ? (
                         <StatBadge
                             label="En revisión"
@@ -559,6 +602,7 @@ export function ChecklistsTable({
             }}
             ariaLiveMessage={`${checklists.total} inspecciones encontradas`}
             toolbar={
+                <div className="flex w-full flex-col gap-2">
                 <DataToolbar
                     search={filters.search}
                     onSearchChange={(search) => visit({ search, page: 1 })}
@@ -635,6 +679,8 @@ export function ChecklistsTable({
                         }
                     />
                 </DataToolbar>
+                    <ResultLegend />
+                </div>
             }
             footer={
                 <DataPagination

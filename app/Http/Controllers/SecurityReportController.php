@@ -14,6 +14,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -241,14 +242,17 @@ class SecurityReportController extends Controller
         }
 
         $units = $this->units($coordinatorId);
-        $checklists = $this->latestChecklists($range, $units->pluck('id'), $inspectorId);
-        $rows = $units->map(fn (Unit $unit) => $this->row($unit, $checklists->get($unit->id)))->values();
+        $checklists = $this->latestChecklists($range, $units, $inspectorId);
+        $rows = $units->map(fn (Unit $unit) => $this->row(
+            $unit,
+            $checklists->get($unit->id) ?? $checklists->get(mb_strtoupper(trim((string) $unit->plate_number))),
+        ))->values();
 
-        $approved = $rows->where('status', 'ok')->where('decision', 'approved')->count();
-        $rejected = $rows->where('status', 'ok')->where('decision', 'rejected')->count();
+        $approved = $rows->where('decision', 'approved')->count();
+        $rejected = $rows->where('decision', 'rejected')->count();
         $ok = $approved + $rejected;
-        $baja = $rows->where('status', 'baja')->count();
-        $pendiente = $rows->where('status', 'pendiente')->count();
+        $pendiente = $rows->where('group', 'pendiente')->count();
+        $baja = $rows->where('status', 'baja')->where('decision', null)->count();
         $total = $rows->count();
 
         $previous = $this->previousPeriod();
@@ -338,33 +342,70 @@ class SecurityReportController extends Controller
     }
 
     /**
-     * @param  Collection<int, int>  $unitIds
-     * @return Collection<int, UnitChecklist>
+     * @param  Collection<int, Unit>  $units
+     * @return Collection<int|string, UnitChecklist>
      */
-    private function latestChecklists(array $range, Collection $unitIds, ?int $inspectorId): Collection
+    private function latestChecklists(array $range, Collection $units, ?int $inspectorId): Collection
     {
-        if ($unitIds->isEmpty()) {
+        $unitIds = $units->pluck('id')->filter()->all();
+        $plates = $units
+            ->map(fn (Unit $unit) => mb_strtoupper(trim((string) $unit->plate_number)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($unitIds === [] && $plates === []) {
             return collect();
         }
 
         $query = UnitChecklist::query()
             ->with(['answers.item:id,item_number,parent_id'])
-            ->whereIn('unit_id', $unitIds->all())
-            ->whereHas('period', fn ($builder) => $builder->where('status', 'active'));
+            ->whereHas('period', fn ($builder) => $builder->where('status', 'active'))
+            ->where(function ($builder) use ($unitIds, $plates) {
+                if ($unitIds !== []) {
+                    $builder->whereIn('unit_id', $unitIds);
+                }
+
+                if ($plates !== []) {
+                    $builder->orWhereIn(DB::raw('upper(plate_number)'), $plates);
+                }
+            });
 
         if ($range['from'] !== null && $range['to'] !== null) {
-            $query->whereBetween('first_inspected_on', [$range['from'], $range['to']]);
+            $from = $range['from'].' 00:00:00';
+            $to = $range['to'].' 23:59:59';
+            $query->where(function ($builder) use ($range, $from, $to) {
+                $builder
+                    ->whereBetween('first_inspected_on', [$range['from'], $range['to']])
+                    ->orWhere(function ($inner) use ($from, $to) {
+                        $inner
+                            ->whereNull('first_inspected_on')
+                            ->whereBetween('created_at', [$from, $to]);
+                    });
+            });
         }
 
         if ($inspectorId) {
             $query->where('created_by', $inspectorId);
         }
 
-        return $query
-            ->get()
-            ->groupBy('unit_id')
-            ->map(fn (Collection $group) => $group->sortByDesc('id')->first())
-            ->filter();
+        $latest = collect();
+
+        foreach ($query->get()->sortByDesc('id') as $checklist) {
+            $unitKey = $checklist->unit_id;
+            $plateKey = mb_strtoupper(trim((string) $checklist->plate_number));
+
+            if ($unitKey && ! $latest->has($unitKey)) {
+                $latest->put($unitKey, $checklist);
+            }
+
+            if ($plateKey !== '' && ! $latest->has($plateKey)) {
+                $latest->put($plateKey, $checklist);
+            }
+        }
+
+        return $latest;
     }
 
     /**
@@ -380,18 +421,18 @@ class SecurityReportController extends Controller
         $inactive = ($unit->status ?? 'active') !== 'active';
         $isBaja = $inactive || ($notes !== '' && str_contains($this->normalize($notes), 'baja'));
 
-        if ($isBaja) {
-            $status = 'baja';
-            $group = 'nok';
-        } elseif ($decision === 'approved') {
-            $status = 'ok';
+        if ($decision === 'approved') {
             $group = 'ok';
+            $status = $isBaja ? 'baja' : 'ok';
         } elseif ($decision === 'rejected') {
-            $status = 'ok';
             $group = 'nok';
+            $status = $isBaja ? 'baja' : 'ok';
+        } elseif ($isBaja) {
+            $group = 'nok';
+            $status = 'baja';
         } else {
-            $status = 'pendiente';
             $group = 'pendiente';
+            $status = 'pendiente';
         }
 
         $answers = [];
@@ -419,14 +460,16 @@ class SecurityReportController extends Controller
             'vehicle_type' => trim((string) $unit->vehicle_type) !== ''
                 ? mb_strtoupper(trim((string) $unit->vehicle_type))
                 : 'Sin tipo',
-            'inspection' => $status === 'ok' && $decision === 'approved' ? 'OK' : 'NOK',
+            'inspection' => $decision === 'approved' ? 'OK' : 'NOK',
             'observations' => $notes !== ''
                 ? $notes
-                : ($inactive
-                    ? 'No está en la última carga de unidades'
-                    : ($status === 'pendiente'
-                        ? 'Sin inspección cerrada'
-                        : ($decision === 'rejected' ? 'Inspección desaprobada' : ''))),
+                : ($decision === 'rejected'
+                    ? 'Inspección desaprobada'
+                    : ($decision === 'approved'
+                        ? ($inactive ? 'Inspeccionada. No está en la última carga de unidades' : '')
+                        : ($inactive
+                            ? 'No está en la última carga de unidades'
+                            : 'Sin inspección cerrada'))),
             'answers' => $answers,
             'license_ok' => $this->licenseOk($unit->documents),
             'decision' => $decision,

@@ -130,6 +130,7 @@
         $result = static function (?string $value): string {
             return match ($value) {
                 'approved' => 'Aprobado',
+                'approved_notes' => 'Aprobado con observaciones',
                 'rejected' => 'Desaprobado',
                 default => 'Pendiente',
             };
@@ -162,12 +163,45 @@
         }
         $paretoChart = $paretoChart ?? ['percent' => 0, 'scored' => 0, 'remaining' => 0, 'total' => 0, 'svg' => ''];
         $paretoPercent = (float) ($paretoChart['percent'] ?? 0);
+        $firstHasNo = collect($rows ?? [])->contains(fn ($row) => ($row['first_value'] ?? null) === 'no');
+        $secondHasNo = collect($rows ?? [])->contains(fn ($row) => ($row['second_value'] ?? null) === 'no');
+        $secondCatalog = 0.0;
+        $secondScored = 0.0;
+        foreach ($rows ?? [] as $row) {
+            $weight = (float) ($row['weight'] ?? 0);
+            $secondCatalog += $weight;
+            if (($row['second_value'] ?? null) === 'yes') {
+                $secondScored += $weight;
+            }
+        }
+        $secondPercent = $secondCatalog > 0 ? round(($secondScored / $secondCatalog) * 100, 2) : 0.0;
         $effectiveFirstResult = \App\Support\ParetoPassThreshold::resolveResult(
             $paretoPercent,
             $checklist->first_result,
         );
-        $effectiveSecondResult = $checklist->second_result;
+        $effectiveSecondResult = \App\Support\ParetoPassThreshold::resolveResult(
+            $secondPercent,
+            $checklist->second_result,
+        );
+        $firstGrade = $effectiveFirstResult === 'approved'
+            ? \App\Support\ParetoPassThreshold::grade($paretoPercent, $firstHasNo)
+            : ($effectiveFirstResult ?: 'pending');
+        $secondGrade = $effectiveSecondResult === 'approved'
+            ? \App\Support\ParetoPassThreshold::grade($secondPercent, $secondHasNo)
+            : ($effectiveSecondResult ?: 'pending');
         $passThreshold = \App\Support\ParetoPassThreshold::MIN_PERCENT;
+        if (! $checklist->sealed_at && ! in_array($checklist->coordinator_status, ['reviewed', 'observed'], true)) {
+            if ($firstGrade === 'approved_notes') {
+                $statusLabel = '1RA CON OBSERVACIONES';
+                $statusClass = 'badge-obs';
+            } elseif ($firstGrade === 'approved') {
+                $statusLabel = '1RA APROBADA';
+                $statusClass = 'badge-ok';
+            } elseif ($firstGrade === 'rejected') {
+                $statusLabel = '1RA DESAPROBADA';
+                $statusClass = 'badge-no';
+            }
+        }
     @endphp
 
     <table class="header">
@@ -214,11 +248,16 @@
                         <strong>Resultado: {{ number_format($paretoPercent, 2) }}%</strong>
                         de {{ number_format($paretoChart['total'], 2) }}%
                         · Umbral {{ number_format($passThreshold, 0) }}%
-                        @if ($paretoPercent < $passThreshold)
+                        @if ($firstGrade === 'rejected')
                             <span style="color:#b91c1c;">(Desaprobado)</span>
-                        @else
-                            <span style="color:#15803d;">(≥ {{ number_format($passThreshold, 0) }}%)</span>
+                        @elseif ($firstGrade === 'approved_notes')
+                            <span style="color:#b45309;">(Aprobado con observaciones)</span>
+                        @elseif ($firstGrade === 'approved')
+                            <span style="color:#15803d;">(Aprobado)</span>
                         @endif
+                    </div>
+                    <div style="margin-top: 6px; font-size: 8px; color:#5a7390;">
+                        Leyenda: menor de 85% desaprobado · 85% a 99% o algún ítem en NO: aprobado con observaciones · 100% todos SÍ: aprobado.
                     </div>
                 </div>
             </td>
@@ -249,7 +288,7 @@
             </td>
             <td>
                 <span class="label">Resultado 1ra</span>
-                {{ $result($effectiveFirstResult) }}
+                {{ $result($firstGrade) }}
             </td>
             <td>
                 <span class="label">2da inspección</span>
@@ -257,7 +296,7 @@
             </td>
             <td>
                 <span class="label">Resultado 2da</span>
-                {{ $result($effectiveSecondResult) }}
+                {{ $result($secondGrade) }}
             </td>
         </tr>
     </table>

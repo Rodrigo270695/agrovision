@@ -249,7 +249,7 @@ class DriverBoardController extends Controller
                 $topic['label'],
                 $topic['activity'],
                 'Vigente por 1 año',
-                $activeCount > 0 ? (int) round(($topic['have'] / $activeCount) * 100) : 0,
+                $activeCount > 0 ? (int) round((($topic['have_active'] ?? $topic['have']) / $activeCount) * 100) : 0,
                 [
                     $this->metric('tienen', 'Ya la tienen', $topic['have'], 'ok'),
                     $this->metric('faltan', 'Faltan', $topic['missing'], 'bad'),
@@ -313,7 +313,7 @@ class DriverBoardController extends Controller
 
                 $key = $this->identity($attendee->driver_dni, $attendee->driver_name);
 
-                if ($key !== null && isset($active[$key])) {
+                if ($key !== null && $drivers->has($key)) {
                     $topics[$titleKey]['covered'][$key] = true;
                 }
             }
@@ -322,9 +322,17 @@ class DriverBoardController extends Controller
         $rows = [];
 
         foreach ($topics as $topic) {
-            $have = count($topic['covered']);
-            $topic['have'] = $have;
-            $topic['missing'] = max(0, $activeCount - $have);
+            $haveActive = 0;
+
+            foreach ($topic['covered'] as $key => $_) {
+                if (isset($active[$key])) {
+                    $haveActive++;
+                }
+            }
+
+            $topic['have'] = count($topic['covered']);
+            $topic['have_active'] = $haveActive;
+            $topic['missing'] = max(0, $activeCount - $haveActive);
             $rows[] = $topic;
         }
 
@@ -367,7 +375,7 @@ class DriverBoardController extends Controller
         $rowNumber = 7;
 
         foreach ($topics as $topic) {
-            $percent = $activeCount > 0 ? (int) round(($topic['have'] / $activeCount) * 100) : 0;
+            $percent = $activeCount > 0 ? (int) round((($topic['have_active'] ?? $topic['have']) / $activeCount) * 100) : 0;
             $sheet->setCellValue([1, $rowNumber], $topic['activity']);
             $sheet->setCellValue([2, $rowNumber], $topic['label']);
             $sheet->setCellValue([3, $rowNumber], $topic['have']);
@@ -438,8 +446,10 @@ class DriverBoardController extends Controller
             foreach ($topics as $index => $topic) {
                 $value = '—';
 
-                if ($driver['active']) {
-                    $value = isset($topic['covered'][$key]) ? 'Sí' : 'No';
+                if (isset($topic['covered'][$key])) {
+                    $value = 'Sí';
+                } elseif ($driver['active']) {
+                    $value = 'No';
                 }
 
                 $sheet->setCellValue([$index + 5, $rowNumber], $value);
@@ -515,7 +525,10 @@ class DriverBoardController extends Controller
 
     private function attended(InductionAttendee $attendee): bool
     {
-        return $attendee->status === 'attended' || filled($attendee->signature_path);
+        return $attendee->status !== 'absent'
+            && ($attendee->status === 'attended'
+                || filled($attendee->signature_path)
+                || $attendee->status === 'registered');
     }
 
     private function identity(?string $dni, ?string $name): ?string

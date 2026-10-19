@@ -78,4 +78,9 @@ class ChecklistTemplate extends Model
     {
         return $this->hasMany(UnitChecklist::class, 'template_id');
     }
+
+    public function vehicleTypes(): HasMany
+    {
+        return $this->hasMany(VehicleType::class, 'checklist_template_id')->orderBy('sort')->orderBy('name');
+    }
 }

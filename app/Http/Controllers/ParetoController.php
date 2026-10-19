@@ -6,6 +6,7 @@ use App\Http\Requests\ParetoRequest;
 use App\Models\ChecklistSignatureRole;
 use App\Models\ChecklistTemplate;
 use App\Models\Pareto;
+use App\Models\VehicleType;
 use App\Services\ParetoChecklistSync;
 use App\Support\IndexedRedirect;
 use App\Support\ParetoCheckTypes;
@@ -98,6 +99,10 @@ class ParetoController extends Controller
                 ->values()
                 ->all(),
             'templates' => $templateOptions,
+            'vehicleTypes' => VehicleType::query()
+                ->orderBy('sort')
+                ->orderBy('name')
+                ->get(['id', 'name', 'checklist_template_id']),
             'parentOptions' => Pareto::query()
                 ->whereNull('parent_id')
                 ->orderBy('sort_order')
@@ -221,6 +226,50 @@ class ParetoController extends Controller
         return back()->with('toast', [
             'type' => 'success',
             'message' => "Plantilla {$name} creada. Ya puedes agregarle ítems.",
+        ]);
+    }
+
+    public function syncVehicleTypes(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'assignments' => ['required', 'array'],
+            'assignments.*.template_id' => ['required', 'integer', Rule::exists('checklist_templates', 'id')->where('is_active', true)],
+            'assignments.*.vehicle_type_ids' => ['present', 'array'],
+            'assignments.*.vehicle_type_ids.*' => ['integer', Rule::exists('vehicle_types', 'id')],
+        ], [
+            'assignments.required' => 'No se recibieron las asignaciones.',
+        ]);
+
+        $seen = [];
+
+        foreach ($validated['assignments'] as $row) {
+            foreach ($row['vehicle_type_ids'] as $vehicleTypeId) {
+                $id = (int) $vehicleTypeId;
+
+                if (isset($seen[$id])) {
+                    return back()->with('toast', [
+                        'type' => 'error',
+                        'message' => 'Un tipo de vehículo no puede pertenecer a dos checklists.',
+                    ]);
+                }
+
+                $seen[$id] = (int) $row['template_id'];
+            }
+        }
+
+        DB::transaction(function () use ($seen): void {
+            VehicleType::query()->update(['checklist_template_id' => null]);
+
+            foreach ($seen as $vehicleTypeId => $templateId) {
+                VehicleType::query()
+                    ->whereKey($vehicleTypeId)
+                    ->update(['checklist_template_id' => $templateId]);
+            }
+        });
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => 'Tipos de vehículo asignados a los checklists.',
         ]);
     }
 

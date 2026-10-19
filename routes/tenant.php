@@ -110,6 +110,10 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:pareto.delete')
             ->name('pareto.templates.destroy');
 
+        Route::put('pareto/tipos-vehiculo', [ParetoController::class, 'syncVehicleTypes'])
+            ->middleware('permission:pareto.update')
+            ->name('pareto.vehicle-types.sync');
+
         Route::post('pareto', [ParetoController::class, 'store'])
             ->middleware('permission:pareto.create')
             ->name('pareto.store');

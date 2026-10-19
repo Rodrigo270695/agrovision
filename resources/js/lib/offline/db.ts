@@ -4,6 +4,7 @@ import type { ChecklistFormData } from '@/components/checklists/checklist-edit-f
 import type {
     ActiveUnitOption,
     ChecklistTemplateOption,
+    VehicleTypeOption,
 } from '@/components/checklists/checklist-create-modal';
 import type {
     ChecklistsFilters,
@@ -49,6 +50,7 @@ export type InspectionIndexSnapshot = {
     filters: ChecklistsFilters;
     templates: ChecklistTemplateOption[];
     activeUnits: ActiveUnitOption[];
+    vehicleTypes?: VehicleTypeOption[];
     catalog: OfflineCatalogTemplate[];
     updatedAt: number;
 };

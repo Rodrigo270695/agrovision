@@ -40,10 +40,17 @@ export type ActiveUnitOption = {
     } | null;
 };
 
+export type VehicleTypeOption = {
+    id: number;
+    name: string;
+    checklist_template_id: number | null;
+};
+
 type Props = {
     open: boolean;
     templates: ChecklistTemplateOption[];
     activeUnits: ActiveUnitOption[];
+    vehicleTypes?: VehicleTypeOption[];
     catalog?: OfflineCatalogTemplate[];
     onClose: () => void;
     onCreatedOffline?: (draft: ChecklistFormData) => void;
@@ -56,27 +63,42 @@ function todayInput(): string {
     return local.toISOString().slice(0, 10);
 }
 
-function templateTypeForVehicle(vehicleType: string | null | undefined): 'tdp' | 'tdc' {
+function templateForVehicle(
+    vehicleType: string | null | undefined,
+    templates: ChecklistTemplateOption[],
+    vehicleTypes: VehicleTypeOption[],
+): ChecklistTemplateOption | null {
     const value = (vehicleType ?? '').trim().toUpperCase();
 
-    if (value.includes('CAMIONETA') || value.includes('PICK') || value === 'TDC') {
-        return 'tdc';
+    if (value === '') {
+        return null;
     }
 
-    return 'tdp';
+    const match = vehicleTypes.find(
+        (item) => item.name.trim().toUpperCase() === value,
+    );
+
+    if (!match?.checklist_template_id) {
+        return null;
+    }
+
+    return (
+        templates.find((item) => item.id === match.checklist_template_id) ??
+        null
+    );
 }
 
 export function ChecklistCreateModal({
     open,
     templates,
     activeUnits,
+    vehicleTypes = [],
     catalog = [],
     onClose,
     onCreatedOffline,
 }: Props) {
     const [date, setDate] = useState(todayInput);
     const [unitId, setUnitId] = useState<string | null>(null);
-    const [templateId, setTemplateId] = useState<string | null>(null);
     const [sending, setSending] = useState(false);
 
     useEffect(() => {
@@ -86,7 +108,6 @@ export function ChecklistCreateModal({
 
         setDate(todayInput());
         setUnitId(null);
-        setTemplateId(null);
     }, [open]);
 
     const options = useMemo(
@@ -122,38 +143,12 @@ export function ChecklistCreateModal({
         [activeUnits, unitId],
     );
 
-    const suggestedType = unit
-        ? templateTypeForVehicle(unit.vehicle_type)
+    const template = unit
+        ? templateForVehicle(unit.vehicle_type, templates, vehicleTypes)
         : null;
-    const suggested = suggestedType
-        ? (templates.find((item) => item.type === suggestedType) ?? null)
-        : null;
-    const template =
-        templates.find((item) => String(item.id) === templateId) ?? null;
-    const templateOptions = useMemo(
-        () =>
-            templates.map((item) => ({
-                value: String(item.id),
-                label: item.label || item.type.toUpperCase(),
-            })),
-        [templates],
-    );
 
     const selectUnit = (value: string | null) => {
         setUnitId(value);
-
-        const next =
-            activeUnits.find((item) => String(item.id) === value) ?? null;
-
-        if (!next) {
-            setTemplateId(null);
-
-            return;
-        }
-
-        const type = templateTypeForVehicle(next.vehicle_type);
-        const match = templates.find((item) => item.type === type);
-        setTemplateId(match ? String(match.id) : null);
     };
 
     const handleClose = () => {
@@ -239,7 +234,7 @@ export function ChecklistCreateModal({
             open={open}
             onClose={handleClose}
             title="Nueva inspección"
-            description="Elige la fecha, la unidad y el checklist. Se abre esa inspección para completarla."
+            description="Busca la placa. El checklist sale según el tipo de vehículo asignado en Pareto."
             className="sm:max-w-lg"
             footer={
                 <>
@@ -292,25 +287,27 @@ export function ChecklistCreateModal({
                         emptyMessage="No hay unidades en el periodo activo"
                     />
                 </div>
-                <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">
-                        Checklist <span className="text-red-500">*</span>
-                    </Label>
-                    <SearchableCombobox
-                        value={templateId}
-                        options={templateOptions}
-                        onChange={setTemplateId}
-                        placeholder="Elige el checklist"
-                        emptyMessage="No hay plantillas activas"
-                        allowClear={false}
-                    />
-                    {unit && suggested ? (
-                        <p className="text-[11px] text-[#5a7390]">
-                            Sugerido por el vehículo: {suggested.label || suggested.type.toUpperCase()}
-                            {unit.vehicle_type ? ` · ${unit.vehicle_type}` : ''}
+                {unit ? (
+                    <div className="rounded-xl border border-[#d7e3f0] bg-[#f8fafc] px-3 py-2.5">
+                        <p className="text-[11px] font-medium tracking-wide text-[#6b8ead] uppercase">
+                            Checklist
                         </p>
-                    ) : null}
-                </div>
+                        {template ? (
+                            <p className="mt-0.5 text-sm font-semibold text-[#1a2b4c]">
+                                {template.label || template.type.toUpperCase()}
+                                {unit.vehicle_type
+                                    ? ` · ${unit.vehicle_type}`
+                                    : ''}
+                            </p>
+                        ) : (
+                            <p className="mt-0.5 text-sm text-amber-800">
+                                {unit.vehicle_type
+                                    ? `El tipo ${unit.vehicle_type} no tiene checklist. Asígnalo en Pareto → Tipos de vehículo.`
+                                    : 'Esta unidad no tiene tipo de vehículo. Complétalo en Unidades.'}
+                            </p>
+                        )}
+                    </div>
+                ) : null}
             </form>
         </AppModal>
     );

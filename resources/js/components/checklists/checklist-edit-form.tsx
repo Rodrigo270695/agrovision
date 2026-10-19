@@ -33,6 +33,13 @@ import {
     saveEditSnapshot,
 } from '@/lib/offline/store';
 import { cn } from '@/lib/utils';
+import {
+    PARETO_PASS_THRESHOLD,
+    inspectionGrade,
+    inspectionGradeLabel,
+    paretoBand,
+    type InspectionGrade,
+} from '@/lib/pareto-grade';
 
 export type ChecklistFormItem = {
     id: number;
@@ -606,21 +613,25 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
         !sealed && secondUnlocked && !secondLocked && grantedPass !== 'first';
     const activeStats = activePass === 'first' ? firstStats : secondStats;
 
-    const PARETO_PASS_THRESHOLD = 85;
-
     const livePareto = useMemo(() => {
         const valueKey =
             activePass === 'first' ? 'first_value' : 'second_value';
 
         let scored = 0;
         let catalog = 0;
+        let hasNo = false;
 
         checklist.items.forEach((item, index) => {
             const weight = Number(item.weight ?? 0);
             catalog += weight;
+            const value = answers[index]?.[valueKey];
 
-            if (answers[index]?.[valueKey] === 'yes') {
+            if (value === 'yes') {
                 scored += weight;
+            }
+
+            if (value === 'no') {
+                hasNo = true;
             }
         });
 
@@ -635,10 +646,66 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
             scored: scoredRounded,
             catalog: catalogRounded,
             percent,
+            hasNo,
             passes: percent >= PARETO_PASS_THRESHOLD,
-            allYes: activeStats.yes === activeStats.total && activeStats.total > 0,
+            allYes:
+                !hasNo &&
+                activeStats.yes === activeStats.total &&
+                activeStats.total > 0,
         };
     }, [activePass, activeStats.total, activeStats.yes, answers, checklist.items]);
+
+    const firstPareto = useMemo(() => {
+        let scored = 0;
+        let catalog = 0;
+        let hasNo = false;
+
+        checklist.items.forEach((item, index) => {
+            const weight = Number(item.weight ?? 0);
+            catalog += weight;
+            const value = answers[index]?.first_value;
+
+            if (value === 'yes') {
+                scored += weight;
+            }
+
+            if (value === 'no') {
+                hasNo = true;
+            }
+        });
+
+        const percent =
+            catalog > 0 ? Math.round((scored / catalog) * 10000) / 100 : 0;
+
+        return { percent, hasNo };
+    }, [answers, checklist.items]);
+
+    const secondPareto = useMemo(() => {
+        let scored = 0;
+        let catalog = 0;
+        let hasNo = false;
+
+        checklist.items.forEach((item, index) => {
+            const weight = Number(item.weight ?? 0);
+            catalog += weight;
+            const value = answers[index]?.second_value;
+
+            if (value === 'yes') {
+                scored += weight;
+            }
+
+            if (value === 'no') {
+                hasNo = true;
+            }
+        });
+
+        const percent =
+            catalog > 0 ? Math.round((scored / catalog) * 10000) / 100 : 0;
+
+        return { percent, hasNo };
+    }, [answers, checklist.items]);
+
+    const liveBand = paretoBand(livePareto.percent, livePareto.hasNo);
 
     const canApproveActivePass =
         activeStats.allMarked &&
@@ -1261,14 +1328,22 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                         <Label className="text-xs text-[#1a2b4c]">
                             Resultado 1ra
                         </Label>
-                        <ResultBadge value={firstResult || null} />
+                        <ResultBadge
+                            value={firstResult || null}
+                            percent={firstPareto.percent}
+                            hasNo={firstPareto.hasNo}
+                        />
                     </div>
                     {secondUnlocked ? (
                         <div className="grid gap-1.5">
                             <Label className="text-xs text-[#1a2b4c]">
                                 Resultado 2da
                             </Label>
-                            <ResultBadge value={secondResult || null} />
+                            <ResultBadge
+                                value={secondResult || null}
+                                percent={secondPareto.percent}
+                                hasNo={secondPareto.hasNo}
+                            />
                         </div>
                     ) : null}
                 </div>
@@ -1293,11 +1368,13 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                         <span
                             className={cn(
                                 'inline-flex w-fit rounded-full px-2.5 py-1 text-[11px] font-medium',
-                                livePareto.passes
+                                liveBand === 'approved'
                                     ? 'bg-emerald-50 text-emerald-800'
-                                    : livePareto.percent > 0
+                                    : liveBand === 'approved_notes'
                                       ? 'bg-amber-50 text-amber-900'
-                                      : 'bg-slate-100 text-slate-700',
+                                      : livePareto.percent > 0
+                                        ? 'bg-red-50 text-red-800'
+                                        : 'bg-slate-100 text-slate-700',
                             )}
                         >
                             Pareto {livePareto.percent.toFixed(2)}%
@@ -1305,13 +1382,9 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                 / {livePareto.catalog.toFixed(2)}%
                             </span>
                         </span>
-                        <p className="text-[11px] text-[#6b8ead]">
-                            Umbral {PARETO_PASS_THRESHOLD}% · Solo suman los SÍ
-                            {!livePareto.passes ? (
-                                <span className="ml-1 font-medium text-red-700">
-                                    · Desaprobado (&lt; {PARETO_PASS_THRESHOLD}%)
-                                </span>
-                            ) : null}
+                        <p className="max-w-xs text-right text-[11px] text-[#6b8ead]">
+                            &lt; 85% desaprobado · 85%–99% o algún NO: aprobado
+                            c/ obs. · 100% todos SÍ: aprobado
                         </p>
                     </div>
                 </div>
@@ -1912,26 +1985,33 @@ function Field({
     );
 }
 
-function ResultBadge({ value }: { value?: string | null }) {
-    const label =
-        value === 'approved'
-            ? 'Aprobado'
-            : value === 'rejected'
-              ? 'Desaprobado'
-              : 'Pendiente';
+function ResultBadge({
+    value,
+    percent,
+    hasNo,
+}: {
+    value?: string | null;
+    percent?: number;
+    hasNo?: boolean;
+}) {
+    const grade: InspectionGrade = inspectionGrade(value, percent, hasNo);
+    const className =
+        grade === 'approved'
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+            : grade === 'approved_notes'
+              ? 'border-amber-200 bg-amber-50 text-amber-800'
+              : grade === 'rejected'
+                ? 'border-red-200 bg-red-50 text-red-700'
+                : 'border-[#c5d5e6] bg-[#f8fafc] text-[#5a7390]';
 
     return (
         <div
             className={cn(
                 'flex h-10 items-center rounded-lg border px-3 text-sm font-medium',
-                value === 'approved'
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                    : value === 'rejected'
-                      ? 'border-red-200 bg-red-50 text-red-700'
-                      : 'border-[#c5d5e6] bg-[#f8fafc] text-[#5a7390]',
+                className,
             )}
         >
-            {label}
+            {inspectionGradeLabel(grade)}
         </div>
     );
 }
