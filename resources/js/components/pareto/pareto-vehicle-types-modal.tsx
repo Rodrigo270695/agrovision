@@ -74,15 +74,20 @@ export function ParetoVehicleTypesModal({
 
     const filteredTypes = useMemo(() => {
         const query = search.trim().toLowerCase();
+        const available = vehicleTypes.filter((item) => {
+            const assignedTo = map[item.id] ?? null;
+
+            return assignedTo == null || assignedTo === selectedId;
+        });
 
         if (query === '') {
-            return vehicleTypes;
+            return available;
         }
 
-        return vehicleTypes.filter((item) =>
+        return available.filter((item) =>
             item.name.toLowerCase().includes(query),
         );
-    }, [search, vehicleTypes]);
+    }, [map, search, selectedId, vehicleTypes]);
 
     const toggleType = (vehicleTypeId: number) => {
         if (!canEdit || selectedId == null) {
@@ -228,8 +233,8 @@ export function ParetoVehicleTypesModal({
                                 {selected ? ` · ${selected.label}` : ''}
                             </p>
                             <p className="text-[11px] text-[#5a7390]">
-                                Marca los tipos de este checklist. Si ya estaba
-                                en otro, se mueve acá.
+                                Solo ves tipos libres o los de este checklist.
+                                Los ya asignados a otro no aparecen.
                             </p>
                         </div>
                         <Input
@@ -246,13 +251,8 @@ export function ParetoVehicleTypesModal({
                         ) : (
                             <ul className="grid gap-1 sm:grid-cols-2">
                                 {filteredTypes.map((type) => {
-                                    const assignedTo = map[type.id] ?? null;
-                                    const checked = assignedTo === selectedId;
-                                    const other = assignedTo
-                                        ? usableTemplates.find(
-                                              (item) => item.id === assignedTo,
-                                          )
-                                        : null;
+                                    const checked =
+                                        (map[type.id] ?? null) === selectedId;
 
                                     return (
                                         <li key={type.id}>
@@ -278,11 +278,6 @@ export function ParetoVehicleTypesModal({
                                                 <span className="min-w-0 flex-1 truncate font-medium text-[#1a2b4c]">
                                                     {type.name}
                                                 </span>
-                                                {other && !checked ? (
-                                                    <span className="shrink-0 text-[10px] font-medium text-[#6b8ead]">
-                                                        {other.label}
-                                                    </span>
-                                                ) : null}
                                             </button>
                                         </li>
                                     );
