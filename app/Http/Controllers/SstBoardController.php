@@ -115,7 +115,7 @@ class SstBoardController extends Controller
     {
         $query = UnitChecklist::query()
             ->with([
-                'answers.item:id,item_number,parent_id',
+                'answers.item:id,item_number,parent_id,pareto_id',
                 'unit:id,coordinator_id,vehicle_type',
                 'unit.coordinatorUser:id,name',
             ])
@@ -151,19 +151,20 @@ class SstBoardController extends Controller
     private function items(string $template, Collection $checklists, string $inspection): array
     {
         $templateId = ChecklistTemplate::query()->where('type', $template)->value('id');
-        $parents = ChecklistItem::query()
-            ->where('template_id', $templateId)
-            ->whereNull('parent_id')
-            ->orderBy('sort_order')
-            ->get(['item_number', 'label']);
+        $parents = ChecklistItem::activeParentsForTemplateId($templateId);
+        $activeParentIds = $parents->pluck('id')->flip();
 
-        $indexed = $checklists->map(function (UnitChecklist $checklist) use ($inspection) {
+        $indexed = $checklists->map(function (UnitChecklist $checklist) use ($inspection, $activeParentIds) {
             $answers = [];
 
             foreach ($checklist->answers as $answer) {
                 $item = $answer->item;
 
                 if ($item === null || $item->parent_id !== null || $item->item_number === null) {
+                    continue;
+                }
+
+                if (! $activeParentIds->has($item->id)) {
                     continue;
                 }
 

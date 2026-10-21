@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\ParetoCheckTypes;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -68,8 +70,38 @@ class ChecklistItem extends Model
     }
 
     /**
-     * @param  Collection<int, \App\Models\UnitChecklistAnswer>  $answers
-     * @return Collection<int, \App\Models\UnitChecklistAnswer>
+     * Ítems cuyo ítem Pareto sigue activo en el catálogo (plantillas vigentes).
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeActivePareto(Builder $query): Builder
+    {
+        return $query->whereHas('pareto', fn (Builder $pareto) => $pareto->where('is_active', true));
+    }
+
+    /**
+     * Padres del checklist alineados al catálogo Pareto activo.
+     *
+     * @return Collection<int, self>
+     */
+    public static function activeParentsForTemplateId(?int $templateId): Collection
+    {
+        if ($templateId === null) {
+            return collect();
+        }
+
+        return self::query()
+            ->where('template_id', $templateId)
+            ->whereNull('parent_id')
+            ->activePareto()
+            ->orderBy('sort_order')
+            ->get();
+    }
+
+    /**
+     * @param  Collection<int, UnitChecklistAnswer>  $answers
+     * @return Collection<int, UnitChecklistAnswer>
      */
     public static function sortAnswers(Collection $answers): Collection
     {
@@ -149,7 +181,7 @@ class ChecklistItem extends Model
         }
 
         return $this->has_expiry
-            ? \App\Support\ParetoCheckTypes::EXPIRY
-            : \App\Support\ParetoCheckTypes::OBSERVATION;
+            ? ParetoCheckTypes::EXPIRY
+            : ParetoCheckTypes::OBSERVATION;
     }
 }

@@ -8,7 +8,6 @@ use App\Models\Unit;
 use App\Models\UnitChecklist;
 use App\Models\UnitChecklistAnswer;
 use App\Models\UnitDocument;
-use App\Support\ParetoCheckTypes;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -18,6 +17,7 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -156,7 +156,7 @@ final class InspectionDatabaseExporter
                 $items = $template
                     ? ChecklistItem::query()
                         ->where('template_id', $template->id)
-                        ->whereHas('pareto', fn ($query) => $query->where('is_active', true))
+                        ->activePareto()
                         ->orderBy('sort_order')
                         ->orderBy('id')
                         ->get()
@@ -184,7 +184,7 @@ final class InspectionDatabaseExporter
      * @param  Collection<int, ChecklistItem>  $items
      */
     private function fillSheet(
-        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        Worksheet $sheet,
         Collection $checklists,
         ?ChecklistTemplate $template,
         Collection $items,
@@ -327,7 +327,7 @@ final class InspectionDatabaseExporter
      * @param  list<array{header: string, type: string, needles?: list<string>, item_id?: int, check_type?: string}>  $columns
      */
     private function writeRow(
-        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        Worksheet $sheet,
         int $rowNumber,
         UnitChecklist $checklist,
         string $pass,
@@ -695,7 +695,7 @@ final class InspectionDatabaseExporter
     }
 
     private function styleParetoResultCell(
-        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        Worksheet $sheet,
         string $cell,
         string $label,
     ): void {
