@@ -21,6 +21,7 @@ use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SecurityReportController;
 use App\Http\Controllers\SstBoardController;
+use App\Http\Controllers\FleetDataController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UnitDocumentController;
 use App\Http\Controllers\UserController;
@@ -227,6 +228,34 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
         Route::delete('unidades/{unit}', [UnitController::class, 'destroy'])
             ->middleware('permission:units.delete')
             ->name('units.destroy');
+
+        Route::get('datos-flota', [FleetDataController::class, 'index'])
+            ->middleware('permission:fleet_data.view')
+            ->name('fleet-data.index');
+
+        Route::get('datos-flota/rc/plantilla', [FleetDataController::class, 'downloadRcTemplate'])
+            ->middleware('permission:fleet_data.import')
+            ->name('fleet-data.rc.template');
+
+        Route::get('datos-flota/gps/plantilla', [FleetDataController::class, 'downloadGpsTemplate'])
+            ->middleware('permission:fleet_data.import')
+            ->name('fleet-data.gps.template');
+
+        Route::get('datos-flota/rc/exportar', [FleetDataController::class, 'exportRc'])
+            ->middleware('permission:fleet_data.view')
+            ->name('fleet-data.rc.export');
+
+        Route::get('datos-flota/gps/exportar', [FleetDataController::class, 'exportGps'])
+            ->middleware('permission:fleet_data.view')
+            ->name('fleet-data.gps.export');
+
+        Route::post('datos-flota/rc/importar', [FleetDataController::class, 'importRc'])
+            ->middleware('permission:fleet_data.import')
+            ->name('fleet-data.rc.import');
+
+        Route::post('datos-flota/gps/importar', [FleetDataController::class, 'importGps'])
+            ->middleware('permission:fleet_data.import')
+            ->name('fleet-data.gps.import');
 
         Route::post('unidades/{unit}/documentos', [UnitDocumentController::class, 'store'])
             ->middleware('permission:units.update')

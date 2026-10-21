@@ -15,6 +15,7 @@ import {
     Layers,
     MapPin,
     Package,
+    Radio,
     Settings2,
     Shield,
     Users,
@@ -80,6 +81,13 @@ const mainNavItems: NavItem[] = [
                 icon: Bus,
                 permission: 'units.view',
                 module: 'units',
+            },
+            {
+                title: 'Seguro RC y GPS',
+                href: '/datos-flota',
+                icon: Radio,
+                permission: 'fleet_data.view',
+                module: 'fleet_data',
             },
             {
                 title: 'Inspecciones',

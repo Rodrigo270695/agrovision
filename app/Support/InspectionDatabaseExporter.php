@@ -276,6 +276,7 @@ final class InspectionDatabaseExporter
         }
 
         $columns[] = ['header' => 'PUNTAJE', 'type' => 'score'];
+        $columns[] = ['header' => 'RESULTADO PARETO', 'type' => 'pareto_result'];
 
         foreach ($items as $item) {
             $columns[] = [
@@ -342,6 +343,14 @@ final class InspectionDatabaseExporter
 
             if ($column['type'] === 'mark' && $value === 'NOK') {
                 $nokCells[] = $this->columnLetter($index + 1).$rowNumber;
+            }
+
+            if ($column['type'] === 'pareto_result' && is_string($value) && $value !== '') {
+                $this->styleParetoResultCell(
+                    $sheet,
+                    $this->columnLetter($index + 1).$rowNumber,
+                    $value,
+                );
             }
 
             if ($value instanceof \DateTimeInterface) {
@@ -423,6 +432,15 @@ final class InspectionDatabaseExporter
             ? round($scored / $catalog * 100, 2)
             : ($marked > 0 ? round($ok / $marked * 100, 2) : 'Ninguna');
 
+        $valueField = $pass === 'second' ? 'second_value' : 'first_value';
+        $paretoSnapshot = ParetoPassThreshold::snapshot($answers, $valueField);
+        $storedResult = $pass === 'second' ? $checklist->second_result : $checklist->first_result;
+        $paretoLabel = ParetoPassThreshold::displayLabel(
+            $storedResult,
+            $paretoSnapshot['percent'],
+            $paretoSnapshot['has_no'],
+        );
+
         return [
             'checklist' => $checklist,
             'pass' => $pass,
@@ -430,6 +448,7 @@ final class InspectionDatabaseExporter
             'marks' => $marks,
             'nok' => $nok,
             'score' => $score,
+            'pareto_label' => $paretoLabel,
             'license' => $license,
             'soat' => $soat,
             'itv' => $itv,
@@ -476,6 +495,7 @@ final class InspectionDatabaseExporter
             'itv_text' => $context['itv']['text'],
             'nok_count' => $context['nok'],
             'score' => $context['score'],
+            'pareto_result' => $context['pareto_label'],
             'mark' => $context['marks'][(string) ($column['item_id'] ?? $column['header'])] ?? null,
             'note' => $this->note(
                 isset($column['item_id'])
@@ -672,5 +692,29 @@ final class InspectionDatabaseExporter
         }
 
         return $letter;
+    }
+
+    private function styleParetoResultCell(
+        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        string $cell,
+        string $label,
+    ): void {
+        $style = $sheet->getStyle($cell);
+        $style->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $style->getFont()->setBold(true);
+
+        $fill = match ($label) {
+            'Desaprobado' => 'FEE2E2',
+            'Aprobado c/ obs.' => 'FEF3C7',
+            'Aprobado' => 'DCFCE7',
+            default => null,
+        };
+
+        if ($fill === null) {
+            return;
+        }
+
+        $style->getFill()->setFillType(Fill::FILL_SOLID);
+        $style->getFill()->getStartColor()->setRGB($fill);
     }
 }

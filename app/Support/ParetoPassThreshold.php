@@ -92,4 +92,14 @@ final class ParetoPassThreshold
 
         return $storedResult;
     }
+
+    public static function displayLabel(?string $storedResult, float $percent, bool $hasNo = false): string
+    {
+        return match (self::displayGrade($storedResult, $percent, $hasNo)) {
+            'rejected' => 'Desaprobado',
+            'approved_notes' => 'Aprobado c/ obs.',
+            'approved' => 'Aprobado',
+            default => 'Pendiente',
+        };
+    }
 }

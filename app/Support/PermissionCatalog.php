@@ -32,6 +32,9 @@ final class PermissionCatalog
             'units.update' => ['label' => 'Editar unidades', 'module' => 'Unidades'],
             'units.delete' => ['label' => 'Eliminar unidades', 'module' => 'Unidades'],
 
+            'fleet_data.view' => ['label' => 'Ver Seguro RC y GPS', 'module' => 'Datos flota'],
+            'fleet_data.import' => ['label' => 'Importar Seguro RC y GPS', 'module' => 'Datos flota'],
+
             'periods.view' => ['label' => 'Ver periodos', 'module' => 'Periodos'],
             'periods.create' => ['label' => 'Crear periodos', 'module' => 'Periodos'],
             'periods.update' => ['label' => 'Editar periodos', 'module' => 'Periodos'],
