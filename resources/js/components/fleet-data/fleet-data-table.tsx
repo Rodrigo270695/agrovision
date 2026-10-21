@@ -1,4 +1,3 @@
-import { router } from '@inertiajs/react';
 import { useCallback, useMemo } from 'react';
 import {
     DataPagination,
@@ -13,14 +12,15 @@ import {
     PeriodFilterSelect,
     type PeriodFilterOption,
 } from '@/components/shared/period-filter-select';
-import type {
-    FleetFilters,
-    FleetPagination,
-    FleetTab,
-    GpsMovementRow,
-    GpsRecordRow,
-    RcMovementRow,
-    RcRecordRow,
+import {
+    type FleetFilters,
+    type FleetPagination,
+    type FleetTab,
+    type GpsMovementRow,
+    type GpsRecordRow,
+    type RcMovementRow,
+    type RcRecordRow,
+    visitFleetData,
 } from '@/components/fleet-data/fleet-data-page';
 import { asPaginated } from '@/lib/paginated';
 
@@ -59,13 +59,9 @@ export function FleetDataTable({
 
     const applyFilters = useCallback(
         (patch: Partial<FleetFilters>) => {
-            router.get(
-                '/datos-flota',
-                { ...filters, ...patch },
-                { preserveState: true, preserveScroll: true, replace: true },
-            );
+            visitFleetData({ ...filters, tab }, patch);
         },
-        [filters],
+        [filters, tab],
     );
 
     const rcRecordColumns = useMemo<

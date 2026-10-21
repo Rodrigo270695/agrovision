@@ -111,33 +111,88 @@ function buildExportUrl(tab: FleetTab, filters: FleetFilters): string {
     return query ? `${base}?${query}` : base;
 }
 
+export function buildFleetVisitParams(
+    filters: FleetFilters,
+    patch: Partial<FleetFilters> = {},
+): Record<string, string | number> {
+    const merged: FleetFilters = { ...filters, ...patch };
+    const params: Record<string, string | number> = {
+        tab: merged.tab,
+        view: merged.view,
+        per_page: merged.per_page,
+    };
+
+    if (merged.search.trim() !== '') {
+        params.search = merged.search.trim();
+    }
+
+    if (merged.period_id) {
+        params.period_id = merged.period_id;
+    }
+
+    if (merged.date_from) {
+        params.date_from = merged.date_from;
+    }
+
+    if (merged.date_to) {
+        params.date_to = merged.date_to;
+    }
+
+    if (merged.all_dates) {
+        params.all_dates = 1;
+    }
+
+    return params;
+}
+
+export function visitFleetData(
+    filters: FleetFilters,
+    patch: Partial<FleetFilters> = {},
+): void {
+    router.get('/datos-flota', buildFleetVisitParams(filters, patch), {
+        preserveScroll: true,
+        preserveState: false,
+        replace: true,
+    });
+}
+
+function normalizeFilters(
+    tab: FleetTab,
+    filters?: Partial<FleetFilters>,
+): FleetFilters {
+    return {
+        tab: filters?.tab ?? tab ?? 'rc',
+        view: filters?.view ?? 'records',
+        search: filters?.search ?? '',
+        period_id: filters?.period_id ?? null,
+        date_from: filters?.date_from ?? null,
+        date_to: filters?.date_to ?? null,
+        all_dates: Boolean(filters?.all_dates),
+        per_page: filters?.per_page ?? 25,
+    };
+}
+
 export function FleetDataPage() {
-    const { tab, filters, stats, records, movements, periodOptions } =
+    const { tab, filters: rawFilters, stats, records, movements, periodOptions } =
         usePage().props as unknown as PageProps;
+    const filters = normalizeFilters(tab, rawFilters);
+    const activeTab = filters.tab;
     const { can } = useCan();
     const [importOpen, setImportOpen] = useState(false);
     const exportUrl = useMemo(
-        () => buildExportUrl(tab, filters),
-        [tab, filters],
+        () => buildExportUrl(activeTab, filters),
+        [activeTab, filters],
     );
 
     const setTab = (next: FleetTab) => {
-        router.get(
-            '/datos-flota',
-            { ...filters, tab: next, view: 'records' },
-            { preserveState: true, replace: true },
-        );
+        visitFleetData(filters, { tab: next, view: 'records' });
     };
 
     const setView = (view: 'records' | 'history') => {
-        router.get(
-            '/datos-flota',
-            { ...filters, view },
-            { preserveState: true, replace: true },
-        );
+        visitFleetData(filters, { view });
     };
 
-    const tabLabel = tab === 'rc' ? 'Seguro RC' : 'GPS';
+    const tabLabel = activeTab === 'rc' ? 'Seguro RC' : 'GPS';
 
     return (
         <div className="flex flex-col gap-4 p-4">
@@ -149,7 +204,7 @@ export function FleetDataPage() {
                         label: 'Registros',
                         value: stats.records,
                         variant: 'info',
-                        icon: tab === 'rc' ? ShieldCheck : Radio,
+                        icon: activeTab === 'rc' ? ShieldCheck : Radio,
                     },
                     {
                         label: 'Activos',
@@ -206,7 +261,7 @@ export function FleetDataPage() {
                         type="button"
                         className={cn(
                             'cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium',
-                            tab === 'rc'
+                            activeTab === 'rc'
                                 ? 'bg-[#1a2b4c] text-white'
                                 : 'text-[#1a2b4c] hover:bg-[#e8f1fa]',
                         )}
@@ -218,7 +273,7 @@ export function FleetDataPage() {
                         type="button"
                         className={cn(
                             'cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium',
-                            tab === 'gps'
+                            activeTab === 'gps'
                                 ? 'bg-[#1a2b4c] text-white'
                                 : 'text-[#1a2b4c] hover:bg-[#e8f1fa]',
                         )}
@@ -257,7 +312,8 @@ export function FleetDataPage() {
             </div>
 
             <FleetDataTable
-                tab={tab}
+                key={`${activeTab}-${filters.view}`}
+                tab={activeTab}
                 filters={filters}
                 records={records}
                 movements={movements}
@@ -266,7 +322,7 @@ export function FleetDataPage() {
 
             <FleetImportModal
                 open={importOpen}
-                tab={tab}
+                tab={activeTab}
                 periodOptions={periodOptions}
                 onClose={() => setImportOpen(false)}
             />
