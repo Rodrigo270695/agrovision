@@ -351,12 +351,7 @@ final class InductionReportExporter
 
     private function sedeForUnit(Unit $unit, ?Driver $record): string
     {
-        $fromCatalog = trim((string) ($record?->sede ?? ''));
-        if ($fromCatalog !== '') {
-            return $fromCatalog;
-        }
-
-        return CoordinatorSede::forCoordinatorId($unit->coordinator_id);
+        return UnitSede::label($unit->route, $record?->sede, $unit->coordinator_id);
     }
 
     private function driverStatusLabel(Unit $unit, ?Driver $record): string

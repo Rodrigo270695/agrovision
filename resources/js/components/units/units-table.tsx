@@ -399,6 +399,16 @@ export function UnitsTable({
                 ),
             },
             {
+                key: 'route',
+                header: 'Sede',
+                sortable: true,
+                cell: (unit) => (
+                    <span className="text-xs text-muted-foreground">
+                        {unit.route?.trim() || '—'}
+                    </span>
+                ),
+            },
+            {
                 key: 'coordinator',
                 header: 'Coordinador',
                 cell: (unit) => (
@@ -505,7 +515,7 @@ export function UnitsTable({
             },
             {
                 key: 'route',
-                header: 'Ruta',
+                header: 'Sede',
                 cell: (movement) => (
                     <span className="text-xs text-muted-foreground">
                         {movement.route || '—'}

@@ -424,6 +424,7 @@ class UnitController extends Controller
                 'plate_number',
                 'driver_name',
                 'vehicle_type',
+                'route',
                 'service_date',
                 'created_at',
             ])],
