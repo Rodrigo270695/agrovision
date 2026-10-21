@@ -260,8 +260,8 @@ export function FleetDataTable({
     return (
         <div className="space-y-3">
             <DataToolbar
-                search={filters.search}
-                searchPlaceholder="Buscar placa…"
+                search={filters.search ?? ''}
+                placeholder="Buscar placa…"
                 onSearchChange={(value) => applyFilters({ search: value })}
             >
                 <PeriodFilterSelect
@@ -273,14 +273,20 @@ export function FleetDataTable({
                 />
                 {history ? (
                     <DateRangeFilter
-                        dateFrom={filters.date_from}
-                        dateTo={filters.date_to}
-                        allDates={filters.all_dates}
-                        onChange={(range) =>
+                        desde={filters.date_from ?? null}
+                        hasta={filters.date_to ?? null}
+                        onApply={(dateFrom, dateTo) =>
                             applyFilters({
-                                date_from: range.from,
-                                date_to: range.to,
-                                all_dates: range.allDates,
+                                date_from: dateFrom,
+                                date_to: dateTo,
+                                all_dates: false,
+                            })
+                        }
+                        onClear={() =>
+                            applyFilters({
+                                date_from: null,
+                                date_to: null,
+                                all_dates: true,
                             })
                         }
                     />
@@ -289,7 +295,7 @@ export function FleetDataTable({
 
             <DataTable
                 columns={columns}
-                rows={rows}
+                data={rows}
                 rowKey={(row) => String(row.id)}
                 emptyState={
                     <EmptyState
