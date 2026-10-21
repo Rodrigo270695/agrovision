@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Fortify\Contracts\LoginResponse;
@@ -40,6 +41,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Vite::usePreloadTagAttributes(function (string $src, string $url, array $chunk, array $manifest): array|false {
+            if (str_ends_with($url, '.css')) {
+                return false;
+            }
+
+            return [];
+        });
+
         $this->configureDefaults();
 
         Route::bind('checklist', fn (string $value) => UnitChecklist::query()->findOrFail($value));
