@@ -1,8 +1,9 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { DateRangeFilter } from '@/components/shared/date-range-filter';
+import { SstBoardItemPicker } from '@/components/sst-board/sst-item-picker';
 import { dashboard } from '@/routes';
 import { cn } from '@/lib/utils';
 
@@ -92,6 +93,28 @@ export default function SstBoardPage() {
     };
 
     const [zoomRing, setZoomRing] = useState<Ring | null>(null);
+    const [visibleItemKeys, setVisibleItemKeys] = useState<Set<string> | null>(
+        null,
+    );
+
+    const handleVisibleItemsChange = useCallback(
+        (keys: Set<string> | null) => {
+            setVisibleItemKeys(keys);
+        },
+        [],
+    );
+
+    const displayedItems = useMemo(() => {
+        if (visibleItemKeys === null) {
+            return items;
+        }
+
+        if (visibleItemKeys.size === 0) {
+            return [];
+        }
+
+        return items.filter((item) => visibleItemKeys.has(item.key));
+    }, [items, visibleItemKeys]);
 
     const selectedVehicle =
         filters.vehicle_types.length === 1 ? filters.vehicle_types[0] : '';
@@ -116,8 +139,8 @@ export default function SstBoardPage() {
                             </h1>
                             <p className="mt-1 text-xs text-[#5a7390]">
                                 {summary.units} inspecciones. {summary.week_label}.
-                                Clic en un gráfico para ampliarlo. Verde OK,
-                                gris sin marcar, rojo en NO.
+                                Personaliza ítems con el selector de la derecha.
+                                Clic en un gráfico para ampliarlo.
                             </p>
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -267,6 +290,11 @@ export default function SstBoardPage() {
                                 ))}
                             </select>
                         </label>
+                        <SstBoardItemPicker
+                            template={filters.template}
+                            items={items}
+                            onChange={handleVisibleItemsChange}
+                        />
                     </div>
                 </div>
 
@@ -274,9 +302,14 @@ export default function SstBoardPage() {
                     <section className="rounded-2xl border border-[#d7e3f0] bg-white p-8 text-center text-sm text-[#5a7390] shadow-sm">
                         Esta plantilla no tiene requisitos para graficar.
                     </section>
+                ) : displayedItems.length === 0 ? (
+                    <section className="rounded-2xl border border-[#d7e3f0] bg-white p-8 text-center text-sm text-[#5a7390] shadow-sm">
+                        No hay ítems seleccionados. Abre{' '}
+                        <strong>Ítems a mostrar</strong> y marca al menos uno.
+                    </section>
                 ) : (
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
-                        {items.map((item) => (
+                        {displayedItems.map((item) => (
                             <RingCard
                                 key={item.key}
                                 ring={item}
