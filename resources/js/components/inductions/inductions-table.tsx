@@ -64,6 +64,7 @@ export type InductionItem = {
     end_time?: string | null;
     estimated_minutes?: number | null;
     sede?: string | null;
+    lugar?: string | null;
     site_id?: number | null;
     department?: string | null;
     area?: string | null;
@@ -516,9 +517,6 @@ export function InductionsTable({
                             </span>
                             <span className="truncate text-xs text-muted-foreground">
                                 {activityLabel(induction.activity)}
-                                {induction.location
-                                    ? ` · ${induction.location}`
-                                    : ''}
                             </span>
                             {matches.length > 0 ? (
                                 <span className="mt-0.5 truncate text-[11px] text-[#2e5a9e]">
@@ -538,6 +536,31 @@ export function InductionsTable({
                                 </span>
                             ) : null}
                         </div>
+                    );
+                },
+            },
+            {
+                key: 'sede',
+                header: 'Sede',
+                cell: (induction) => (
+                    <span className="text-xs text-muted-foreground">
+                        {induction.sede && induction.sede !== '—'
+                            ? induction.sede
+                            : '—'}
+                    </span>
+                ),
+            },
+            {
+                key: 'lugar',
+                header: 'Lugar',
+                cell: (induction) => {
+                    const lugar =
+                        induction.lugar || induction.zone || '';
+
+                    return (
+                        <span className="text-xs text-muted-foreground">
+                            {lugar && lugar !== '—' ? lugar : '—'}
+                        </span>
                     );
                 },
             },

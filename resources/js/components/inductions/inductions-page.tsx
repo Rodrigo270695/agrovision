@@ -112,6 +112,9 @@ export function InductionsPage() {
                         : new Date().toISOString(),
                     session_date: date,
                     location: String(item.body.sede ?? item.body.zone ?? ''),
+                    sede: String(item.body.sede ?? '') || null,
+                    lugar: String(item.body.zone ?? '') || null,
+                    zone: String(item.body.zone ?? '') || null,
                     attendees_count: 0,
                     attended_count: 0,
                 };

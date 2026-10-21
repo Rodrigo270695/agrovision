@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Driver;
 use App\Models\Induction;
 use App\Models\Unit;
 use Illuminate\Support\Collection;
@@ -207,6 +208,7 @@ final class InductionReportExporter
     {
         /** @var Collection<string, array{key: string, name: string, dni: string, plate: string, provider: string, coordinator: string, sede: string, ingreso: string, fecha: string, status: string, stamp: int, ingreso_stamp: int}> $drivers */
         $drivers = collect();
+        $catalog = $this->driverCatalog($units);
 
         foreach ($units as $unit) {
             $key = $this->driverKey($unit->driver_dni, $unit->driver_name);
@@ -225,6 +227,7 @@ final class InductionReportExporter
                 ?? $unit->created_at?->timezone(config('app.timezone'))->format('d/m/Y')
                 ?? '';
             $current = $drivers->get($key);
+            $record = $catalog->get($unit->period_id.'|'.$key);
 
             if ($current === null || $stamp >= $current['stamp']) {
                 $drivers->put($key, [
@@ -234,12 +237,12 @@ final class InductionReportExporter
                     'plate' => trim((string) $unit->plate_number),
                     'provider' => trim((string) $unit->provider),
                     'coordinator' => trim((string) ($unit->coordinatorUser?->name ?? '')),
-                    'sede' => $this->sede($unit),
+                    'sede' => $this->sedeForUnit($unit, $record),
                     'ingreso' => $current === null || $ingresoStamp <= $current['ingreso_stamp']
                         ? $ingresoLabel
                         : $current['ingreso'],
                     'fecha' => $unit->service_date?->format('d/m/Y') ?? '',
-                    'status' => $unit->period?->isActive() ? 'ACTIVO' : 'INACTIVO',
+                    'status' => $this->driverStatusLabel($unit, $record),
                     'stamp' => $stamp,
                     'ingreso_stamp' => $current === null
                         ? $ingresoStamp
@@ -328,27 +331,50 @@ final class InductionReportExporter
         return $rows->values();
     }
 
-    private function sede(Unit $unit): string
+    /**
+     * @param  Collection<int, Unit>  $units
+     * @return Collection<string, Driver>
+     */
+    private function driverCatalog(Collection $units): Collection
     {
-        $sites = $unit->coordinatorUser?->places
-            ->map(fn ($place) => trim((string) ($place->site?->name ?? '')))
-            ->filter()
-            ->unique()
-            ->values() ?? collect();
+        $periodIds = $units->pluck('period_id')->unique()->filter()->values()->all();
 
-        return $sites->implode(' / ');
+        if ($periodIds === []) {
+            return collect();
+        }
+
+        return Driver::query()
+            ->whereIn('period_id', $periodIds)
+            ->get()
+            ->keyBy(fn (Driver $driver): string => $driver->period_id.'|'.$driver->identity_key);
+    }
+
+    private function sedeForUnit(Unit $unit, ?Driver $record): string
+    {
+        $fromCatalog = trim((string) ($record?->sede ?? ''));
+        if ($fromCatalog !== '') {
+            return $fromCatalog;
+        }
+
+        return CoordinatorSede::forCoordinatorId($unit->coordinator_id);
+    }
+
+    private function driverStatusLabel(Unit $unit, ?Driver $record): string
+    {
+        if ($record !== null) {
+            return $record->status === 'active' ? 'ACTIVO' : 'INACTIVO';
+        }
+
+        if ((string) $unit->status === 'inactive') {
+            return 'INACTIVO';
+        }
+
+        return $unit->period?->isActive() ? 'ACTIVO' : 'INACTIVO';
     }
 
     private function driverKey(?string $dni, ?string $name): string
     {
-        $digits = preg_replace('/\D+/', '', (string) $dni) ?: '';
-        if ($digits !== '') {
-            return 'd:'.$digits;
-        }
-
-        $normalized = mb_strtoupper(trim((string) $name));
-
-        return $normalized !== '' ? 'n:'.$normalized : '';
+        return DriverIdentity::key($dni, $name) ?? '';
     }
 
     /**

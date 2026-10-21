@@ -97,7 +97,17 @@ class InductionController extends Controller
 
         $query->orderBy($sort, $direction);
 
-        $inductions = $query->paginate($perPage)->withQueryString();
+        $inductions = $query->paginate($perPage)->withQueryString()
+            ->through(function (Induction $induction) {
+                $induction->setAttribute(
+                    'lugar',
+                    trim((string) ($induction->zone ?? '')) !== ''
+                        ? $induction->zone
+                        : null,
+                );
+
+                return $induction;
+            });
 
         return Inertia::render('inductions/index', [
             'inductions' => $inductions,

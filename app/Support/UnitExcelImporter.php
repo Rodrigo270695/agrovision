@@ -622,6 +622,8 @@ final class UnitExcelImporter
             $createdByCorrelative = [];
             $movementIdByRow = [];
             $latestByUnit = [];
+            $driverSync = new DriverImportSync();
+            CoordinatorSede::flushCache();
 
             foreach ($pending as $excelRow => $data) {
                 $movementId = $data['movement_id'] ?? null;
@@ -715,9 +717,12 @@ final class UnitExcelImporter
                 ) {
                     $latestByUnit[$unitId] = $data;
                 }
+
+                $driverSync->recordRow($period, (int) $unitId, $movement, $data);
             }
 
             $deactivated = $this->syncImportedPresence($period, $latestByUnit);
+            $driverSync->syncPresence($period);
         });
     }
 
