@@ -145,6 +145,13 @@ const mainNavItems: NavItem[] = [
                 module: 'checklists',
             },
             {
+                title: 'Seguro RC / GPS',
+                href: '/reporte-flota',
+                icon: Shield,
+                permission: 'fleet_data.view',
+                module: 'fleet_data',
+            },
+            {
                 title: 'Tablero conductores',
                 href: '/tablero-conductores',
                 icon: Users,

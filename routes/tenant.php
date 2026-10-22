@@ -7,6 +7,7 @@ use App\Http\Controllers\ConsolidationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DriverBoardController;
 use App\Http\Controllers\DriverInductionReportController;
+use App\Http\Controllers\FleetComplianceReportController;
 use App\Http\Controllers\FleetDataController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\ImpersonationLeaveController;
@@ -268,6 +269,10 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
         Route::delete('unidades/{unit}/documentos/{document}', [UnitDocumentController::class, 'destroy'])
             ->middleware('permission:units.update')
             ->name('units.documents.destroy');
+
+        Route::get('reporte-flota', FleetComplianceReportController::class)
+            ->middleware('permission:fleet_data.view')
+            ->name('fleet-compliance.report');
 
         Route::get('tablero-sst', SstBoardController::class)
             ->middleware('permission:checklists.view')
