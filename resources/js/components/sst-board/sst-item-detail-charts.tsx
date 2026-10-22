@@ -74,7 +74,9 @@ export function SstWeeklyVerticalBars({
     bars: SstDetailBar[];
     goalPercent?: number;
 }) {
-    if (bars.length === 0) {
+    const withData = bars.filter((bar) => bar.total > 0);
+
+    if (withData.length === 0) {
         return (
             <p className="py-16 text-center text-sm text-[#6b8ead]">
                 Sin datos para graficar en el rango.
@@ -83,60 +85,58 @@ export function SstWeeklyVerticalBars({
     }
 
     const maxPercent = 100;
+    const chartHeight = 200;
+    const goalLineBottom = Math.round((goalPercent / maxPercent) * chartHeight);
 
     return (
-        <div className="relative pt-6">
-            <div
-                className="pointer-events-none absolute right-0 left-0 border-t border-dashed border-[#94a3b8]"
-                style={{ bottom: `calc(${goalPercent}% + 2.5rem)` }}
-            />
-            <p
-                className="pointer-events-none absolute left-0 text-[10px] font-medium text-[#64748b]"
-                style={{ bottom: `calc(${goalPercent}% + 2.65rem)` }}
-            >
-                {goalPercent}%
-            </p>
+        <div className="w-full min-w-0">
+            <div className="w-full overflow-x-auto">
+                <div
+                    className={`relative inline-flex min-w-full items-end gap-3 px-1 pb-2 sm:gap-4 ${withData.length <= 8 ? 'justify-center' : 'justify-start'}`}
+                    style={{ minHeight: `${chartHeight + 48}px` }}
+                >
+                    <div
+                        className="pointer-events-none absolute right-0 left-0 border-t border-dashed border-[#94a3b8]"
+                        style={{ bottom: `${goalLineBottom + 28}px` }}
+                    />
+                    <span
+                        className="pointer-events-none absolute left-0 text-[10px] font-medium text-[#64748b]"
+                        style={{ bottom: `${goalLineBottom + 32}px` }}
+                    >
+                        {goalPercent}%
+                    </span>
 
-            <div className="flex min-h-[14rem] items-end justify-start gap-3 overflow-x-auto px-1 pb-2 sm:gap-4">
-                {bars.map((bar) => {
-                    const empty = bar.total === 0;
-                    const barHeightPx = empty
-                        ? 6
-                        : Math.max(
-                              12,
-                              Math.round((bar.percent_ok / maxPercent) * 200),
-                          );
+                    {withData.map((bar) => {
+                        const barHeightPx = Math.max(
+                            12,
+                            Math.round((bar.percent_ok / maxPercent) * chartHeight),
+                        );
 
-                    return (
-                        <div
-                            key={`${bar.year}-${bar.week}`}
-                            className="flex min-w-[3.5rem] shrink-0 flex-col items-center"
-                        >
-                            <span
-                                className={`mb-1 text-[11px] font-bold tabular-nums ${empty ? 'text-[#94a3b8]' : 'text-[#1a2b4c]'}`}
-                            >
-                                {empty ? '—' : `${bar.percent_ok}%`}
-                            </span>
+                        return (
                             <div
-                                className="flex w-11 items-end justify-center sm:w-12"
-                                style={{ height: '200px' }}
+                                key={`${bar.year}-${bar.week}`}
+                                className="flex w-11 shrink-0 flex-col items-center sm:w-12"
                             >
+                                <span className="mb-1 text-[11px] font-bold tabular-nums text-[#1a2b4c]">
+                                    {bar.percent_ok}%
+                                </span>
                                 <div
-                                    className={`w-full min-h-[6px] rounded-t-md shadow-sm transition-all ${empty ? 'bg-[#e2e8f0]' : 'bg-[#22c55e]'}`}
-                                    style={{ height: `${barHeightPx}px` }}
-                                    title={
-                                        empty
-                                            ? `${bar.label}: sin unidades`
-                                            : `${bar.label}: ${bar.percent_ok}% OK (${bar.total} unidades)`
-                                    }
-                                />
+                                    className="relative flex w-full items-end justify-center"
+                                    style={{ height: `${chartHeight}px` }}
+                                >
+                                    <div
+                                        className="w-full min-h-[12px] rounded-t-md bg-[#22c55e] shadow-sm"
+                                        style={{ height: `${barHeightPx}px` }}
+                                        title={`${bar.label}: ${bar.percent_ok}% OK (${bar.total} unidades)`}
+                                    />
+                                </div>
+                                <span className="mt-2 text-center text-[10px] font-semibold leading-tight text-[#5a7390]">
+                                    {bar.label}
+                                </span>
                             </div>
-                            <span className="mt-2 text-center text-[10px] font-semibold leading-tight text-[#5a7390]">
-                                {bar.label}
-                            </span>
-                        </div>
-                    );
-                })}
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );

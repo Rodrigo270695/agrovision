@@ -53,7 +53,7 @@ export default function SstBoardItemDetailPage() {
         <>
             <Head title={`${item.label} — Tablero SST`} />
 
-            <div className="flex w-full flex-col gap-6 p-4 sm:p-6">
+            <div className="flex w-full min-w-0 max-w-none flex-col gap-6 p-4 sm:p-6">
                 <div className="flex flex-wrap items-start gap-3 border-b-2 border-[#1a2b4c] pb-4">
                     <Link
                         href={backHref}
@@ -107,18 +107,18 @@ export default function SstBoardItemDetailPage() {
                             }
                         />
                     </div>
-                    <p className="text-xs text-[#5a7390]">
-                        Las barras muestran cada semana del rango; una unidad
-                        cuenta en la semana de su planilla o de su inspección.
+                    <p className="max-w-xl text-xs text-[#5a7390]">
+                        Solo se listan semanas con unidades en el rango
+                        (planilla o inspección).
                     </p>
                 </div>
 
-                <section className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-6">
+                <section className="w-full min-w-0 rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-6">
                     <SstSummaryStrip summary={summary} />
                 </section>
 
-                <div className="grid gap-4 lg:grid-cols-[1fr_minmax(16rem,22rem)]">
-                    <section className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-6">
+                <div className="grid w-full min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]">
+                    <section className="min-w-0 overflow-hidden rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-6">
                         <h2 className="text-sm font-semibold text-[#1a2b4c]">
                             % OK por semana
                         </h2>
@@ -131,7 +131,7 @@ export default function SstBoardItemDetailPage() {
                         </div>
                     </section>
 
-                    <section className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-6">
+                    <section className="min-w-0 rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-6">
                         <SstDetailDonut title={item.label} summary={summary} />
                         <p className="mt-4 text-center text-[10px] text-[#6b8ead]">
                             Fuente: {source_label}

@@ -213,9 +213,6 @@ final class SstBoardItemDetailReport
      * @param  list<array{period: Period, units: Collection<int, Unit>, checklists: Collection<int|string, UnitChecklist>, rows: list<array{unit: Unit, status: string}>}>  $periodData
      * @return list<array{label: string, week: int, year: int, ok: int, falta: int, baja: int, pendiente: int, total: int, percent_ok: int}>
      */
-    /**
-     * @param  list<array{period: Period, units: Collection<int, Unit>, checklists: Collection<int|string, UnitChecklist>, rows: list<array{unit: Unit, status: string}>}>  $periodData
-     */
     private function weeklyBars(array $range, Collection $periods, array $periodData): array
     {
         [$from, $to] = $this->barChartBounds($range, $periodData);
@@ -260,17 +257,19 @@ final class SstBoardItemDetailReport
 
             $total = array_sum($counts);
 
-            $bars[] = [
-                'label' => 'Semana '.(int) $weekStart->isoWeek(),
-                'week' => (int) $weekStart->isoWeek(),
-                'year' => (int) $weekStart->isoWeekYear(),
-                'ok' => $counts['ok'],
-                'falta' => $counts['falta'],
-                'baja' => $counts['baja'],
-                'pendiente' => $counts['pendiente'],
-                'total' => $total,
-                'percent_ok' => $total > 0 ? (int) round(($counts['ok'] / $total) * 100) : 0,
-            ];
+            if ($total > 0) {
+                $bars[] = [
+                    'label' => 'Semana '.(int) $weekStart->isoWeek(),
+                    'week' => (int) $weekStart->isoWeek(),
+                    'year' => (int) $weekStart->isoWeekYear(),
+                    'ok' => $counts['ok'],
+                    'falta' => $counts['falta'],
+                    'baja' => $counts['baja'],
+                    'pendiente' => $counts['pendiente'],
+                    'total' => $total,
+                    'percent_ok' => (int) round(($counts['ok'] / $total) * 100),
+                ];
+            }
 
             $cursor = $cursor->addWeek();
         }
