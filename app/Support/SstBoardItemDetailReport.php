@@ -447,25 +447,28 @@ final class SstBoardItemDetailReport
         string $inspection,
         Collection $activeParentIds,
     ): string {
-        if (($unit->status ?? 'active') !== 'active') {
+        $inactive = ($unit->status ?? 'active') !== 'active';
+        $closed = $checklist !== null && $this->inspectionIsClosed($checklist, $inspection);
+
+        if ($closed) {
+            $value = $this->itemValue($checklist, $itemNumber, $inspection, $activeParentIds);
+
+            if ($value === 'yes') {
+                return 'ok';
+            }
+
+            if ($value === 'no') {
+                return 'falta';
+            }
+
             return 'baja';
         }
 
-        if ($checklist === null || ! $this->inspectionIsClosed($checklist, $inspection)) {
-            return 'pendiente';
+        if ($inactive) {
+            return 'baja';
         }
 
-        $value = $this->itemValue($checklist, $itemNumber, $inspection, $activeParentIds);
-
-        if ($value === 'yes') {
-            return 'ok';
-        }
-
-        if ($value === 'no') {
-            return 'falta';
-        }
-
-        return 'baja';
+        return 'pendiente';
     }
 
     private function inspectionIsClosed(UnitChecklist $checklist, string $inspection): bool
