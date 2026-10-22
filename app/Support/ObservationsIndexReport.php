@@ -4,7 +4,7 @@ namespace App\Support;
 
 use App\Models\ChecklistTemplate;
 use App\Models\UnitChecklist;
-use Carbon\CarbonImmutable;
+use App\Models\UnitChecklistAnswer;
 use Illuminate\Support\Collection;
 
 final class ObservationsIndexReport
@@ -88,7 +88,7 @@ final class ObservationsIndexReport
         $query = UnitChecklist::query()
             ->with([
                 'unit:id,plate_number',
-                'answers.item:id,parent_id',
+                'answers.item:id,parent_id,label,check_type,has_expiry,weight',
             ])
             ->whereHas('template', fn ($builder) => $builder->where('type', $template))
             ->whereNotNull('first_inspected_on')
@@ -120,15 +120,10 @@ final class ObservationsIndexReport
     private function observationFragments(UnitChecklist $checklist): array
     {
         $parts = [];
+        $valueField = $checklist->second_result !== null ? 'second_value' : 'first_value';
 
         foreach ($checklist->answers as $answer) {
-            $text = trim((string) ($answer->observations ?? ''));
-
-            if ($text === '') {
-                continue;
-            }
-
-            foreach ($this->splitFragments($text) as $fragment) {
+            foreach ($this->fragmentsFromAnswer($answer, $valueField) as $fragment) {
                 $parts[] = $fragment;
             }
         }
@@ -137,11 +132,62 @@ final class ObservationsIndexReport
 
         if ($additional !== '') {
             foreach ($this->splitFragments($additional) as $fragment) {
-                $parts[] = $fragment;
+                if (! $this->looksLikeDate($fragment)) {
+                    $parts[] = $fragment;
+                }
             }
         }
 
-        return array_values(array_unique($parts));
+        $unique = [];
+
+        foreach ($parts as $part) {
+            $key = $this->normalizeKey($part);
+            $unique[$key] = $part;
+        }
+
+        return array_values($unique);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function fragmentsFromAnswer(UnitChecklistAnswer $answer, string $valueField): array
+    {
+        $item = $answer->item;
+
+        if ($item === null) {
+            return [];
+        }
+
+        $value = $answer->{$valueField};
+        $checkType = $item->resolvedCheckType();
+        $fragments = [];
+
+        if ($value === 'no') {
+            $label = trim((string) $item->label);
+
+            if ($label !== '') {
+                $fragments[] = $label;
+            }
+        }
+
+        if ($checkType === ParetoCheckTypes::EXPIRY) {
+            return $fragments;
+        }
+
+        $text = trim((string) ($answer->observations ?? ''));
+
+        if ($text === '' || $this->looksLikeDate($text)) {
+            return $fragments;
+        }
+
+        foreach ($this->splitFragments($text) as $fragment) {
+            if (! $this->looksLikeDate($fragment)) {
+                $fragments[] = $fragment;
+            }
+        }
+
+        return $fragments;
     }
 
     /**
@@ -154,6 +200,29 @@ final class ObservationsIndexReport
         return array_values(array_filter(array_map(function (string $part): string {
             return trim(preg_replace('/\s+/u', ' ', $part) ?? $part);
         }, $chunks), fn (string $part) => $part !== ''));
+    }
+
+    private function looksLikeDate(string $text): bool
+    {
+        $text = trim($text);
+
+        if ($text === '') {
+            return false;
+        }
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $text) === 1) {
+            return true;
+        }
+
+        if (preg_match('/^\d{1,2}\/\d{1,2}\/\d{2,4}$/', $text) === 1) {
+            return true;
+        }
+
+        if (preg_match('/^\d{1,2}-\d{1,2}-\d{2,4}$/', $text) === 1) {
+            return true;
+        }
+
+        return false;
     }
 
     private function normalizeKey(string $text): string
