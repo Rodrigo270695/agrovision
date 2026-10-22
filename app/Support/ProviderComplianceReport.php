@@ -10,42 +10,44 @@ use Illuminate\Support\Collection;
 final class ProviderComplianceReport
 {
     /**
+     * @param  array{from: string|null, to: string|null, label: string}  $range
      * @return array{
-     *     year: int,
-     *     week: int,
+     *     week: int|null,
+     *     week_year: int|null,
      *     week_label: string,
      *     units: list<array{provider: string, plate: string, percent: int, label: string}>,
      *     weekly_bars: list<array{label: string, week: int, year: int, percent_ok: int, total: int}>,
-     *     available_weeks: list<int>,
+     *     available_weeks: list<array{week: int, year: int}>,
      *     template: string,
      *     template_label: string
      * }
      */
-    public function build(int $year, int $week, string $template): array
+    public function build(string $template, array $range, ?int $week, ?int $weekYear): array
     {
-        $week = max(1, min(53, $week));
-        $year = max(2000, min(2100, $year));
-
         $templateModel = ChecklistTemplate::query()->where('type', $template)->first();
         $templateLabel = $templateModel?->displayLabel() ?? mb_strtoupper($template);
 
-        $checklists = $this->checklistsForYear($template, $year);
-        $availableWeeks = $this->weeksWithData($checklists);
+        $checklists = $this->checklistsInRange($template, $range);
+        $availableWeeks = ReportWeekSupport::weeksWithInspections($checklists);
+        $selected = ReportWeekSupport::resolveWeek($week, $weekYear, $availableWeeks);
 
-        if ($availableWeeks !== [] && ! in_array($week, $availableWeeks, true)) {
-            $week = $availableWeeks[array_key_last($availableWeeks)];
+        $units = [];
+
+        if ($selected !== null) {
+            [$weekStart, $weekEnd] = ReportWeekSupport::weekBounds($selected['year'], $selected['week']);
+            $units = $this->unitsForWeek($checklists, $weekStart, $weekEnd);
         }
 
-        $weekStart = CarbonImmutable::now()->setISODate($year, $week)->startOfWeek();
-        $weekEnd = $weekStart->endOfWeek();
+        $weeklyBars = $this->weeklyBars($checklists, $availableWeeks);
 
-        $units = $this->unitsForWeek($checklists, $weekStart, $weekEnd);
-        $weeklyBars = $this->weeklyBars($checklists, $year);
+        $weekLabel = $selected !== null
+            ? sprintf('Semana %d · %d', $selected['week'], $selected['year'])
+            : $range['label'];
 
         return [
-            'year' => $year,
-            'week' => $week,
-            'week_label' => sprintf('Semana %d · %d', $week, $year),
+            'week' => $selected['week'] ?? null,
+            'week_year' => $selected['year'] ?? null,
+            'week_label' => $weekLabel,
             'units' => $units,
             'weekly_bars' => $weeklyBars,
             'available_weeks' => $availableWeeks,
@@ -55,47 +57,26 @@ final class ProviderComplianceReport
     }
 
     /**
+     * @param  array{from: string|null, to: string|null, label: string}  $range
      * @return Collection<int, UnitChecklist>
      */
-    private function checklistsForYear(string $template, int $year): Collection
+    private function checklistsInRange(string $template, array $range): Collection
     {
-        $from = CarbonImmutable::create($year, 1, 1)->startOfYear();
-        $to = CarbonImmutable::create($year, 12, 31)->endOfYear();
-
-        return UnitChecklist::query()
+        $query = UnitChecklist::query()
             ->with([
                 'unit:id,provider,plate_number,status',
                 'answers.item:id,weight,parent_id',
             ])
             ->whereHas('template', fn ($builder) => $builder->where('type', $template))
             ->whereNotNull('first_inspected_on')
-            ->whereBetween('first_inspected_on', [$from->toDateString(), $to->toDateString()])
             ->whereIn('first_result', ['approved', 'rejected'])
-            ->orderByDesc('id')
-            ->get();
-    }
+            ->orderByDesc('id');
 
-    /**
-     * @param  Collection<int, UnitChecklist>  $checklists
-     * @return list<int>
-     */
-    private function weeksWithData(Collection $checklists): array
-    {
-        $weeks = [];
-
-        foreach ($checklists as $checklist) {
-            if ($checklist->first_inspected_on === null) {
-                continue;
-            }
-
-            $date = CarbonImmutable::parse($checklist->first_inspected_on);
-            $weeks[$date->isoWeek()] = true;
+        if ($range['from'] !== null && $range['to'] !== null) {
+            $query->whereBetween('first_inspected_on', [$range['from'], $range['to']]);
         }
 
-        $sorted = array_keys($weeks);
-        sort($sorted, SORT_NUMERIC);
-
-        return $sorted;
+        return $query->get();
     }
 
     /**
@@ -147,24 +128,15 @@ final class ProviderComplianceReport
 
     /**
      * @param  Collection<int, UnitChecklist>  $checklists
+     * @param  list<array{week: int, year: int}>  $availableWeeks
      * @return list<array{label: string, week: int, year: int, percent_ok: int, total: int}>
      */
-    private function weeklyBars(Collection $checklists, int $year): array
+    private function weeklyBars(Collection $checklists, array $availableWeeks): array
     {
         $bars = [];
 
-        for ($week = 1; $week <= 53; $week++) {
-            try {
-                $weekStart = CarbonImmutable::now()->setISODate($year, $week)->startOfWeek();
-            } catch (\Throwable) {
-                break;
-            }
-
-            if ((int) $weekStart->isoWeekYear() !== $year) {
-                continue;
-            }
-
-            $weekEnd = $weekStart->endOfWeek();
+        foreach ($availableWeeks as $entry) {
+            [$weekStart, $weekEnd] = ReportWeekSupport::weekBounds($entry['year'], $entry['week']);
             $units = $this->unitsForWeek($checklists, $weekStart, $weekEnd);
 
             if ($units === []) {
@@ -175,9 +147,9 @@ final class ProviderComplianceReport
             $avg = (int) round($sum / count($units));
 
             $bars[] = [
-                'label' => 'Semana '.$week,
-                'week' => $week,
-                'year' => $year,
+                'label' => 'Semana '.$entry['week'],
+                'week' => $entry['week'],
+                'year' => $entry['year'],
                 'percent_ok' => $avg,
                 'total' => count($units),
             ];

@@ -18,12 +18,32 @@ final class ObservationsIndexReport
      *     template_label: string
      * }
      */
-    public function build(string $template, array $range): array
+    /**
+     * @param  array{from: string|null, to: string|null, label: string}  $range
+     */
+    public function build(string $template, array $range, ?int $week, ?int $weekYear): array
     {
         $templateModel = ChecklistTemplate::query()->where('type', $template)->first();
         $templateLabel = $templateModel?->displayLabel() ?? mb_strtoupper($template);
 
-        $checklists = $this->checklistsInRange($template, $range);
+        $scoped = $this->baseChecklistsInRange($template, $range);
+        $availableWeeks = ReportWeekSupport::weeksWithInspections($scoped);
+
+        if ($week !== null && $weekYear !== null) {
+            $scoped = $scoped->filter(function (UnitChecklist $checklist) use ($week, $weekYear) {
+                if ($checklist->first_inspected_on === null) {
+                    return false;
+                }
+
+                return ReportWeekSupport::inIsoWeek(
+                    \Carbon\CarbonImmutable::parse($checklist->first_inspected_on),
+                    $week,
+                    $weekYear,
+                );
+            })->values();
+        }
+
+        $checklists = $this->latestPerPlate($scoped);
         $index = [];
         $platesTouched = [];
 
@@ -74,16 +94,40 @@ final class ObservationsIndexReport
         return [
             'rows' => $rows,
             'units_with_observations' => count($platesTouched),
+            'available_weeks' => $availableWeeks,
+            'week' => $week,
+            'week_year' => $weekYear,
             'template' => $template,
             'template_label' => $templateLabel,
         ];
     }
 
     /**
+     * @param  Collection<int, UnitChecklist>  $checklists
+     * @return Collection<int, UnitChecklist>
+     */
+    private function latestPerPlate(Collection $checklists): Collection
+    {
+        $latest = [];
+
+        foreach ($checklists as $checklist) {
+            $plate = mb_strtoupper(trim((string) ($checklist->unit?->plate_number ?? $checklist->plate_number ?? '')));
+
+            if ($plate === '' || isset($latest[$plate])) {
+                continue;
+            }
+
+            $latest[$plate] = $checklist;
+        }
+
+        return collect(array_values($latest));
+    }
+
+    /**
      * @param  array{from: string|null, to: string|null, label: string}  $range
      * @return Collection<int, UnitChecklist>
      */
-    private function checklistsInRange(string $template, array $range): Collection
+    private function baseChecklistsInRange(string $template, array $range): Collection
     {
         $query = UnitChecklist::query()
             ->with([
@@ -99,19 +143,7 @@ final class ObservationsIndexReport
             $query->whereBetween('first_inspected_on', [$range['from'], $range['to']]);
         }
 
-        $latest = [];
-
-        foreach ($query->get() as $checklist) {
-            $plate = mb_strtoupper(trim((string) ($checklist->unit?->plate_number ?? $checklist->plate_number ?? '')));
-
-            if ($plate === '' || isset($latest[$plate])) {
-                continue;
-            }
-
-            $latest[$plate] = $checklist;
-        }
-
-        return collect(array_values($latest));
+        return $query->get();
     }
 
     /**

@@ -1,48 +1,89 @@
 import { cn } from '@/lib/utils';
 
-type Props = {
-    year: number;
+export type WeekPoint = {
     week: number;
-    availableWeeks: number[];
-    onSelect: (week: number) => void;
+    year: number;
 };
 
-export function WeekSlicer({ year, week, availableWeeks, onSelect }: Props) {
-    const weeks = availableWeeks.length > 0
-        ? availableWeeks
-        : Array.from({ length: 52 }, (_, index) => index + 1);
+type Props = {
+    rangeLabel: string;
+    week: number | null;
+    weekYear: number | null;
+    availableWeeks: WeekPoint[];
+    allowAll?: boolean;
+    onSelect: (point: WeekPoint | null) => void;
+};
+
+function weekKey(point: WeekPoint): string {
+    return `${point.year}-${point.week}`;
+}
+
+export function WeekSlicer({
+    rangeLabel,
+    week,
+    weekYear,
+    availableWeeks,
+    allowAll = false,
+    onSelect,
+}: Props) {
+    const selectedKey =
+        week !== null && weekYear !== null ? `${weekYear}-${week}` : null;
+    const allActive = allowAll && selectedKey === null;
+
+    if (availableWeeks.length === 0) {
+        return (
+            <section className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
+                <p className="text-xs text-[#6b8ead]">
+                    No hay inspecciones en el rango ({rangeLabel}) para elegir
+                    semana.
+                </p>
+            </section>
+        );
+    }
 
     return (
         <section className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs font-bold tracking-wide text-[#1a2b4c] uppercase">
-                    Semana · {year}
+                    Semana · {rangeLabel}
                 </p>
                 <p className="text-[10px] text-[#6b8ead]">
-                    {availableWeeks.length} con datos
+                    {availableWeeks.length} con datos en el rango
                 </p>
             </div>
             <div className="max-h-40 overflow-y-auto pr-1">
-                <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
-                    {weeks.map((entry) => {
-                        const active = entry === week;
-                        const hasData = availableWeeks.includes(entry);
+                <div className="flex flex-wrap gap-2">
+                    {allowAll ? (
+                        <button
+                            type="button"
+                            onClick={() => onSelect(null)}
+                            className={cn(
+                                'cursor-pointer rounded-md border px-3 py-2 text-xs font-bold transition',
+                                allActive
+                                    ? 'border-[#1a2b4c] bg-[#1a2b4c] text-white'
+                                    : 'border-[#bae6fd] bg-[#e0f2fe] text-[#0c4a6e] hover:bg-[#bae6fd]',
+                            )}
+                        >
+                            Todas
+                        </button>
+                    ) : null}
+                    {availableWeeks.map((entry) => {
+                        const active = weekKey(entry) === selectedKey;
 
                         return (
                             <button
-                                key={entry}
+                                key={weekKey(entry)}
                                 type="button"
                                 onClick={() => onSelect(entry)}
                                 className={cn(
-                                    'cursor-pointer rounded-md border px-2 py-2 text-xs font-bold tabular-nums transition',
+                                    'cursor-pointer rounded-md border px-3 py-2 text-xs font-bold tabular-nums transition',
                                     active
                                         ? 'border-[#1a2b4c] bg-[#1a2b4c] text-white'
-                                        : hasData
-                                          ? 'border-[#bae6fd] bg-[#e0f2fe] text-[#0c4a6e] hover:bg-[#bae6fd]'
-                                          : 'border-[#e2e8f0] bg-[#f8fafc] text-[#94a3b8] hover:bg-[#f1f5f9]',
+                                        : 'border-[#bae6fd] bg-[#e0f2fe] text-[#0c4a6e] hover:bg-[#bae6fd]',
                                 )}
+                                title={`Año ${entry.year}`}
                             >
-                                {entry}
+                                {entry.week}
                             </button>
                         );
                     })}

@@ -1,10 +1,17 @@
+import { Button } from '@/components/ui/button';
+
 export type ObservationIndexRow = {
     observation: string;
     count: number;
     plates: string[];
 };
 
-export function ObservationsIndexChart({ rows }: { rows: ObservationIndexRow[] }) {
+type Props = {
+    rows: ObservationIndexRow[];
+    onViewPlates: (row: ObservationIndexRow) => void;
+};
+
+export function ObservationsIndexChart({ rows, onViewPlates }: Props) {
     if (rows.length === 0) {
         return (
             <p className="py-8 text-center text-sm text-[#6b8ead]">
@@ -23,7 +30,7 @@ export function ObservationsIndexChart({ rows }: { rows: ObservationIndexRow[] }
                 return (
                     <div
                         key={row.observation}
-                        className="grid gap-2 border-b border-[#e8eef5] pb-3 last:border-0 md:grid-cols-[minmax(0,1fr)_minmax(6rem,10rem)] md:items-center"
+                        className="grid gap-2 border-b border-[#e8eef5] pb-3 last:border-0 md:grid-cols-[minmax(0,1fr)_minmax(8rem,12rem)_auto] md:items-center"
                     >
                         <p
                             className="text-xs font-semibold text-[#2e5a9e] uppercase leading-snug"
@@ -42,6 +49,15 @@ export function ObservationsIndexChart({ rows }: { rows: ObservationIndexRow[] }
                                 {row.count}
                             </span>
                         </div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 shrink-0 border-[#c5d5e6] text-[11px] font-semibold text-[#1a2b4c]"
+                            onClick={() => onViewPlates(row)}
+                        >
+                            Ver placas ({row.count})
+                        </Button>
                     </div>
                 );
             })}

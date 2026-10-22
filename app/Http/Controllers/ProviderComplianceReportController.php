@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ChecklistTemplate;
 use App\Support\ProviderComplianceReport;
-use Carbon\CarbonImmutable;
+use App\Support\ReportPeriod;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -19,19 +19,29 @@ class ProviderComplianceReportController extends Controller
     public function __invoke(Request $request): Response
     {
         $validated = $request->validate([
-            'year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date'],
+            'all_dates' => ['nullable', 'boolean'],
             'week' => ['nullable', 'integer', 'min:1', 'max:53'],
+            'week_year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
             'template' => ['nullable', 'string', 'max:50', Rule::exists('checklist_templates', 'type')->where('is_active', true)],
         ]);
 
-        $year = (int) ($validated['year'] ?? CarbonImmutable::now()->isoWeekYear());
-        $week = (int) ($validated['week'] ?? CarbonImmutable::now()->isoWeek());
         $template = $validated['template'] ?? 'tdp';
+        $range = ReportPeriod::range(
+            $validated['date_from'] ?? null,
+            $validated['date_to'] ?? null,
+            $request->boolean('all_dates'),
+        );
 
-        $payload = $this->report->build($year, $week, $template);
+        $week = isset($validated['week']) ? (int) $validated['week'] : null;
+        $weekYear = isset($validated['week_year']) ? (int) $validated['week_year'] : null;
+
+        $payload = $this->report->build($template, $range, $week, $weekYear);
 
         return Inertia::render('reports/provider-compliance', [
             ...$payload,
+            'range_label' => $range['label'],
             'templates' => ChecklistTemplate::query()
                 ->where('is_active', true)
                 ->orderBy('type')
@@ -43,8 +53,10 @@ class ProviderComplianceReportController extends Controller
                 ->values()
                 ->all(),
             'filters' => [
-                'year' => $payload['year'],
+                'date_from' => $range['from'],
+                'date_to' => $range['to'],
                 'week' => $payload['week'],
+                'week_year' => $payload['week_year'],
                 'template' => $template,
             ],
         ]);
