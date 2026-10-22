@@ -41,8 +41,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Vite::usePreloadTagAttributes(function (string $src, string $url, array $chunk, array $manifest): array|false {
-            if (str_ends_with($url, '.css')) {
+        Vite::usePreloadTagAttributes(function ($src, $url, $chunk, $manifest) {
+            if (is_string($url) && str_ends_with($url, '.css')) {
                 return false;
             }
 
