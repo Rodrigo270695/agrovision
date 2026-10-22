@@ -34,7 +34,7 @@ class ProviderComplianceReportController extends Controller
             ...$payload,
             'templates' => ChecklistTemplate::query()
                 ->where('is_active', true)
-                ->orderBy('sort_order')
+                ->orderBy('type')
                 ->get(['type', 'name'])
                 ->map(fn ($row) => [
                     'value' => $row->type,

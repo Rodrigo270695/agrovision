@@ -39,7 +39,7 @@ class ObservationsIndexReportController extends Controller
             'range_label' => $range['label'],
             'templates' => ChecklistTemplate::query()
                 ->where('is_active', true)
-                ->orderBy('sort_order')
+                ->orderBy('type')
                 ->get(['type', 'name'])
                 ->map(fn ($row) => [
                     'value' => $row->type,
