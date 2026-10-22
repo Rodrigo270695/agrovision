@@ -9,6 +9,8 @@ use App\Http\Controllers\DriverBoardController;
 use App\Http\Controllers\DriverInductionReportController;
 use App\Http\Controllers\FleetComplianceReportController;
 use App\Http\Controllers\FleetDataController;
+use App\Http\Controllers\ObservationsIndexReportController;
+use App\Http\Controllers\ProviderComplianceReportController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\ImpersonationLeaveController;
 use App\Http\Controllers\InductionController;
@@ -273,6 +275,14 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
         Route::get('reporte-flota', FleetComplianceReportController::class)
             ->middleware('permission:fleet_data.view')
             ->name('fleet-compliance.report');
+
+        Route::get('reporte-proveedores', ProviderComplianceReportController::class)
+            ->middleware('permission:checklists.view')
+            ->name('provider-compliance.report');
+
+        Route::get('reporte-observaciones', ObservationsIndexReportController::class)
+            ->middleware('permission:checklists.view')
+            ->name('observations-index.report');
 
         Route::get('tablero-sst', SstBoardController::class)
             ->middleware('permission:checklists.view')

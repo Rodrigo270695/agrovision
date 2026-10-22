@@ -1,0 +1,178 @@
+import { Head, router, usePage } from '@inertiajs/react';
+import {
+    ObservationsIndexChart,
+    type ObservationIndexRow,
+} from '@/components/reports/observations-index-chart';
+import { DateRangeFilter } from '@/components/shared/date-range-filter';
+import { dashboard } from '@/routes';
+
+type TemplateOption = { value: string; label: string };
+
+type Filters = {
+    date_from: string | null;
+    date_to: string | null;
+    template: string;
+};
+
+type PageProps = {
+    rows: ObservationIndexRow[];
+    units_with_observations: number;
+    template_label: string;
+    range_label: string;
+    templates: TemplateOption[];
+    filters: Filters;
+};
+
+function visit(filters: Filters) {
+    const params: Record<string, string> = { template: filters.template };
+
+    if (filters.date_from) {
+        params.date_from = filters.date_from;
+    }
+
+    if (filters.date_to) {
+        params.date_to = filters.date_to;
+    }
+
+    router.get('/reporte-observaciones', params, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+    });
+}
+
+export default function ObservationsIndexReportPage() {
+    const {
+        rows,
+        units_with_observations,
+        template_label,
+        range_label,
+        templates,
+        filters,
+    } = usePage<PageProps>().props;
+
+    return (
+        <>
+            <Head title="Índice de observaciones" />
+
+            <div className="flex w-full min-w-0 max-w-none flex-col gap-6 p-4 sm:p-6">
+                <div className="border-b-2 border-[#1a2b4c] pb-4">
+                    <p className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                        {template_label} · {range_label}
+                    </p>
+                    <h1 className="mt-1 text-xl font-bold text-[#1a2b4c] sm:text-3xl">
+                        Observaciones por unidad inspeccionada
+                    </h1>
+                    <p className="mt-2 text-sm text-[#5a7390]">
+                        Vista inversa: cada texto de observación y las placas
+                        que lo tienen en inspecciones cerradas del rango (última
+                        inspección por placa).
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-[#1a2b4c]">
+                        Unidades con observaciones:{' '}
+                        <span className="text-lg tabular-nums">
+                            {units_with_observations}
+                        </span>
+                    </p>
+                </div>
+
+                <div className="flex flex-wrap items-end gap-3">
+                    <label className="text-xs font-semibold text-[#1a2b4c]">
+                        Plantilla
+                        <select
+                            className="mt-1 block rounded-lg border border-[#c5d5e6] bg-white px-3 py-2 text-xs font-medium text-[#1a2b4c]"
+                            value={filters.template}
+                            onChange={(event) =>
+                                visit({
+                                    ...filters,
+                                    template: event.target.value,
+                                })
+                            }
+                        >
+                            {templates.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    <div>
+                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                            Rango de fechas
+                        </p>
+                        <DateRangeFilter
+                            desde={filters.date_from}
+                            hasta={filters.date_to}
+                            align="start"
+                            onApply={(dateFrom, dateTo) =>
+                                visit({
+                                    ...filters,
+                                    date_from: dateFrom,
+                                    date_to: dateTo,
+                                })
+                            }
+                            onClear={() =>
+                                visit({
+                                    ...filters,
+                                    date_from: null,
+                                    date_to: null,
+                                })
+                            }
+                        />
+                    </div>
+                </div>
+
+                <section className="overflow-hidden rounded-2xl border border-[#d7e3f0] bg-white shadow-sm">
+                    <div className="bg-[#1a2b4c] px-4 py-2 text-center text-xs font-bold tracking-wide text-[#fde047] uppercase">
+                        Observaciones por unidad inspeccionada
+                    </div>
+                    <div className="p-4 sm:p-6">
+                        <ObservationsIndexChart rows={rows} />
+                    </div>
+                </section>
+
+                <section className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-6">
+                    <h2 className="mb-3 text-sm font-semibold text-[#1a2b4c]">
+                        Detalle por observación
+                    </h2>
+                    <div className="space-y-4">
+                        {rows.length === 0 ? (
+                            <p className="text-sm text-[#6b8ead]">
+                                Sin registros.
+                            </p>
+                        ) : (
+                            rows.map((row) => (
+                                <article
+                                    key={row.observation}
+                                    className="rounded-xl border border-[#e8eef5] bg-[#f8fafc] p-3"
+                                >
+                                    <p className="text-xs font-bold text-[#2e5a9e] uppercase leading-snug">
+                                        {row.observation}
+                                    </p>
+                                    <p className="mt-2 flex flex-wrap gap-1.5">
+                                        {row.plates.map((plate) => (
+                                            <span
+                                                key={plate}
+                                                className="rounded-md bg-white px-2 py-0.5 text-[10px] font-semibold text-[#1a2b4c] ring-1 ring-[#d7e3f0]"
+                                            >
+                                                {plate}
+                                            </span>
+                                        ))}
+                                    </p>
+                                </article>
+                            ))
+                        )}
+                    </div>
+                </section>
+            </div>
+        </>
+    );
+}
+
+ObservationsIndexReportPage.layout = {
+    breadcrumbs: [
+        { title: 'Panel', href: dashboard() },
+        { title: 'Reportes', href: '#' },
+        { title: 'Índice de observaciones', href: '#' },
+    ],
+};
