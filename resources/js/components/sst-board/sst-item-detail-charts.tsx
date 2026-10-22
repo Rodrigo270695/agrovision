@@ -5,6 +5,8 @@ const FALTA = '#ef4444';
 
 export type SstDetailBar = {
     label: string;
+    week: number;
+    year: number;
     percent_ok: number;
     total: number;
 };
@@ -95,25 +97,28 @@ export function SstWeeklyVerticalBars({
                 {goalPercent}%
             </p>
 
-            <div className="flex items-end justify-start gap-2 overflow-x-auto pb-2 sm:gap-3">
+            <div className="flex min-h-[14rem] items-end justify-start gap-3 overflow-x-auto px-1 pb-2 sm:gap-4">
                 {bars.map((bar) => {
-                    const height = Math.max(
-                        8,
-                        (bar.percent_ok / maxPercent) * 100,
+                    const barHeightPx = Math.max(
+                        12,
+                        Math.round((bar.percent_ok / maxPercent) * 200),
                     );
 
                     return (
                         <div
-                            key={bar.label}
-                            className="flex min-w-[3.25rem] flex-col items-center"
+                            key={`${bar.year}-${bar.week}`}
+                            className="flex min-w-[3.5rem] shrink-0 flex-col items-center"
                         >
                             <span className="mb-1 text-[11px] font-bold tabular-nums text-[#1a2b4c]">
                                 {bar.percent_ok}%
                             </span>
-                            <div className="flex h-44 w-10 items-end sm:h-52 sm:w-11">
+                            <div
+                                className="flex w-11 items-end justify-center sm:w-12"
+                                style={{ height: '200px' }}
+                            >
                                 <div
-                                    className="w-full rounded-t-md bg-[#22c55e] transition-all"
-                                    style={{ height: `${height}%` }}
+                                    className="w-full min-h-[12px] rounded-t-md bg-[#22c55e] shadow-sm transition-all"
+                                    style={{ height: `${barHeightPx}px` }}
                                     title={`${bar.label}: ${bar.percent_ok}% OK (${bar.total} unidades)`}
                                 />
                             </div>

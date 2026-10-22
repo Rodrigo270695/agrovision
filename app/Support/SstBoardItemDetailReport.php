@@ -215,45 +215,52 @@ final class SstBoardItemDetailReport
      */
     private function weeklyBars(array $range, Collection $periods, array $periodData): array
     {
-        if ($periods->isEmpty()) {
+        if ($periodData === []) {
             return [];
         }
 
-        [$from, $to] = $this->calendarBounds($range, $periods);
+        $from = $range['from'] !== null ? CarbonImmutable::parse($range['from']) : null;
+        $to = $range['to'] !== null ? CarbonImmutable::parse($range['to']) : null;
 
-        if ($from === null || $to === null) {
-            return [];
-        }
+        /** @var array<string, array{label: string, week: int, year: int, sort: int, by_plate: array<string, string>}> $buckets */
+        $buckets = [];
 
-        $chunksByPeriodId = collect($periodData)->keyBy(fn ($chunk) => $chunk['period']->id);
-        $bars = [];
-        $cursor = $from->startOfWeek();
-        $end = $to->endOfWeek();
+        foreach ($periodData as $chunk) {
+            $period = $chunk['period'];
+            $checklists = $chunk['checklists'];
 
-        while ($cursor <= $end) {
-            $weekStart = $cursor;
-            $weekEnd = $cursor->endOfWeek();
-            $byPlate = [];
-
-            foreach ($periods as $period) {
-                $date = $period->date;
-
-                if ($date === null || $date->lt($weekStart) || $date->gt($weekEnd)) {
-                    continue;
-                }
-
-                $chunk = $chunksByPeriodId->get($period->id);
-
-                if ($chunk === null) {
-                    continue;
-                }
-
-                foreach ($chunk['rows'] as $row) {
-                    $key = $this->plateKey($row['unit']);
-                    $byPlate[$key] = $row['status'];
-                }
+            if (! $this->periodTouchesRange($period, $checklists, $from, $to)) {
+                continue;
             }
 
+            $anchor = $this->periodWeekAnchor($period, $checklists);
+
+            if ($anchor === null) {
+                continue;
+            }
+
+            $week = (int) $anchor->isoWeek();
+            $year = (int) $anchor->isoWeekYear();
+            $bucketKey = sprintf('%04d-%02d', $year, $week);
+
+            if (! isset($buckets[$bucketKey])) {
+                $buckets[$bucketKey] = [
+                    'label' => 'Semana '.$week,
+                    'week' => $week,
+                    'year' => $year,
+                    'sort' => (int) $anchor->startOfWeek()->format('Ymd'),
+                    'by_plate' => [],
+                ];
+            }
+
+            foreach ($chunk['rows'] as $row) {
+                $buckets[$bucketKey]['by_plate'][$this->plateKey($row['unit'])] = $row['status'];
+            }
+        }
+
+        $bars = [];
+
+        foreach ($buckets as $bucket) {
             $counts = [
                 'ok' => 0,
                 'falta' => 0,
@@ -261,58 +268,86 @@ final class SstBoardItemDetailReport
                 'pendiente' => 0,
             ];
 
-            foreach ($byPlate as $status) {
+            foreach ($bucket['by_plate'] as $status) {
                 $counts[$status]++;
             }
 
             $total = array_sum($counts);
 
-            if ($total > 0) {
-                $bars[] = [
-                    'label' => 'Semana '.$weekStart->isoWeek(),
-                    'week' => (int) $weekStart->isoWeek(),
-                    'year' => (int) $weekStart->isoWeekYear(),
-                    'ok' => $counts['ok'],
-                    'falta' => $counts['falta'],
-                    'baja' => $counts['baja'],
-                    'pendiente' => $counts['pendiente'],
-                    'total' => $total,
-                    'percent_ok' => (int) round(($counts['ok'] / $total) * 100),
-                ];
+            if ($total === 0) {
+                continue;
             }
 
-            $cursor = $cursor->addWeek();
-        }
-
-        return $bars;
-    }
-
-    /**
-     * @param  array{from: string|null, to: string|null, label: string}  $range
-     * @param  Collection<int, Period>  $periods
-     * @return array{0: CarbonImmutable|null, 1: CarbonImmutable|null}
-     */
-    private function calendarBounds(array $range, Collection $periods): array
-    {
-        if ($range['from'] !== null && $range['to'] !== null) {
-            return [
-                CarbonImmutable::parse($range['from']),
-                CarbonImmutable::parse($range['to']),
+            $bars[] = [
+                'label' => $bucket['label'],
+                'week' => $bucket['week'],
+                'year' => $bucket['year'],
+                'sort' => $bucket['sort'],
+                'ok' => $counts['ok'],
+                'falta' => $counts['falta'],
+                'baja' => $counts['baja'],
+                'pendiente' => $counts['pendiente'],
+                'total' => $total,
+                'percent_ok' => (int) round(($counts['ok'] / $total) * 100),
             ];
         }
 
-        $dates = $periods
-            ->map(fn (Period $period) => $period->date)
-            ->filter();
+        usort($bars, fn (array $left, array $right) => $left['sort'] <=> $right['sort']);
 
-        if ($dates->isEmpty()) {
-            return [null, null];
+        return array_map(function (array $bar) {
+            unset($bar['sort']);
+
+            return $bar;
+        }, $bars);
+    }
+
+    /**
+     * @param  Collection<int|string, UnitChecklist>  $checklists
+     */
+    private function periodWeekAnchor(Period $period, Collection $checklists): ?CarbonImmutable
+    {
+        $latestInspection = $checklists
+            ->map(fn (UnitChecklist $checklist) => $checklist->first_inspected_on)
+            ->filter()
+            ->max();
+
+        if ($latestInspection !== null) {
+            return CarbonImmutable::parse($latestInspection);
         }
 
-        return [
-            CarbonImmutable::parse($dates->min()),
-            CarbonImmutable::parse($dates->max()),
-        ];
+        if ($period->date !== null) {
+            return CarbonImmutable::parse($period->date);
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  Collection<int|string, UnitChecklist>  $checklists
+     */
+    private function periodTouchesRange(
+        Period $period,
+        Collection $checklists,
+        ?CarbonImmutable $from,
+        ?CarbonImmutable $to,
+    ): bool {
+        if ($from === null || $to === null) {
+            return true;
+        }
+
+        if ($period->date !== null && $period->date->betweenIncluded($from, $to)) {
+            return true;
+        }
+
+        foreach ($checklists as $checklist) {
+            $inspected = $checklist->first_inspected_on;
+
+            if ($inspected !== null && $inspected->betweenIncluded($from, $to)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
