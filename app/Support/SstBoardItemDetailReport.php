@@ -70,7 +70,7 @@ final class SstBoardItemDetailReport
             $activeParentIds,
         );
 
-        $summary = $this->unifiedSummary($periodData);
+        $summary = $this->summaryForRange($range, $periodData);
         $bars = $this->weeklyBars($range, $periods, $periodData);
 
         $templateLabel = ChecklistTemplate::query()->where('type', $templateType)->first()?->displayLabel()
@@ -163,24 +163,49 @@ final class SstBoardItemDetailReport
     }
 
     /**
+     * Resumen alineado al rango: placas con planilla o inspección en las fechas filtradas.
+     *
+     * @param  array{from: string|null, to: string|null, label: string}  $range
      * @param  list<array{period: Period, units: Collection<int, Unit>, checklists: Collection<int|string, UnitChecklist>, rows: list<array{unit: Unit, status: string}>}>  $periodData
      * @return array{ok: int, falta: int, baja: int, pendiente: int, total: int, percent: int}
      */
-    private function unifiedSummary(array $periodData): array
+    private function summaryForRange(array $range, array $periodData): array
     {
+        $from = $range['from'] !== null
+            ? CarbonImmutable::parse($range['from'])->startOfDay()
+            : null;
+        $to = $range['to'] !== null
+            ? CarbonImmutable::parse($range['to'])->endOfDay()
+            : null;
+
         $byPlate = [];
 
         foreach ($periodData as $chunk) {
             $period = $chunk['period'];
-            $periodStamp = $period->date?->getTimestamp() ?? 0;
 
             foreach ($chunk['rows'] as $row) {
+                $checklist = $chunk['checklists']->get($row['unit']->id);
+                $dates = $this->activityDates($period, $checklist);
+
+                if ($from !== null && $to !== null) {
+                    $dates = array_values(array_filter(
+                        $dates,
+                        fn (CarbonImmutable $date) => $date->betweenIncluded($from, $to),
+                    ));
+
+                    if ($dates === []) {
+                        continue;
+                    }
+                }
+
+                $latest = collect($dates)->max();
+                $stamp = $latest instanceof CarbonImmutable ? $latest->getTimestamp() : 0;
                 $key = $this->plateKey($row['unit']);
                 $current = $byPlate[$key] ?? null;
 
-                if ($current === null || $periodStamp >= $current['stamp']) {
+                if ($current === null || $stamp >= $current['stamp']) {
                     $byPlate[$key] = [
-                        'stamp' => $periodStamp,
+                        'stamp' => $stamp,
                         'status' => $row['status'],
                     ];
                 }

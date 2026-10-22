@@ -79,7 +79,7 @@ export default function SstBoardItemDetailPage() {
                             (placas únicas, sin repetir).
                         </p>
                         <p className="mt-2 text-sm font-semibold text-[#1a2b4c]">
-                            Total de unidades:{' '}
+                            Unidades en el rango ({summary_meta.week_label}):{' '}
                             <span className="text-lg tabular-nums">
                                 {summary.total}
                             </span>
@@ -114,6 +114,9 @@ export default function SstBoardItemDetailPage() {
                 </div>
 
                 <section className="w-full min-w-0 rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-6">
+                    <p className="mb-3 text-xs font-semibold tracking-wide text-[#6b8ead] uppercase">
+                        Resumen del rango seleccionado
+                    </p>
                     <SstSummaryStrip summary={summary} />
                 </section>
 
