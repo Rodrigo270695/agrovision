@@ -1,5 +1,6 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
+import { DateRangeFilter } from '@/components/shared/date-range-filter';
 import {
     SstDetailDonut,
     SstSummaryStrip,
@@ -40,6 +41,14 @@ export default function SstBoardItemDetailPage() {
         }) as [string, string][],
     ).toString()}`;
 
+    const visit = (next: Partial<SstBoardFilters>) => {
+        router.get(
+            `/tablero-sst/detalle/${encodeURIComponent(item.key)}`,
+            sstBoardQueryParams({ ...filters, ...next }),
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
+    };
+
     return (
         <>
             <Head title={`${item.label} — Tablero SST`} />
@@ -76,6 +85,32 @@ export default function SstBoardItemDetailPage() {
                             </span>
                         </p>
                     </div>
+                </div>
+
+                <div className="flex flex-wrap items-end gap-3">
+                    <div>
+                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                            Rango de fechas
+                        </p>
+                        <DateRangeFilter
+                            desde={filters.date_from}
+                            hasta={filters.date_to}
+                            align="start"
+                            onApply={(dateFrom, dateTo) =>
+                                visit({
+                                    date_from: dateFrom,
+                                    date_to: dateTo,
+                                })
+                            }
+                            onClear={() =>
+                                visit({ date_from: null, date_to: null })
+                            }
+                        />
+                    </div>
+                    <p className="text-xs text-[#5a7390]">
+                        Las barras muestran cada semana del rango; una unidad
+                        cuenta en la semana de su planilla o de su inspección.
+                    </p>
                 </div>
 
                 <section className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-6">

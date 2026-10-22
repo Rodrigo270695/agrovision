@@ -99,27 +99,36 @@ export function SstWeeklyVerticalBars({
 
             <div className="flex min-h-[14rem] items-end justify-start gap-3 overflow-x-auto px-1 pb-2 sm:gap-4">
                 {bars.map((bar) => {
-                    const barHeightPx = Math.max(
-                        12,
-                        Math.round((bar.percent_ok / maxPercent) * 200),
-                    );
+                    const empty = bar.total === 0;
+                    const barHeightPx = empty
+                        ? 6
+                        : Math.max(
+                              12,
+                              Math.round((bar.percent_ok / maxPercent) * 200),
+                          );
 
                     return (
                         <div
                             key={`${bar.year}-${bar.week}`}
                             className="flex min-w-[3.5rem] shrink-0 flex-col items-center"
                         >
-                            <span className="mb-1 text-[11px] font-bold tabular-nums text-[#1a2b4c]">
-                                {bar.percent_ok}%
+                            <span
+                                className={`mb-1 text-[11px] font-bold tabular-nums ${empty ? 'text-[#94a3b8]' : 'text-[#1a2b4c]'}`}
+                            >
+                                {empty ? '—' : `${bar.percent_ok}%`}
                             </span>
                             <div
                                 className="flex w-11 items-end justify-center sm:w-12"
                                 style={{ height: '200px' }}
                             >
                                 <div
-                                    className="w-full min-h-[12px] rounded-t-md bg-[#22c55e] shadow-sm transition-all"
+                                    className={`w-full min-h-[6px] rounded-t-md shadow-sm transition-all ${empty ? 'bg-[#e2e8f0]' : 'bg-[#22c55e]'}`}
                                     style={{ height: `${barHeightPx}px` }}
-                                    title={`${bar.label}: ${bar.percent_ok}% OK (${bar.total} unidades)`}
+                                    title={
+                                        empty
+                                            ? `${bar.label}: sin unidades`
+                                            : `${bar.label}: ${bar.percent_ok}% OK (${bar.total} unidades)`
+                                    }
                                 />
                             </div>
                             <span className="mt-2 text-center text-[10px] font-semibold leading-tight text-[#5a7390]">
