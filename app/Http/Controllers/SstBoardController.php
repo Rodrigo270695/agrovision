@@ -8,6 +8,7 @@ use App\Models\Unit;
 use App\Models\UnitChecklist;
 use App\Models\UnitChecklistAnswer;
 use App\Support\ReportPeriod;
+use App\Support\SstBoardItemDetailReport;
 use App\Support\SystemRoles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -18,42 +19,19 @@ use Inertia\Response;
 
 class SstBoardController extends Controller
 {
+    public function __construct(
+        private readonly SstBoardItemDetailReport $itemDetailReport,
+    ) {}
+
     public function __invoke(Request $request): Response
     {
-        $validated = $request->validate([
-            'date_from' => ['nullable', 'date'],
-            'date_to' => ['nullable', 'date'],
-            'coordinator_id' => ['nullable', 'integer'],
-            'inspector_id' => ['nullable', 'integer'],
-            'vehicle_types' => ['nullable', 'array'],
-            'vehicle_types.*' => ['string', 'max:80'],
-            'template' => ['nullable', 'string', 'max:50', Rule::exists('checklist_templates', 'type')->where('is_active', true)],
-            'inspection' => ['nullable', Rule::in(['actual', 'first', 'second'])],
-            'all_dates' => ['nullable', 'boolean'],
-        ]);
-
-        $template = $validated['template'] ?? 'tdp';
-        $inspection = $validated['inspection'] ?? 'actual';
-        $range = ReportPeriod::range(
-            $validated['date_from'] ?? null,
-            $validated['date_to'] ?? null,
-            $request->boolean('all_dates'),
-        );
-        $coordinatorId = isset($validated['coordinator_id'])
-            ? (int) $validated['coordinator_id']
-            : null;
-        $inspectorId = isset($validated['inspector_id'])
-            ? (int) $validated['inspector_id']
-            : null;
-        $vehicleTypes = collect($validated['vehicle_types'] ?? [])
-            ->map(fn ($type) => trim((string) $type))
-            ->filter()
-            ->unique()
-            ->values();
-
-        if (SystemRoles::currentIsScopedCoordinator()) {
-            $coordinatorId = (int) Auth::id();
-        }
+        $context = $this->filterContext($request);
+        $template = $context['template'];
+        $inspection = $context['inspection'];
+        $range = $context['range'];
+        $coordinatorId = $context['coordinator_id'];
+        $inspectorId = $context['inspector_id'];
+        $vehicleTypes = $context['vehicle_types'];
 
         $checklists = $this->checklists($template, $range, $coordinatorId, $vehicleTypes, $inspectorId);
         $latest = $checklists
@@ -105,6 +83,96 @@ class SstBoardController extends Controller
             'templateOptions' => ChecklistTemplate::options(),
             'scoped' => SystemRoles::currentIsScopedCoordinator(),
         ]);
+    }
+
+    public function itemDetail(Request $request, string $item): Response
+    {
+        $context = $this->filterContext($request);
+        $itemNumber = trim($item);
+
+        if ($itemNumber === '') {
+            abort(404);
+        }
+
+        $report = $this->itemDetailReport->build(
+            $context['template'],
+            $itemNumber,
+            $context['range'],
+            $context['coordinator_id'],
+            $context['vehicle_types'],
+            $context['inspector_id'],
+            $context['inspection'],
+        );
+
+        return Inertia::render('sst-board/item-detail', [
+            ...$report,
+            'filters' => [
+                'date_from' => $context['range']['from'],
+                'date_to' => $context['range']['to'],
+                'coordinator_id' => $context['coordinator_id'],
+                'inspector_id' => $context['inspector_id'],
+                'vehicle_types' => $context['vehicle_types']->all(),
+                'template' => $context['template'],
+                'inspection' => $context['inspection'],
+            ],
+            'summary_meta' => [
+                'template_label' => ChecklistTemplate::query()->where('type', $context['template'])->first()?->displayLabel()
+                    ?? mb_strtoupper($context['template']),
+                'week_label' => $context['range']['label'],
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{
+     *     template: string,
+     *     inspection: string,
+     *     range: array{from: string|null, to: string|null, label: string},
+     *     coordinator_id: int|null,
+     *     inspector_id: int|null,
+     *     vehicle_types: Collection<int, string>
+     * }
+     */
+    private function filterContext(Request $request): array
+    {
+        $validated = $request->validate([
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date'],
+            'coordinator_id' => ['nullable', 'integer'],
+            'inspector_id' => ['nullable', 'integer'],
+            'vehicle_types' => ['nullable', 'array'],
+            'vehicle_types.*' => ['string', 'max:80'],
+            'template' => ['nullable', 'string', 'max:50', Rule::exists('checklist_templates', 'type')->where('is_active', true)],
+            'inspection' => ['nullable', Rule::in(['actual', 'first', 'second'])],
+            'all_dates' => ['nullable', 'boolean'],
+        ]);
+
+        $coordinatorId = isset($validated['coordinator_id'])
+            ? (int) $validated['coordinator_id']
+            : null;
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $coordinatorId = (int) Auth::id();
+        }
+
+        return [
+            'template' => $validated['template'] ?? 'tdp',
+            'inspection' => $validated['inspection'] ?? 'actual',
+            'range' => ReportPeriod::range(
+                $validated['date_from'] ?? null,
+                $validated['date_to'] ?? null,
+                $request->boolean('all_dates'),
+            ),
+            'coordinator_id' => $coordinatorId,
+            'inspector_id' => isset($validated['inspector_id'])
+                ? (int) $validated['inspector_id']
+                : null,
+            'vehicle_types' => collect($validated['vehicle_types'] ?? [])
+                ->map(fn ($type) => trim((string) $type))
+                ->filter()
+                ->unique()
+                ->values(),
+        ];
     }
 
     /**

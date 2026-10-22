@@ -7,6 +7,7 @@ use App\Http\Controllers\ConsolidationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DriverBoardController;
 use App\Http\Controllers\DriverInductionReportController;
+use App\Http\Controllers\FleetDataController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\ImpersonationLeaveController;
 use App\Http\Controllers\InductionController;
@@ -14,14 +15,13 @@ use App\Http\Controllers\InspectionBatchController;
 use App\Http\Controllers\LookupController;
 use App\Http\Controllers\ParetoController;
 use App\Http\Controllers\PeriodController;
-use App\Http\Controllers\PlateReportController;
 use App\Http\Controllers\PlaceController;
+use App\Http\Controllers\PlateReportController;
 use App\Http\Controllers\PublicFileController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SecurityReportController;
 use App\Http\Controllers\SstBoardController;
-use App\Http\Controllers\FleetDataController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UnitDocumentController;
 use App\Http\Controllers\UserController;
@@ -272,6 +272,10 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
         Route::get('tablero-sst', SstBoardController::class)
             ->middleware('permission:checklists.view')
             ->name('sst-board');
+
+        Route::get('tablero-sst/detalle/{item}', [SstBoardController::class, 'itemDetail'])
+            ->middleware('permission:checklists.view')
+            ->name('sst-board.item-detail');
 
         Route::get('reporte-sst/excel', [SecurityReportController::class, 'excel'])
             ->middleware('permission:checklists.view')
