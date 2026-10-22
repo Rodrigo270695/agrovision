@@ -1,5 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { useCallback, useMemo, useState } from 'react';
+import { X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { DateRangeFilter } from '@/components/shared/date-range-filter';
 import { SstBoardItemPicker } from '@/components/sst-board/sst-item-picker';
 import { dashboard } from '@/routes';
@@ -83,6 +85,8 @@ export default function SstBoardPage() {
             sstBoardQueryParams(filters),
         );
     };
+
+    const [zoomRing, setZoomRing] = useState<Ring | null>(null);
     const [visibleItemKeys, setVisibleItemKeys] = useState<Set<string> | null>(
         null,
     );
@@ -303,13 +307,170 @@ export default function SstBoardPage() {
                             <RingCard
                                 key={item.key}
                                 ring={item}
-                                onClick={() => openItemDetail(item)}
+                                onClick={() => setZoomRing(item)}
                             />
                         ))}
                     </div>
                 )}
+
+                {zoomRing ? (
+                    <RingZoomLightbox
+                        ring={zoomRing}
+                        onClose={() => setZoomRing(null)}
+                        onViewDetail={() => openItemDetail(zoomRing)}
+                    />
+                ) : null}
             </div>
         </>
+    );
+}
+
+function RingZoomLightbox({
+    ring,
+    onClose,
+    onViewDetail,
+}: {
+    ring: Ring;
+    onClose: () => void;
+    onViewDetail: () => void;
+}) {
+    useEffect(() => {
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                onClose();
+            }
+        };
+
+        window.addEventListener('keydown', onKeyDown);
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            window.removeEventListener('keydown', onKeyDown);
+        };
+    }, [onClose]);
+
+    return createPortal(
+        <div className="fixed inset-0 z-[100]">
+            <button
+                type="button"
+                className="absolute inset-0 z-0 cursor-zoom-out bg-[#0a1220]/40 backdrop-blur-[2px] transition-opacity"
+                aria-label="Cerrar vista ampliada"
+                onClick={onClose}
+            />
+            <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 z-[1]"
+                style={{
+                    background:
+                        'radial-gradient(ellipse 72% 68% at 50% 46%, rgba(10,18,32,0.05) 0%, rgba(10,18,32,0.45) 52%, rgba(10,18,32,0.92) 100%)',
+                }}
+            />
+            <div
+                className="pointer-events-none relative z-10 flex min-h-full items-center justify-center p-4 sm:p-8"
+            >
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="sst-ring-zoom-title"
+                    className="pointer-events-auto w-full max-w-[24rem] animate-in fade-in zoom-in-95 duration-300"
+                    onClick={(event) => event.stopPropagation()}
+                >
+                    <div
+                        className="relative overflow-hidden rounded-3xl border border-white/50 bg-gradient-to-b from-white/92 via-white/88 to-white/80 p-5 shadow-[0_24px_80px_-12px_rgba(26,43,76,0.45)] backdrop-blur-xl sm:p-6"
+                        style={{
+                            boxShadow:
+                                '0 0 0 1px rgba(255,255,255,0.35) inset, 0 28px 90px -20px rgba(15,23,42,0.55)',
+                        }}
+                    >
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="absolute top-3 right-3 z-10 flex size-8 cursor-pointer items-center justify-center rounded-full border border-[#d7e3f0]/80 bg-white/80 text-[#1a2b4c] shadow-sm transition hover:bg-white"
+                            aria-label="Cerrar"
+                        >
+                            <X className="size-4" />
+                        </button>
+
+                        <p
+                            id="sst-ring-zoom-title"
+                            className="pr-8 text-center text-[11px] font-bold tracking-[0.12em] text-[#6b8ead] uppercase"
+                        >
+                            Detalle
+                        </p>
+                        <h2 className="mt-1 text-center text-sm leading-snug font-bold text-[#1a2b4c] uppercase sm:text-base">
+                            {ring.label}
+                        </h2>
+                        <div className="mx-auto mt-4 h-px w-16 bg-gradient-to-r from-transparent via-[#1a2b4c]/25 to-transparent" />
+
+                        <RingDonut ring={ring} size="xl" />
+
+                        <div className="mt-5 grid grid-cols-3 gap-2">
+                            <ZoomStat
+                                label="OK"
+                                value={ring.ok}
+                                tone="ok"
+                            />
+                            <ZoomStat
+                                label="Baja"
+                                value={ring.baja}
+                                tone="baja"
+                            />
+                            <ZoomStat
+                                label="Falta"
+                                value={ring.falta}
+                                tone="falta"
+                            />
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={onViewDetail}
+                            className="mt-5 w-full cursor-pointer rounded-xl bg-[#1a2b4c] px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#243a5e]"
+                        >
+                            Ver detalle por semana
+                        </button>
+
+                        <p className="mt-3 text-center text-[10px] text-[#6b8ead]">
+                            Clic fuera o Esc para cerrar
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>,
+        document.body,
+    );
+}
+
+function ZoomStat({
+    label,
+    value,
+    tone,
+}: {
+    label: string;
+    value: number;
+    tone: 'ok' | 'baja' | 'falta';
+}) {
+    const styles = {
+        ok: 'border-[#bbf7d0]/80 bg-[#f0fdf4]/90 text-[#166534]',
+        baja: 'border-[#e2e8f0] bg-[#f8fafc]/90 text-[#64748b]',
+        falta: 'border-[#fecaca]/80 bg-[#fef2f2]/90 text-[#b91c1c]',
+    }[tone];
+
+    return (
+        <div
+            className={cn(
+                'rounded-xl border px-2 py-2.5 text-center backdrop-blur-sm',
+                styles,
+            )}
+        >
+            <p className="text-[9px] font-semibold tracking-wide uppercase opacity-80">
+                {label}
+            </p>
+            <p className="text-xl font-bold tabular-nums">{value}</p>
+        </div>
     );
 }
 
@@ -326,7 +487,7 @@ function RingCard({
         <Wrapper
             type={onClick ? 'button' : undefined}
             onClick={onClick}
-            title={onClick ? 'Ver detalle por semana' : undefined}
+            title={onClick ? 'Clic para ampliar' : undefined}
             className={cn(
                 'flex w-full flex-col rounded-xl border border-[#d7e3f0] bg-white p-2 text-left shadow-sm transition',
                 onClick &&

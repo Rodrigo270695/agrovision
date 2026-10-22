@@ -50,7 +50,13 @@ final class SstBoardItemDetailReport
         }
 
         $activeParentIds = $parents->pluck('id')->flip();
-        $periods = $this->periodsInRange($range);
+        $periods = $this->periodsInRange(
+            $range,
+            $templateType,
+            $coordinatorId,
+            $vehicleTypes,
+            $inspectorId,
+        );
 
         $weeks = [];
         $summary = [
@@ -114,18 +120,57 @@ final class SstBoardItemDetailReport
     }
 
     /**
+     * Periodos de la planilla en el rango: por fecha del periodo o con inspecciones en el rango.
+     *
      * @param  array{from: string|null, to: string|null, label: string}  $range
+     * @param  list<string>  $vehicleTypes
      * @return Collection<int, Period>
      */
-    private function periodsInRange(array $range): Collection
-    {
+    private function periodsInRange(
+        array $range,
+        string $templateType,
+        ?int $coordinatorId,
+        Collection $vehicleTypes,
+        ?int $inspectorId,
+    ): Collection {
         $query = Period::query()->orderBy('date');
 
-        if ($range['from'] !== null && $range['to'] !== null) {
-            $query->whereBetween('date', [$range['from'], $range['to']]);
+        if ($range['from'] === null || $range['to'] === null) {
+            return $query->whereHas('units')->get();
         }
 
-        return $query->get();
+        $from = $range['from'];
+        $to = $range['to'];
+
+        $periodIdsFromInspections = UnitChecklist::query()
+            ->whereHas('template', fn ($builder) => $builder->where('type', $templateType))
+            ->whereBetween('first_inspected_on', [$from, $to])
+            ->when($inspectorId, fn ($builder) => $builder->where('created_by', $inspectorId))
+            ->when($coordinatorId, fn ($builder) => $builder->whereHas(
+                'unit',
+                fn ($unit) => $unit->where('coordinator_id', $coordinatorId),
+            ))
+            ->when(
+                $vehicleTypes->isNotEmpty(),
+                fn ($builder) => $builder->whereHas(
+                    'unit',
+                    fn ($unit) => $unit->whereIn('vehicle_type', $vehicleTypes->all()),
+                ),
+            )
+            ->distinct()
+            ->pluck('period_id');
+
+        return $query
+            ->where(function ($builder) use ($from, $to, $periodIdsFromInspections) {
+                $builder
+                    ->whereBetween('date', [$from, $to]);
+
+                if ($periodIdsFromInspections->isNotEmpty()) {
+                    $builder->orWhereIn('id', $periodIdsFromInspections);
+                }
+            })
+            ->whereHas('units')
+            ->get();
     }
 
     /**

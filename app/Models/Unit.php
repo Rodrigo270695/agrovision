@@ -94,6 +94,11 @@ class Unit extends Model
         return $this->hasMany(UnitDocument::class);
     }
 
+    public function checklists(): HasMany
+    {
+        return $this->hasMany(UnitChecklist::class);
+    }
+
     public function movements(): HasMany
     {
         return $this->hasMany(UnitMovement::class);
