@@ -11,7 +11,7 @@
             color: #111;
             line-height: 1.45;
         }
-        .logo { height: 52px; max-width: 140px; }
+        @include('pdfs.partials.logo-css')
         .header { width: 100%; margin-bottom: 18px; }
         .header td { vertical-align: middle; }
         h1 {

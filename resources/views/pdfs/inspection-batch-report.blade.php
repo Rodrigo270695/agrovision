@@ -8,7 +8,7 @@
         body { font-family: DejaVu Sans, sans-serif; font-size: 9px; color: #1a2b4c; line-height: 1.35; }
         table { border-collapse: collapse; width: 100%; }
         .hdr td { border: 1px solid #1a2b4c; vertical-align: middle; padding: 8px 10px; }
-        .logo { height: 36px; }
+        @include('pdfs.partials.logo-css')
         .title { font-size: 13px; font-weight: bold; text-align: center; text-transform: uppercase; }
         .meta { font-size: 9px; line-height: 1.45; }
         h2 { font-size: 11px; margin: 14px 0 6px; text-transform: uppercase; color: #1a2b4c; }

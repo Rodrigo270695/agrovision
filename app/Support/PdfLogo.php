@@ -7,6 +7,14 @@ use Illuminate\Support\Facades\Storage;
 
 final class PdfLogo
 {
+    /** Alto habitual del logo del tenant en PDFs (px en CSS DomPDF). */
+    public const HEIGHT_PX = 56;
+
+    public const MAX_WIDTH_PX = 168;
+
+    /** Reportes con cabecera amplia (p. ej. reporte SST). */
+    public const HEIGHT_LARGE_PX = 90;
+
     public static function dataUri(): ?string
     {
         $absolute = self::absolutePath();

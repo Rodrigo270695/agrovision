@@ -22,7 +22,7 @@
         .muted { color: #5a7390; }
         .header { width: 100%; margin-bottom: 10px; }
         .header td { vertical-align: middle; }
-        .logo { height: 42px; }
+        @include('pdfs.partials.logo-css')
         .badge {
             display: inline-block;
             padding: 2px 7px;
@@ -122,7 +122,6 @@
             border-radius: 50%;
             margin-right: 4px;
         }
-        .logo { height: 48px; max-width: 120px; }
     </style>
 </head>
 <body>

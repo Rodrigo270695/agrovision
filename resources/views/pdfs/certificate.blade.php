@@ -49,7 +49,7 @@
         $logoBox = $logoBox ?? ['x' => 4, 'y' => 4, 'w' => 16, 'h' => 12];
         $qrBox = $qrBox ?? ['x' => 84, 'y' => 74, 'size' => 12];
         $signatureHeight = ((float) ($signatureBox['h'] ?? 12)) * 2.1;
-        $logoHeight = ((float) ($logoBox['h'] ?? 12)) * 2.1;
+        $logoHeight = ((float) ($logoBox['h'] ?? 12)) * 2.75;
     @endphp
     <div class="sheet">
         @if (! empty($background))

@@ -8,7 +8,7 @@
         body { font-family: DejaVu Sans, sans-serif; font-size: 9px; color: #1a2b4c; }
         table { border-collapse: collapse; width: 100%; }
         .hdr td { border: 1px solid #1a2b4c; vertical-align: middle; padding: 8px 10px; }
-        .logo { height: 72px; width: auto; }
+        @include('pdfs.partials.logo-css', ['pdfLogoHeight' => \App\Support\PdfLogo::HEIGHT_LARGE_PX, 'pdfLogoMaxWidth' => 200])
         .title { font-size: 14px; font-weight: bold; text-align: center; text-transform: uppercase; }
         .meta { font-size: 9px; line-height: 1.45; }
         h2 { font-size: 11px; margin: 14px 0 6px; text-transform: uppercase; }
@@ -47,7 +47,7 @@
     <tr>
         <td style="width: 22%; text-align: center;">
             @if (! empty($logoSrc))
-                <img class="logo" src="{{ $logoSrc }}" alt="Logo" height="72">
+                <img class="logo" src="{{ $logoSrc }}" alt="Logo">
             @else
                 <strong>{{ $company ?: 'Agrovision' }}</strong>
             @endif

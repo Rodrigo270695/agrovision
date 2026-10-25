@@ -10,7 +10,7 @@
         .sheet { page-break-after: always; }
         .sheet:last-child { page-break-after: auto; }
         .hdr td { border: 1px solid #222; vertical-align: middle; padding: 8px 10px; }
-        .logo { height: 42px; }
+        @include('pdfs.partials.logo-css')
         .title { font-size: 13px; font-weight: bold; text-align: center; text-transform: uppercase; line-height: 1.25; }
         .meta { font-size: 11px; line-height: 1.45; }
         h2 { text-align: center; font-size: 16px; margin: 28px 0 22px; letter-spacing: 0.3px; }

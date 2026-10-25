@@ -9,7 +9,7 @@
         table { border-collapse: collapse; width: 100%; }
         .bordered td, .bordered th { border: 1px solid #222; }
         .hdr td { vertical-align: middle; padding: 3px 5px; }
-        .logo { height: 28px; }
+        @include('pdfs.partials.logo-css')
         .title { font-size: 10px; font-weight: bold; text-align: center; text-transform: uppercase; line-height: 1.2; }
         .meta { font-size: 7.5px; line-height: 1.35; }
         .cell { padding: 2px 4px; vertical-align: middle; }
