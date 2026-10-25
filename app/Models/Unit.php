@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
  * @property int $period_id
  * @property string $correlative
  * @property string|null $phone
+ * @property string|null $sede
  * @property string|null $email
  * @property string $provider
  * @property string|null $route
@@ -22,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $service_date
  * @property string|null $driver_name
  * @property string|null $plate_number
+ * @property string|null $garita
  * @property string|null $responsible_person
  * @property string|null $service_type
  * @property string|null $ruc
@@ -44,6 +46,7 @@ class Unit extends Model
         'period_id',
         'correlative',
         'phone',
+        'sede',
         'email',
         'provider',
         'route',
@@ -51,6 +54,7 @@ class Unit extends Model
         'service_date',
         'driver_name',
         'plate_number',
+        'garita',
         'responsible_person',
         'service_type',
         'ruc',

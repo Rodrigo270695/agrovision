@@ -37,12 +37,14 @@ final class UnitExcelImporter
     public const HEADERS = [
         'CORRELATIVO*',
         'Celular',
+        'SEDE',
         'PROVEEDOR*',
         'RUTA',
         'T. VEHÍCULO',
         'FECHA',
         'CONDUCTOR',
         'PLACA',
+        'GARITA',
         'RESPONSABLE',
         'TIPO DE SERVICIO',
         'RUC',
@@ -62,7 +64,7 @@ final class UnitExcelImporter
             $sheet->setCellValue([$column, 1], $header);
         }
 
-        $headerRange = 'A1:N1';
+        $headerRange = 'A1:P1';
         $sheet->getStyle($headerRange)->applyFromArray([
             'font' => [
                 'bold' => true,
@@ -89,12 +91,14 @@ final class UnitExcelImporter
         $sheet->fromArray([
             'AGV2026-6955',
             '985555756',
+            'C5/C6',
             'AGROVISION PERU S.A.C.',
-            'CAMPAMENT',
+            'CAMPAMENTO_FUNDO C5',
             'MINIBUS',
             '13/07/2026',
             'CAJUSOL SANTAMARIA DAVID',
             'T5M-121',
+            'CAMPAMENTO',
             'CORREA HUA',
             'CAMPAMENT',
             '20554556192',
@@ -103,18 +107,18 @@ final class UnitExcelImporter
             $firstCoordinatorName,
         ], null, 'A2');
 
-        $sheet->getStyle('K2')->getNumberFormat()->setFormatCode('@');
-        $sheet->setCellValueExplicit('K2', '20554556192', DataType::TYPE_STRING);
-        $sheet->setCellValueExplicit('L2', '46909313', DataType::TYPE_STRING);
+        $sheet->getStyle('M2')->getNumberFormat()->setFormatCode('@');
+        $sheet->setCellValueExplicit('M2', '20554556192', DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit('N2', '46909313', DataType::TYPE_STRING);
         $sheet->setCellValueExplicit('B2', '985555756', DataType::TYPE_STRING);
 
-        foreach (range('A', 'N') as $column) {
+        foreach (range('A', 'P') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
 
         $sheet->getRowDimension(1)->setRowHeight(22);
 
-        // Hoja de lista de coordinadores + validación de celda COORDINADOR (columna N).
+        // Hoja de lista de coordinadores + validación de celda COORDINADOR (columna P).
         $listSheet = $spreadsheet->createSheet();
         $listSheet->setTitle('Coordinadores');
         $listSheet->setCellValue('A1', 'NOMBRE COMPLETO');
@@ -143,7 +147,7 @@ final class UnitExcelImporter
         $listSheet->getColumnDimension('A')->setAutoSize(true);
 
         $lastListRow = max(2, $row - 1);
-        $validation = $sheet->getCell('N2')->getDataValidation();
+        $validation = $sheet->getCell('P2')->getDataValidation();
         $validation->setType(DataValidation::TYPE_LIST);
         $validation->setErrorStyle(DataValidation::STYLE_STOP);
         $validation->setAllowBlank(true);
@@ -155,7 +159,7 @@ final class UnitExcelImporter
         $validation->setPromptTitle('Coordinador');
         $validation->setPrompt('Elige un nombre de la hoja Coordinadores.');
         $validation->setFormula1("Coordinadores!\$A\$2:\$A\${$lastListRow}");
-        $validation->setSqref('N2:N1000');
+        $validation->setSqref('P2:P1000');
 
         $spreadsheet->setActiveSheetIndex(0);
 
@@ -189,12 +193,14 @@ final class UnitExcelImporter
             ['FECHA PERIODO', '1A2B4C', 16],
             ['CORRELATIVO', '1A2B4C', 20],
             ['CELULAR', '1F6A5B', 14],
+            ['SEDE', '2E5A9E', 18],
             ['PROVEEDOR', '8A5A12', 42],
             ['RUTA', '2E5A9E', 32],
             ['T. VEHÍCULO', '2E5A9E', 16],
             ['FECHA', '2E5A9E', 14],
             ['CONDUCTOR', '1F6A5B', 34],
             ['PLACA', '1A2B4C', 14],
+            ['GARITA', '2E5A9E', 22],
             ['RESPONSABLE', '8A5A12', 28],
             ['TIPO DE SERVICIO', '2E5A9E', 22],
             ['RUC', '8A5A12', 16],
@@ -203,7 +209,7 @@ final class UnitExcelImporter
             ['COORDINADOR', '8A5A12', 28],
         ];
 
-        $lastColumn = 'P';
+        $lastColumn = 'R';
         $headerRow = 3;
 
         $sheet->mergeCells("A1:{$lastColumn}1");
@@ -293,18 +299,20 @@ final class UnitExcelImporter
             $sheet->setCellValueExplicit("B{$rowNumber}", $periodDate, DataType::TYPE_STRING);
             $sheet->setCellValueExplicit("C{$rowNumber}", (string) $unit->correlative, DataType::TYPE_STRING);
             $sheet->setCellValueExplicit("D{$rowNumber}", (string) ($unit->phone ?? ''), DataType::TYPE_STRING);
-            $sheet->setCellValue("E{$rowNumber}", (string) $unit->provider);
-            $sheet->setCellValue("F{$rowNumber}", (string) ($unit->route ?? ''));
-            $sheet->setCellValue("G{$rowNumber}", (string) ($unit->vehicle_type ?? ''));
-            $sheet->setCellValueExplicit("H{$rowNumber}", $serviceDate, DataType::TYPE_STRING);
-            $sheet->setCellValue("I{$rowNumber}", (string) ($unit->driver_name ?? ''));
-            $sheet->setCellValue("J{$rowNumber}", (string) ($unit->plate_number ?? ''));
-            $sheet->setCellValue("K{$rowNumber}", (string) ($unit->responsible_person ?? ''));
-            $sheet->setCellValue("L{$rowNumber}", (string) ($unit->service_type ?? ''));
-            $sheet->setCellValueExplicit("M{$rowNumber}", (string) ($unit->ruc ?? ''), DataType::TYPE_STRING);
-            $sheet->setCellValueExplicit("N{$rowNumber}", (string) ($unit->driver_dni ?? ''), DataType::TYPE_STRING);
-            $sheet->setCellValue("O{$rowNumber}", (string) ($unit->category ?? ''));
-            $sheet->setCellValue("P{$rowNumber}", (string) ($unit->coordinatorUser?->name ?? ''));
+            $sheet->setCellValue("E{$rowNumber}", (string) ($unit->sede ?? ''));
+            $sheet->setCellValue("F{$rowNumber}", (string) $unit->provider);
+            $sheet->setCellValue("G{$rowNumber}", (string) ($unit->route ?? ''));
+            $sheet->setCellValue("H{$rowNumber}", (string) ($unit->vehicle_type ?? ''));
+            $sheet->setCellValueExplicit("I{$rowNumber}", $serviceDate, DataType::TYPE_STRING);
+            $sheet->setCellValue("J{$rowNumber}", (string) ($unit->driver_name ?? ''));
+            $sheet->setCellValue("K{$rowNumber}", (string) ($unit->plate_number ?? ''));
+            $sheet->setCellValue("L{$rowNumber}", (string) ($unit->garita ?? ''));
+            $sheet->setCellValue("M{$rowNumber}", (string) ($unit->responsible_person ?? ''));
+            $sheet->setCellValue("N{$rowNumber}", (string) ($unit->service_type ?? ''));
+            $sheet->setCellValueExplicit("O{$rowNumber}", (string) ($unit->ruc ?? ''), DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("P{$rowNumber}", (string) ($unit->driver_dni ?? ''), DataType::TYPE_STRING);
+            $sheet->setCellValue("Q{$rowNumber}", (string) ($unit->category ?? ''));
+            $sheet->setCellValue("R{$rowNumber}", (string) ($unit->coordinatorUser?->name ?? ''));
 
             $fill = $written % 2 === 0 ? 'FFFFFF' : 'F4F7FB';
             $sheet->getStyle("A{$rowNumber}:{$lastColumn}{$rowNumber}")->applyFromArray([
@@ -901,18 +909,20 @@ final class UnitExcelImporter
     {
         $correlative = $this->stringValue($row[0] ?? null);
         $phone = $this->stringValue($row[1] ?? null);
-        $provider = $this->stringValue($row[2] ?? null);
-        $route = $this->stringValue($row[3] ?? null);
-        $vehicleType = $this->stringValue($row[4] ?? null);
-        $rawDate = $row[5] ?? null;
-        $driverName = $this->stringValue($row[6] ?? null);
-        $plateNumber = UnitCatalog::formatPlate($this->stringValue($row[7] ?? null));
-        $responsible = $this->stringValue($row[8] ?? null);
-        $serviceType = $this->stringValue($row[9] ?? null);
-        $ruc = $this->stringValue($row[10] ?? null);
-        $driverDni = $this->stringValue($row[11] ?? null);
-        $category = $this->stringValue($row[12] ?? null);
-        $coordinatorName = $this->stringValue($row[13] ?? null);
+        $sede = $this->stringValue($row[2] ?? null);
+        $provider = $this->stringValue($row[3] ?? null);
+        $route = $this->stringValue($row[4] ?? null);
+        $vehicleType = $this->stringValue($row[5] ?? null);
+        $rawDate = $row[6] ?? null;
+        $driverName = $this->stringValue($row[7] ?? null);
+        $plateNumber = UnitCatalog::formatPlate($this->stringValue($row[8] ?? null));
+        $garita = $this->stringValue($row[9] ?? null);
+        $responsible = $this->stringValue($row[10] ?? null);
+        $serviceType = $this->stringValue($row[11] ?? null);
+        $ruc = $this->stringValue($row[12] ?? null);
+        $driverDni = $this->stringValue($row[13] ?? null);
+        $category = $this->stringValue($row[14] ?? null);
+        $coordinatorName = $this->stringValue($row[15] ?? null);
 
         $errors = [];
         $serviceDate = null;
@@ -955,12 +965,14 @@ final class UnitExcelImporter
         $payload = [
             'correlative' => $correlative,
             'phone' => $phone,
+            'sede' => $sede,
             'provider' => $provider,
             'route' => $route,
             'vehicle_type' => $vehicleType,
             'service_date' => $serviceDate,
             'driver_name' => $driverName,
             'plate_number' => $plateNumber,
+            'garita' => $garita,
             'responsible_person' => $responsible,
             'service_type' => $serviceType,
             'ruc' => $ruc,
@@ -972,8 +984,10 @@ final class UnitExcelImporter
         $validator = Validator::make($payload, [
             'correlative' => ['nullable', 'string', 'max:50'],
             'phone' => ['nullable', 'string', 'max:20'],
+            'sede' => ['nullable', 'string', 'max:255'],
             'provider' => ['nullable', 'string', 'max:255'],
             'route' => ['nullable', 'string', 'max:255'],
+            'garita' => ['nullable', 'string', 'max:255'],
             'vehicle_type' => ['nullable', 'string', 'max:100'],
             'service_date' => ['nullable', 'date'],
             'driver_name' => ['nullable', 'string', 'max:255'],

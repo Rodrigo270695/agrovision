@@ -13,7 +13,9 @@ use Illuminate\Support\Carbon;
  * @property string $correlative
  * @property Carbon $service_date
  * @property string $plate_number
+ * @property string|null $garita
  * @property string|null $phone
+ * @property string|null $sede
  * @property string|null $provider
  * @property string|null $route
  * @property string|null $vehicle_type
@@ -33,7 +35,9 @@ class UnitMovement extends Model
         'correlative',
         'service_date',
         'plate_number',
+        'garita',
         'phone',
+        'sede',
         'provider',
         'route',
         'vehicle_type',

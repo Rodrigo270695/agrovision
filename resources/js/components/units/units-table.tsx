@@ -36,6 +36,8 @@ export type UnitItem = {
     phone?: string | null;
     provider: string;
     route?: string | null;
+    sede?: string | null;
+    garita?: string | null;
     vehicle_type?: string | null;
     service_date?: string | null;
     driver_name?: string | null;
@@ -82,6 +84,8 @@ export type MovementItem = {
     plate_number?: string | null;
     driver_name?: string | null;
     route?: string | null;
+    sede?: string | null;
+    garita?: string | null;
     service_type?: string | null;
     provider?: string | null;
     vehicle_type?: string | null;
@@ -399,8 +403,28 @@ export function UnitsTable({
                 ),
             },
             {
-                key: 'route',
+                key: 'sede',
                 header: 'Sede',
+                sortable: true,
+                cell: (unit) => (
+                    <span className="text-xs text-muted-foreground">
+                        {unit.sede?.trim() || '—'}
+                    </span>
+                ),
+            },
+            {
+                key: 'garita',
+                header: 'Garita',
+                sortable: true,
+                cell: (unit) => (
+                    <span className="text-xs text-muted-foreground">
+                        {unit.garita?.trim() || '—'}
+                    </span>
+                ),
+            },
+            {
+                key: 'route',
+                header: 'Ruta',
                 sortable: true,
                 cell: (unit) => (
                     <span className="text-xs text-muted-foreground">
@@ -514,8 +538,26 @@ export function UnitsTable({
                 ),
             },
             {
-                key: 'route',
+                key: 'sede',
                 header: 'Sede',
+                cell: (movement) => (
+                    <span className="text-xs text-muted-foreground">
+                        {movement.sede || '—'}
+                    </span>
+                ),
+            },
+            {
+                key: 'garita',
+                header: 'Garita',
+                cell: (movement) => (
+                    <span className="text-xs text-muted-foreground">
+                        {movement.garita || '—'}
+                    </span>
+                ),
+            },
+            {
+                key: 'route',
+                header: 'Ruta',
                 cell: (movement) => (
                     <span className="text-xs text-muted-foreground">
                         {movement.route || '—'}

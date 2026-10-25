@@ -37,7 +37,9 @@ export type UnitFormValues = {
     correlative: string;
     phone: string;
     provider: string;
+    sede: string;
     route: string;
+    garita: string;
     vehicle_type: string;
     service_date: string;
     driver_name: string;
@@ -91,9 +93,14 @@ const otherFields: Array<{
         placeholder: 'Ej. 985555756',
     },
     {
+        key: 'sede',
+        label: 'Sede',
+        placeholder: 'Ej. C5/C6',
+    },
+    {
         key: 'route',
         label: 'Ruta',
-        placeholder: 'Ej. CAMPAMENT',
+        placeholder: 'Ej. CAMPAMENTO_FUNDO C5',
     },
     {
         key: 'vehicle_type',
@@ -109,6 +116,11 @@ const otherFields: Array<{
         key: 'plate_number',
         label: 'Placa',
         placeholder: 'Ej. T5M-121',
+    },
+    {
+        key: 'garita',
+        label: 'Garita',
+        placeholder: 'Ej. CAMPAMENTO',
     },
     {
         key: 'responsible_person',

@@ -3,15 +3,15 @@
 namespace App\Support;
 
 /**
- * La sede operativa de la unidad viene del Excel (columna RUTA).
+ * Sede operativa de la unidad (columna SEDE del Excel de unidades).
  */
 final class UnitSede
 {
-    public static function label(?string $route, ?string $catalogSede = null, ?int $coordinatorId = null): string
+    public static function label(?string $unitSede, ?string $catalogSede = null, ?int $coordinatorId = null): string
     {
-        $route = trim((string) $route);
-        if ($route !== '') {
-            return $route;
+        $sede = trim((string) $unitSede);
+        if ($sede !== '') {
+            return $sede;
         }
 
         $catalog = trim((string) $catalogSede);

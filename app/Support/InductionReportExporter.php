@@ -351,7 +351,7 @@ final class InductionReportExporter
 
     private function sedeForUnit(Unit $unit, ?Driver $record): string
     {
-        return UnitSede::label($unit->route, $record?->sede, $unit->coordinator_id);
+        return UnitSede::label($unit->sede, $record?->sede, $unit->coordinator_id);
     }
 
     private function driverStatusLabel(Unit $unit, ?Driver $record): string

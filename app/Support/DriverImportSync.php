@@ -37,7 +37,7 @@ final class DriverImportSync
         }
 
         $coordinatorId = isset($data['coordinator_id']) ? (int) $data['coordinator_id'] : null;
-        $sede = UnitSede::label($data['route'] ?? null, null, $coordinatorId);
+        $sede = UnitSede::label($data['sede'] ?? null, null, $coordinatorId);
 
         $driver = Driver::query()->firstOrCreate(
             [

@@ -425,6 +425,8 @@ class UnitController extends Controller
                 'driver_name',
                 'vehicle_type',
                 'route',
+                'sede',
+                'garita',
                 'service_date',
                 'created_at',
             ])],
@@ -524,6 +526,8 @@ class UnitController extends Controller
                     ->orWhere('plate_number', 'ilike', "%{$search}%")
                     ->orWhere('driver_name', 'ilike', "%{$search}%")
                     ->orWhere('route', 'ilike', "%{$search}%")
+                    ->orWhere('sede', 'ilike', "%{$search}%")
+                    ->orWhere('garita', 'ilike', "%{$search}%")
                     ->orWhereHas('coordinatorUser', function ($q) use ($search) {
                         $q->where('name', 'ilike', "%{$search}%");
                     });
@@ -570,6 +574,8 @@ class UnitController extends Controller
                     ->orWhere('plate_number', 'ilike', "%{$search}%")
                     ->orWhere('driver_name', 'ilike', "%{$search}%")
                     ->orWhere('route', 'ilike', "%{$search}%")
+                    ->orWhere('sede', 'ilike', "%{$search}%")
+                    ->orWhere('garita', 'ilike', "%{$search}%")
                     ->orWhere('service_type', 'ilike', "%{$search}%");
             });
         }

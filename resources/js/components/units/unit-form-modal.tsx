@@ -29,7 +29,9 @@ const emptyValues = {
     correlative: '',
     phone: '',
     provider: '',
+    sede: '',
     route: '',
+    garita: '',
     vehicle_type: '',
     service_date: '',
     driver_name: '',
@@ -53,7 +55,9 @@ function toFormValues(unit?: UnitItem | null) {
         correlative: unit.correlative ?? '',
         phone: unit.phone ?? '',
         provider: unit.provider ?? '',
+        sede: unit.sede ?? '',
         route: unit.route ?? '',
+        garita: unit.garita ?? '',
         vehicle_type: unit.vehicle_type ?? '',
         service_date: unit.service_date
             ? String(unit.service_date).slice(0, 10)
