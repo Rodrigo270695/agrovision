@@ -161,7 +161,7 @@ final class OwnerReports
     {
         $query = UnitChecklist::query()->with([
             ...InspectionPlace::withCreator(),
-            'unit:id,coordinator_id,sede',
+            'unit:id,coordinator_id,sede,garita',
         ]);
 
         if ($from !== null && $to !== null) {

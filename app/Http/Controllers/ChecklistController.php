@@ -86,10 +86,9 @@ class ChecklistController extends Controller
             ->with([
                 'template:id,type,code,name',
                 'period:id,name,date,status',
-                'unit:id,correlative,plate_number,period_id,coordinator_id,sede',
+                'unit:id,correlative,plate_number,period_id,coordinator_id,sede,garita',
                 'answers:id,unit_checklist_id,checklist_item_id,first_value,second_value',
                 'answers.item:id,weight',
-                ...InspectionPlace::withCreator(),
             ])
             ->whereHas('period', fn ($q) => $q->where('status', 'active'));
 
@@ -132,10 +131,9 @@ class ChecklistController extends Controller
 
         $checklists = $query->paginate($perPage)->withQueryString()
             ->through(function (UnitChecklist $checklist) {
-                $place = InspectionPlace::labels($checklist->creator, $checklist->location, $checklist->unit);
+                $place = InspectionPlace::labels(null, null, $checklist->unit);
                 $checklist->setAttribute('sede', $place['sede']);
                 $checklist->setAttribute('lugar', $place['lugar']);
-                $checklist->unsetRelation('creator');
 
                 $hasAnswers = $checklist->answers->isNotEmpty();
                 $first = ParetoPassThreshold::snapshot($checklist->answers, 'first_value');

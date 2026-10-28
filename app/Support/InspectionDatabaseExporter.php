@@ -472,7 +472,7 @@ final class InspectionDatabaseExporter
             'plate' => $checklist->plate_number,
             'coordinator' => $unit?->coordinatorUser?->name,
             'inspector' => $checklist->creator?->name,
-            'driver' => $checklist->driver_name,
+            'driver' => $unit?->responsible_person,
             'entry_date' => $unit?->service_date,
             'status' => $checklist->period?->status === 'active' ? 'Activa' : 'Inactiva',
             'inspected_on' => $pass === 'second' ? $checklist->second_inspected_on : $checklist->first_inspected_on,
