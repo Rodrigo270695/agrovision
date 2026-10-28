@@ -633,16 +633,14 @@ final class InspectionDatabaseExporter
 
     private function sede(UnitChecklist $checklist): ?string
     {
-        $location = trim((string) $checklist->location);
+        $unit = $checklist->unit;
+        if ($unit !== null) {
+            $label = UnitSede::label($unit->sede, null, $unit->coordinator_id);
 
-        if ($location !== '') {
-            return $location;
+            return $label !== '' ? $label : null;
         }
 
-        $coordinator = $checklist->unit?->coordinatorUser;
-        $place = $coordinator?->place ?? $coordinator?->places?->first();
-
-        return $place?->site?->name ?: $place?->name;
+        return null;
     }
 
     private function parseDate(string $text): ?CarbonInterface

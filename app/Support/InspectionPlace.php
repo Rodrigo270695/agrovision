@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Place;
+use App\Models\Unit;
 use App\Models\User;
 
 final class InspectionPlace
@@ -10,7 +11,7 @@ final class InspectionPlace
     /**
      * @return array{sede: string, lugar: string}
      */
-    public static function labels(?User $user, ?string $location = null): array
+    public static function labels(?User $user, ?string $location = null, ?Unit $unit = null): array
     {
         $places = $user !== null && $user->relationLoaded('places')
             ? $user->places
@@ -20,11 +21,8 @@ final class InspectionPlace
             $places = collect([$user->place]);
         }
 
-        $sedes = $places
-            ->map(fn (Place $place) => trim((string) ($place->site?->name ?? '')))
-            ->filter()
-            ->unique()
-            ->values();
+        $sede = UnitSede::label($unit?->sede, null, $unit?->coordinator_id);
+        $sede = $sede !== '' ? $sede : '—';
 
         $lugares = $places
             ->map(fn (Place $place) => trim((string) $place->name))
@@ -37,7 +35,7 @@ final class InspectionPlace
             : trim((string) $location);
 
         return [
-            'sede' => $sedes->isNotEmpty() ? $sedes->implode(', ') : '—',
+            'sede' => $sede,
             'lugar' => $lugar !== '' ? $lugar : '—',
         ];
     }

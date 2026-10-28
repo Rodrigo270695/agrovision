@@ -86,7 +86,7 @@ class ChecklistController extends Controller
             ->with([
                 'template:id,type,code,name',
                 'period:id,name,date,status',
-                'unit:id,correlative,plate_number,period_id,coordinator_id',
+                'unit:id,correlative,plate_number,period_id,coordinator_id,sede',
                 'answers:id,unit_checklist_id,checklist_item_id,first_value,second_value',
                 'answers.item:id,weight',
                 ...InspectionPlace::withCreator(),
@@ -132,7 +132,7 @@ class ChecklistController extends Controller
 
         $checklists = $query->paginate($perPage)->withQueryString()
             ->through(function (UnitChecklist $checklist) {
-                $place = InspectionPlace::labels($checklist->creator, $checklist->location);
+                $place = InspectionPlace::labels($checklist->creator, $checklist->location, $checklist->unit);
                 $checklist->setAttribute('sede', $place['sede']);
                 $checklist->setAttribute('lugar', $place['lugar']);
                 $checklist->unsetRelation('creator');
