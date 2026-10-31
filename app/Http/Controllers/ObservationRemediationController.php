@@ -172,6 +172,10 @@ class ObservationRemediationController extends Controller
             'pass' => ['required', Rule::in(['first', 'second'])],
             'decision' => ['required', Rule::in(['approve', 'reject'])],
             'note' => ['nullable', 'string', 'max:2000'],
+            'checked_ids' => ['nullable', 'array'],
+            'checked_ids.*' => ['integer'],
+            'item_notes' => ['nullable', 'array'],
+            'item_notes.*' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $pass = $validated['pass'];
@@ -230,7 +234,28 @@ class ObservationRemediationController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($checklist, $pass, $remediation, $snap) {
+        $noItems = ObservationRemediationSupport::observationItems($checklist, $pass);
+        $requiredIds = collect($noItems)->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all();
+        $checkedIds = collect($validated['checked_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        if ($requiredIds !== [] && $checkedIds !== $requiredIds) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Debes marcar el check de todos los ítems en NO antes de aprobar.',
+            ]);
+        }
+
+        $itemNotes = collect($validated['item_notes'] ?? [])
+            ->mapWithKeys(fn ($note, $id) => [(int) $id => trim((string) $note)])
+            ->filter(fn ($note) => $note !== '')
+            ->all();
+
+        DB::transaction(function () use ($checklist, $pass, $remediation, $snap, $checkedIds, $itemNotes, $validated) {
             $resultField = $pass === 'second' ? 'second_result' : 'first_result';
             $previousResult = $checklist->{$resultField};
 
@@ -247,6 +272,7 @@ class ObservationRemediationController extends Controller
                 'verified_by' => Auth::id(),
                 'verified_at' => now(),
                 'rejection_note' => null,
+                'submit_note' => $remediation->submit_note,
             ]);
 
             ObservationRemediationSupport::recordEvent(
@@ -260,6 +286,9 @@ class ObservationRemediationController extends Controller
                     'previous_percent' => $snap['percent'],
                     'new_percent' => $after['percent'],
                     'answers_updated' => $changed,
+                    'checked_ids' => $checkedIds,
+                    'item_notes' => $itemNotes,
+                    'note' => trim((string) ($validated['note'] ?? '')) ?: null,
                     'had_observation' => true,
                 ],
             );

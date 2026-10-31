@@ -939,21 +939,30 @@ function RemediationDetailModal({
     );
     const [submitNote, setSubmitNote] = useState('');
     const [sending, setSending] = useState(false);
+    const [checkedIds, setCheckedIds] = useState<Record<number, boolean>>({});
+    const [itemNotes, setItemNotes] = useState<Record<number, string>>({});
 
     const verifyForm = useForm<{
         pass: string;
         decision: 'approve' | 'reject';
         note: string;
+        checked_ids: number[];
+        item_notes: Record<number, string>;
     }>({
         pass: unit.pass,
         decision: 'approve',
         note: '',
+        checked_ids: [],
+        item_notes: {},
     });
 
     const showSubmit = canSubmit && unit.can_submit;
     const showVerify = canVerify && unit.can_verify;
     const isRed = unit.tone === 'red';
     const noItems = unit.observations;
+    const allChecked =
+        noItems.length === 0 ||
+        noItems.every((item) => checkedIds[item.id] === true);
 
     const sendToInspector = () => {
         const data = new FormData();
@@ -1020,6 +1029,8 @@ function RemediationDetailModal({
                                         .transform((data) => ({
                                             ...data,
                                             decision: 'reject' as const,
+                                            checked_ids: [],
+                                            item_notes: itemNotes,
                                         }))
                                         .post(
                                             `/calendario-observaciones/${unit.checklist_id}/verificar`,
@@ -1039,12 +1050,26 @@ function RemediationDetailModal({
                             <Button
                                 type="button"
                                 className="cursor-pointer rounded-xl bg-[#1e4d8c] text-white hover:bg-[#163a6b]"
-                                disabled={verifyForm.processing}
+                                disabled={
+                                    verifyForm.processing || !allChecked
+                                }
+                                title={
+                                    allChecked
+                                        ? undefined
+                                        : 'Marca el check de todos los ítems NO'
+                                }
                                 onClick={() => {
                                     verifyForm
                                         .transform((data) => ({
                                             ...data,
                                             decision: 'approve' as const,
+                                            checked_ids: noItems
+                                                .filter(
+                                                    (item) =>
+                                                        checkedIds[item.id],
+                                                )
+                                                .map((item) => item.id),
+                                            item_notes: itemNotes,
                                         }))
                                         .post(
                                             `/calendario-observaciones/${unit.checklist_id}/verificar`,
@@ -1122,14 +1147,41 @@ function RemediationDetailModal({
                             {noItems.map((item) => {
                                 const pendingFile = itemPhotos[item.id] ?? null;
                                 const savedPhotos = item.photos ?? [];
+                                const isChecked = checkedIds[item.id] === true;
 
                                 return (
                                     <li
                                         key={`${item.id}-${item.checklist_item_id}`}
-                                        className="rounded-xl border border-rose-200/80 bg-rose-50/30 px-3 py-2.5 shadow-sm"
+                                        className={cn(
+                                            'rounded-xl border px-3 py-2.5 shadow-sm',
+                                            showVerify && isChecked
+                                                ? 'border-emerald-200 bg-emerald-50/40'
+                                                : 'border-rose-200/80 bg-rose-50/30',
+                                        )}
                                     >
                                         <div className="flex items-start gap-2">
-                                            <XCircle className="mt-0.5 size-4 shrink-0 text-rose-600" />
+                                            {showVerify ? (
+                                                <label className="mt-0.5 flex cursor-pointer items-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="size-4 cursor-pointer rounded border-slate-300 accent-emerald-600"
+                                                        checked={isChecked}
+                                                        onChange={(e) =>
+                                                            setCheckedIds(
+                                                                (prev) => ({
+                                                                    ...prev,
+                                                                    [item.id]:
+                                                                        e.target
+                                                                            .checked,
+                                                                }),
+                                                            )
+                                                        }
+                                                        aria-label={`Marcar como subsanado: ${item.label}`}
+                                                    />
+                                                </label>
+                                            ) : (
+                                                <XCircle className="mt-0.5 size-4 shrink-0 text-rose-600" />
+                                            )}
                                             <div className="min-w-0 flex-1">
                                                 <p className="text-sm font-semibold text-slate-800">
                                                     {item.item_number
@@ -1139,6 +1191,12 @@ function RemediationDetailModal({
                                                     <span className="ml-2 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
                                                         NO
                                                     </span>
+                                                    {showVerify &&
+                                                    isChecked ? (
+                                                        <span className="ml-2 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">
+                                                            Subsanado
+                                                        </span>
+                                                    ) : null}
                                                 </p>
                                                 {item.observations ? (
                                                     <p className="mt-0.5 text-xs leading-relaxed text-slate-600">
@@ -1151,32 +1209,42 @@ function RemediationDetailModal({
                                                 )}
 
                                                 {savedPhotos.length > 0 ? (
-                                                    <div className="mt-2 flex flex-wrap gap-2">
-                                                        {savedPhotos.map(
-                                                            (photo) =>
-                                                                photo.url ? (
-                                                                    <a
-                                                                        key={
-                                                                            photo.id
-                                                                        }
-                                                                        href={
-                                                                            photo.url
-                                                                        }
-                                                                        target="_blank"
-                                                                        rel="noreferrer"
-                                                                        className="block overflow-hidden rounded-lg border border-slate-200"
-                                                                    >
-                                                                        <img
-                                                                            src={
+                                                    <div className="mt-2">
+                                                        <p className="mb-1 text-[11px] font-medium text-slate-500">
+                                                            Evidencia enviada
+                                                        </p>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {savedPhotos.map(
+                                                                (photo) =>
+                                                                    photo.url ? (
+                                                                        <a
+                                                                            key={
+                                                                                photo.id
+                                                                            }
+                                                                            href={
                                                                                 photo.url
                                                                             }
-                                                                            alt={`Evidencia ítem ${item.item_number ?? item.id}`}
-                                                                            className="h-16 w-16 object-cover"
-                                                                        />
-                                                                    </a>
-                                                                ) : null,
-                                                        )}
+                                                                            target="_blank"
+                                                                            rel="noreferrer"
+                                                                            className="block overflow-hidden rounded-lg border border-slate-200 bg-white"
+                                                                        >
+                                                                            <img
+                                                                                src={
+                                                                                    photo.url
+                                                                                }
+                                                                                alt={`Evidencia ítem ${item.item_number ?? item.id}`}
+                                                                                className="h-20 w-20 object-cover"
+                                                                            />
+                                                                        </a>
+                                                                    ) : null,
+                                                            )}
+                                                        </div>
                                                     </div>
+                                                ) : showVerify ? (
+                                                    <p className="mt-1 text-[11px] text-slate-400">
+                                                        Sin imagen (no
+                                                        obligatoria)
+                                                    </p>
                                                 ) : null}
 
                                                 {showSubmit ? (
@@ -1207,6 +1275,33 @@ function RemediationDetailModal({
                                                         />
                                                     </label>
                                                 ) : null}
+
+                                                {showVerify ? (
+                                                    <label className="mt-2 block text-xs font-medium text-slate-700">
+                                                        Comentario del inspector
+                                                        <textarea
+                                                            className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[#1e4d8c] focus:ring-2 focus:ring-[#1e4d8c]/20"
+                                                            rows={2}
+                                                            placeholder="Observación al verificar (opcional)"
+                                                            value={
+                                                                itemNotes[
+                                                                    item.id
+                                                                ] ?? ''
+                                                            }
+                                                            onChange={(e) =>
+                                                                setItemNotes(
+                                                                    (prev) => ({
+                                                                        ...prev,
+                                                                        [item.id]:
+                                                                            e
+                                                                                .target
+                                                                                .value,
+                                                                    }),
+                                                                )
+                                                            }
+                                                        />
+                                                    </label>
+                                                ) : null}
                                             </div>
                                         </div>
                                     </li>
@@ -1219,6 +1314,13 @@ function RemediationDetailModal({
                             Sube evidencia por cada ítem en NO (opcional) y
                             envía el paquete. El inspector confirma el 100 %
                             SÍ.
+                        </p>
+                    ) : null}
+                    {showVerify ? (
+                        <p className="mt-2 text-xs text-slate-500">
+                            Marca el check de cada ítem. Las fotos son
+                            opcionales; si hay, revísalas. Al aprobar, todos
+                            pasan a SÍ y la inspección queda aprobada al 100 %.
                         </p>
                     ) : null}
                 </div>
@@ -1250,12 +1352,16 @@ function RemediationDetailModal({
                 {showVerify ? (
                     <div className="space-y-3 rounded-2xl border border-sky-200/80 bg-sky-50/50 p-3">
                         <p className="text-sm text-slate-600">
-                            Revisa la evidencia de cada ítem. Al aprobar, los
-                            NO pasan a SÍ y la inspección queda{' '}
-                            <strong>Aprobada</strong>.
+                            Con todos los checks marcados, al aprobar la
+                            inspección pasa a <strong>Aprobado</strong> (100 %).
                         </p>
+                        {!allChecked ? (
+                            <p className="text-xs font-medium text-amber-700">
+                                Faltan ítems por marcar como subsanados.
+                            </p>
+                        ) : null}
                         <label className="block text-sm font-semibold text-slate-800">
-                            Nota (obligatoria si rechazas)
+                            Nota general (obligatoria si rechazas)
                             <textarea
                                 className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#1e4d8c] focus:ring-2 focus:ring-[#1e4d8c]/20"
                                 rows={2}
