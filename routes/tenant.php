@@ -9,6 +9,7 @@ use App\Http\Controllers\DriverBoardController;
 use App\Http\Controllers\DriverInductionReportController;
 use App\Http\Controllers\FleetComplianceReportController;
 use App\Http\Controllers\FleetDataController;
+use App\Http\Controllers\ObservationRemediationController;
 use App\Http\Controllers\ObservationsIndexReportController;
 use App\Http\Controllers\ProviderComplianceReportController;
 use App\Http\Controllers\ImpersonationController;
@@ -367,6 +368,22 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
         Route::post('inspecciones/paquetes', [InspectionBatchController::class, 'store'])
             ->middleware('permission:checklists.update')
             ->name('inspection-batches.store');
+
+        Route::get('calendario-observaciones', [ObservationRemediationController::class, 'index'])
+            ->middleware('permission:observation_remediations.view')
+            ->name('observation-remediations.index');
+
+        Route::post('calendario-observaciones/{checklist}/enviar', [ObservationRemediationController::class, 'submit'])
+            ->middleware('permission:observation_remediations.submit')
+            ->name('observation-remediations.submit');
+
+        Route::post('calendario-observaciones/{checklist}/verificar', [ObservationRemediationController::class, 'verify'])
+            ->middleware('permission:observation_remediations.verify')
+            ->name('observation-remediations.verify');
+
+        Route::delete('calendario-observaciones/fotos/{photo}', [ObservationRemediationController::class, 'destroyPhoto'])
+            ->middleware('permission:observation_remediations.submit')
+            ->name('observation-remediations.photos.destroy');
 
         Route::get('paquetes-inspeccion', [InspectionBatchController::class, 'index'])
             ->middleware('permission:checklists.view')

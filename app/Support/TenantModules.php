@@ -41,6 +41,10 @@ final class TenantModules
 
         $group = explode('.', $permission)[0];
 
+        if ($group === 'observation_remediations') {
+            return 'checklists';
+        }
+
         return array_key_exists($group, self::catalog()) ? $group : null;
     }
 
@@ -59,6 +63,7 @@ final class TenantModules
             'fleet-data' => 'fleet_data',
             'lookups' => 'units',
             'checklists' => 'checklists',
+            'observation-remediations' => 'checklists',
             'consolidations' => 'consolidations',
             'alcohol-tests' => 'alcoholtests',
             'inductions' => 'inductions',

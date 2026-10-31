@@ -148,6 +148,11 @@ class UnitChecklist extends Model
         return $this->belongsTo(InspectionBatch::class);
     }
 
+    public function observationRemediations(): HasMany
+    {
+        return $this->hasMany(ObservationRemediation::class);
+    }
+
     public function isCompleted(): bool
     {
         return $this->status === 'completed';

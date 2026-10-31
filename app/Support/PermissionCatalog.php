@@ -51,6 +51,10 @@ final class PermissionCatalog
             'checklists.delete' => ['label' => 'Eliminar checklists', 'module' => 'Checklists'],
             'checklists.authorize_edit' => ['label' => 'Autorizar edición de inspecciones', 'module' => 'Checklists'],
 
+            'observation_remediations.view' => ['label' => 'Ver calendario de observaciones', 'module' => 'Observaciones'],
+            'observation_remediations.submit' => ['label' => 'Enviar levantamiento de observaciones', 'module' => 'Observaciones'],
+            'observation_remediations.verify' => ['label' => 'Verificar levantamiento de observaciones', 'module' => 'Observaciones'],
+
             'consolidations.view' => ['label' => 'Ver consolidados', 'module' => 'Consolidados'],
             'consolidations.respond' => ['label' => 'Responder consolidados', 'module' => 'Consolidados'],
 
@@ -100,6 +104,19 @@ final class PermissionCatalog
             Permission::findOrCreate($name, 'web');
 
             if (! $existed && $name === 'inductions.duplicate') {
+                self::giveIfRoleExists(SystemRoles::INSPECTOR, $name);
+            }
+
+            if (! $existed && $name === 'observation_remediations.view') {
+                self::giveIfRoleExists(SystemRoles::COORDINADOR, $name);
+                self::giveIfRoleExists(SystemRoles::INSPECTOR, $name);
+            }
+
+            if (! $existed && $name === 'observation_remediations.submit') {
+                self::giveIfRoleExists(SystemRoles::COORDINADOR, $name);
+            }
+
+            if (! $existed && $name === 'observation_remediations.verify') {
                 self::giveIfRoleExists(SystemRoles::INSPECTOR, $name);
             }
         }

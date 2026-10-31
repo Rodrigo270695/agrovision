@@ -96,6 +96,32 @@ class PushNotificationService
         ]);
     }
 
+    public function notifyInspectorObservationRemediation(
+        UnitChecklist $checklist,
+        string $pass,
+    ): void {
+        $inspectorId = $checklist->created_by;
+        if (! $inspectorId) {
+            return;
+        }
+
+        $inspector = User::query()->find($inspectorId);
+        if (! $inspector) {
+            return;
+        }
+
+        $passLabel = $pass === 'second' ? '2da' : '1ra';
+        $date = now()->timezone(config('app.timezone'))->toDateString();
+
+        $this->sendToUsers(collect([$inspector]), [
+            'title' => 'Levantamiento de observaciones',
+            'body' => "Placa {$checklist->plate_number} ({$passLabel}): el coordinador envió evidencia. Revisa y verifica.",
+            'url' => "/calendario-observaciones?date={$date}&year="
+                .now()->year.'&month='.now()->month,
+            'tag' => "observation-remediation-{$checklist->id}-{$pass}",
+        ]);
+    }
+
     /**
      * Notifica a un coordinador el envío del paquete con TODOS sus tests
      * (positivos y negativos), destacando cuántos no pasaron.

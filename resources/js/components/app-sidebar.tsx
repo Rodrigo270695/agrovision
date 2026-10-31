@@ -99,6 +99,13 @@ const mainNavItems: NavItem[] = [
                 module: 'checklists',
             },
             {
+                title: 'Cal. observaciones',
+                href: '/calendario-observaciones',
+                icon: CalendarRange,
+                permission: 'observation_remediations.view',
+                module: 'checklists',
+            },
+            {
                 title: 'Paquetes',
                 href: '/paquetes-inspeccion',
                 icon: Package,
