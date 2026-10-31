@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 /**
  * @property int $id
  * @property int $observation_remediation_id
+ * @property int|null $unit_checklist_answer_id
  * @property string $path
  * @property string $disk
  * @property string|null $mime_type
@@ -19,6 +20,7 @@ class ObservationRemediationPhoto extends Model
 {
     protected $fillable = [
         'observation_remediation_id',
+        'unit_checklist_answer_id',
         'path',
         'disk',
         'mime_type',
@@ -29,6 +31,11 @@ class ObservationRemediationPhoto extends Model
     public function remediation(): BelongsTo
     {
         return $this->belongsTo(ObservationRemediation::class, 'observation_remediation_id');
+    }
+
+    public function answer(): BelongsTo
+    {
+        return $this->belongsTo(UnitChecklistAnswer::class, 'unit_checklist_answer_id');
     }
 
     public function uploader(): BelongsTo

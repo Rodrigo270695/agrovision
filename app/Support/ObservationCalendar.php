@@ -215,20 +215,54 @@ final class ObservationCalendar
                 'rejection_note' => $remediation?->rejection_note,
                 'submitted_at' => optional($remediation?->submitted_at)?->toIso8601String(),
                 'verified_at' => optional($remediation?->verified_at)?->toIso8601String(),
-                'photos' => ($remediation?->photos ?? collect())->map(fn ($photo) => [
-                    'id' => $photo->id,
-                    'url' => $photo->url(),
-                ])->values()->all(),
             ],
-            'observations' => $passInfo['grade'] === 'approved'
-                ? []
-                : ObservationRemediationSupport::observationItems($checklist, $pass),
+            'observations' => $this->observationsWithPhotos(
+                $checklist,
+                $pass,
+                $passInfo['grade'],
+                $remediation,
+            ),
             'can_submit' => $passInfo['grade'] === 'approved_notes'
                 && in_array($status, [ObservationRemediation::OPEN, ObservationRemediation::REJECTED], true),
             'can_verify' => $passInfo['grade'] === 'approved_notes'
                 && $status === ObservationRemediation::SUBMITTED
                 && $this->canVerify($checklist),
         ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function observationsWithPhotos(
+        UnitChecklist $checklist,
+        string $pass,
+        string $grade,
+        ?ObservationRemediation $remediation,
+    ): array {
+        if ($grade === 'approved') {
+            return [];
+        }
+
+        $photosByAnswer = ($remediation?->photos ?? collect())
+            ->groupBy(fn ($photo) => (int) ($photo->unit_checklist_answer_id ?? 0));
+
+        return collect(ObservationRemediationSupport::observationItems($checklist, $pass))
+            ->map(function (array $item) use ($photosByAnswer) {
+                $photos = $photosByAnswer->get((int) $item['id'], collect())
+                    ->map(fn ($photo) => [
+                        'id' => $photo->id,
+                        'url' => $photo->url(),
+                    ])
+                    ->values()
+                    ->all();
+
+                return [
+                    ...$item,
+                    'photos' => $photos,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     private function statusLabel(string $status, string $grade): string

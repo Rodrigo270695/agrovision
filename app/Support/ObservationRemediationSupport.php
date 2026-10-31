@@ -164,7 +164,9 @@ final class ObservationRemediationSupport
     }
 
     /**
-     * @return list<array{id: int, checklist_item_id: int, label: string, value: string|null, observations: string|null}>
+     * Solo ítems en NO del pass (paquete a levantar).
+     *
+     * @return list<array{id: int, checklist_item_id: int, label: string, item_number: mixed, value: string, observations: string|null}>
      */
     public static function observationItems(UnitChecklist $checklist, string $pass): array
     {
@@ -172,34 +174,19 @@ final class ObservationRemediationSupport
         $items = [];
 
         foreach ($checklist->answers as $answer) {
-            $value = $answer->{$field};
-            $text = trim((string) ($answer->observations ?? ''));
-            $isNo = $value === 'no';
-            $hasText = $text !== '';
-
-            if (! $isNo && ! $hasText) {
+            if ($answer->{$field} !== 'no') {
                 continue;
             }
+
+            $text = trim((string) ($answer->observations ?? ''));
 
             $items[] = [
                 'id' => $answer->id,
                 'checklist_item_id' => (int) $answer->checklist_item_id,
                 'label' => (string) ($answer->item?->label ?? 'Ítem'),
                 'item_number' => $answer->item?->item_number,
-                'value' => $value,
-                'observations' => $hasText ? $text : null,
-            ];
-        }
-
-        $additional = trim((string) ($checklist->additional_observations ?? ''));
-        if ($additional !== '') {
-            $items[] = [
-                'id' => 0,
-                'checklist_item_id' => 0,
-                'label' => 'Observaciones adicionales',
-                'item_number' => null,
-                'value' => null,
-                'observations' => $additional,
+                'value' => 'no',
+                'observations' => $text !== '' ? $text : null,
             ];
         }
 

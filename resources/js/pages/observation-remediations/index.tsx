@@ -36,6 +36,7 @@ type ObservationItem = {
     item_number?: string | number | null;
     value: string | null;
     observations: string | null;
+    photos?: { id: number; url: string | null }[];
 };
 
 type DayUnit = {
@@ -58,7 +59,6 @@ type DayUnit = {
         status_label: string;
         submit_note?: string | null;
         rejection_note?: string | null;
-        photos: { id: number; url: string | null }[];
     };
     observations: ObservationItem[];
     can_submit: boolean;
@@ -934,15 +934,11 @@ function RemediationDetailModal({
     canVerify: boolean;
     onClose: () => void;
 }) {
-    const submitForm = useForm<{
-        pass: string;
-        note: string;
-        photo: File | null;
-    }>({
-        pass: unit.pass,
-        note: '',
-        photo: null,
-    });
+    const [itemPhotos, setItemPhotos] = useState<Record<number, File | null>>(
+        {},
+    );
+    const [submitNote, setSubmitNote] = useState('');
+    const [sending, setSending] = useState(false);
 
     const verifyForm = useForm<{
         pass: string;
@@ -957,6 +953,33 @@ function RemediationDetailModal({
     const showSubmit = canSubmit && unit.can_submit;
     const showVerify = canVerify && unit.can_verify;
     const isRed = unit.tone === 'red';
+    const noItems = unit.observations;
+
+    const sendToInspector = () => {
+        const data = new FormData();
+        data.append('pass', unit.pass);
+        if (submitNote.trim() !== '') {
+            data.append('note', submitNote.trim());
+        }
+
+        for (const [answerId, file] of Object.entries(itemPhotos)) {
+            if (file) {
+                data.append(`photos[${answerId}]`, file);
+            }
+        }
+
+        router.post(
+            `/calendario-observaciones/${unit.checklist_id}/enviar`,
+            data,
+            {
+                forceFormData: true,
+                preserveScroll: true,
+                onStart: () => setSending(true),
+                onFinish: () => setSending(false),
+                onSuccess: () => onClose(),
+            },
+        );
+    };
 
     return (
         <AppModal
@@ -979,21 +1002,10 @@ function RemediationDetailModal({
                         <Button
                             type="button"
                             className="cursor-pointer rounded-xl bg-amber-500 text-white hover:bg-amber-600"
-                            disabled={submitForm.processing}
-                            onClick={() => {
-                                submitForm.post(
-                                    `/calendario-observaciones/${unit.checklist_id}/enviar`,
-                                    {
-                                        forceFormData: true,
-                                        preserveScroll: true,
-                                        onSuccess: () => onClose(),
-                                    },
-                                );
-                            }}
+                            disabled={sending}
+                            onClick={sendToInspector}
                         >
-                            {submitForm.processing
-                                ? 'Enviando…'
-                                : 'Enviar al inspector'}
+                            {sending ? 'Enviando…' : 'Enviar al inspector'}
                         </Button>
                     ) : null}
                     {showVerify ? (
@@ -1097,80 +1109,119 @@ function RemediationDetailModal({
 
                 <div>
                     <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-[#0f1f3a]">
-                        <ClipboardCheck className="size-4 text-amber-600" />
-                        Paquete de observaciones
+                        <XCircle className="size-4 text-rose-600" />
+                        Ítems en NO ({noItems.length})
                     </h3>
-                    {unit.observations.length === 0 ? (
+                    {noItems.length === 0 ? (
                         <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-500">
-                            Sin detalle de ítems. Quedó como aprobado con
-                            observaciones por el umbral Pareto.
+                            No hay ítems en NO. Puede ser un aprobado con
+                            observaciones por umbral Pareto sin respuestas NO.
                         </p>
                     ) : (
                         <ul className="space-y-2">
-                            {unit.observations.map((item) => (
-                                <li
-                                    key={`${item.id}-${item.checklist_item_id}`}
-                                    className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm"
-                                >
-                                    <div className="flex items-start gap-2">
-                                        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-semibold text-slate-800">
-                                                {item.item_number
-                                                    ? `${item.item_number}. `
-                                                    : ''}
-                                                {item.label}
-                                                {item.value === 'no' ? (
+                            {noItems.map((item) => {
+                                const pendingFile = itemPhotos[item.id] ?? null;
+                                const savedPhotos = item.photos ?? [];
+
+                                return (
+                                    <li
+                                        key={`${item.id}-${item.checklist_item_id}`}
+                                        className="rounded-xl border border-rose-200/80 bg-rose-50/30 px-3 py-2.5 shadow-sm"
+                                    >
+                                        <div className="flex items-start gap-2">
+                                            <XCircle className="mt-0.5 size-4 shrink-0 text-rose-600" />
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-sm font-semibold text-slate-800">
+                                                    {item.item_number
+                                                        ? `${item.item_number}. `
+                                                        : ''}
+                                                    {item.label}
                                                     <span className="ml-2 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
                                                         NO
                                                     </span>
-                                                ) : null}
-                                            </p>
-                                            {item.observations ? (
-                                                <p className="mt-0.5 text-xs leading-relaxed text-slate-600">
-                                                    {item.observations}
                                                 </p>
-                                            ) : null}
+                                                {item.observations ? (
+                                                    <p className="mt-0.5 text-xs leading-relaxed text-slate-600">
+                                                        {item.observations}
+                                                    </p>
+                                                ) : (
+                                                    <p className="mt-0.5 text-xs text-slate-400">
+                                                        Sin texto de observación
+                                                    </p>
+                                                )}
+
+                                                {savedPhotos.length > 0 ? (
+                                                    <div className="mt-2 flex flex-wrap gap-2">
+                                                        {savedPhotos.map(
+                                                            (photo) =>
+                                                                photo.url ? (
+                                                                    <a
+                                                                        key={
+                                                                            photo.id
+                                                                        }
+                                                                        href={
+                                                                            photo.url
+                                                                        }
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                        className="block overflow-hidden rounded-lg border border-slate-200"
+                                                                    >
+                                                                        <img
+                                                                            src={
+                                                                                photo.url
+                                                                            }
+                                                                            alt={`Evidencia ítem ${item.item_number ?? item.id}`}
+                                                                            className="h-16 w-16 object-cover"
+                                                                        />
+                                                                    </a>
+                                                                ) : null,
+                                                        )}
+                                                    </div>
+                                                ) : null}
+
+                                                {showSubmit ? (
+                                                    <label className="mt-2 flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-rose-300 bg-white px-2.5 py-2 text-xs text-slate-700 transition hover:bg-rose-50/50">
+                                                        <ImagePlus className="size-3.5 text-rose-600" />
+                                                        <span className="truncate">
+                                                            {pendingFile
+                                                                ? pendingFile.name
+                                                                : 'Foto de este ítem (opcional)'}
+                                                        </span>
+                                                        <input
+                                                            type="file"
+                                                            accept="image/jpeg,image/png,image/webp"
+                                                            className="hidden"
+                                                            onChange={(e) => {
+                                                                const file =
+                                                                    e.target
+                                                                        .files?.[0] ??
+                                                                    null;
+                                                                setItemPhotos(
+                                                                    (prev) => ({
+                                                                        ...prev,
+                                                                        [item.id]:
+                                                                            file,
+                                                                    }),
+                                                                );
+                                                            }}
+                                                        />
+                                                    </label>
+                                                ) : null}
+                                            </div>
                                         </div>
-                                    </div>
-                                </li>
-                            ))}
+                                    </li>
+                                );
+                            })}
                         </ul>
                     )}
-                    {!isRed ? (
+                    {showSubmit ? (
                         <p className="mt-2 text-xs text-slate-500">
-                            Al enviar, declaras el levantamiento de todo el
-                            paquete. El inspector confirma el 100 % SÍ.
+                            Sube evidencia por cada ítem en NO (opcional) y
+                            envía el paquete. El inspector confirma el 100 %
+                            SÍ.
                         </p>
                     ) : null}
                 </div>
-
-                {unit.remediation.photos.length > 0 ? (
-                    <div>
-                        <h3 className="mb-2 text-sm font-bold text-[#0f1f3a]">
-                            Evidencias
-                        </h3>
-                        <div className="flex flex-wrap gap-2">
-                            {unit.remediation.photos.map((photo) =>
-                                photo.url ? (
-                                    <a
-                                        key={photo.id}
-                                        href={photo.url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="block overflow-hidden rounded-xl border border-slate-200 shadow-sm transition hover:ring-2 hover:ring-[#1e4d8c]/30"
-                                    >
-                                        <img
-                                            src={photo.url}
-                                            alt="Evidencia del levantamiento"
-                                            className="h-24 w-24 object-cover"
-                                        />
-                                    </a>
-                                ) : null,
-                            )}
-                        </div>
-                    </div>
-                ) : null}
 
                 {unit.remediation.rejection_note ? (
                     <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-950">
@@ -1185,33 +1236,12 @@ function RemediationDetailModal({
                 {showSubmit ? (
                     <div className="space-y-3 rounded-2xl border border-amber-200/70 bg-amber-50/40 p-3">
                         <label className="block text-sm font-semibold text-slate-800">
-                            Nota para el inspector (opcional)
+                            Nota general para el inspector (opcional)
                             <textarea
                                 className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#1e4d8c] focus:ring-2 focus:ring-[#1e4d8c]/20"
                                 rows={2}
-                                value={submitForm.data.note}
-                                onChange={(e) =>
-                                    submitForm.setData('note', e.target.value)
-                                }
-                            />
-                        </label>
-                        <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-amber-300 bg-white px-3 py-3 text-sm text-slate-700 transition hover:bg-amber-50/60">
-                            <ImagePlus className="size-4 text-amber-600" />
-                            <span>
-                                {submitForm.data.photo
-                                    ? submitForm.data.photo.name
-                                    : 'Adjuntar foto (opcional)'}
-                            </span>
-                            <input
-                                type="file"
-                                accept="image/jpeg,image/png,image/webp"
-                                className="hidden"
-                                onChange={(e) =>
-                                    submitForm.setData(
-                                        'photo',
-                                        e.target.files?.[0] ?? null,
-                                    )
-                                }
+                                value={submitNote}
+                                onChange={(e) => setSubmitNote(e.target.value)}
                             />
                         </label>
                     </div>
@@ -1220,9 +1250,9 @@ function RemediationDetailModal({
                 {showVerify ? (
                     <div className="space-y-3 rounded-2xl border border-sky-200/80 bg-sky-50/50 p-3">
                         <p className="text-sm text-slate-600">
-                            Al aprobar, los ítems en NO pasan a SÍ y la
-                            inspección queda <strong>Aprobada</strong>, con
-                            historial de la observación.
+                            Revisa la evidencia de cada ítem. Al aprobar, los
+                            NO pasan a SÍ y la inspección queda{' '}
+                            <strong>Aprobada</strong>.
                         </p>
                         <label className="block text-sm font-semibold text-slate-800">
                             Nota (obligatoria si rechazas)

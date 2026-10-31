@@ -56,7 +56,8 @@ class ObservationRemediationController extends Controller
         $validated = $request->validate([
             'pass' => ['required', Rule::in(['first', 'second'])],
             'note' => ['nullable', 'string', 'max:2000'],
-            'photo' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:10240'],
+            'photos' => ['nullable', 'array'],
+            'photos.*' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:10240'],
         ]);
 
         $this->ensureCanAccessChecklist($checklist);
@@ -64,7 +65,7 @@ class ObservationRemediationController extends Controller
 
         $checklist->load([
             'answers.item',
-            'observationRemediations',
+            'observationRemediations.photos',
             'unit',
             'creator',
         ]);
@@ -77,6 +78,16 @@ class ObservationRemediationController extends Controller
             ]);
         }
 
+        $noItems = ObservationRemediationSupport::observationItems($checklist, $pass);
+        if ($noItems === []) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'No hay ítems en NO para levantar.',
+            ]);
+        }
+
+        $allowedAnswerIds = collect($noItems)->pluck('id')->map(fn ($id) => (int) $id)->all();
+
         $remediation = ObservationRemediationSupport::findOrCreate($checklist, $pass);
         if (! $remediation->canSubmit()) {
             return back()->with('toast', [
@@ -85,22 +96,44 @@ class ObservationRemediationController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($request, $validated, $remediation, $checklist, $pass) {
-            if ($request->hasFile('photo')) {
-                $file = $request->file('photo');
-                $path = $file->store(
-                    "observation-remediations/{$remediation->id}",
-                    'public',
-                );
+        DB::transaction(function () use ($request, $validated, $remediation, $checklist, $pass, $noItems, $allowedAnswerIds) {
+            $uploadedFor = [];
+            $photoFiles = $request->file('photos', []);
 
-                ObservationRemediationPhoto::query()->create([
-                    'observation_remediation_id' => $remediation->id,
-                    'path' => $path,
-                    'disk' => 'public',
-                    'mime_type' => $file->getMimeType(),
-                    'size' => $file->getSize(),
-                    'uploaded_by' => Auth::id(),
-                ]);
+            if (is_array($photoFiles)) {
+                foreach ($photoFiles as $answerId => $file) {
+                    $answerId = (int) $answerId;
+                    if ($file === null || ! in_array($answerId, $allowedAnswerIds, true)) {
+                        continue;
+                    }
+
+                    $previous = ObservationRemediationPhoto::query()
+                        ->where('observation_remediation_id', $remediation->id)
+                        ->where('unit_checklist_answer_id', $answerId)
+                        ->get();
+
+                    foreach ($previous as $old) {
+                        Storage::disk($old->disk ?: 'public')->delete($old->path);
+                        $old->delete();
+                    }
+
+                    $path = $file->store(
+                        "observation-remediations/{$remediation->id}/answers/{$answerId}",
+                        'public',
+                    );
+
+                    ObservationRemediationPhoto::query()->create([
+                        'observation_remediation_id' => $remediation->id,
+                        'unit_checklist_answer_id' => $answerId,
+                        'path' => $path,
+                        'disk' => 'public',
+                        'mime_type' => $file->getMimeType(),
+                        'size' => $file->getSize(),
+                        'uploaded_by' => Auth::id(),
+                    ]);
+
+                    $uploadedFor[] = $answerId;
+                }
             }
 
             $remediation->update([
@@ -119,10 +152,8 @@ class ObservationRemediationController extends Controller
                 [
                     'pass' => $pass,
                     'plate' => $checklist->plate_number,
-                    'has_photo' => $request->hasFile('photo'),
-                    'observations_count' => count(
-                        ObservationRemediationSupport::observationItems($checklist, $pass),
-                    ),
+                    'photo_answer_ids' => $uploadedFor,
+                    'observations_count' => count($noItems),
                 ],
             );
         });
