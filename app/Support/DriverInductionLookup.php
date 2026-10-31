@@ -181,48 +181,35 @@ final class DriverInductionLookup
     }
 
     /**
+     * Compara cada conductor contra el catálogo completo de tipos (no solo el lote buscado).
+     *
      * @param  list<array<string, mixed>>  $rows
      * @return list<array<string, mixed>>
      */
     private function withMissing(array $rows): array
     {
-        $typeCatalog = collect($rows)
-            ->flatMap(fn (array $row) => collect($row['inductions'])->map(function (array $induction) {
-                $slug = trim((string) ($induction['induction_type'] ?? ''));
-
-                if ($slug !== '' && InductionTypeCatalog::exists($slug)) {
-                    return $slug;
-                }
-
-                return InductionTypeCatalog::resolveFromTitle((string) ($induction['title'] ?? ''))
-                    ?? mb_strtolower(trim((string) ($induction['title'] ?? '')));
-            }))
-            ->filter()
-            ->unique()
+        $typeCatalog = collect(InductionTypeCatalog::all())
+            ->keys()
             ->values();
 
         foreach ($rows as $index => $row) {
-            $haveTypes = collect($row['inductions'])->map(function (array $induction) {
-                $slug = trim((string) ($induction['induction_type'] ?? ''));
-
-                if ($slug !== '' && InductionTypeCatalog::exists($slug)) {
-                    return $slug;
-                }
-
-                return InductionTypeCatalog::resolveFromTitle((string) ($induction['title'] ?? ''))
-                    ?? mb_strtolower(trim((string) ($induction['title'] ?? '')));
-            })->filter();
+            $haveTypes = collect($row['inductions'])
+                ->map(fn (array $induction) => $this->inductionTypeKey($induction))
+                ->filter()
+                ->unique()
+                ->values();
 
             $missing = $typeCatalog
                 ->reject(fn (string $type) => $haveTypes->contains($type))
-                ->map(fn (string $type) => InductionTypeCatalog::exists($type)
-                    ? InductionTypeCatalog::title($type)
-                    : $type)
-                ->unique()
+                ->map(fn (string $type) => InductionTypeCatalog::title($type))
                 ->values()
                 ->all();
 
             $rows[$index]['missing'] = $missing;
+            $rows[$index]['missing_types'] = $typeCatalog
+                ->reject(fn (string $type) => $haveTypes->contains($type))
+                ->values()
+                ->all();
             $rows[$index]['badges'] = $this->badges(
                 $row['inductions'],
                 (bool) $row['found'],
@@ -231,6 +218,20 @@ final class DriverInductionLookup
         }
 
         return $rows;
+    }
+
+    /**
+     * @param  array<string, mixed>  $induction
+     */
+    private function inductionTypeKey(array $induction): ?string
+    {
+        $slug = trim((string) ($induction['induction_type'] ?? ''));
+
+        if ($slug !== '' && InductionTypeCatalog::exists($slug)) {
+            return $slug;
+        }
+
+        return InductionTypeCatalog::resolveFromTitle((string) ($induction['title'] ?? ''));
     }
 
     /**

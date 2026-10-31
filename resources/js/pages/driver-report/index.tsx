@@ -13,6 +13,7 @@ import {
 } from '@/components/inductions/induction-form-modal';
 import type {
     InductionFormOptions,
+    InductionTypeOption,
     PeriodOption,
 } from '@/components/inductions/induction-form-fields';
 import InputError from '@/components/input-error';
@@ -58,6 +59,7 @@ type DriverRow = {
     plate: string;
     inductions: InductionRow[];
     missing: string[];
+    missing_types?: string[];
     badges: Badge[];
 };
 
@@ -226,54 +228,51 @@ function buildGroups(rows: DriverRow[]): DownloadGroup[] {
     });
 }
 
-function buildGaps(rows: DriverRow[]): GapRow[] {
-    const topics = new Map<
-        string,
-        {
-            title: string;
-            induction_type?: string | null;
-            activity: string;
-            activity_label: string;
+function driverHasType(row: DriverRow, typeSlug: string): boolean {
+    if ((row.missing_types ?? []).includes(typeSlug)) {
+        return false;
+    }
+
+    return row.inductions.some((induction) => {
+        const slug = (induction.induction_type ?? '').trim();
+
+        if (slug !== '') {
+            return slug === typeSlug;
         }
-    >();
 
-    rows.forEach((row) => {
-        row.inductions.forEach((induction) => {
-            const key = inductionTopicKey(induction);
-
-            if (!key || key === 'title:' || topics.has(key)) {
-                return;
-            }
-
-            topics.set(key, {
-                title: induction.title.trim(),
-                induction_type: induction.induction_type ?? null,
-                activity: induction.activity,
-                activity_label: induction.activity_label,
-            });
-        });
+        return inductionTopicKey(induction) === `type:${typeSlug}`;
     });
+}
 
-    return [...topics.entries()]
-        .map(([key, topic]) => ({
-            key,
-            ...topic,
+function buildGaps(
+    rows: DriverRow[],
+    catalogTypes: InductionTypeOption[],
+): GapRow[] {
+    if (catalogTypes.length === 0) {
+        return [];
+    }
+
+    return catalogTypes
+        .map((type) => ({
+            key: `type:${type.value}`,
+            title: type.label,
+            induction_type: type.value,
+            activity: type.activity,
+            activity_label:
+                type.activity === 'induccion'
+                    ? 'Inducción'
+                    : type.activity === 'capacitacion'
+                      ? 'Capacitación'
+                      : type.activity,
             drivers: rows
-                .filter(
-                    (row) =>
-                        !row.inductions.some(
-                            (induction) => inductionTopicKey(induction) === key,
-                        ),
-                )
+                .filter((row) => !driverHasType(row, type.value))
                 .map((row) => ({
                     dni: row.key,
                     name: row.driver_name || row.dni,
                 })),
         }))
         .filter((gap) => gap.drivers.length > 0)
-        .sort((left, right) =>
-            left.title.localeCompare(right.title, 'es'),
-        );
+        .sort((left, right) => left.title.localeCompare(right.title, 'es'));
 }
 
 export default function DriverReportPage({
@@ -302,8 +301,11 @@ export default function DriverReportPage({
         [rows, filter],
     );
     const gaps = useMemo(
-        () => buildGaps(rows).filter((item) => !doneGapKeys.includes(item.key)),
-        [rows, doneGapKeys],
+        () =>
+            buildGaps(rows, formOptions?.types ?? []).filter(
+                (item) => !doneGapKeys.includes(item.key),
+            ),
+        [rows, doneGapKeys, formOptions?.types],
     );
     const canComplete = can('inductions.create');
 
@@ -841,7 +843,7 @@ export default function DriverReportPage({
             >
                 {gaps.length === 0 ? (
                     <p className="text-sm text-[#5a7390]">
-                        En este grupo no hay temas pendientes.
+                        Todos tienen los tipos del catálogo.
                     </p>
                 ) : (
                     <ul className="space-y-2">
@@ -1017,8 +1019,7 @@ function Detail({
                 </h3>
                 {(row.missing ?? []).length === 0 ? (
                     <p className="mt-2 text-sm text-[#5a7390]">
-                        En este grupo no le falta una actividad que los demás
-                        sí tienen.
+                        Tiene todos los tipos del catálogo.
                     </p>
                 ) : (
                     <ul className="mt-2 flex flex-wrap gap-1.5">
