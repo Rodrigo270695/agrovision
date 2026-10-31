@@ -2,7 +2,9 @@
 
 namespace App\Support;
 
+use App\Models\Driver;
 use App\Models\DriverBiometric;
+use App\Models\Induction;
 use App\Models\InductionAttendee;
 use App\Models\Unit;
 use Illuminate\Support\Collection;
@@ -10,7 +12,7 @@ use Illuminate\Support\Collection;
 final class InductionQuickComplete
 {
     /**
-     * Conductores con firma+huella que aún no tienen el tipo (vigencia 1 año).
+     * Solo activos + firma/huella + sin ese tipo (como el Excel de faltantes).
      *
      * @return list<array{
      *   key: string,
@@ -28,48 +30,41 @@ final class InductionQuickComplete
             return [];
         }
 
-        $biometrics = DriverBiometric::query()
-            ->whereNotNull('signature_path')
-            ->where('signature_path', '!=', '')
-            ->whereNotNull('fingerprint_path')
-            ->where('fingerprint_path', '!=', '')
-            ->orderByDesc('id')
-            ->get();
+        $activeUnits = self::activeUnitsByDni();
 
-        if ($biometrics->isEmpty()) {
+        if ($activeUnits->isEmpty()) {
             return [];
         }
 
         $covered = self::coveredDnis($typeSlug);
-        $units = self::unitsByDni(
-            $biometrics->pluck('dni')->filter()->map(fn ($dni) => (string) $dni)->unique()->values()->all(),
-        );
+        $biometrics = self::biometricsByDni($activeUnits->keys()->all());
 
         $rows = [];
-        $seen = [];
 
-        foreach ($biometrics as $bio) {
-            $dni = DriverBiometrics::digits($bio->dni);
-
-            if ($dni === '' || isset($seen[$dni]) || isset($covered[$dni])) {
+        foreach ($activeUnits as $dni => $unit) {
+            if (isset($covered[$dni])) {
                 continue;
             }
 
-            $unit = $units->get($dni);
-            $name = trim((string) ($unit?->driver_name ?: $bio->driver_name ?: ''));
+            $bio = $biometrics->get($dni);
+
+            if ($bio === null) {
+                continue;
+            }
+
+            $name = trim((string) $unit->driver_name);
 
             if ($name === '') {
                 continue;
             }
 
-            $seen[$dni] = true;
             $rows[] = [
                 'key' => $dni,
                 'dni' => $dni,
                 'name' => $name,
-                'plate' => $unit?->plate_number,
-                'provider' => $unit?->provider,
-                'unit_id' => $unit?->id,
+                'plate' => $unit->plate_number,
+                'provider' => $unit->provider,
+                'unit_id' => $unit->id,
                 'biometric_id' => $bio->id,
             ];
         }
@@ -80,36 +75,155 @@ final class InductionQuickComplete
     }
 
     /**
-     * DNIs que ya tienen el tipo en el último año (inscritos o asistieron).
+     * Última unidad activa por DNI (periodo activo y no inactive).
+     *
+     * @return Collection<string, Unit>
+     */
+    private static function activeUnitsByDni(): Collection
+    {
+        $units = Unit::query()
+            ->with(['period:id,status'])
+            ->whereNotNull('driver_dni')
+            ->where('driver_dni', '!=', '')
+            ->whereNotNull('driver_name')
+            ->where('driver_name', '!=', '')
+            ->where(function ($query): void {
+                $query->whereNull('status')->orWhere('status', '!=', 'inactive');
+            })
+            ->whereHas('period', fn ($period) => $period->where('status', 'active'))
+            ->orderByDesc('id')
+            ->get([
+                'id',
+                'period_id',
+                'driver_name',
+                'driver_dni',
+                'plate_number',
+                'provider',
+                'status',
+            ]);
+
+        if ($units->isEmpty()) {
+            return collect();
+        }
+
+        $catalog = self::driverCatalog($units);
+        $byDni = collect();
+
+        foreach ($units as $unit) {
+            $dni = DriverBiometrics::digits($unit->driver_dni);
+
+            if ($dni === '' || $byDni->has($dni)) {
+                continue;
+            }
+
+            if (! self::isActiveUnit($unit, $catalog)) {
+                continue;
+            }
+
+            $byDni->put($dni, $unit);
+        }
+
+        return $byDni;
+    }
+
+    /**
+     * @param  Collection<int, Unit>  $units
+     * @return Collection<string, Driver>
+     */
+    private static function driverCatalog(Collection $units): Collection
+    {
+        $periodIds = $units->pluck('period_id')->unique()->filter()->values()->all();
+
+        if ($periodIds === []) {
+            return collect();
+        }
+
+        return Driver::query()
+            ->whereIn('period_id', $periodIds)
+            ->get()
+            ->keyBy(fn (Driver $driver): string => $driver->period_id.'|'.$driver->identity_key);
+    }
+
+    /**
+     * @param  Collection<string, Driver>  $catalog
+     */
+    private static function isActiveUnit(Unit $unit, Collection $catalog): bool
+    {
+        if ((string) $unit->status === 'inactive') {
+            return false;
+        }
+
+        $identity = DriverIdentity::key($unit->driver_dni, $unit->driver_name);
+        $record = $identity
+            ? $catalog->get($unit->period_id.'|'.$identity)
+            : null;
+
+        if ($record !== null) {
+            return $record->status === 'active';
+        }
+
+        return $unit->period?->status === 'active';
+    }
+
+    /**
+     * @param  list<string>  $dnis
+     * @return Collection<string, DriverBiometric>
+     */
+    private static function biometricsByDni(array $dnis): Collection
+    {
+        if ($dnis === []) {
+            return collect();
+        }
+
+        return DriverBiometric::query()
+            ->whereIn('dni', $dnis)
+            ->whereNotNull('signature_path')
+            ->where('signature_path', '!=', '')
+            ->whereNotNull('fingerprint_path')
+            ->where('fingerprint_path', '!=', '')
+            ->orderByDesc('id')
+            ->get()
+            ->unique(fn (DriverBiometric $bio) => DriverBiometrics::digits($bio->dni))
+            ->keyBy(fn (DriverBiometric $bio) => DriverBiometrics::digits($bio->dni));
+    }
+
+    /**
+     * DNIs que ya tienen el tipo (inscritos o asistieron), por slug o título histórico.
      *
      * @return array<string, true>
      */
     public static function coveredDnis(string $typeSlug): array
     {
-        $cutoff = now()->subYear()->startOfDay()->toDateString();
+        $inductionIds = Induction::query()
+            ->where('status', '!=', InductionStatuses::CANCELLED)
+            ->where('induction_type', $typeSlug)
+            ->pluck('id');
+
+        $legacy = Induction::query()
+            ->where('status', '!=', InductionStatuses::CANCELLED)
+            ->where(function ($query): void {
+                $query->whereNull('induction_type')->orWhere('induction_type', '');
+            })
+            ->get(['id', 'title']);
+
+        foreach ($legacy as $induction) {
+            if (InductionTypeCatalog::resolveFromTitle((string) $induction->title) === $typeSlug) {
+                $inductionIds->push($induction->id);
+            }
+        }
+
+        $inductionIds = $inductionIds->unique()->values();
+
+        if ($inductionIds->isEmpty()) {
+            return [];
+        }
 
         $attendees = InductionAttendee::query()
+            ->whereIn('induction_id', $inductionIds)
             ->whereIn('status', [
                 InductionAttendeeStatuses::REGISTERED,
                 InductionAttendeeStatuses::ATTENDED,
             ])
-            ->whereHas('induction', function ($query) use ($typeSlug, $cutoff): void {
-                $query
-                    ->where('induction_type', $typeSlug)
-                    ->where('status', '!=', InductionStatuses::CANCELLED)
-                    ->where(function ($dates) use ($cutoff): void {
-                        $dates->whereDate('session_date', '>=', $cutoff)
-                            ->orWhere(function ($fallback) use ($cutoff): void {
-                                $fallback->whereNull('session_date')
-                                    ->whereDate('scheduled_at', '>=', $cutoff);
-                            })
-                            ->orWhere(function ($created) use ($cutoff): void {
-                                $created->whereNull('session_date')
-                                    ->whereNull('scheduled_at')
-                                    ->whereDate('created_at', '>=', $cutoff);
-                            });
-                    });
-            })
             ->get(['driver_dni']);
 
         $covered = [];
@@ -123,32 +237,5 @@ final class InductionQuickComplete
         }
 
         return $covered;
-    }
-
-    /**
-     * @param  list<string>  $dnis
-     * @return Collection<string, Unit>
-     */
-    private static function unitsByDni(array $dnis): Collection
-    {
-        if ($dnis === []) {
-            return collect();
-        }
-
-        $placeholders = implode(', ', array_fill(0, count($dnis), '?'));
-
-        return Unit::query()
-            ->whereNotNull('driver_dni')
-            ->where(function ($query): void {
-                $query->where('status', 'active')->orWhereNull('status');
-            })
-            ->whereRaw(
-                "regexp_replace(coalesce(driver_dni, ''), '[^0-9]', '', 'g') in ({$placeholders})",
-                $dnis,
-            )
-            ->orderByDesc('id')
-            ->get(['id', 'driver_name', 'driver_dni', 'plate_number', 'provider', 'status'])
-            ->unique(fn (Unit $unit) => DriverBiometrics::digits($unit->driver_dni))
-            ->keyBy(fn (Unit $unit) => DriverBiometrics::digits($unit->driver_dni));
     }
 }
