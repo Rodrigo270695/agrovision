@@ -92,22 +92,13 @@ final class ObservationCalendar
             $red = count(array_filter($grades, fn ($g) => $g === 'rejected'));
             $green = count(array_filter($grades, fn ($g) => $g === 'approved'));
 
-            $label = null;
-            if ($tone === ObservationRemediationSupport::TONE_AMBER) {
-                $label = $amber === 1 ? '1 obs.' : "{$amber} obs.";
-            } elseif ($tone === ObservationRemediationSupport::TONE_RED) {
-                $label = $red === 1 ? '1 desap.' : "{$red} desap.";
-            } elseif ($tone === ObservationRemediationSupport::TONE_GREEN && $green > 0) {
-                $label = 'OK';
-            }
-
             $days[] = [
                 'date' => $date,
                 'tone' => $tone,
                 'amber' => $amber,
                 'red' => $red,
                 'green' => $green,
-                'label' => $label,
+                'label' => self::dayLabel($green, $amber, $red),
             ];
         }
 
@@ -119,7 +110,7 @@ final class ObservationCalendar
     }
 
     /**
-     * Unidades con acción (ámbar/rojo). Verde → lista vacía.
+     * Unidades del día: aprobadas, c/ obs. y desaprobadas.
      *
      * @return list<array<string, mixed>>
      */
@@ -144,7 +135,7 @@ final class ObservationCalendar
         $rows = [];
 
         foreach ($checklists as $checklist) {
-            foreach (ObservationRemediationSupport::actionablePasses($checklist) as $passInfo) {
+            foreach (ObservationRemediationSupport::listedPasses($checklist) as $passInfo) {
                 if ($passInfo['date'] !== $date) {
                     continue;
                 }
@@ -153,7 +144,30 @@ final class ObservationCalendar
             }
         }
 
+        usort($rows, function (array $a, array $b) {
+            $order = ['red' => 0, 'amber' => 1, 'green' => 2];
+
+            return ($order[$a['tone']] ?? 9) <=> ($order[$b['tone']] ?? 9)
+                ?: strcmp((string) $a['plate_number'], (string) $b['plate_number']);
+        });
+
         return $rows;
+    }
+
+    private static function dayLabel(int $green, int $amber, int $red): ?string
+    {
+        $parts = [];
+        if ($green > 0) {
+            $parts[] = "{$green} OK";
+        }
+        if ($amber > 0) {
+            $parts[] = "{$amber} obs.";
+        }
+        if ($red > 0) {
+            $parts[] = "{$red} desap.";
+        }
+
+        return $parts === [] ? null : implode(' · ', $parts);
     }
 
     /**
@@ -167,11 +181,11 @@ final class ObservationCalendar
             ->firstWhere('inspection_pass', $pass);
 
         $status = $remediation?->status ?? ObservationRemediation::OPEN;
-        if ($passInfo['grade'] === 'rejected') {
-            $tone = 'red';
-        } else {
-            $tone = 'amber';
-        }
+        $tone = match ($passInfo['grade']) {
+            'rejected' => 'red',
+            'approved' => 'green',
+            default => 'amber',
+        };
 
         return [
             'checklist_id' => $checklist->id,
@@ -182,6 +196,7 @@ final class ObservationCalendar
             'grade_label' => match ($passInfo['grade']) {
                 'rejected' => 'Desaprobado',
                 'approved_notes' => 'Aprobado c/ obs.',
+                'approved' => 'Aprobado',
                 default => $passInfo['grade'],
             },
             'percent' => $passInfo['percent'],
@@ -205,7 +220,9 @@ final class ObservationCalendar
                     'url' => $photo->url(),
                 ])->values()->all(),
             ],
-            'observations' => ObservationRemediationSupport::observationItems($checklist, $pass),
+            'observations' => $passInfo['grade'] === 'approved'
+                ? []
+                : ObservationRemediationSupport::observationItems($checklist, $pass),
             'can_submit' => $passInfo['grade'] === 'approved_notes'
                 && in_array($status, [ObservationRemediation::OPEN, ObservationRemediation::REJECTED], true),
             'can_verify' => $passInfo['grade'] === 'approved_notes'
@@ -218,6 +235,12 @@ final class ObservationCalendar
     {
         if ($grade === 'rejected') {
             return 'Desaprobado';
+        }
+
+        if ($grade === 'approved') {
+            return $status === ObservationRemediation::VERIFIED
+                ? 'Aprobado (obs. levantada)'
+                : 'Aprobado';
         }
 
         return match ($status) {

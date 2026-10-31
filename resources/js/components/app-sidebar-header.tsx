@@ -4,6 +4,7 @@ import {
     InspectionEditApprovals,
     InspectionEditGrants,
 } from '@/components/checklists/inspection-edit-approvals';
+import { ObservationInbox } from '@/components/observation-remediations/observation-inbox';
 import { PushNotificationPrompt } from '@/components/push/push-notification-prompt';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
@@ -54,6 +55,7 @@ export function AppSidebarHeader({
                     <>
                         <InspectionEditApprovals />
                         <InspectionEditGrants />
+                        <ObservationInbox />
                         <PushNotificationPrompt />
                     </>
                 )}

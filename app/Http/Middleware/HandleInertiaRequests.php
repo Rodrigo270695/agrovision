@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\InspectionEditRequest;
+use App\Models\ObservationRemediation;
 use App\Models\TenantSetting;
 use App\Support\SystemRoles;
 use Illuminate\Http\Request;
@@ -148,6 +149,9 @@ class HandleInertiaRequests extends Middleware
                     ])->values(),
                 ];
             },
+            'observationInbox' => function () use ($user, $isTenant) {
+                return $this->observationInbox($user, $isTenant);
+            },
             'push' => function () use ($user, $isTenant) {
                 $publicKey = config('webpush.vapid.public_key');
                 $canUse = $isTenant && $user && SystemRoles::currentCanUsePush();
@@ -177,5 +181,98 @@ class HandleInertiaRequests extends Middleware
         return $user->getAllPermissions()->contains(
             fn ($permission) => $permission->name === 'checklists.authorize_edit',
         );
+    }
+
+    /**
+     * @return array{count: int, items: list<array<string, mixed>>}|null
+     */
+    private function observationInbox(mixed $user, bool $isTenant): ?array
+    {
+        $empty = ['count' => 0, 'items' => []];
+
+        if (
+            ! $isTenant
+            || ! $user
+            || ! Schema::hasTable('observation_remediations')
+        ) {
+            return null;
+        }
+
+        $canVerify = method_exists($user, 'can')
+            && $user->can('observation_remediations.verify');
+        $canSubmit = method_exists($user, 'can')
+            && $user->can('observation_remediations.submit');
+        $isSuper = method_exists($user, 'hasRole')
+            && $user->hasRole(SystemRoles::SUPERADMIN);
+
+        if (! $canVerify && ! $canSubmit && ! $isSuper) {
+            return null;
+        }
+
+        $query = ObservationRemediation::query()
+            ->with([
+                'checklist:id,plate_number,driver_name,first_inspected_on,second_inspected_on,created_by,unit_id',
+                'checklist.unit:id,coordinator_id',
+                'submitter:id,name',
+                'verifier:id,name',
+            ])
+            ->where(function ($builder) use ($user, $canVerify, $canSubmit, $isSuper) {
+                if ($canVerify || $isSuper) {
+                    $builder->orWhere(function ($q) use ($user, $isSuper) {
+                        $q->where('status', ObservationRemediation::SUBMITTED);
+                        if (! $isSuper) {
+                            $q->where('inspector_id', $user->id);
+                        }
+                    });
+                }
+
+                if ($canSubmit || $isSuper) {
+                    $builder->orWhere(function ($q) use ($user, $isSuper) {
+                        $q->where('status', ObservationRemediation::REJECTED);
+                        if (! $isSuper && SystemRoles::currentIsScopedCoordinator()) {
+                            $q->whereHas(
+                                'checklist.unit',
+                                fn ($unit) => $unit->where('coordinator_id', $user->id),
+                            );
+                        }
+                    });
+                }
+            })
+            ->latest('id')
+            ->limit(15)
+            ->get();
+
+        $items = $query->map(function (ObservationRemediation $row) {
+            $pass = $row->inspection_pass === 'second' ? 'second' : 'first';
+            $date = $pass === 'second'
+                ? $row->checklist?->second_inspected_on
+                : $row->checklist?->first_inspected_on;
+
+            $kind = $row->status === ObservationRemediation::REJECTED
+                ? 'rejected'
+                : 'submitted';
+
+            return [
+                'id' => $row->id,
+                'checklist_id' => $row->unit_checklist_id,
+                'pass' => $pass,
+                'pass_label' => $pass === 'second' ? '2da inspección' : '1ra inspección',
+                'plate_number' => $row->checklist?->plate_number,
+                'driver_name' => $row->checklist?->driver_name,
+                'kind' => $kind,
+                'status_label' => $kind === 'rejected'
+                    ? 'Levantamiento rechazado'
+                    : 'Pendiente de verificar',
+                'date' => $date?->toDateString(),
+                'from_name' => $kind === 'rejected'
+                    ? ($row->verifier?->name)
+                    : ($row->submitter?->name),
+            ];
+        })->values()->all();
+
+        return [
+            'count' => count($items),
+            'items' => $items,
+        ];
     }
 }

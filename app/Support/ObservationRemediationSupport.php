@@ -84,6 +84,19 @@ final class ObservationRemediationSupport
      */
     public static function actionablePasses(UnitChecklist $checklist): array
     {
+        return array_values(array_filter(
+            self::listedPasses($checklist),
+            fn (array $row) => in_array($row['grade'], ['rejected', 'approved_notes'], true),
+        ));
+    }
+
+    /**
+     * Incluye aprobadas, c/ obs. y desaprobadas (para calendario y detalle del día).
+     *
+     * @return list<array{pass: string, date: string, grade: string, percent: float, has_no: bool}>
+     */
+    public static function listedPasses(UnitChecklist $checklist): array
+    {
         $out = [];
 
         foreach (['first', 'second'] as $pass) {
@@ -96,24 +109,26 @@ final class ObservationRemediationSupport
             }
 
             $snap = self::passSnapshot($checklist, $pass);
-            if (! in_array($snap['grade'], ['rejected', 'approved_notes'], true)) {
-                continue;
-            }
-
             $remediation = $checklist->relationLoaded('observationRemediations')
                 ? $checklist->observationRemediations->firstWhere('inspection_pass', $pass)
                 : null;
 
-            if ($snap['grade'] === 'approved_notes'
+            $grade = $snap['grade'];
+
+            if ($grade === 'approved_notes'
                 && $remediation?->status === ObservationRemediation::VERIFIED
             ) {
+                $grade = 'approved';
+            }
+
+            if (! in_array($grade, ['rejected', 'approved_notes', 'approved'], true)) {
                 continue;
             }
 
             $out[] = [
                 'pass' => $pass,
                 'date' => Carbon::parse($date)->toDateString(),
-                'grade' => $snap['grade'],
+                'grade' => $grade,
                 'percent' => $snap['percent'],
                 'has_no' => $snap['has_no'],
             ];
@@ -128,11 +143,20 @@ final class ObservationRemediationSupport
             return self::TONE_NONE;
         }
 
-        if (in_array('rejected', $grades, true)) {
+        $hasRed = in_array('rejected', $grades, true);
+        $hasAmber = in_array('approved_notes', $grades, true);
+        $hasGreen = in_array('approved', $grades, true);
+        $kinds = (int) $hasRed + (int) $hasAmber + (int) $hasGreen;
+
+        if ($kinds > 1) {
+            return 'mixed';
+        }
+
+        if ($hasRed) {
             return self::TONE_RED;
         }
 
-        if (in_array('approved_notes', $grades, true)) {
+        if ($hasAmber) {
             return self::TONE_AMBER;
         }
 

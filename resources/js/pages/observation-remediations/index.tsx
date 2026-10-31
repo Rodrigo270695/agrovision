@@ -18,10 +18,11 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { AppModal } from '@/components/shared/app-modal';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { dashboard } from '@/routes';
 
 type DayCell = {
     date: string;
-    tone: 'none' | 'green' | 'amber' | 'red';
+    tone: 'none' | 'green' | 'amber' | 'red' | 'mixed';
     amber: number;
     red: number;
     green: number;
@@ -41,7 +42,7 @@ type DayUnit = {
     checklist_id: number;
     pass: 'first' | 'second';
     pass_label: string;
-    tone: 'amber' | 'red';
+    tone: 'amber' | 'red' | 'green';
     grade: string;
     grade_label: string;
     percent: number;
@@ -172,6 +173,9 @@ function formatDateLabel(iso: string) {
 }
 
 function actionLabel(unit: DayUnit) {
+    if (unit.tone === 'green') {
+        return 'Ver';
+    }
     if (unit.tone === 'red') {
         return 'Ver detalle';
     }
@@ -219,7 +223,8 @@ export default function ObservationRemediationsPage() {
     const daySummary = useMemo(() => {
         const amber = day_units.filter((u) => u.tone === 'amber').length;
         const red = day_units.filter((u) => u.tone === 'red').length;
-        return { amber, red };
+        const green = day_units.filter((u) => u.tone === 'green').length;
+        return { amber, red, green };
     }, [day_units]);
 
     const shiftMonth = (delta: number) => {
@@ -426,7 +431,7 @@ export default function ObservationRemediationsPage() {
                                         aria-pressed={Boolean(selected)}
                                         aria-label={
                                             slot.inMonth && slot.cell
-                                                ? `${slot.day} de ${MONTHS[calendar.month - 1]}${slot.cell.label ? `, ${slot.cell.label}` : ''}`
+                                                ? `${slot.day} de ${MONTHS[calendar.month - 1]}${slot.cell.label ? `: ${slot.cell.label}` : ''}`
                                                 : undefined
                                         }
                                         onClick={() => {
@@ -477,30 +482,36 @@ export default function ObservationRemediationsPage() {
                                             >
                                                 {slot.day}
                                             </span>
-                                            {slot.inMonth && tone !== 'none' ? (
-                                                <span
-                                                    aria-hidden
-                                                    className={cn(
-                                                        'mt-1 size-2 rounded-full',
-                                                        toneDot(tone),
-                                                    )}
-                                                />
+                                            {slot.inMonth &&
+                                            slot.cell &&
+                                            (slot.cell.green > 0 ||
+                                                slot.cell.amber > 0 ||
+                                                slot.cell.red > 0) ? (
+                                                <span className="mt-1 flex items-center gap-0.5">
+                                                    {slot.cell.green > 0 ? (
+                                                        <span
+                                                            aria-hidden
+                                                            className="size-1.5 rounded-full bg-emerald-500"
+                                                        />
+                                                    ) : null}
+                                                    {slot.cell.amber > 0 ? (
+                                                        <span
+                                                            aria-hidden
+                                                            className="size-1.5 rounded-full bg-amber-500"
+                                                        />
+                                                    ) : null}
+                                                    {slot.cell.red > 0 ? (
+                                                        <span
+                                                            aria-hidden
+                                                            className="size-1.5 rounded-full bg-rose-500"
+                                                        />
+                                                    ) : null}
+                                                </span>
                                             ) : null}
                                         </div>
 
-                                        {slot.inMonth && slot.cell?.label ? (
-                                            <div
-                                                className={cn(
-                                                    'mt-2 truncate rounded-lg px-1.5 py-1 text-[10px] font-semibold sm:mt-3 sm:px-2 sm:text-[11px]',
-                                                    chipClasses(tone),
-                                                )}
-                                            >
-                                                {slot.cell.label}
-                                            </div>
-                                        ) : slot.inMonth ? (
-                                            <div className="mt-3 hidden text-[10px] text-slate-400 sm:block">
-                                                —
-                                            </div>
+                                        {slot.inMonth && slot.cell ? (
+                                            <DayCountChips cell={slot.cell} />
                                         ) : null}
                                     </button>
                                 );
@@ -528,8 +539,8 @@ export default function ObservationRemediationsPage() {
                                         aria-atomic="true"
                                     >
                                         {day_units.length === 0
-                                            ? 'Sin unidades pendientes. Día en verde o sin acciones.'
-                                            : `${day_units.length} unidad(es): ${daySummary.amber} con obs. · ${daySummary.red} desaprobadas`}
+                                            ? 'Sin inspecciones registradas este día.'
+                                            : `${day_units.length} unidad(es): ${daySummary.green} OK · ${daySummary.amber} obs. · ${daySummary.red} desap.`}
                                     </p>
                                 </div>
                                 <Button
@@ -550,16 +561,16 @@ export default function ObservationRemediationsPage() {
 
                             {day_units.length === 0 ? (
                                 <div className="flex flex-col items-center gap-3 px-4 py-14 text-center">
-                                    <div className="flex size-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
-                                        <CheckCircle2 className="size-7" />
+                                    <div className="flex size-14 items-center justify-center rounded-2xl bg-slate-50 text-slate-400 ring-1 ring-slate-100">
+                                        <CalendarDays className="size-7" />
                                     </div>
                                     <div>
                                         <p className="font-semibold text-[#0f1f3a]">
-                                            Todo limpio por aquí
+                                            Sin inspecciones este día
                                         </p>
                                         <p className="mt-1 max-w-sm text-sm text-slate-500">
-                                            No hay unidades para levantar ni
-                                            desaprobadas en este día.
+                                            No hay unidades registradas para la
+                                            fecha seleccionada.
                                         </p>
                                     </div>
                                 </div>
@@ -576,7 +587,9 @@ export default function ObservationRemediationsPage() {
                                                 'hover:-translate-y-0.5 hover:shadow-md motion-safe:animate-[fadeInUp_360ms_ease-out_both]',
                                                 unit.tone === 'red'
                                                     ? 'border-rose-200/80'
-                                                    : 'border-amber-200/80',
+                                                    : unit.tone === 'green'
+                                                      ? 'border-emerald-200/80'
+                                                      : 'border-amber-200/80',
                                             )}
                                         >
                                             <span
@@ -585,7 +598,9 @@ export default function ObservationRemediationsPage() {
                                                     'absolute inset-y-0 left-0 w-1.5',
                                                     unit.tone === 'red'
                                                         ? 'bg-rose-500'
-                                                        : 'bg-amber-500',
+                                                        : unit.tone === 'green'
+                                                          ? 'bg-emerald-500'
+                                                          : 'bg-amber-500',
                                                 )}
                                             />
 
@@ -656,12 +671,16 @@ export default function ObservationRemediationsPage() {
                                                         'cursor-pointer shrink-0 rounded-xl',
                                                         unit.tone === 'red'
                                                             ? 'border-rose-200 bg-white text-rose-700 hover:bg-rose-50'
-                                                            : unit.can_verify
-                                                              ? 'bg-[#1e4d8c] text-white hover:bg-[#163a6b]'
-                                                              : 'bg-amber-500 text-white hover:bg-amber-600',
+                                                            : unit.tone ===
+                                                                'green'
+                                                              ? 'border-emerald-200 bg-white text-emerald-800 hover:bg-emerald-50'
+                                                              : unit.can_verify
+                                                                ? 'bg-[#1e4d8c] text-white hover:bg-[#163a6b]'
+                                                                : 'bg-amber-500 text-white hover:bg-amber-600',
                                                     )}
                                                     variant={
-                                                        unit.tone === 'red'
+                                                        unit.tone === 'red' ||
+                                                        unit.tone === 'green'
                                                             ? 'outline'
                                                             : 'default'
                                                     }
@@ -674,6 +693,9 @@ export default function ObservationRemediationsPage() {
                                                         <ClipboardCheck className="mr-1.5 size-4" />
                                                     ) : null}
                                                     {unit.can_verify ? (
+                                                        <CheckCircle2 className="mr-1.5 size-4" />
+                                                    ) : null}
+                                                    {unit.tone === 'green' ? (
                                                         <CheckCircle2 className="mr-1.5 size-4" />
                                                     ) : null}
                                                     {actionLabel(unit)}
@@ -788,7 +810,7 @@ function StatusBadge({
     tone,
     label,
 }: {
-    tone: 'amber' | 'red';
+    tone: 'amber' | 'red' | 'green';
     label: string;
 }) {
     return (
@@ -797,16 +819,74 @@ function StatusBadge({
                 'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
                 tone === 'red'
                     ? 'bg-rose-100 text-rose-800'
-                    : 'bg-amber-100 text-amber-900',
+                    : tone === 'green'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-amber-100 text-amber-900',
             )}
         >
             {tone === 'red' ? (
                 <AlertTriangle className="size-3" aria-hidden />
+            ) : tone === 'green' ? (
+                <CheckCircle2 className="size-3" aria-hidden />
             ) : (
                 <ClipboardCheck className="size-3" aria-hidden />
             )}
             {label}
         </span>
+    );
+}
+
+function DayCountChips({ cell }: { cell: DayCell }) {
+    const chips: { key: string; count: number; className: string; text: string }[] =
+        [];
+
+    if (cell.green > 0) {
+        chips.push({
+            key: 'g',
+            count: cell.green,
+            className: 'bg-emerald-100 text-emerald-900',
+            text: `${cell.green} OK`,
+        });
+    }
+    if (cell.amber > 0) {
+        chips.push({
+            key: 'a',
+            count: cell.amber,
+            className: 'bg-amber-100 text-amber-950',
+            text: `${cell.amber} obs.`,
+        });
+    }
+    if (cell.red > 0) {
+        chips.push({
+            key: 'r',
+            count: cell.red,
+            className: 'bg-rose-100 text-rose-950',
+            text: `${cell.red} desap.`,
+        });
+    }
+
+    if (chips.length === 0) {
+        return (
+            <div className="mt-3 hidden text-[10px] text-slate-400 sm:block">
+                —
+            </div>
+        );
+    }
+
+    return (
+        <div className="mt-2 flex flex-col gap-0.5 sm:mt-3">
+            {chips.map((chip) => (
+                <div
+                    key={chip.key}
+                    className={cn(
+                        'truncate rounded-md px-1.5 py-0.5 text-[9px] font-semibold leading-tight sm:text-[10px]',
+                        chip.className,
+                    )}
+                >
+                    {chip.text}
+                </div>
+            ))}
+        </div>
     );
 }
 
@@ -821,6 +901,8 @@ function daySurface(tone: DayCell['tone'], selected: boolean) {
             return 'border-amber-200/90 bg-gradient-to-br from-amber-50 to-white';
         case 'red':
             return 'border-rose-200/90 bg-gradient-to-br from-rose-50 to-white';
+        case 'mixed':
+            return 'border-slate-200 bg-gradient-to-br from-slate-50 via-white to-amber-50/40';
         default:
             return 'border-slate-200 bg-white';
     }
@@ -834,34 +916,10 @@ function toneBar(tone: DayCell['tone']) {
             return 'bg-amber-500';
         case 'red':
             return 'bg-rose-500';
+        case 'mixed':
+            return 'bg-gradient-to-b from-emerald-500 via-amber-500 to-rose-500';
         default:
             return 'bg-slate-200';
-    }
-}
-
-function toneDot(tone: DayCell['tone']) {
-    switch (tone) {
-        case 'green':
-            return 'bg-emerald-500';
-        case 'amber':
-            return 'bg-amber-500';
-        case 'red':
-            return 'bg-rose-500';
-        default:
-            return 'bg-slate-300';
-    }
-}
-
-function chipClasses(tone: DayCell['tone']) {
-    switch (tone) {
-        case 'green':
-            return 'bg-emerald-100/90 text-emerald-900';
-        case 'amber':
-            return 'bg-amber-100/90 text-amber-950';
-        case 'red':
-            return 'bg-rose-100/90 text-rose-950';
-        default:
-            return 'bg-slate-100 text-slate-600';
     }
 }
 
@@ -1183,3 +1241,11 @@ function RemediationDetailModal({
         </AppModal>
     );
 }
+
+ObservationRemediationsPage.layout = {
+    breadcrumbs: [
+        { title: 'Panel', href: dashboard() },
+        { title: 'Plataforma', href: '/calendario-observaciones' },
+        { title: 'Cal. observaciones', href: '/calendario-observaciones' },
+    ],
+};
