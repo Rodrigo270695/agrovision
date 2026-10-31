@@ -39,6 +39,7 @@ final class TenantTables
             'unit_checklist_signatures',
             'unit_checklist_photos',
             'inductions',
+            'induction_types',
             'induction_attendees',
             'pareto',
             'alcohol_test_packages',

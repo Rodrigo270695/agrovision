@@ -6,6 +6,7 @@ use App\Http\Requests\InductionRequest;
 use App\Models\Induction;
 use App\Models\InductionAttendee;
 use App\Models\InductionRegulation;
+use App\Models\InductionType;
 use App\Models\Period;
 use App\Models\Place;
 use App\Models\Site;
@@ -91,6 +92,74 @@ class InductionController extends Controller
                 'types' => count($types),
             ],
         ]);
+    }
+
+    public function storeType(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'activity' => ['required', 'string', Rule::in(array_keys(InductionFormOptions::activities()))],
+            'short' => ['nullable', 'string', 'max:80'],
+        ], [
+            'title.required' => 'El nombre del tipo es obligatorio.',
+            'activity.required' => 'Selecciona la actividad.',
+        ]);
+
+        $title = trim($validated['title']);
+        $normalized = InductionTypeCatalog::normalize($title);
+
+        $duplicate = InductionType::query()
+            ->get(['id', 'title'])
+            ->first(fn (InductionType $type) => InductionTypeCatalog::normalize($type->title) === $normalized);
+
+        if ($duplicate) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => "Ya existe el tipo «{$duplicate->title}».",
+            ]);
+        }
+
+        $maxOrder = (int) InductionType::query()->max('sort_order');
+        $short = trim((string) ($validated['short'] ?? ''));
+
+        $type = InductionType::query()->create([
+            'slug' => InductionType::makeSlug($title),
+            'title' => $title,
+            'activity' => $validated['activity'],
+            'short' => $short !== '' ? $short : InductionType::makeShort($title),
+            'sort_order' => $maxOrder + 1,
+            'is_active' => true,
+        ]);
+
+        return redirect()
+            ->route('inductions.index')
+            ->with('toast', [
+                'type' => 'success',
+                'message' => "Tipo «{$type->title}» creado. Ahora puedes abrir paquetes y crear sesiones.",
+            ]);
+    }
+
+    public function destroyType(string $type): RedirectResponse
+    {
+        $row = InductionType::query()->where('slug', $type)->firstOrFail();
+        $packages = Induction::query()->where('induction_type', $row->slug)->count();
+
+        if ($packages > 0) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => "No se puede eliminar: tiene {$packages} paquete(s). Abre paquetes y bórralos primero.",
+            ]);
+        }
+
+        $title = $row->title;
+        $row->delete();
+
+        return redirect()
+            ->route('inductions.index')
+            ->with('toast', [
+                'type' => 'success',
+                'message' => "Tipo «{$title}» eliminado.",
+            ]);
     }
 
     public function packages(Request $request, string $type): Response

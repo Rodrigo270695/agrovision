@@ -1,4 +1,4 @@
-import { usePage } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import {
     InductionCatalog,
@@ -11,10 +11,12 @@ import {
 import { InductionFormModal } from '@/components/inductions/induction-form-modal';
 import type { InductionFormOptions } from '@/components/inductions/induction-form-fields';
 import type { PeriodOption } from '@/components/inductions/induction-form-fields';
+import { InductionTypeFormModal } from '@/components/inductions/induction-type-form-modal';
 import { InductionsHeader } from '@/components/inductions/inductions-header';
 import type { InductionStatsData } from '@/components/inductions/inductions-stats';
 import type { StatusOption } from '@/components/inductions/inductions-table';
 import { useCan } from '@/hooks/use-can';
+import { toast } from 'sonner';
 
 type PageProps = {
     catalog: InductionCatalogItem[];
@@ -35,7 +37,26 @@ export function InductionsCatalogPage() {
     } = usePage().props as unknown as PageProps;
     const { can } = useCan();
     const [formOpen, setFormOpen] = useState(false);
+    const [typeFormOpen, setTypeFormOpen] = useState(false);
     const [formatsOpen, setFormatsOpen] = useState(false);
+
+    const deleteType = (item: InductionCatalogItem) => {
+        if (!can('inductions.delete')) {
+            return;
+        }
+
+        if (item.packages_count > 0) {
+            toast.error(
+                `No se puede eliminar: tiene ${item.packages_count} paquete(s).`,
+            );
+
+            return;
+        }
+
+        router.delete(`/inducciones/tipos/${item.slug}`, {
+            preserveScroll: true,
+        });
+    };
 
     return (
         <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
@@ -49,9 +70,17 @@ export function InductionsCatalogPage() {
 
                     setFormOpen(true);
                 }}
+                onCreateType={() => {
+                    if (!can('inductions.create')) {
+                        return;
+                    }
+
+                    setTypeFormOpen(true);
+                }}
                 onFormats={() => setFormatsOpen(true)}
                 createLabel="Nueva sesión"
-                description="Catálogo fijo de tipos. Abre paquetes para ver las sesiones por fecha y cargar asistentes."
+                createTypeLabel="Nuevo tipo"
+                description="Catálogo de tipos. Crea un tipo nuevo si el nombre no existe; abre paquetes para sesiones por fecha."
             />
             <InductionFormatsModal
                 open={formatsOpen}
@@ -59,7 +88,16 @@ export function InductionsCatalogPage() {
                 onClose={() => setFormatsOpen(false)}
             />
 
-            <InductionCatalog catalog={catalog ?? []} />
+            <InductionCatalog
+                catalog={catalog ?? []}
+                onDeleteType={can('inductions.delete') ? deleteType : undefined}
+            />
+
+            <InductionTypeFormModal
+                open={typeFormOpen}
+                activityOptions={formOptions?.activities ?? []}
+                onClose={() => setTypeFormOpen(false)}
+            />
 
             {can('inductions.create') ? (
                 <InductionFormModal

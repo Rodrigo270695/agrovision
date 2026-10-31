@@ -4,11 +4,11 @@ import {
     GraduationCap,
     LoaderCircle,
     Package,
+    Trash2,
 } from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { DataTable, EmptyState, type DataTableColumn } from '@/components/data-page';
 import { RowActionsMenu } from '@/components/shared/row-actions-menu';
-import { Button } from '@/components/ui/button';
 
 export type InductionCatalogItem = {
     slug: string;
@@ -28,6 +28,7 @@ export type InductionCatalogItem = {
 
 type Props = {
     catalog: InductionCatalogItem[];
+    onDeleteType?: (item: InductionCatalogItem) => void;
 };
 
 function formatDate(value?: string | null): string {
@@ -74,7 +75,7 @@ function openPackages(item: InductionCatalogItem) {
     router.visit(`/inducciones/tipos/${item.slug}`);
 }
 
-export function InductionCatalog({ catalog }: Props) {
+export function InductionCatalog({ catalog, onDeleteType }: Props) {
     const columns: DataTableColumn<InductionCatalogItem>[] = [
         {
             key: 'title',
@@ -141,17 +142,7 @@ export function InductionCatalog({ catalog }: Props) {
             key: 'actions',
             header: '',
             cell: (item) => (
-                <div className="flex items-center justify-end gap-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openPackages(item)}
-                        className="hidden cursor-pointer gap-1.5 border-[#1a2b4c] text-[#1a2b4c] hover:bg-[#e8f1fa] sm:inline-flex"
-                    >
-                        <Package className="size-3.5" />
-                        Paquetes
-                    </Button>
+                <div className="flex items-center justify-end">
                     <RowActionsMenu
                         label={`Acciones de ${item.short}`}
                         items={[
@@ -161,7 +152,17 @@ export function InductionCatalog({ catalog }: Props) {
                                 icon: Package,
                                 onSelect: () => openPackages(item),
                             },
-                        ]}
+                            onDeleteType
+                                ? {
+                                      key: 'delete',
+                                      label: 'Eliminar tipo',
+                                      icon: Trash2,
+                                      tone: 'danger' as const,
+                                      separatorBefore: true,
+                                      onSelect: () => onDeleteType(item),
+                                  }
+                                : null,
+                        ].filter((row): row is NonNullable<typeof row> => Boolean(row))}
                     />
                 </div>
             ),
@@ -177,7 +178,7 @@ export function InductionCatalog({ catalog }: Props) {
                 <EmptyState
                     icon={GraduationCap}
                     title="Sin tipos de inducción"
-                    description="El catálogo fijo aún no está disponible."
+                    description="Crea el primer tipo con «Nuevo tipo»."
                 />
             }
         />

@@ -2,9 +2,12 @@
 
 namespace App\Support;
 
+use App\Models\InductionType;
+use Illuminate\Support\Facades\Schema;
+
 /**
- * Catálogo fijo de temas de inducción/capacitación.
- * Las sesiones (paquetes) apuntan a uno de estos tipos; el título ya no es texto libre.
+ * Catálogo de temas de inducción/capacitación (DB + defaults semilla).
+ * Las sesiones (paquetes) apuntan a un tipo por slug.
  */
 final class InductionTypeCatalog
 {
@@ -17,9 +20,11 @@ final class InductionTypeCatalog
     public const TRANSPORTE_PERSONAL = 'transporte_personal';
 
     /**
+     * Semilla fija usada por migraciones y fallback.
+     *
      * @return array<string, array{slug: string, title: string, activity: string, short: string}>
      */
-    public static function all(): array
+    public static function defaults(): array
     {
         return [
             self::SST => [
@@ -47,6 +52,37 @@ final class InductionTypeCatalog
                 'short' => 'Transporte personal',
             ],
         ];
+    }
+
+    /**
+     * @return array<string, array{slug: string, title: string, activity: string, short: string}>
+     */
+    public static function all(): array
+    {
+        if (! self::tableReady()) {
+            return self::defaults();
+        }
+
+        $types = InductionType::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get(['slug', 'title', 'activity', 'short']);
+
+        if ($types->isEmpty()) {
+            return self::defaults();
+        }
+
+        return $types
+            ->mapWithKeys(fn (InductionType $type) => [
+                $type->slug => [
+                    'slug' => $type->slug,
+                    'title' => $type->title,
+                    'activity' => $type->activity,
+                    'short' => $type->short ?: InductionType::makeShort($type->title),
+                ],
+            ])
+            ->all();
     }
 
     /**
@@ -96,9 +132,13 @@ final class InductionTypeCatalog
             return null;
         }
 
-        if (
-            str_contains($normalized, 'extintor')
-        ) {
+        foreach (self::all() as $slug => $type) {
+            if (self::normalize($type['title']) === $normalized) {
+                return $slug;
+            }
+        }
+
+        if (str_contains($normalized, 'extintor')) {
             return self::USO_EXTINTORES;
         }
 
@@ -153,5 +193,14 @@ final class InductionTypeCatalog
             ])
             ->values()
             ->all();
+    }
+
+    private static function tableReady(): bool
+    {
+        try {
+            return Schema::hasTable('induction_types');
+        } catch (\Throwable) {
+            return false;
+        }
     }
 }

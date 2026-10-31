@@ -18,9 +18,11 @@ type Props = {
     exportHref: string;
     onCreate: () => void;
     onFormats?: () => void;
+    onCreateType?: () => void;
     title?: string;
     description?: string;
     createLabel?: string;
+    createTypeLabel?: string;
     leadingAction?: React.ReactNode;
 };
 
@@ -29,9 +31,11 @@ export function InductionsHeader({
     exportHref,
     onCreate,
     onFormats,
+    onCreateType,
     title = 'Configuración de inducción',
     description = 'Programa charlas, jala conductores desde unidades y controla la asistencia.',
     createLabel = 'Nueva inducción',
+    createTypeLabel = 'Nuevo tipo',
     leadingAction,
 }: Props) {
     const { can } = useCan();
@@ -94,6 +98,18 @@ export function InductionsHeader({
                         >
                             <FileText className="size-4" />
                             Códigos
+                        </Button>
+                    ) : null}
+                    {onCreateType && can('inductions.create') ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={onCreateType}
+                            className="cursor-pointer gap-2 border-[#1a2b4c] text-[#1a2b4c] hover:bg-[#e8f1fa]"
+                        >
+                            <Plus className="size-4" strokeWidth={2.5} />
+                            <span className="hidden sm:inline">{createTypeLabel}</span>
+                            <span className="sm:hidden">Tipo</span>
                         </Button>
                     ) : null}
                     {can('inductions.create') ? (
