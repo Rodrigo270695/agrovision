@@ -61,6 +61,14 @@ type DayUnit = {
         submit_note?: string | null;
         rejection_note?: string | null;
     };
+    history: {
+        id: number;
+        event: string;
+        label: string;
+        detail?: string | null;
+        user?: string | null;
+        at?: string | null;
+    }[];
     observations: ObservationItem[];
     can_submit: boolean;
     can_verify: boolean;
@@ -1151,6 +1159,50 @@ function RemediationDetailModal({
                             observaciones.
                         </p>
                     </div>
+                ) : null}
+
+                {(unit.history?.length ?? 0) > 0 ? (
+                    <div>
+                        <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-[#0f1f3a]">
+                            <ClipboardCheck className="size-4 text-[#1e4d8c]" />
+                            Historial del levantamiento
+                        </h3>
+                        <ol className="relative space-y-3 border-l-2 border-slate-200 pl-4">
+                            {unit.history.map((step) => (
+                                <li key={step.id} className="relative">
+                                    <span
+                                        aria-hidden
+                                        className={cn(
+                                            'absolute -left-[1.35rem] top-1 size-2.5 rounded-full ring-2 ring-white',
+                                            step.event === 'verified'
+                                                ? 'bg-emerald-500'
+                                                : step.event === 'rejected'
+                                                  ? 'bg-amber-500'
+                                                  : 'bg-[#1e4d8c]',
+                                        )}
+                                    />
+                                    <p className="text-sm font-semibold text-[#0f1f3a]">
+                                        {step.label}
+                                    </p>
+                                    <p className="text-[11px] text-slate-500">
+                                        {[step.at, step.user]
+                                            .filter(Boolean)
+                                            .join(' · ')}
+                                    </p>
+                                    {step.detail ? (
+                                        <p className="mt-0.5 text-xs text-slate-600">
+                                            {step.detail}
+                                        </p>
+                                    ) : null}
+                                </li>
+                            ))}
+                        </ol>
+                    </div>
+                ) : unit.tone === 'green' ? (
+                    <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                        Aprobada sin ciclo de levantamiento registrado (no hubo
+                        obs. a subsanar, o se aprobó directo).
+                    </p>
                 ) : null}
 
                 <div>

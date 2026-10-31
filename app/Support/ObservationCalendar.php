@@ -124,6 +124,7 @@ final class ObservationCalendar
                 'answers:id,unit_checklist_id,checklist_item_id,first_value,second_value,observations',
                 'answers.item:id,weight,label,item_number',
                 'observationRemediations.photos',
+                'observationRemediations.events.user:id,name',
             ])
             ->where(function ($q) use ($date) {
                 $q->whereDate('first_inspected_on', $date)
@@ -216,6 +217,7 @@ final class ObservationCalendar
                 'submitted_at' => optional($remediation?->submitted_at)?->toIso8601String(),
                 'verified_at' => optional($remediation?->verified_at)?->toIso8601String(),
             ],
+            'history' => $this->serializeHistory($remediation),
             'observations' => $this->observationsWithPhotos(
                 $checklist,
                 $pass,
@@ -228,6 +230,92 @@ final class ObservationCalendar
                 && $status === ObservationRemediation::SUBMITTED
                 && $this->canVerify($checklist),
         ];
+    }
+
+    /**
+     * @return list<array{id: int, event: string, label: string, detail: string|null, user: string|null, at: string|null}>
+     */
+    private function serializeHistory(?ObservationRemediation $remediation): array
+    {
+        if ($remediation === null) {
+            return [];
+        }
+
+        $events = $remediation->relationLoaded('events')
+            ? $remediation->events->sortBy('id')->values()
+            : $remediation->events()->with('user:id,name')->orderBy('id')->get();
+
+        return $events->map(function ($event) {
+            $payload = is_array($event->payload) ? $event->payload : [];
+            $label = match ($event->event) {
+                'submitted' => 'Coordinador envió el levantamiento',
+                'rejected' => 'Inspector rechazó el levantamiento',
+                'verified' => 'Inspector aprobó: pasó a Aprobado',
+                default => (string) $event->event,
+            };
+
+            $detail = match ($event->event) {
+                'submitted' => $this->historySubmittedDetail($payload),
+                'rejected' => filled($payload['note'] ?? null)
+                    ? 'Motivo: '.(string) $payload['note']
+                    : null,
+                'verified' => $this->historyVerifiedDetail($payload),
+                default => null,
+            };
+
+            return [
+                'id' => $event->id,
+                'event' => $event->event,
+                'label' => $label,
+                'detail' => $detail,
+                'user' => $event->user?->name,
+                'at' => optional($event->created_at)?->timezone(config('app.timezone'))->format('d/m/Y H:i'),
+            ];
+        })->values()->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function historySubmittedDetail(array $payload): ?string
+    {
+        $parts = [];
+        $count = (int) ($payload['observations_count'] ?? 0);
+        if ($count > 0) {
+            $parts[] = "{$count} ítem(s) en NO";
+        }
+        $photoIds = $payload['photo_answer_ids'] ?? [];
+        if (is_array($photoIds) && $photoIds !== []) {
+            $parts[] = count($photoIds).' foto(s)';
+        } elseif (! empty($payload['has_photo'])) {
+            $parts[] = 'Con foto';
+        } else {
+            $parts[] = 'Sin fotos';
+        }
+
+        return $parts === [] ? null : implode(' · ', $parts);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function historyVerifiedDetail(array $payload): ?string
+    {
+        $parts = [];
+        $prev = $payload['previous_percent'] ?? null;
+        $next = $payload['new_percent'] ?? null;
+        if ($prev !== null && $next !== null) {
+            $parts[] = "Pareto {$prev}% → {$next}%";
+        }
+        $updated = $payload['answers_updated'] ?? [];
+        if (is_array($updated) && $updated !== []) {
+            $parts[] = count($updated).' ítem(s) NO → SÍ';
+        }
+        if (filled($payload['note'] ?? null)) {
+            $parts[] = 'Nota: '.(string) $payload['note'];
+        }
+
+        return $parts === [] ? 'Inspección aprobada al 100 %' : implode(' · ', $parts);
     }
 
     /**
