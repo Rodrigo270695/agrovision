@@ -9,6 +9,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Support\InductionFormOptions;
 use App\Support\InductionStatuses;
+use App\Support\InductionTypeCatalog;
 use App\Support\ReportPeriod;
 use App\Support\SystemRoles;
 use Illuminate\Http\Request;
@@ -484,6 +485,18 @@ class DriverBoardController extends Controller
 
     private function inductionLabel(Induction $induction): string
     {
+        $slug = trim((string) ($induction->induction_type ?? ''));
+
+        if ($slug !== '' && InductionTypeCatalog::exists($slug)) {
+            return InductionTypeCatalog::title($slug);
+        }
+
+        $resolved = InductionTypeCatalog::resolveFromTitle((string) $induction->title);
+
+        if ($resolved !== null) {
+            return InductionTypeCatalog::title($resolved);
+        }
+
         $title = trim((string) $induction->title);
 
         if ($title !== '') {

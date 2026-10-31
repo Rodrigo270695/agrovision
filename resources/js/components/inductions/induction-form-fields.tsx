@@ -14,6 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 
 export type InductionFormValues = {
+    induction_type: string;
     title: string;
     temario: string;
     activity: string;
@@ -52,6 +53,11 @@ export type PeriodOption = {
 
 export type FormOption = { value: string; label: string };
 
+export type InductionTypeOption = FormOption & {
+    activity: string;
+    short: string;
+};
+
 export type SitePlaceOption = { id: number; name: string };
 
 export type SiteOption = {
@@ -61,6 +67,7 @@ export type SiteOption = {
 };
 
 export type InductionFormOptions = {
+    types?: InductionTypeOption[];
     activities: FormOption[];
     modalities: FormOption[];
     schools: FormOption[];
@@ -78,6 +85,7 @@ type Props = {
     periodOptions: PeriodOption[];
     formOptions: InductionFormOptions;
     isEditing?: boolean;
+    typeLocked?: boolean;
 };
 
 const inputClass =
@@ -98,6 +106,7 @@ export function InductionFormFields({
     periodOptions,
     formOptions,
     isEditing = false,
+    typeLocked = false,
 }: Props) {
     const toggleCategory = (value: string, checked: boolean) => {
         const next = checked
@@ -107,27 +116,56 @@ export function InductionFormFields({
     };
 
     const sites = formOptions.sites ?? [];
+    const types = formOptions.types ?? [];
+    const selectedType = types.find((item) => item.value === values.induction_type) ?? null;
     const selectedSite = sites.find((site) => String(site.id) === values.site_id) ?? null;
     const places = selectedSite?.places ?? [];
     const savedSede = values.site_id ? '' : values.sede.trim();
     const savedPlace = values.place_id ? '' : values.zone.trim();
+    const activityLabel =
+        formOptions.activities.find((item) => item.value === values.activity)?.label
+        ?? values.activity;
 
     return (
         <div className="space-y-5">
             <div className="space-y-3">
-                <SectionTitle>Tema y temario</SectionTitle>
+                <SectionTitle>Tipo y temario</SectionTitle>
                 <div className="grid gap-1.5">
                     <Label className="text-xs text-[#1a2b4c]">
-                        Tema <span className="text-red-500">*</span>
+                        Tipo <span className="text-red-500">*</span>
                     </Label>
-                    <Input
-                        value={values.title}
-                        onChange={(e) => onChange('title', e.target.value)}
-                        placeholder="Ej. Identificación de peligros..."
-                        className={inputClass}
-                        autoFocus
-                    />
-                    <InputError message={errors.title} />
+                    {typeLocked && selectedType ? (
+                        <div className="rounded-lg border border-[#c5d5e6] bg-[#f7fafc] px-3 py-2">
+                            <p className="text-sm font-medium text-[#1a2b4c]">
+                                {selectedType.label}
+                            </p>
+                            <p className="text-xs text-[#5a6f8c]">{activityLabel}</p>
+                        </div>
+                    ) : (
+                        <Select
+                            modal={false}
+                            value={values.induction_type || undefined}
+                            onValueChange={(v) => onChange('induction_type', v)}
+                        >
+                            <SelectTrigger
+                                className={cn(inputClass, 'w-full cursor-pointer')}
+                            >
+                                <SelectValue placeholder="Selecciona del catálogo" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white">
+                                {types.map((opt) => (
+                                    <SelectItem
+                                        key={opt.value}
+                                        value={opt.value}
+                                        className="cursor-pointer"
+                                    >
+                                        {opt.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                    <InputError message={errors.induction_type} />
                 </div>
                 <div className="grid gap-1.5">
                     <Label className="text-xs text-[#1a2b4c]">Temario</Label>
@@ -146,24 +184,11 @@ export function InductionFormFields({
                 <div className="grid gap-3 sm:grid-cols-2">
                     <div className="grid gap-1.5">
                         <Label className="text-xs text-[#1a2b4c]">
-                            Actividad <span className="text-red-500">*</span>
+                            Actividad
                         </Label>
-                        <Select
-                            modal={false}
-                            value={values.activity}
-                            onValueChange={(v) => onChange('activity', v)}
-                        >
-                            <SelectTrigger className={cn(inputClass, 'w-full cursor-pointer')}>
-                                <SelectValue placeholder="Selecciona" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white">
-                                {formOptions.activities.map((opt) => (
-                                    <SelectItem key={opt.value} value={opt.value} className="cursor-pointer">
-                                        {opt.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <div className="flex h-9 items-center rounded-md border border-[#c5d5e6] bg-[#f7fafc] px-3 text-sm text-[#1a2b4c]">
+                            {activityLabel || '—'}
+                        </div>
                         <InputError message={errors.activity} />
                     </div>
                     <div className="grid gap-1.5">

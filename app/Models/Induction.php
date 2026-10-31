@@ -12,6 +12,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property string|null $acta_number
  * @property string $title
+ * @property string|null $induction_type
  * @property string|null $temario
  * @property string|null $activity
  * @property bool $corrective_action
@@ -60,6 +61,7 @@ class Induction extends Model
         'ritran_code',
         'ritran_revision',
         'title',
+        'induction_type',
         'temario',
         'activity',
         'corrective_action',

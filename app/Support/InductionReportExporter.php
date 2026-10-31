@@ -154,16 +154,33 @@ final class InductionReportExporter
     {
         $topics = [];
 
-        foreach ($inductions->sortBy(fn (Induction $induction) => $induction->scheduled_at?->getTimestamp() ?? 0) as $induction) {
-            $label = trim((string) $induction->title);
-            if ($label === '') {
+        foreach (InductionTypeCatalog::all() as $slug => $type) {
+            $hasSessions = $inductions->contains(
+                fn (Induction $induction) => (string) ($induction->induction_type ?? '') === $slug
+                    || (
+                        blank($induction->induction_type)
+                        && InductionTypeCatalog::resolveFromTitle((string) $induction->title) === $slug
+                    ),
+            );
+
+            if (! $hasSessions) {
                 continue;
             }
 
-            $key = mb_strtoupper($label);
-            if (! isset($topics[$key])) {
-                $topics[$key] = ['key' => $key, 'label' => mb_strtoupper($label)];
+            $topics[$slug] = [
+                'key' => $slug,
+                'label' => InductionTypeCatalog::excelLabel($slug),
+            ];
+        }
+
+        foreach ($inductions->sortBy(fn (Induction $induction) => $induction->scheduled_at?->getTimestamp() ?? 0) as $induction) {
+            $resolved = $this->topicKey($induction);
+
+            if ($resolved === null || isset($topics[$resolved['key']])) {
+                continue;
             }
+
+            $topics[$resolved['key']] = $resolved;
         }
 
         return $topics;
@@ -178,8 +195,9 @@ final class InductionReportExporter
         $attended = [];
 
         foreach ($inductions as $induction) {
-            $topic = mb_strtoupper(trim((string) $induction->title));
-            if ($topic === '') {
+            $resolved = $this->topicKey($induction);
+
+            if ($resolved === null) {
                 continue;
             }
 
@@ -193,11 +211,45 @@ final class InductionReportExporter
                     continue;
                 }
 
-                $attended[$key][$topic] = true;
+                $attended[$key][$resolved['key']] = true;
             }
         }
 
         return $attended;
+    }
+
+    /**
+     * @return array{key: string, label: string}|null
+     */
+    private function topicKey(Induction $induction): ?array
+    {
+        $slug = trim((string) ($induction->induction_type ?? ''));
+
+        if ($slug !== '' && InductionTypeCatalog::exists($slug)) {
+            return [
+                'key' => $slug,
+                'label' => InductionTypeCatalog::excelLabel($slug),
+            ];
+        }
+
+        $resolved = InductionTypeCatalog::resolveFromTitle((string) $induction->title);
+
+        if ($resolved !== null) {
+            return [
+                'key' => $resolved,
+                'label' => InductionTypeCatalog::excelLabel($resolved),
+            ];
+        }
+
+        $label = trim((string) $induction->title);
+
+        if ($label === '') {
+            return null;
+        }
+
+        $key = mb_strtoupper($label);
+
+        return ['key' => $key, 'label' => $key];
     }
 
     /**

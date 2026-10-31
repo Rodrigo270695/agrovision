@@ -93,7 +93,7 @@ final class DriverInductionLookup
 
         return InductionAttendee::query()
             ->with([
-                'induction:id,title,status,activity,session_date,scheduled_at,acta_number,location,sede',
+                'induction:id,title,induction_type,status,activity,session_date,scheduled_at,acta_number,location,sede',
             ])
             ->whereRaw("regexp_replace(driver_dni, '[^0-9]', '', 'g') in ({$placeholders})", $keys)
             ->orderByDesc('id')
@@ -140,10 +140,16 @@ final class DriverInductionLookup
                 ?? $induction->scheduled_at?->timezone(config('app.timezone'));
             $activity = (string) ($induction->activity ?: '');
 
+            $typeSlug = trim((string) ($induction->induction_type ?? ''));
+            $typeTitle = $typeSlug !== '' && InductionTypeCatalog::exists($typeSlug)
+                ? InductionTypeCatalog::title($typeSlug)
+                : (string) $induction->title;
+
             $inductions[] = [
                 'id' => $induction->id,
                 'attendee_id' => $attendee->id,
-                'title' => $induction->title,
+                'title' => $typeTitle,
+                'induction_type' => $typeSlug !== '' ? $typeSlug : null,
                 'activity' => $activity,
                 'activity_label' => InductionFormOptions::activities()[$activity] ?? $activity,
                 'acta' => $induction->acta_number ?: '',
@@ -180,32 +186,38 @@ final class DriverInductionLookup
      */
     private function withMissing(array $rows): array
     {
-        $activityCatalog = collect($rows)
-            ->flatMap(fn (array $row) => collect($row['inductions'])->pluck('activity'))
+        $typeCatalog = collect($rows)
+            ->flatMap(fn (array $row) => collect($row['inductions'])->map(function (array $induction) {
+                $slug = trim((string) ($induction['induction_type'] ?? ''));
+
+                if ($slug !== '' && InductionTypeCatalog::exists($slug)) {
+                    return $slug;
+                }
+
+                return InductionTypeCatalog::resolveFromTitle((string) ($induction['title'] ?? ''))
+                    ?? mb_strtolower(trim((string) ($induction['title'] ?? '')));
+            }))
             ->filter()
             ->unique()
             ->values();
-        $titleCatalog = collect($rows)
-            ->flatMap(fn (array $row) => collect($row['inductions'])->pluck('title'))
-            ->map(fn ($title) => trim((string) $title))
-            ->filter()
-            ->unique(fn (string $title) => mb_strtolower($title))
-            ->values();
 
         foreach ($rows as $index => $row) {
-            $haveActivities = collect($row['inductions'])->pluck('activity');
-            $haveTitles = collect($row['inductions'])
-                ->pluck('title')
-                ->map(fn ($title) => mb_strtolower(trim((string) $title)));
+            $haveTypes = collect($row['inductions'])->map(function (array $induction) {
+                $slug = trim((string) ($induction['induction_type'] ?? ''));
 
-            $missing = $activityCatalog
-                ->reject(fn (string $activity) => $haveActivities->contains($activity))
-                ->map(fn (string $activity) => InductionFormOptions::activities()[$activity] ?? $activity)
-                ->merge(
-                    $titleCatalog->reject(
-                        fn (string $title) => $haveTitles->contains(mb_strtolower($title)),
-                    ),
-                )
+                if ($slug !== '' && InductionTypeCatalog::exists($slug)) {
+                    return $slug;
+                }
+
+                return InductionTypeCatalog::resolveFromTitle((string) ($induction['title'] ?? ''))
+                    ?? mb_strtolower(trim((string) ($induction['title'] ?? '')));
+            })->filter();
+
+            $missing = $typeCatalog
+                ->reject(fn (string $type) => $haveTypes->contains($type))
+                ->map(fn (string $type) => InductionTypeCatalog::exists($type)
+                    ? InductionTypeCatalog::title($type)
+                    : $type)
                 ->unique()
                 ->values()
                 ->all();

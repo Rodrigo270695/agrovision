@@ -34,6 +34,7 @@ type InductionRow = {
     id: number;
     attendee_id: number;
     title: string;
+    induction_type?: string | null;
     activity: string;
     activity_label: string;
     acta: string;
@@ -86,10 +87,21 @@ type DownloadGroup = {
 type GapRow = {
     key: string;
     title: string;
+    induction_type?: string | null;
     activity: string;
     activity_label: string;
     drivers: { dni: string; name: string }[];
 };
+
+function inductionTopicKey(induction: Pick<InductionRow, 'title' | 'induction_type'>): string {
+    const type = (induction.induction_type ?? '').trim();
+
+    if (type !== '') {
+        return `type:${type}`;
+    }
+
+    return `title:${induction.title.trim().toLocaleLowerCase()}`;
+}
 
 type PageProps = {
     dnis: string;
@@ -217,19 +229,25 @@ function buildGroups(rows: DriverRow[]): DownloadGroup[] {
 function buildGaps(rows: DriverRow[]): GapRow[] {
     const topics = new Map<
         string,
-        { title: string; activity: string; activity_label: string }
+        {
+            title: string;
+            induction_type?: string | null;
+            activity: string;
+            activity_label: string;
+        }
     >();
 
     rows.forEach((row) => {
         row.inductions.forEach((induction) => {
-            const key = induction.title.trim().toLocaleLowerCase();
+            const key = inductionTopicKey(induction);
 
-            if (!key || topics.has(key)) {
+            if (!key || key === 'title:' || topics.has(key)) {
                 return;
             }
 
             topics.set(key, {
                 title: induction.title.trim(),
+                induction_type: induction.induction_type ?? null,
                 activity: induction.activity,
                 activity_label: induction.activity_label,
             });
@@ -244,9 +262,7 @@ function buildGaps(rows: DriverRow[]): GapRow[] {
                 .filter(
                     (row) =>
                         !row.inductions.some(
-                            (induction) =>
-                                induction.title.trim().toLocaleLowerCase() ===
-                                key,
+                            (induction) => inductionTopicKey(induction) === key,
                         ),
                 )
                 .map((row) => ({
@@ -856,6 +872,7 @@ export default function DriverReportPage({
                                         setGap({
                                             key: item.key,
                                             title: item.title,
+                                            induction_type: item.induction_type ?? null,
                                             activity: item.activity,
                                             drivers: item.drivers,
                                         });

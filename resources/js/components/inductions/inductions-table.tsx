@@ -52,6 +52,7 @@ export type InductionItem = {
     risst_approval_date?: string | null;
     risst_version?: string | null;
     title: string;
+    induction_type?: string | null;
     temario?: string | null;
     activity?: string | null;
     corrective_action?: boolean;
@@ -120,6 +121,7 @@ type Props = {
     filters: InductionsFilters;
     statusOptions: StatusOption[];
     activityOptions: FormOption[];
+    listBasePath?: string;
     onEdit: (induction: InductionItem) => void;
     onDelete: (induction: InductionItem) => void;
     onCopy: (induction: InductionItem) => void;
@@ -398,6 +400,7 @@ export function InductionsTable({
     filters,
     statusOptions,
     activityOptions,
+    listBasePath = '/inducciones',
     onEdit,
     onDelete,
     onCopy,
@@ -440,7 +443,7 @@ export function InductionsTable({
                 : filters.date_to;
 
             router.get(
-                '/inducciones',
+                listBasePath,
                 {
                     search: params.search ?? filters.search,
                     ...(nextStatus ? { status: nextStatus } : {}),
@@ -460,7 +463,7 @@ export function InductionsTable({
                 },
             );
         },
-        [filters],
+        [filters, listBasePath],
     );
 
     const sort: SortState | null = filters.sort
@@ -502,18 +505,22 @@ export function InductionsTable({
         () => [
             {
                 key: 'title',
-                header: 'Inducción',
+                header: 'Paquete',
                 sortable: true,
                 cell: (induction) => {
                     const matches = matchingAttendees(
                         induction,
                         filters.search,
                     );
+                    const packageLabel =
+                        formatDateTime(induction.scheduled_at) !== '—'
+                            ? formatDateTime(induction.scheduled_at)
+                            : induction.title;
 
                     return (
                         <div className="flex min-w-0 flex-col leading-tight">
                             <span className="truncate text-sm font-semibold text-foreground">
-                                {induction.title}
+                                {packageLabel}
                             </span>
                             <span className="truncate text-xs text-muted-foreground">
                                 {activityLabel(induction.activity)}
@@ -726,17 +733,19 @@ export function InductionsTable({
                     onSearchChange={(search) => visit({ search, page: 1 })}
                     placeholder="Buscar tema, conductor o DNI..."
                 >
-                    <FilterChips
-                        ariaLabel="Filtrar por actividad"
-                        value={filters.activity || 'all'}
-                        onChange={(value) =>
-                            visit({
-                                activity: value === 'all' ? null : value,
-                                page: 1,
-                            })
-                        }
-                        options={activityChips}
-                    />
+                    {listBasePath === '/inducciones' ? (
+                        <FilterChips
+                            ariaLabel="Filtrar por actividad"
+                            value={filters.activity || 'all'}
+                            onChange={(value) =>
+                                visit({
+                                    activity: value === 'all' ? null : value,
+                                    page: 1,
+                                })
+                            }
+                            options={activityChips}
+                        />
+                    ) : null}
                     <FilterChips
                         ariaLabel="Filtrar por estado"
                         value={filters.status || 'all'}
@@ -770,7 +779,7 @@ export function InductionsTable({
             }
             footer={
                 <DataPagination
-                    meta={asPaginated(inductions, '/inducciones')}
+                    meta={asPaginated(inductions, listBasePath)}
                     onPerPageChange={(per_page) => visit({ per_page, page: 1 })}
                     preservedQuery={{
                         search: filters.search || undefined,
@@ -793,12 +802,12 @@ export function InductionsTable({
                     title={
                         hasFilters
                             ? 'Sin resultados'
-                            : 'Aún no hay inducciones'
+                            : 'Aún no hay paquetes'
                     }
                     description={
                         hasFilters
                             ? 'Prueba con otro filtro o limpia la búsqueda.'
-                            : 'Programa la primera charla o inducción SST.'
+                            : 'Crea la primera sesión de este tipo.'
                     }
                 />
             }

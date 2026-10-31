@@ -3,7 +3,8 @@ export type InductionStatsData = {
     scheduled: number;
     in_progress: number;
     closed: number;
-    page: string;
+    page?: string;
+    types?: number;
 };
 
 type Props = {

@@ -14,6 +14,7 @@ import { Spinner } from '@/components/ui/spinner';
 export type InductionGapDraft = {
     key: string;
     title: string;
+    induction_type?: string | null;
     activity: string;
     drivers: { dni: string; name: string }[];
 };
@@ -26,6 +27,7 @@ type Props = {
     onClose: () => void;
     copying?: boolean;
     gap?: InductionGapDraft | null;
+    lockedType?: string | null;
     onCreated?: (gap: InductionGapDraft) => void;
 };
 
@@ -77,6 +79,7 @@ function matchedPlaceId(
 }
 
 const emptyValues = {
+    induction_type: '',
     title: '',
     temario: '',
     activity: 'induccion',
@@ -130,6 +133,7 @@ export function InductionFormModal({
     onClose,
     copying = false,
     gap = null,
+    lockedType = null,
     onCreated,
 }: Props) {
     const completing = Boolean(gap);
@@ -137,17 +141,31 @@ export function InductionFormModal({
     const form = useForm(emptyValues);
     const [regulationFiles, setRegulationFiles] = useState<File[]>([]);
     const [closeOnCreate, setCloseOnCreate] = useState(true);
+    const types = formOptions.types ?? [];
 
     useEffect(() => {
         if (!open) {
             return;
         }
 
+        const resolvedType =
+            lockedType
+            ?? gap?.induction_type
+            ?? induction?.induction_type
+            ?? types.find((item) => item.label === (gap?.title ?? induction?.title))?.value
+            ?? '';
+        const typeMeta = types.find((item) => item.value === resolvedType);
+
         setCloseOnCreate(true);
         form.setData({
-            title: gap?.title ?? induction?.title ?? '',
+            induction_type: resolvedType,
+            title: typeMeta?.label ?? gap?.title ?? induction?.title ?? '',
             temario: induction?.temario ?? '',
-            activity: gap?.activity ?? induction?.activity ?? 'induccion',
+            activity:
+                typeMeta?.activity
+                ?? gap?.activity
+                ?? induction?.activity
+                ?? 'induccion',
             corrective_action: Boolean(induction?.corrective_action),
             modality: induction?.modality ?? 'interna',
             school: induction?.school ?? 'sig',
@@ -189,11 +207,11 @@ export function InductionFormModal({
         });
         form.clearErrors();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, induction?.id, gap?.title, gap?.activity]);
+    }, [open, induction?.id, gap?.title, gap?.activity, gap?.induction_type, lockedType]);
 
     const canSubmit = useMemo(() => {
         return (
-            form.data.title.trim().length > 0 &&
+            form.data.induction_type.trim().length > 0 &&
             form.data.period_id.length > 0 &&
             form.data.session_date.length > 0 &&
             form.data.start_time.length > 0 &&
@@ -291,16 +309,18 @@ export function InductionFormModal({
                     ? 'Completar faltante'
                     : copying
                       ? 'Copiar inducción'
-                      : isEditing
-                        ? 'Editar inducción'
-                        : 'Nueva inducción'
+                        : isEditing
+                        ? 'Editar sesión'
+                        : lockedType
+                          ? 'Nueva sesión'
+                          : 'Nueva sesión'
             }
             description={
                 completing
                     ? `Solo los conductores que no tienen «${gap?.title ?? ''}». Completa fecha, lugar, periodo y expositor.`
                     : copying
                       ? 'Mismos datos de la inducción. Se copian los conductores con firma y huella. Los reglamentos quedan vacíos: luego solo inicias y cierras.'
-                      : 'Completa el tema, la fecha y el lugar. Los códigos salen de Configuración.'
+                      : 'Elige el tipo del catálogo, la fecha y el lugar. El nombre ya no se escribe a mano.'
             }
             className="max-h-[min(92vh,56rem)] sm:max-w-3xl"
             bodyClassName="max-h-[min(72vh,42rem)]"
@@ -329,7 +349,7 @@ export function InductionFormModal({
                               ? 'Copiar'
                               : isEditing
                                 ? 'Guardar cambios'
-                                : 'Crear inducción'}
+                                : 'Crear sesión'}
                     </Button>
                 </>
             }
@@ -377,10 +397,28 @@ export function InductionFormModal({
                 <InductionFormFields
                     values={form.data}
                     errors={form.errors}
-                    onChange={(field, value) => form.setData(field, value)}
+                    onChange={(field, value) => {
+                        if (field === 'induction_type') {
+                            const typeMeta = types.find(
+                                (item) => item.value === value,
+                            );
+                            form.setData({
+                                ...form.data,
+                                induction_type: String(value),
+                                title: typeMeta?.label ?? form.data.title,
+                                activity:
+                                    typeMeta?.activity ?? form.data.activity,
+                            });
+
+                            return;
+                        }
+
+                        form.setData(field, value);
+                    }}
                     periodOptions={periodOptions}
                     formOptions={formOptions}
                     isEditing={isEditing || copying}
+                    typeLocked={Boolean(lockedType) || completing || copying || isEditing}
                 />
                 {isEditing || copying || completing ? null : (
                     <div className="mt-5 grid gap-1.5">

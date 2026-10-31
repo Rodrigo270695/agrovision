@@ -1,12 +1,12 @@
 import { Head } from '@inertiajs/react';
-import { InductionsPage } from '@/components/inductions/inductions-page';
+import { InductionsCatalogPage } from '@/components/inductions/inductions-catalog-page';
 import { dashboard } from '@/routes';
 
 export default function InductionsIndex() {
     return (
         <>
             <Head title="Inducción · Configuración" />
-            <InductionsPage />
+            <InductionsCatalogPage />
         </>
     );
 }

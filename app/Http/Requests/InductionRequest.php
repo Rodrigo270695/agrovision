@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\Place;
 use App\Support\InductionFormOptions;
 use App\Support\InductionStatuses;
+use App\Support\InductionTypeCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -21,11 +22,12 @@ class InductionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title' => ['required', 'string', 'max:255'],
+            'induction_type' => ['required', 'string', Rule::in(InductionTypeCatalog::keys())],
+            'title' => ['nullable', 'string', 'max:255'],
             'regulations' => ['nullable', 'array', 'max:10'],
             'regulations.*' => ['file', 'mimes:pdf', 'max:20480'],
             'temario' => ['nullable', 'string', 'max:5000'],
-            'activity' => ['required', 'string', Rule::in(array_keys(InductionFormOptions::activities()))],
+            'activity' => ['nullable', 'string', Rule::in(array_keys(InductionFormOptions::activities()))],
             'corrective_action' => ['nullable', 'boolean'],
             'modality' => ['required', 'string', Rule::in(array_keys(InductionFormOptions::modalities()))],
             'school' => ['required', 'string', Rule::in(array_keys(InductionFormOptions::schools()))],
@@ -60,6 +62,8 @@ class InductionRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'induction_type.required' => 'Selecciona el tipo de inducción.',
+            'induction_type.in' => 'El tipo de inducción no es válido.',
             'title.required' => 'El tema es obligatorio.',
             'activity.required' => 'Selecciona la actividad.',
             'modality.required' => 'Selecciona la modalidad.',
@@ -81,6 +85,7 @@ class InductionRequest extends FormRequest
     public function attributes(): array
     {
         return [
+            'induction_type' => 'tipo',
             'title' => 'tema',
             'temario' => 'temario',
             'activity' => 'actividad',
@@ -134,8 +139,13 @@ class InductionRequest extends FormRequest
             $end = substr($end, 0, 5);
         }
 
+        $typeSlug = trim((string) $this->input('induction_type', ''));
+        $type = InductionTypeCatalog::get($typeSlug);
+
         $this->merge([
-            'title' => trim((string) $this->input('title', '')),
+            'induction_type' => $typeSlug !== '' ? $typeSlug : null,
+            'title' => $type['title'] ?? trim((string) $this->input('title', '')),
+            'activity' => $type['activity'] ?? $this->input('activity'),
             'temario' => trim((string) $this->input('temario', '')) ?: null,
             'category_other' => trim((string) $this->input('category_other', '')) ?: null,
             'categories' => array_values(array_unique(array_filter((array) $categories))),

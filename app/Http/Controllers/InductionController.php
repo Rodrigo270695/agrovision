@@ -20,6 +20,7 @@ use App\Support\InductionFormOptions;
 use App\Support\InductionRegulationMailer;
 use App\Support\InductionReportExporter;
 use App\Support\InductionStatuses;
+use App\Support\InductionTypeCatalog;
 use App\Support\PermissionCatalog;
 use App\Support\PublicDisk;
 use App\Support\ReportPeriod;
@@ -42,10 +43,66 @@ class InductionController extends Controller
 {
     public function index(Request $request): Response
     {
+        PermissionCatalog::syncToDatabase();
+
+        $baseQuery = $this->scopedInductionsQuery();
+        $types = [];
+
+        foreach (InductionTypeCatalog::all() as $slug => $type) {
+            $typeQuery = (clone $baseQuery)->where('induction_type', $slug);
+            $last = (clone $typeQuery)
+                ->orderByDesc('scheduled_at')
+                ->first(['id', 'scheduled_at', 'session_date', 'sede', 'zone', 'status']);
+
+            $types[] = [
+                'slug' => $slug,
+                'title' => $type['title'],
+                'short' => $type['short'],
+                'activity' => $type['activity'],
+                'activity_label' => InductionFormOptions::activities()[$type['activity']] ?? $type['activity'],
+                'packages_count' => (clone $typeQuery)->count(),
+                'scheduled' => (clone $typeQuery)->where('status', InductionStatuses::SCHEDULED)->count(),
+                'in_progress' => (clone $typeQuery)->where('status', InductionStatuses::IN_PROGRESS)->count(),
+                'closed' => (clone $typeQuery)->where('status', InductionStatuses::CLOSED)->count(),
+                'last_session_at' => $last?->scheduled_at?->timezone(config('app.timezone'))?->toIso8601String(),
+                'last_session_date' => $last?->session_date?->format('Y-m-d')
+                    ?? $last?->scheduled_at?->timezone(config('app.timezone'))?->format('Y-m-d'),
+                'last_sede' => $last?->sede,
+                'last_lugar' => $last?->zone,
+            ];
+        }
+
+        return Inertia::render('inductions/index', [
+            'catalog' => $types,
+            'periodOptions' => Period::query()
+                ->orderByDesc('date')
+                ->get(['id', 'name', 'status', 'date']),
+            'statusOptions' => collect(InductionStatuses::labels())
+                ->map(fn (string $label, string $value) => compact('value', 'label'))
+                ->values()
+                ->all(),
+            'formOptions' => $this->formOptions(),
+            'formats' => InductionDocumentSettings::current(),
+            'stats' => [
+                'total' => (clone $baseQuery)->count(),
+                'scheduled' => (clone $baseQuery)->where('status', InductionStatuses::SCHEDULED)->count(),
+                'in_progress' => (clone $baseQuery)->where('status', InductionStatuses::IN_PROGRESS)->count(),
+                'closed' => (clone $baseQuery)->where('status', InductionStatuses::CLOSED)->count(),
+                'types' => count($types),
+            ],
+        ]);
+    }
+
+    public function packages(Request $request, string $type): Response
+    {
+        if (! InductionTypeCatalog::exists($type)) {
+            abort(404);
+        }
+
+        $catalogType = InductionTypeCatalog::get($type);
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:255'],
             'status' => ['nullable', 'string', Rule::in(InductionStatuses::keys())],
-            'activity' => ['nullable', 'string', Rule::in(array_keys(InductionFormOptions::activities()))],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
             'all_dates' => ['nullable', 'boolean'],
@@ -58,7 +115,6 @@ class InductionController extends Controller
 
         $search = trim((string) ($validated['search'] ?? ''));
         $status = $validated['status'] ?? null;
-        $activity = $validated['activity'] ?? null;
         $range = ReportPeriod::range(
             $validated['date_from'] ?? null,
             $validated['date_to'] ?? null,
@@ -70,7 +126,7 @@ class InductionController extends Controller
         $direction = $validated['direction'] ?? 'desc';
         $perPage = (int) ($validated['per_page'] ?? 10);
 
-        $baseQuery = $this->scopedInductionsQuery();
+        $baseQuery = $this->scopedInductionsQuery()->where('induction_type', $type);
 
         $query = (clone $baseQuery)->withCount([
             'attendees',
@@ -93,7 +149,7 @@ class InductionController extends Controller
                 ]),
         ]);
 
-        $this->applyListFilters($query, $search, $status, $activity, $dateFrom, $dateTo);
+        $this->applyListFilters($query, $search, $status, null, $dateFrom, $dateTo);
 
         $query->orderBy($sort, $direction);
 
@@ -109,12 +165,20 @@ class InductionController extends Controller
                 return $induction;
             });
 
-        return Inertia::render('inductions/index', [
+        return Inertia::render('inductions/packages', [
+            'catalogType' => [
+                'slug' => $catalogType['slug'],
+                'title' => $catalogType['title'],
+                'short' => $catalogType['short'],
+                'activity' => $catalogType['activity'],
+                'activity_label' => InductionFormOptions::activities()[$catalogType['activity']]
+                    ?? $catalogType['activity'],
+            ],
             'inductions' => $inductions,
             'filters' => [
                 'search' => $search,
                 'status' => $status,
-                'activity' => $activity,
+                'activity' => null,
                 'date_from' => $dateFrom,
                 'date_to' => $dateTo,
                 'sort' => $sort,
@@ -151,10 +215,21 @@ class InductionController extends Controller
             'acta_number' => str_pad((string) $induction->id, 6, '0', STR_PAD_LEFT),
         ]);
         $stored = $this->storeRegulationFiles($request, $induction);
-        $message = 'Inducción creada correctamente.';
+        $message = 'Sesión creada correctamente.';
 
         if ($stored > 0) {
             $message .= ' Los reglamentos se enviarán al correo de cada coordinador cuando jales los conductores.';
+        }
+
+        $type = (string) ($induction->induction_type ?? '');
+
+        if ($type !== '' && InductionTypeCatalog::exists($type)) {
+            return redirect()
+                ->route('inductions.packages', ['type' => $type])
+                ->with('toast', [
+                    'type' => 'success',
+                    'message' => $message,
+                ]);
         }
 
         return IndexedRedirect::toIndex($request, 'inductions.index', [
@@ -1009,6 +1084,7 @@ class InductionController extends Controller
             'search' => ['nullable', 'string', 'max:255'],
             'status' => ['nullable', 'string', Rule::in(InductionStatuses::keys())],
             'activity' => ['nullable', 'string', Rule::in(array_keys(InductionFormOptions::activities()))],
+            'induction_type' => ['nullable', 'string', Rule::in(InductionTypeCatalog::keys())],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
             'all_dates' => ['nullable', 'boolean'],
@@ -1023,6 +1099,10 @@ class InductionController extends Controller
         $query = $this->scopedInductionsQuery()
             ->with('attendees')
             ->where('status', '!=', InductionStatuses::CANCELLED);
+
+        if (! empty($validated['induction_type'])) {
+            $query->where('induction_type', $validated['induction_type']);
+        }
 
         $this->applyListFilters(
             $query,
@@ -1132,22 +1212,23 @@ class InductionController extends Controller
     }
 
     /**
-     * Una inducción o capacitación del mismo nombre vale un año.
+     * Una inducción o capacitación del mismo tipo de catálogo vale un año.
      * Quien ya está inscrito o asistió no vuelve a salir para jalarlo.
      *
      * @param  Builder<Unit>  $query
      */
     private function excludeDriversWithValidSameInduction(Builder $query, Induction $induction): void
     {
+        $type = trim((string) ($induction->induction_type ?? ''));
         $title = mb_strtolower(trim((string) $induction->title));
 
-        if ($title === '') {
+        if ($type === '' && $title === '') {
             return;
         }
 
         $cutoff = now()->subYear()->startOfDay()->toDateString();
 
-        $query->whereNotExists(function ($sub) use ($induction, $title, $cutoff): void {
+        $query->whereNotExists(function ($sub) use ($induction, $type, $title, $cutoff): void {
             $sub->selectRaw('1')
                 ->from('induction_attendees as ia')
                 ->join('inductions as i', 'i.id', '=', 'ia.induction_id')
@@ -1157,7 +1238,11 @@ class InductionController extends Controller
                     InductionAttendeeStatuses::REGISTERED,
                     InductionAttendeeStatuses::ATTENDED,
                 ])
-                ->whereRaw('LOWER(TRIM(i.title)) = ?', [$title])
+                ->when(
+                    $type !== '',
+                    fn ($q) => $q->where('i.induction_type', $type),
+                    fn ($q) => $q->whereRaw('LOWER(TRIM(i.title)) = ?', [$title]),
+                )
                 ->where(function ($dates) use ($cutoff): void {
                     $dates->whereDate('i.session_date', '>=', $cutoff)
                         ->orWhere(function ($fallback) use ($cutoff): void {
@@ -1375,6 +1460,15 @@ class InductionController extends Controller
 
         unset($data['regulations']);
 
+        $typeSlug = (string) ($data['induction_type'] ?? '');
+        $type = InductionTypeCatalog::get($typeSlug);
+
+        if ($type) {
+            $data['induction_type'] = $type['slug'];
+            $data['title'] = $type['title'];
+            $data['activity'] = $type['activity'];
+        }
+
         $site = ! empty($data['site_id']) ? Site::query()->find($data['site_id']) : null;
         $place = ! empty($data['place_id']) ? Place::query()->find($data['place_id']) : null;
 
@@ -1404,6 +1498,7 @@ class InductionController extends Controller
 
     /**
      * @return array{
+     *   types: list<array{value: string, label: string, activity: string, short: string}>,
      *   activities: list<array{value: string, label: string}>,
      *   modalities: list<array{value: string, label: string}>,
      *   schools: list<array{value: string, label: string}>,
@@ -1418,6 +1513,7 @@ class InductionController extends Controller
             ->all();
 
         return [
+            'types' => InductionTypeCatalog::options(),
             'activities' => $map(InductionFormOptions::activities()),
             'modalities' => $map(InductionFormOptions::modalities()),
             'schools' => $map(InductionFormOptions::schools()),

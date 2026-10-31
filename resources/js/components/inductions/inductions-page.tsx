@@ -1,4 +1,5 @@
-import { router, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { InductionDeleteModal } from '@/components/inductions/induction-delete-modal';
@@ -23,13 +24,23 @@ import {
     type StatusOption,
 } from '@/components/inductions/inductions-table';
 import type { InductionStatsData } from '@/components/inductions/inductions-stats';
+import { Button } from '@/components/ui/button';
 import { useCan } from '@/hooks/use-can';
 import { prefetchInductionShows } from '@/lib/offline/induction-cache';
 import { isBrowserOnline } from '@/lib/offline/ids';
 import { getInductionSnapshot } from '@/lib/offline/store';
 import { usePendingPosts } from '@/lib/offline/use-pending-posts';
 
+type CatalogType = {
+    slug: string;
+    title: string;
+    short: string;
+    activity: string;
+    activity_label: string;
+};
+
 type PageProps = {
+    catalogType: CatalogType;
     inductions: InductionsPagination;
     stats: InductionStatsData;
     filters: InductionsFilters;
@@ -39,7 +50,10 @@ type PageProps = {
     formats: InductionFormats;
 };
 
-function inductionExportHref(filters: InductionsFilters): string {
+function inductionExportHref(
+    filters: InductionsFilters,
+    typeSlug?: string,
+): string {
     const params = new URLSearchParams();
 
     if (filters.search) {
@@ -50,7 +64,9 @@ function inductionExportHref(filters: InductionsFilters): string {
         params.set('status', filters.status);
     }
 
-    if (filters.activity) {
+    if (typeSlug) {
+        params.set('induction_type', typeSlug);
+    } else if (filters.activity) {
         params.set('activity', filters.activity);
     }
 
@@ -73,6 +89,7 @@ function inductionExportHref(filters: InductionsFilters): string {
 
 export function InductionsPage() {
     const {
+        catalogType,
         inductions,
         stats,
         filters,
@@ -83,6 +100,7 @@ export function InductionsPage() {
     } = usePage().props as unknown as PageProps;
     const page = usePage();
     const { can } = useCan();
+    const listBasePath = `/inducciones/tipos/${catalogType.slug}`;
     const [localShow, setLocalShow] = useState<InductionShowProps | null>(null);
 
     const [formOpen, setFormOpen] = useState(false);
@@ -97,29 +115,38 @@ export function InductionsPage() {
     const pendingInductions = usePendingPosts('/inducciones');
     const localInductions = useMemo<InductionItem[]>(
         () =>
-            pendingInductions.map((item) => {
-                const date = String(item.body.session_date ?? '');
-                const time = String(item.body.start_time ?? '00:00').slice(0, 5);
+            pendingInductions
+                .filter((item) => {
+                    const type = String(item.body.induction_type ?? '');
 
-                return {
-                    id: item.id,
-                    pending_sync: true,
-                    title: String(item.body.title ?? 'Inducción'),
-                    document_code: String(item.body.document_code ?? ''),
-                    status: String(item.body.status ?? 'scheduled'),
-                    scheduled_at: date
-                        ? `${date}T${time || '00:00'}:00`
-                        : new Date().toISOString(),
-                    session_date: date,
-                    location: String(item.body.sede ?? item.body.zone ?? ''),
-                    sede: String(item.body.sede ?? '') || null,
-                    lugar: String(item.body.zone ?? '') || null,
-                    zone: String(item.body.zone ?? '') || null,
-                    attendees_count: 0,
-                    attended_count: 0,
-                };
-            }),
-        [pendingInductions],
+                    return type === '' || type === catalogType.slug;
+                })
+                .map((item) => {
+                    const date = String(item.body.session_date ?? '');
+                    const time = String(item.body.start_time ?? '00:00').slice(0, 5);
+
+                    return {
+                        id: item.id,
+                        pending_sync: true,
+                        induction_type: String(
+                            item.body.induction_type ?? catalogType.slug,
+                        ),
+                        title: String(item.body.title ?? catalogType.title),
+                        document_code: String(item.body.document_code ?? ''),
+                        status: String(item.body.status ?? 'scheduled'),
+                        scheduled_at: date
+                            ? `${date}T${time || '00:00'}:00`
+                            : new Date().toISOString(),
+                        session_date: date,
+                        location: String(item.body.sede ?? item.body.zone ?? ''),
+                        sede: String(item.body.sede ?? '') || null,
+                        lugar: String(item.body.zone ?? '') || null,
+                        zone: String(item.body.zone ?? '') || null,
+                        attendees_count: 0,
+                        attended_count: 0,
+                    };
+                }),
+        [pendingInductions, catalogType],
     );
     const mergedInductions = useMemo<InductionsPagination>(() => {
         if (localInductions.length === 0) {
@@ -214,8 +241,11 @@ export function InductionsPage() {
     return (
         <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
             <InductionsHeader
+                title={`Paquetes · ${catalogType.short}`}
+                description={`${catalogType.title}. Cada paquete es una sesión por fecha; ahí cargas los asistentes.`}
+                createLabel="Nueva sesión"
                 stats={mergedStats}
-                exportHref={inductionExportHref(filters)}
+                exportHref={inductionExportHref(filters, catalogType.slug)}
                 onCreate={() => {
                     if (!can('inductions.create')) {
                         return;
@@ -225,6 +255,19 @@ export function InductionsPage() {
                     setFormOpen(true);
                 }}
                 onFormats={() => setFormatsOpen(true)}
+                leadingAction={
+                    <Button
+                        type="button"
+                        variant="outline"
+                        asChild
+                        className="cursor-pointer gap-2 border-[#c5d5e6] text-[#1a2b4c] hover:bg-[#e8f1fa]"
+                    >
+                        <Link href="/inducciones">
+                            <ArrowLeft className="size-4" />
+                            Catálogo
+                        </Link>
+                    </Button>
+                }
             />
             <InductionFormatsModal
                 open={formatsOpen}
@@ -237,6 +280,7 @@ export function InductionsPage() {
                 filters={filters}
                 statusOptions={statusOptions ?? []}
                 activityOptions={formOptions?.activities ?? []}
+                listBasePath={listBasePath}
                 onEdit={(item) => {
                     if (!can('inductions.update')) {
                         return;
@@ -273,9 +317,11 @@ export function InductionsPage() {
                 open={copyTarget !== null}
                 copying
                 induction={copyTarget}
+                lockedType={catalogType.slug}
                 periodOptions={periodOptions ?? []}
                 formOptions={
                     formOptions ?? {
+                        types: [],
                         activities: [],
                         modalities: [],
                         schools: [],
@@ -287,12 +333,14 @@ export function InductionsPage() {
             />
 
             {can('inductions.create') || can('inductions.update') ? (
-            <InductionFormModal
+                <InductionFormModal
                     open={formOpen}
                     induction={editing}
+                    lockedType={catalogType.slug}
                     periodOptions={periodOptions ?? []}
                     formOptions={
                         formOptions ?? {
+                            types: [],
                             activities: [],
                             modalities: [],
                             schools: [],

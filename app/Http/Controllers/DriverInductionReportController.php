@@ -16,6 +16,7 @@ use App\Support\InductionDocumentSettings;
 use App\Support\InductionFormOptions;
 use App\Support\InductionReportExporter;
 use App\Support\InductionStatuses;
+use App\Support\InductionTypeCatalog;
 use App\Support\SystemRoles;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -203,6 +204,7 @@ class DriverInductionReportController extends Controller
         return Inertia::render('driver-report/index', array_merge([
             'periodOptions' => Period::query()->orderByDesc('date')->get(['id', 'name', 'status', 'date']),
             'formOptions' => [
+                'types' => InductionTypeCatalog::options(),
                 'activities' => $map(InductionFormOptions::activities()),
                 'modalities' => $map(InductionFormOptions::modalities()),
                 'schools' => $map(InductionFormOptions::schools()),
@@ -247,6 +249,15 @@ class DriverInductionReportController extends Controller
         }
 
         unset($data['regulations'], $data['drivers'], $data['close_on_create']);
+
+        $typeSlug = (string) ($data['induction_type'] ?? '');
+        $type = InductionTypeCatalog::get($typeSlug);
+
+        if ($type) {
+            $data['induction_type'] = $type['slug'];
+            $data['title'] = $type['title'];
+            $data['activity'] = $type['activity'];
+        }
 
         $site = ! empty($data['site_id']) ? Site::query()->find($data['site_id']) : null;
         $place = ! empty($data['place_id']) ? Place::query()->find($data['place_id']) : null;
