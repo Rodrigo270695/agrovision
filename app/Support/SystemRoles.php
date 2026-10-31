@@ -112,6 +112,36 @@ final class SystemRoles
     }
 
     /**
+     * Vista de cierre rápido de faltantes: inspector, superadmin o modo soporte.
+     */
+    public static function currentCanQuickCompleteInductions(): bool
+    {
+        if (! tenancy()->initialized) {
+            return false;
+        }
+
+        $user = Auth::user();
+
+        if (! $user) {
+            return false;
+        }
+
+        if ((bool) ($user->is_support ?? false)) {
+            return true;
+        }
+
+        if (session()->get('impersonating')) {
+            return true;
+        }
+
+        if ($user->hasRole(self::SUPERADMIN)) {
+            return true;
+        }
+
+        return $user->hasRole(self::INSPECTOR);
+    }
+
+    /**
      * @return Collection<int, User>
      */
     public static function coordinators(): Collection

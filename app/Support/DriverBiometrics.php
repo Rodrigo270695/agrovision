@@ -270,7 +270,7 @@ final class DriverBiometrics
         return $nameKey === '' ? '' : 'name:'.$nameKey;
     }
 
-    private static function digits(?string $dni): string
+    public static function digits(?string $dni): string
     {
         return preg_replace('/\D+/', '', (string) $dni) ?? '';
     }

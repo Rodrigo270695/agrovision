@@ -15,6 +15,7 @@ use App\Http\Controllers\ProviderComplianceReportController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\ImpersonationLeaveController;
 use App\Http\Controllers\InductionController;
+use App\Http\Controllers\InductionQuickCompleteController;
 use App\Http\Controllers\InspectionBatchController;
 use App\Http\Controllers\LookupController;
 use App\Http\Controllers\ParetoController;
@@ -562,6 +563,14 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
         Route::get('inducciones', [InductionController::class, 'index'])
             ->middleware('permission:inductions.view')
             ->name('inductions.index');
+
+        Route::get('inducciones/cierre-rapido', [InductionQuickCompleteController::class, 'index'])
+            ->middleware('permission:inductions.quick_complete')
+            ->name('inductions.quick-complete');
+
+        Route::post('inducciones/cierre-rapido', [InductionQuickCompleteController::class, 'store'])
+            ->middleware('permission:inductions.quick_complete')
+            ->name('inductions.quick-complete.store');
 
         Route::post('inducciones/tipos', [InductionController::class, 'storeType'])
             ->middleware('permission:inductions.create')

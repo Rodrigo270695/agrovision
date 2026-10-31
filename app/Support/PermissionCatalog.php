@@ -68,6 +68,7 @@ final class PermissionCatalog
             'inductions.update' => ['label' => 'Editar inducciones', 'module' => 'Inducción'],
             'inductions.delete' => ['label' => 'Eliminar inducciones', 'module' => 'Inducción'],
             'inductions.duplicate' => ['label' => 'Copiar inducciones', 'module' => 'Inducción'],
+            'inductions.quick_complete' => ['label' => 'Cerrar faltantes rápido', 'module' => 'Inducción'],
 
             'certificates.view' => ['label' => 'Ver certificados', 'module' => 'Certificados'],
             'certificates.create' => ['label' => 'Crear certificados', 'module' => 'Certificados'],
@@ -104,6 +105,10 @@ final class PermissionCatalog
             Permission::findOrCreate($name, 'web');
 
             if (! $existed && $name === 'inductions.duplicate') {
+                self::giveIfRoleExists(SystemRoles::INSPECTOR, $name);
+            }
+
+            if (! $existed && $name === 'inductions.quick_complete') {
                 self::giveIfRoleExists(SystemRoles::INSPECTOR, $name);
             }
 
