@@ -1,4 +1,5 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { toast } from 'sonner';
 import {
     AlertTriangle,
     CalendarDays,
@@ -1025,24 +1026,41 @@ function RemediationDetailModal({
                                 className="cursor-pointer rounded-xl text-rose-700"
                                 disabled={verifyForm.processing}
                                 onClick={() => {
-                                    verifyForm
-                                        .transform((data) => ({
-                                            ...data,
-                                            decision: 'reject' as const,
+                                    const note = verifyForm.data.note.trim();
+                                    if (note === '') {
+                                        toast.error(
+                                            'Para rechazar escribe el motivo en la nota general (abajo). No hace falta marcar checks.',
+                                        );
+                                        document
+                                            .getElementById(
+                                                'verify-general-note',
+                                            )
+                                            ?.scrollIntoView({
+                                                behavior: 'smooth',
+                                                block: 'center',
+                                            });
+                                        document
+                                            .getElementById(
+                                                'verify-general-note',
+                                            )
+                                            ?.focus();
+                                        return;
+                                    }
+
+                                    router.post(
+                                        `/calendario-observaciones/${unit.checklist_id}/verificar`,
+                                        {
+                                            pass: unit.pass,
+                                            decision: 'reject',
+                                            note,
                                             checked_ids: [],
                                             item_notes: itemNotes,
-                                        }))
-                                        .post(
-                                            `/calendario-observaciones/${unit.checklist_id}/verificar`,
-                                            {
-                                                preserveScroll: true,
-                                                onSuccess: () => onClose(),
-                                                onFinish: () =>
-                                                    verifyForm.transform(
-                                                        (data) => data,
-                                                    ),
-                                            },
-                                        );
+                                        },
+                                        {
+                                            preserveScroll: true,
+                                            onSuccess: () => onClose(),
+                                        },
+                                    );
                                 }}
                             >
                                 Rechazar
@@ -1059,10 +1077,19 @@ function RemediationDetailModal({
                                         : 'Marca el check de todos los ítems NO'
                                 }
                                 onClick={() => {
-                                    verifyForm
-                                        .transform((data) => ({
-                                            ...data,
-                                            decision: 'approve' as const,
+                                    if (!allChecked) {
+                                        toast.error(
+                                            'Marca el check de todos los ítems en NO para aprobar.',
+                                        );
+                                        return;
+                                    }
+
+                                    router.post(
+                                        `/calendario-observaciones/${unit.checklist_id}/verificar`,
+                                        {
+                                            pass: unit.pass,
+                                            decision: 'approve',
+                                            note: verifyForm.data.note.trim(),
                                             checked_ids: noItems
                                                 .filter(
                                                     (item) =>
@@ -1070,18 +1097,12 @@ function RemediationDetailModal({
                                                 )
                                                 .map((item) => item.id),
                                             item_notes: itemNotes,
-                                        }))
-                                        .post(
-                                            `/calendario-observaciones/${unit.checklist_id}/verificar`,
-                                            {
-                                                preserveScroll: true,
-                                                onSuccess: () => onClose(),
-                                                onFinish: () =>
-                                                    verifyForm.transform(
-                                                        (data) => data,
-                                                    ),
-                                            },
-                                        );
+                                        },
+                                        {
+                                            preserveScroll: true,
+                                            onSuccess: () => onClose(),
+                                        },
+                                    );
                                 }}
                             >
                                 {verifyForm.processing
@@ -1352,19 +1373,29 @@ function RemediationDetailModal({
                 {showVerify ? (
                     <div className="space-y-3 rounded-2xl border border-sky-200/80 bg-sky-50/50 p-3">
                         <p className="text-sm text-slate-600">
-                            Con todos los checks marcados, al aprobar la
-                            inspección pasa a <strong>Aprobado</strong> (100 %).
+                            <strong>Aprobar:</strong> marca el check de todos
+                            los ítems → la inspección queda al 100 % aprobada.
+                        </p>
+                        <p className="text-sm text-slate-600">
+                            <strong>Rechazar:</strong> no hace falta marcar
+                            checks. Escribe el motivo aquí abajo y pulsa
+                            Rechazar; el coordinador podrá corregir y reenviar.
                         </p>
                         {!allChecked ? (
                             <p className="text-xs font-medium text-amber-700">
-                                Faltan ítems por marcar como subsanados.
+                                Para aprobar faltan ítems por marcar.
                             </p>
                         ) : null}
                         <label className="block text-sm font-semibold text-slate-800">
-                            Nota general (obligatoria si rechazas)
+                            Nota general{' '}
+                            <span className="font-normal text-rose-600">
+                                (obligatoria para rechazar)
+                            </span>
                             <textarea
+                                id="verify-general-note"
                                 className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#1e4d8c] focus:ring-2 focus:ring-[#1e4d8c]/20"
                                 rows={2}
+                                placeholder="Ej. Falta evidencia del botiquín / no se corrigió la alarma"
                                 value={verifyForm.data.note}
                                 onChange={(e) =>
                                     verifyForm.setData('note', e.target.value)
