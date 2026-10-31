@@ -1,7 +1,8 @@
 import { router, usePage } from '@inertiajs/react';
 import { ClipboardPen } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { AppModal } from '@/components/shared/app-modal';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -23,111 +24,185 @@ type ApprovalProps = {
     items: ApprovalItem[];
 };
 
+const SESSION_KEY = 'inspection-approvals-modal-seen-count';
+
+function ApprovalList({
+    items,
+    emptyLabel = 'No hay solicitudes pendientes.',
+}: {
+    items: ApprovalItem[];
+    emptyLabel?: string;
+}) {
+    if (items.length === 0) {
+        return <p className="mt-3 text-xs text-[#5a7390]">{emptyLabel}</p>;
+    }
+
+    return (
+        <ul className="mt-3 max-h-80 space-y-2 overflow-y-auto">
+            {items.map((item) => (
+                <li
+                    key={item.id}
+                    className="rounded-lg border border-[#d7e3f0] px-2.5 py-2"
+                >
+                    <p className="text-xs font-semibold text-[#1a2b4c]">
+                        {item.plate_number || 'Sin placa'} · {item.pass}{' '}
+                        inspección
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-[#5a7390]">
+                        {item.requester_name || 'Inspector'}
+                        {item.driver_name ? ` · ${item.driver_name}` : ''} pide
+                        autorización
+                    </p>
+                    <div className="mt-2 flex gap-2">
+                        <Button
+                            type="button"
+                            size="sm"
+                            className="h-7 flex-1 cursor-pointer bg-emerald-700 text-xs text-white hover:bg-emerald-800"
+                            onClick={() =>
+                                router.post(
+                                    `/inspecciones/solicitudes/${item.id}/aprobar`,
+                                    {},
+                                    { preserveScroll: true },
+                                )
+                            }
+                        >
+                            Aprobar
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-7 flex-1 cursor-pointer border-red-200 text-xs text-red-700"
+                            onClick={() =>
+                                router.post(
+                                    `/inspecciones/solicitudes/${item.id}/rechazar`,
+                                    {},
+                                    { preserveScroll: true },
+                                )
+                            }
+                        >
+                            Rechazar
+                        </Button>
+                    </div>
+                </li>
+            ))}
+        </ul>
+    );
+}
+
 export function InspectionEditApprovals() {
     const { can } = useCan();
     const approvals = (
         usePage().props as { inspectionApprovals?: ApprovalProps }
     ).inspectionApprovals;
-
-    if (!can('checklists.authorize_edit')) {
-        return null;
-    }
+    const [welcomeOpen, setWelcomeOpen] = useState(false);
 
     const count = approvals?.count ?? 0;
     const items = approvals?.items ?? [];
+    const allowed = can('checklists.authorize_edit');
+
+    useEffect(() => {
+        if (!allowed || count <= 0) {
+            setWelcomeOpen(false);
+            return;
+        }
+
+        try {
+            const seen = Number(sessionStorage.getItem(SESSION_KEY) ?? '0');
+            if (count > seen) {
+                setWelcomeOpen(true);
+            }
+        } catch {
+            setWelcomeOpen(true);
+        }
+    }, [allowed, count]);
+
+    const dismissWelcome = () => {
+        try {
+            sessionStorage.setItem(SESSION_KEY, String(count));
+        } catch {
+            // ignore
+        }
+        setWelcomeOpen(false);
+    };
+
+    if (!allowed) {
+        return null;
+    }
 
     return (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="relative size-9 shrink-0 cursor-pointer text-[#5a7390] hover:bg-[#e8f1fa] hover:text-[#1a2b4c]"
-                    aria-label={
-                        count > 0
-                            ? `${count} solicitudes de edición por aprobar`
-                            : 'Solicitudes de edición'
-                    }
-                >
-                    <ClipboardPen className="size-4" />
-                    {count > 0 ? (
-                        <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
-                            {count > 9 ? '9+' : count}
-                        </span>
-                    ) : null}
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-                align="end"
-                className="w-80 bg-white p-3"
-            >
-                <p className="text-sm font-medium text-[#1a2b4c]">
-                    Ediciones por aprobar
-                </p>
-                <p className="mt-1 text-xs text-[#5a7390]">
-                    El inspector solo puede corregir la inspección que
-                    autorices.
-                </p>
-                {items.length === 0 ? (
-                    <p className="mt-3 text-xs text-[#5a7390]">
-                        No hay solicitudes pendientes.
+        <>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="relative size-9 shrink-0 cursor-pointer text-[#5a7390] hover:bg-[#e8f1fa] hover:text-[#1a2b4c]"
+                        aria-label={
+                            count > 0
+                                ? `${count} solicitudes de edición por aprobar`
+                                : 'Solicitudes de edición'
+                        }
+                    >
+                        <ClipboardPen className="size-4" />
+                        {count > 0 ? (
+                            <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
+                                {count > 9 ? '9+' : count}
+                            </span>
+                        ) : null}
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80 bg-white p-3">
+                    <p className="text-sm font-medium text-[#1a2b4c]">
+                        Ediciones por aprobar
                     </p>
-                ) : (
-                    <ul className="mt-3 max-h-80 space-y-2 overflow-y-auto">
-                        {items.map((item) => (
-                            <li
-                                key={item.id}
-                                className="rounded-lg border border-[#d7e3f0] px-2.5 py-2"
-                            >
-                                <p className="text-xs font-semibold text-[#1a2b4c]">
-                                    {item.plate_number || 'Sin placa'} ·{' '}
-                                    {item.pass} inspección
-                                </p>
-                                <p className="mt-0.5 text-[11px] text-[#5a7390]">
-                                    {item.requester_name || 'Inspector'}
-                                    {item.driver_name
-                                        ? ` · ${item.driver_name}`
-                                        : ''}{' '}
-                                    pide autorización
-                                </p>
-                                <div className="mt-2 flex gap-2">
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        className="h-7 flex-1 cursor-pointer bg-emerald-700 text-xs text-white hover:bg-emerald-800"
-                                        onClick={() =>
-                                            router.post(
-                                                `/inspecciones/solicitudes/${item.id}/aprobar`,
-                                                {},
-                                                { preserveScroll: true },
-                                            )
-                                        }
-                                    >
-                                        Aprobar
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-7 flex-1 cursor-pointer border-red-200 text-xs text-red-700"
-                                        onClick={() =>
-                                            router.post(
-                                                `/inspecciones/solicitudes/${item.id}/rechazar`,
-                                                {},
-                                                { preserveScroll: true },
-                                            )
-                                        }
-                                    >
-                                        Rechazar
-                                    </Button>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </DropdownMenuContent>
-        </DropdownMenu>
+                    <p className="mt-1 text-xs text-[#5a7390]">
+                        El inspector solo puede corregir la inspección que
+                        autorices.
+                    </p>
+                    <ApprovalList items={items} />
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            <AppModal
+                open={welcomeOpen && count > 0}
+                onClose={dismissWelcome}
+                title="Solicitudes de edición pendientes"
+                description={
+                    count === 1
+                        ? 'Hay 1 inspección esperando tu autorización para editar.'
+                        : `Hay ${count} inspecciones esperando tu autorización para editar.`
+                }
+                className="sm:max-w-md"
+                footer={
+                    <div className="flex justify-end gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="cursor-pointer"
+                            onClick={dismissWelcome}
+                        >
+                            Cerrar
+                        </Button>
+                        <Button
+                            type="button"
+                            className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                            onClick={dismissWelcome}
+                        >
+                            Entendido
+                        </Button>
+                    </div>
+                }
+            >
+                <p className="text-sm text-[#5a7390]">
+                    Revisa y aprueba o rechaza cada solicitud. También puedes
+                    hacerlo desde el icono del portapapeles en la barra
+                    superior.
+                </p>
+                <ApprovalList items={items} />
+            </AppModal>
+        </>
     );
 }
 
