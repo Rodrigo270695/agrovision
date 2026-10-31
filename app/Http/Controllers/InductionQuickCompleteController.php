@@ -99,13 +99,19 @@ class InductionQuickCompleteController extends Controller
             $end = substr($end, 0, 5);
         }
 
+        $dnis = collect((array) $request->input('dnis', []))
+            ->map(fn ($dni) => trim((string) $dni))
+            ->filter(fn (string $dni) => $dni !== '')
+            ->values()
+            ->all();
+
         $request->merge([
             'start_time' => $start,
             'end_time' => $end,
             'period_id' => $request->filled('period_id') ? (int) $request->input('period_id') : null,
             'site_id' => $request->filled('site_id') ? (int) $request->input('site_id') : null,
             'place_id' => $request->filled('place_id') ? (int) $request->input('place_id') : null,
-            'dnis' => array_values(array_filter((array) $request->input('dnis', []))),
+            'dnis' => $dnis,
         ]);
 
         $validated = $request->validate([

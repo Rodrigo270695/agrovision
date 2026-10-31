@@ -89,7 +89,7 @@ export default function InductionQuickCompletePage({
     const flash = (page.props as { flash?: { toast?: { type?: string; message?: string } } })
         .flash;
     const [selected, setSelected] = useState<string[]>(
-        candidates.map((item) => item.dni),
+        candidates.map((item) => String(item.dni)),
     );
     const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
 
@@ -103,12 +103,12 @@ export default function InductionQuickCompletePage({
         place_id: '',
         speaker_name: defaults.speaker_name,
         speaker_institution: defaults.speaker_institution,
-        dnis: candidates.map((item) => item.dni) as string[],
+        dnis: candidates.map((item) => String(item.dni)),
         photo_data_url: '',
     });
 
     useEffect(() => {
-        const next = candidates.map((item) => item.dni);
+        const next = candidates.map((item) => String(item.dni));
         setSelected(next);
         form.setData('dnis', next);
         form.setData('induction_type', selectedType ?? '');
@@ -133,15 +133,16 @@ export default function InductionQuickCompletePage({
             return;
         }
 
-        const next = candidates.map((item) => item.dni);
+        const next = candidates.map((item) => String(item.dni));
         setSelected(next);
         form.setData('dnis', next);
     };
 
     const toggleOne = (dni: string, checked: boolean) => {
+        const key = String(dni);
         const next = checked
-            ? [...selected, dni]
-            : selected.filter((item) => item !== dni);
+            ? [...selected, key]
+            : selected.filter((item) => item !== key);
         setSelected(next);
         form.setData('dnis', next);
     };
@@ -189,7 +190,7 @@ export default function InductionQuickCompletePage({
             period_id: data.period_id === '' ? null : Number(data.period_id),
             site_id: data.site_id === '' ? null : Number(data.site_id),
             place_id: data.place_id === '' ? null : Number(data.place_id),
-            dnis: selected,
+            dnis: selected.map((dni) => String(dni)),
             photo_data_url: photoDataUrl,
         }));
 
@@ -328,7 +329,7 @@ export default function InductionQuickCompletePage({
                             ) : (
                                 <ul className="mt-3 max-h-[28rem] space-y-2 overflow-y-auto pr-1">
                                     {candidates.map((item) => {
-                                        const checked = selected.includes(item.dni);
+                                        const checked = selected.includes(String(item.dni));
 
                                         return (
                                             <li
