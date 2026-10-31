@@ -88,6 +88,26 @@ class InductionQuickCompleteController extends Controller
     {
         $this->ensureAllowed();
 
+        $start = trim((string) $request->input('start_time', ''));
+        $end = trim((string) $request->input('end_time', ''));
+
+        if (preg_match('/^\d{2}:\d{2}:\d{2}$/', $start)) {
+            $start = substr($start, 0, 5);
+        }
+
+        if (preg_match('/^\d{2}:\d{2}:\d{2}$/', $end)) {
+            $end = substr($end, 0, 5);
+        }
+
+        $request->merge([
+            'start_time' => $start,
+            'end_time' => $end,
+            'period_id' => $request->filled('period_id') ? (int) $request->input('period_id') : null,
+            'site_id' => $request->filled('site_id') ? (int) $request->input('site_id') : null,
+            'place_id' => $request->filled('place_id') ? (int) $request->input('place_id') : null,
+            'dnis' => array_values(array_filter((array) $request->input('dnis', []))),
+        ]);
+
         $validated = $request->validate([
             'induction_type' => ['required', 'string', Rule::in(InductionTypeCatalog::keys())],
             'session_date' => ['required', 'date'],
@@ -105,11 +125,15 @@ class InductionQuickCompleteController extends Controller
             'photo_data_url' => ['required', 'string'],
         ], [
             'induction_type.required' => 'Selecciona el tipo.',
+            'induction_type.in' => 'El tipo no es válido.',
             'dnis.required' => 'Selecciona al menos un conductor.',
             'dnis.min' => 'Selecciona al menos un conductor.',
-            'photo_data_url.required' => 'Sube la foto de evidencia.',
+            'photo_data_url.required' => 'Sube la foto de evidencia y pulsa guardar si hace falta.',
             'period_id.required' => 'El periodo es obligatorio.',
             'session_date.required' => 'La fecha es obligatoria.',
+            'start_time.date_format' => 'La hora de inicio no es válida.',
+            'end_time.date_format' => 'La hora de fin no es válida.',
+            'end_time.after' => 'La hora de fin debe ser posterior al inicio.',
         ]);
 
         if ($request->filled('place_id') && ! $request->filled('site_id')) {

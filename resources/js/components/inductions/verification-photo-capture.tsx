@@ -8,6 +8,8 @@ type Props = {
     existingUrl?: string | null;
     disabled?: boolean;
     saving?: boolean;
+    /** Si true, al capturar/subir ya confirma la foto (sin botón Guardar). */
+    autoCommit?: boolean;
     onSave: (dataUrl: string) => void;
     onRemove?: () => void;
 };
@@ -49,6 +51,7 @@ export function VerificationPhotoCapture({
     existingUrl,
     disabled = false,
     saving = false,
+    autoCommit = false,
     onSave,
     onRemove,
 }: Props) {
@@ -135,6 +138,10 @@ export function VerificationPhotoCapture({
         const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
         setPreview(dataUrl);
         stopCamera();
+
+        if (autoCommit) {
+            onSave(dataUrl);
+        }
     };
 
     const handleFile = async (file: File | null) => {
@@ -148,6 +155,10 @@ export function VerificationPhotoCapture({
             const dataUrl = await fileToCompressedDataUrl(file);
             setPreview(dataUrl);
             stopCamera();
+
+            if (autoCommit) {
+                onSave(dataUrl);
+            }
         } catch {
             setError('No se pudo procesar la imagen seleccionada.');
         }
@@ -247,7 +258,7 @@ export function VerificationPhotoCapture({
                     </>
                 )}
 
-                {preview ? (
+                {preview && !autoCommit ? (
                     <Button
                         type="button"
                         disabled={disabled || saving}

@@ -1,6 +1,7 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { CheckSquare2, Square, Zap } from 'lucide-react';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { toast } from 'sonner';
 import InputError from '@/components/input-error';
 import { VerificationPhotoCapture } from '@/components/inductions/verification-photo-capture';
 import type {
@@ -25,6 +26,16 @@ import { SearchableCombobox } from '@/components/shared/searchable-combobox';
 import { useCan } from '@/hooks/use-can';
 import { dashboard } from '@/routes';
 import { cn } from '@/lib/utils';
+
+function normalizeTime(value: string): string {
+    const trimmed = value.trim();
+
+    if (/^\d{2}:\d{2}:\d{2}$/.test(trimmed)) {
+        return trimmed.slice(0, 5);
+    }
+
+    return trimmed.slice(0, 5);
+}
 
 type Candidate = {
     key: string;
@@ -143,26 +154,38 @@ export default function InductionQuickCompletePage({
         );
     };
 
-    const canSubmit = useMemo(
-        () =>
-            Boolean(form.data.induction_type) &&
-            selected.length > 0 &&
-            Boolean(form.data.session_date) &&
-            Boolean(form.data.period_id) &&
-            Boolean(photoDataUrl) &&
-            !form.processing,
-        [form.data, form.processing, selected.length, photoDataUrl],
-    );
-
     const handleSubmit = (event: FormEvent) => {
         event.preventDefault();
 
-        if (!canSubmit || !photoDataUrl) {
+        if (!form.data.induction_type) {
+            toast.error('Selecciona un tipo de inducción o capacitación.');
+
+            return;
+        }
+
+        if (selected.length === 0) {
+            toast.error('Selecciona al menos un conductor.');
+
+            return;
+        }
+
+        if (!form.data.session_date || !form.data.period_id) {
+            toast.error('Completa la fecha y el periodo.');
+
+            return;
+        }
+
+        if (!photoDataUrl) {
+            toast.error('Sube o toma la foto de evidencia.');
+
             return;
         }
 
         form.transform((data) => ({
             ...data,
+            induction_type: data.induction_type || selectedType || '',
+            start_time: normalizeTime(data.start_time),
+            end_time: normalizeTime(data.end_time),
             period_id: data.period_id === '' ? null : Number(data.period_id),
             site_id: data.site_id === '' ? null : Number(data.site_id),
             place_id: data.place_id === '' ? null : Number(data.place_id),
@@ -174,6 +197,15 @@ export default function InductionQuickCompletePage({
             preserveScroll: true,
             onSuccess: () => {
                 setPhotoDataUrl(null);
+                toast.success('Paquete creado y cerrado.');
+            },
+            onError: (errors) => {
+                const first = Object.values(errors)[0];
+                toast.error(
+                    typeof first === 'string'
+                        ? first
+                        : 'No se pudo crear el paquete. Revisa los datos.',
+                );
             },
             onFinish: () => form.transform((data) => data),
         });
@@ -476,6 +508,7 @@ export default function InductionQuickCompletePage({
                                 <VerificationPhotoCapture
                                     existingUrl={photoDataUrl}
                                     saving={form.processing}
+                                    autoCommit
                                     onSave={(dataUrl) => {
                                         setPhotoDataUrl(dataUrl);
                                         form.setData('photo_data_url', dataUrl);
@@ -495,12 +528,28 @@ export default function InductionQuickCompletePage({
                                     <p className="text-xs text-emerald-700">
                                         Evidencia lista para cerrar el paquete.
                                     </p>
-                                ) : null}
+                                ) : (
+                                    <p className="text-xs text-amber-700">
+                                        Falta la foto de evidencia.
+                                    </p>
+                                )}
                             </div>
+
+                            {Object.keys(form.errors).length > 0 ? (
+                                <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+                                    {Object.values(form.errors)
+                                        .flat()
+                                        .filter(Boolean)
+                                        .slice(0, 4)
+                                        .map((message) => (
+                                            <p key={String(message)}>{String(message)}</p>
+                                        ))}
+                                </div>
+                            ) : null}
 
                             <Button
                                 type="submit"
-                                disabled={!canSubmit}
+                                disabled={form.processing}
                                 className="w-full cursor-pointer gap-2 bg-[#1a2b4c] text-white hover:bg-[#122038] disabled:opacity-50"
                             >
                                 {form.processing ? <Spinner /> : <Zap className="size-4" />}
