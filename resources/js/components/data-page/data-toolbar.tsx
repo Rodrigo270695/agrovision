@@ -30,11 +30,8 @@ export type DataToolbarProps = {
  * Toolbar superior de una página de listado.
  * Combina un input de búsqueda con icono + slot opcional para filtros extra.
  *
- * - Cuando `isSearching` es `true`, el ícono se convierte en spinner para
- *   indicar al usuario que la consulta está en curso (útil con miles de filas).
- *
- * Layout: el buscador va solo en la primera fila; los selects/filtros debajo,
- * en una fila que puede hacer wrap sin desalinear el search.
+ * - Cuando `isSearching` es `true`, el ícono se convierte en spinner.
+ * - En `sm+` buscador y filtros van en la misma fila; en móvil apilan.
  */
 export function DataToolbar({
     search,
@@ -71,17 +68,27 @@ export function DataToolbar({
     };
 
     return (
-        <div className={cn('flex w-full flex-col gap-3', className)}>
-            <div className={cn('relative w-full sm:max-w-sm', searchWrapperClassName)}>
+        <div
+            className={cn(
+                'flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3',
+                className,
+            )}
+        >
+            <div
+                className={cn(
+                    'relative w-full shrink-0 sm:max-w-sm sm:flex-none',
+                    searchWrapperClassName,
+                )}
+            >
                 {isSearching || pending ? (
                     <Loader2
-                        className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 animate-spin text-primary"
+                        className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 animate-spin text-brand-500"
                         aria-hidden="true"
                         strokeWidth={2.25}
                     />
                 ) : (
                     <Search
-                        className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-muted-foreground/90"
+                        className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-muted-foreground"
                         aria-hidden="true"
                         strokeWidth={2.25}
                     />
@@ -101,14 +108,14 @@ export function DataToolbar({
                         }
                     }}
                     placeholder={placeholder}
-                    className="h-10 pr-10 pl-10 [&::-webkit-search-cancel-button]:hidden"
+                    className="h-10 border-brand-200 bg-card pr-10 pl-10 shadow-xs focus-visible:border-brand-500 focus-visible:ring-brand-500/25 [&::-webkit-search-cancel-button]:hidden"
                 />
                 {text.length > 0 && (
                     <button
                         type="button"
                         onClick={() => submit('')}
                         aria-label="Limpiar búsqueda"
-                        className="absolute top-1/2 right-2.5 z-10 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        className="absolute top-1/2 right-2.5 z-10 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-brand-100 hover:text-brand-800"
                     >
                         <X className="size-3.5" strokeWidth={2.5} />
                     </button>
@@ -118,7 +125,7 @@ export function DataToolbar({
             {children ? (
                 <div
                     className={cn(
-                        'flex min-w-0 w-full flex-wrap items-center gap-2 sm:gap-3',
+                        'flex min-w-0 flex-1 flex-wrap items-center gap-2',
                         filtersClassName,
                     )}
                 >

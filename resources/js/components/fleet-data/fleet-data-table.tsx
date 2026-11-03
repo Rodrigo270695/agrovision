@@ -259,6 +259,7 @@ export function FleetDataTable({
                 search={filters.search ?? ''}
                 placeholder="Buscar placa…"
                 onSearchChange={(value) => applyFilters({ search: value })}
+                className="border-b border-brand-200/70 bg-card px-3 py-3 sm:px-4"
             >
                 <PeriodFilterSelect
                     value={filters.period_id}
@@ -266,6 +267,7 @@ export function FleetDataTable({
                     onChange={(value) =>
                         applyFilters({ period_id: value ?? null })
                     }
+                    className="w-full sm:w-[240px]"
                 />
                 {history ? (
                     <DateRangeFilter

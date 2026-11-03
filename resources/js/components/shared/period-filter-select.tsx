@@ -78,8 +78,8 @@ export function PeriodFilterSelect({
             value={value ? String(value) : 'all'}
             onChange={(next) => onChange(next === 'all' ? null : Number(next))}
             options={filterOptions}
-            triggerClassName={cn('h-10', className)}
-            className="sm:w-[240px]"
+            triggerClassName="h-10"
+            className={cn('w-full sm:w-[240px]', className)}
         />
     );
 }

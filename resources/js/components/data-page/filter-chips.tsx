@@ -393,10 +393,11 @@ export function FilterChips<TValue extends string>({
                 disabled={disabled}
                 onClick={() => setOpen((current) => !current)}
                 className={cn(
-                    'border-input flex h-9 w-full min-w-[11rem] cursor-pointer items-center justify-between gap-2 rounded-lg border bg-white px-2.5 text-sm shadow-xs outline-none transition-[color,border-color]',
-                    'hover:border-brand-300 hover:bg-white focus-visible:border-brand-400',
-                    open && 'border-brand-400',
-                    'disabled:cursor-not-allowed disabled:opacity-50 dark:bg-card',
+                    'flex h-10 w-full min-w-[11rem] cursor-pointer items-center justify-between gap-2 rounded-xl border border-brand-200 bg-card px-3 text-sm shadow-xs outline-none transition-[color,border-color]',
+                    'hover:border-brand-300 hover:bg-brand-50/70',
+                    'focus-visible:border-brand-500 focus-visible:ring-2 focus-visible:ring-brand-500/25',
+                    open && 'border-brand-500',
+                    'disabled:cursor-not-allowed disabled:opacity-50',
                     triggerClassName,
                 )}
             >
