@@ -133,11 +133,12 @@
     --chart-4: #0284c7;
     --chart-5: #e11d48;
     --radius: 0.75rem;
-    --sidebar: #ffffff;
+    /* Lavado brand suave: profundidad sin pelear con el shell claro */
+    --sidebar: #f3f7fc;
     --sidebar-foreground: #0f1f3a;
     --sidebar-primary: #0f1f3a;
     --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: #e8f1fa;
+    --sidebar-accent: #e4eef8;
     --sidebar-accent-foreground: #0f1f3a;
     --sidebar-border: #d7e3f0;
     --sidebar-ring: #1e4d8c;

@@ -332,17 +332,13 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent className="relative gap-0 px-1.5 pt-3">
-                <div
-                    aria-hidden
-                    className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-brand-50/90 to-transparent"
-                />
                 <NavMain
                     items={visibleNavItems}
                     groupLabel={isCentral ? 'Grupo Indelsi' : 'Operaciones'}
                 />
             </SidebarContent>
 
-            <SidebarFooter className="border-t border-brand-200/80 bg-gradient-to-t from-brand-50/80 to-transparent px-2.5 py-2.5">
+            <SidebarFooter className="border-t border-brand-200/80 px-2.5 py-2.5">
                 {visibleFooterItems.length > 0 ? (
                     <NavFooter items={visibleFooterItems} className="mt-auto" />
                 ) : null}

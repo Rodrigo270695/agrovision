@@ -25,7 +25,7 @@ const itemClass =
     'h-10 cursor-pointer rounded-xl px-2.5 text-[13px] font-medium text-brand-700/80 transition-colors hover:bg-brand-100 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/35 data-[active=true]:bg-brand-800 data-[active=true]:text-white data-[active=true]:shadow-[0_8px_18px_-12px_rgba(15,31,58,0.65)] data-[active=true]:hover:bg-brand-900 data-[active=true]:hover:text-white [&_svg]:shrink-0';
 
 const subItemClass =
-    'h-8 cursor-pointer rounded-lg px-2 text-[13px] text-brand-700/75 transition-colors hover:bg-brand-100 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/35 data-[active=true]:bg-brand-100 data-[active=true]:font-semibold data-[active=true]:text-brand-800 data-[active=true]:shadow-[inset_3px_0_0_0_var(--brand-500)]';
+    'h-8 cursor-pointer rounded-lg px-2 text-[13px] text-brand-700/75 transition-colors hover:bg-brand-100 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/35 data-[active=true]:bg-brand-100 data-[active=true]:font-semibold data-[active=true]:text-brand-800 data-[active=true]:shadow-[inset_3px_0_0_0_var(--brand-500)] data-[active=true]:[&_svg]:!text-brand-800';
 
 function itemIsActive(
     item: NavItem,
@@ -49,10 +49,17 @@ function NavIcon({
     icon: NonNullable<NavItem['icon']>;
     active?: boolean;
     size?: 'md' | 'sm';
-    /** solid = ícono blanco (fondo navy); soft = ícono navy (fondo claro) */
+    /** solid = ícono blanco (solo ítems leaf con fondo navy); soft = siempre navy */
     tone?: 'solid' | 'soft';
 }) {
     const useSoft = tone === 'soft' || size === 'sm';
+    const iconColor = useSoft
+        ? active
+            ? 'text-brand-800'
+            : 'text-brand-500'
+        : active
+          ? 'text-white'
+          : 'text-brand-500';
 
     return (
         <span
@@ -61,26 +68,22 @@ function NavIcon({
                 size === 'sm' ? 'size-6' : 'size-7',
                 useSoft
                     ? active
-                        ? 'bg-brand-200 text-brand-800 ring-1 ring-brand-300'
-                        : 'bg-brand-100 text-brand-500 ring-1 ring-brand-200/70'
+                        ? 'bg-brand-200 ring-1 ring-brand-300'
+                        : 'bg-brand-100 ring-1 ring-brand-200/70'
                     : active
-                      ? 'bg-white/15 text-white ring-1 ring-white/20'
-                      : 'bg-brand-100 text-brand-500 ring-1 ring-brand-200/70',
+                      ? 'bg-white/15 ring-1 ring-white/20'
+                      : 'bg-brand-100 ring-1 ring-brand-200/70',
+                iconColor,
             )}
             aria-hidden
         >
             <Icon
                 className={cn(
                     size === 'sm' ? 'size-3.5' : 'size-4',
-                    useSoft
-                        ? active
-                            ? '!text-brand-800'
-                            : '!text-brand-500'
-                        : active
-                          ? '!text-white'
-                          : '!text-brand-500',
+                    iconColor,
                 )}
                 strokeWidth={2}
+                color="currentColor"
             />
         </span>
     );
@@ -185,6 +188,7 @@ function NavCollapsibleItem({
                                                     icon={child.icon}
                                                     active={childActive}
                                                     size="sm"
+                                                    tone="soft"
                                                 />
                                             ) : null}
                                             <NavLabel>{child.title}</NavLabel>
