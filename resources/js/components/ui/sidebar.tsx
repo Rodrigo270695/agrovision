@@ -1,7 +1,7 @@
 import { Slot } from "@radix-ui/react-slot"
 import type { VariantProps} from "class-variance-authority";
 import { cva } from "class-variance-authority"
-import { PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react"
+import { Menu } from "lucide-react"
 import * as React from "react"
 
 import { Button } from "@/components/ui/button"
@@ -251,7 +251,8 @@ function SidebarTrigger({
   onClick,
   ...props
 }: React.ComponentProps<typeof Button>) {
-  const { toggleSidebar, isMobile, state } = useSidebar()
+  const { toggleSidebar, open, openMobile, isMobile, state } = useSidebar()
+  const expanded = isMobile ? openMobile : state === "expanded" || open
 
   return (
     <Button
@@ -259,15 +260,25 @@ function SidebarTrigger({
       data-slot="sidebar-trigger"
       variant="ghost"
       size="icon"
-      className={cn("h-7 w-7", className)}
+      aria-expanded={expanded}
+      aria-label={expanded ? "Ocultar menú" : "Mostrar menú"}
+      title={expanded ? "Ocultar menú" : "Mostrar menú"}
+      className={cn(
+        "size-9 shrink-0 rounded-xl border border-slate-200/90 bg-white text-[#0f1f3a] shadow-sm",
+        "transition-colors hover:border-[#1e4d8c]/30 hover:bg-[#e8f1fa] hover:text-[#1e4d8c]",
+        "focus-visible:ring-2 focus-visible:ring-[#1e4d8c]/35",
+        className
+      )}
       onClick={(event) => {
         onClick?.(event)
         toggleSidebar()
       }}
       {...props}
     >
-      {isMobile || state === "collapsed" ? <PanelLeftOpenIcon /> : <PanelLeftCloseIcon />}
-      <span className="sr-only">Toggle sidebar</span>
+      <Menu className="size-5" strokeWidth={2.25} aria-hidden />
+      <span className="sr-only">
+        {expanded ? "Ocultar menú" : "Mostrar menú"}
+      </span>
     </Button>
   )
 }
