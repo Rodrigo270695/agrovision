@@ -1,8 +1,9 @@
-import { CircleCheck, ClipboardList, Download, FileText, Package, Plus } from 'lucide-react';
+import { Download, Package, Plus } from 'lucide-react';
+import type { ChecklistsStatsData } from '@/components/checklists/checklists-stats';
 import {
-    type ChecklistsStatsData,
-} from '@/components/checklists/checklists-stats';
-import { PageHeader } from '@/components/data-page';
+    PlatformHero,
+    PlatformToolbar,
+} from '@/components/platform';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/hooks/use-can';
 
@@ -22,80 +23,68 @@ export function ChecklistsHeader({
     const { can } = useCan();
 
     return (
-        <PageHeader
-            title="Inspecciones"
-            description="Crea las inspecciones con las unidades del periodo activo. La fecha es el día de la inspección."
-            stats={[
-                {
-                    label: 'Total',
-                    value: stats.total,
-                    variant: 'info',
-                    icon: ClipboardList,
-                },
-                {
-                    label: 'Borradores',
-                    value: stats.draft,
-                    variant: 'warning',
-                    icon: FileText,
-                },
-                {
-                    label: 'Completados',
-                    value: stats.completed,
-                    variant: 'success',
-                    icon: CircleCheck,
-                },
-                {
-                    label: 'En pantalla',
-                    value: stats.on_screen,
-                    variant: 'primary',
-                    icon: ClipboardList,
-                },
-            ]}
-            action={
-                <div className="flex flex-wrap items-center gap-2">
-                    {can('checklists.view') ? (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={onExport}
-                            className="cursor-pointer gap-2 border-[#1a2b4c] text-[#1a2b4c] hover:bg-[#e8f1fa]"
-                        >
-                            <Download className="size-4" />
-                            <span className="hidden sm:inline">
-                                Exportar
-                            </span>
-                            <span className="sm:hidden">Excel</span>
-                        </Button>
-                    ) : null}
-                    {can('checklists.update') && onSendBatch ? (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={onSendBatch}
-                            className="cursor-pointer gap-2 border-[#1a2b4c] text-[#1a2b4c] hover:bg-[#e8f1fa]"
-                        >
-                            <Package className="size-4" />
-                            <span className="hidden sm:inline">
-                                Enviar paquete
-                            </span>
-                            <span className="sm:hidden">Paquete</span>
-                        </Button>
-                    ) : null}
-                    {can('checklists.create') ? (
-                        <Button
-                            type="button"
-                            onClick={onCreate}
-                            className="cursor-pointer gap-2 bg-[#1a2b4c] text-white hover:bg-[#122038]"
-                        >
-                            <Plus className="size-4" strokeWidth={2.5} />
-                            <span className="hidden sm:inline">
-                                Nueva inspección
-                            </span>
-                            <span className="sm:hidden">Nueva</span>
-                        </Button>
-                    ) : null}
-                </div>
-            }
-        />
+        <div className="flex flex-col gap-3">
+            <PlatformHero
+                title="Inspecciones"
+                description="Crea las inspecciones con las unidades del periodo activo. La fecha es el día de la inspección."
+                stats={[
+                    { label: 'Total', value: stats.total, tone: 'navy' },
+                    { label: 'Borradores', value: stats.draft, tone: 'amber' },
+                    {
+                        label: 'Completados',
+                        value: stats.completed,
+                        tone: 'emerald',
+                    },
+                    {
+                        label: 'En pantalla',
+                        value: stats.on_screen,
+                        tone: 'sky',
+                    },
+                ]}
+            />
+
+            <PlatformToolbar>
+                {can('checklists.view') ? (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={onExport}
+                        className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-[#0f1f3a] hover:bg-slate-50"
+                    >
+                        <Download className="size-3.5" />
+                        <span className="hidden sm:inline">Exportar</span>
+                        <span className="sm:hidden">Excel</span>
+                    </Button>
+                ) : null}
+                {can('checklists.update') && onSendBatch ? (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={onSendBatch}
+                        className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-[#0f1f3a] hover:bg-slate-50"
+                    >
+                        <Package className="size-3.5" />
+                        <span className="hidden sm:inline">Enviar paquete</span>
+                        <span className="sm:hidden">Paquete</span>
+                    </Button>
+                ) : null}
+                {can('checklists.create') ? (
+                    <Button
+                        type="button"
+                        size="sm"
+                        onClick={onCreate}
+                        className="cursor-pointer gap-1.5 rounded-xl bg-[#1e4d8c] text-white hover:bg-[#163a6b]"
+                    >
+                        <Plus className="size-3.5" strokeWidth={2.5} />
+                        <span className="hidden sm:inline">
+                            Nueva inspección
+                        </span>
+                        <span className="sm:hidden">Nueva</span>
+                    </Button>
+                ) : null}
+            </PlatformToolbar>
+        </div>
     );
 }

@@ -1,6 +1,9 @@
-import { CalendarRange, CheckCircle2, PauseCircle, Plus } from 'lucide-react';
-import { PageHeader } from '@/components/data-page';
+import { Plus } from 'lucide-react';
 import type { PeriodsStatsData } from '@/components/periods/periods-stats';
+import {
+    PlatformHero,
+    PlatformToolbar,
+} from '@/components/platform';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/hooks/use-can';
 
@@ -13,48 +16,36 @@ export function PeriodsHeader({ stats, onCreate }: Props) {
     const { can } = useCan();
 
     return (
-        <PageHeader
-            title="Periodos"
-            description="Gestión de periodos operativos de las unidades."
-            stats={[
-                {
-                    label: 'Total',
-                    value: stats.periods,
-                    variant: 'info',
-                    icon: CalendarRange,
-                },
-                {
-                    label: 'Activos',
-                    value: stats.active,
-                    variant: 'success',
-                    icon: CheckCircle2,
-                },
-                {
-                    label: 'Inactivos',
-                    value: stats.inactive,
-                    variant: 'muted',
-                    icon: PauseCircle,
-                },
-                {
-                    label: 'En pantalla',
-                    value: stats.on_screen,
-                    variant: 'primary',
-                    icon: CalendarRange,
-                },
-            ]}
-            action={
-                can('periods.create') ? (
+        <div className="flex flex-col gap-3">
+            <PlatformHero
+                title="Periodos"
+                description="Gestión de periodos operativos de las unidades."
+                stats={[
+                    { label: 'Total', value: stats.periods, tone: 'navy' },
+                    { label: 'Activos', value: stats.active, tone: 'emerald' },
+                    { label: 'Inactivos', value: stats.inactive, tone: 'amber' },
+                    {
+                        label: 'En pantalla',
+                        value: stats.on_screen,
+                        tone: 'sky',
+                    },
+                ]}
+            />
+
+            {can('periods.create') ? (
+                <PlatformToolbar>
                     <Button
                         type="button"
+                        size="sm"
                         onClick={onCreate}
-                        className="cursor-pointer gap-2 bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                        className="cursor-pointer gap-1.5 rounded-xl bg-[#1e4d8c] text-white hover:bg-[#163a6b]"
                     >
-                        <Plus className="size-4" strokeWidth={2.5} />
+                        <Plus className="size-3.5" strokeWidth={2.5} />
                         <span className="hidden sm:inline">Nuevo periodo</span>
                         <span className="sm:hidden">Nuevo</span>
                     </Button>
-                ) : null
-            }
-        />
+                </PlatformToolbar>
+            ) : null}
+        </div>
     );
 }

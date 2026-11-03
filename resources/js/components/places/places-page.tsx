@@ -16,6 +16,11 @@ import { SiteDeleteModal } from '@/components/places/site-delete-modal';
 import { SiteFormModal } from '@/components/places/site-form-modal';
 import { SitesTable } from '@/components/places/sites-table';
 import type { SiteItem, SitesPagination } from '@/components/places/sites-table';
+import {
+    PlatformContentPanel,
+    PlatformPageShell,
+    PlatformToolbar,
+} from '@/components/platform';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/hooks/use-can';
 import { isBrowserOnline } from '@/lib/offline/ids';
@@ -161,32 +166,37 @@ export function PlacesPage() {
     };
 
     return (
-        <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
+        <PlatformPageShell>
             <PlacesHeader stats={stats} />
 
-            <section className="flex flex-col gap-3">
-                <div className="flex items-center justify-between gap-3">
+            <PlatformToolbar
+                leading={
                     <div className="flex min-w-0 items-center gap-2">
-                        <Building2 className="size-4 shrink-0 text-[#2e5a9e]" />
-                        <h2 className="text-sm font-semibold text-[#1a2b4c]">
+                        <Building2 className="size-4 shrink-0 text-[#1e4d8c]" />
+                        <h2 className="text-sm font-semibold text-[#0f1f3a]">
                             Sedes
                         </h2>
                     </div>
-                    {can('places.create') ? (
-                        <Button
-                            type="button"
-                            onClick={() => {
-                                setEditingSite(null);
-                                setSiteFormOpen(true);
-                            }}
-                            className="cursor-pointer gap-2 bg-[#1a2b4c] text-white hover:bg-[#122038]"
-                        >
-                            <Plus className="size-4" strokeWidth={2.5} />
-                            <span className="hidden sm:inline">Nueva sede</span>
-                            <span className="sm:hidden">Nueva</span>
-                        </Button>
-                    ) : null}
-                </div>
+                }
+            >
+                {can('places.create') ? (
+                    <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => {
+                            setEditingSite(null);
+                            setSiteFormOpen(true);
+                        }}
+                        className="cursor-pointer gap-1.5 rounded-xl bg-[#1e4d8c] text-white hover:bg-[#163a6b]"
+                    >
+                        <Plus className="size-3.5" strokeWidth={2.5} />
+                        <span className="hidden sm:inline">Nueva sede</span>
+                        <span className="sm:hidden">Nueva</span>
+                    </Button>
+                ) : null}
+            </PlatformToolbar>
+
+            <PlatformContentPanel>
                 <SitesTable
                     sites={mergedSites}
                     filters={siteFilters}
@@ -202,40 +212,43 @@ export function PlacesPage() {
                         setSiteDeleteOpen(true);
                     }}
                 />
-            </section>
+            </PlatformContentPanel>
 
-            <section className="flex flex-col gap-3">
-                <div className="flex items-center justify-between gap-3">
+            <PlatformToolbar
+                leading={
                     <div className="flex min-w-0 items-center gap-2">
-                        <MapPin className="size-4 shrink-0 text-[#2e5a9e]" />
-                        <h2 className="truncate text-sm font-semibold text-[#1a2b4c]">
+                        <MapPin className="size-4 shrink-0 text-[#1e4d8c]" />
+                        <h2 className="truncate text-sm font-semibold text-[#0f1f3a]">
                             {selectedSite
                                 ? `Lugares de ${selectedSite.name}`
                                 : 'Lugares'}
                         </h2>
                     </div>
-                    {can('places.create') ? (
-                        <Button
-                            type="button"
-                            disabled={!selectedSite}
-                            onClick={() => {
-                                if (!selectedSite) {
-                                    return;
-                                }
+                }
+            >
+                {can('places.create') ? (
+                    <Button
+                        type="button"
+                        size="sm"
+                        disabled={!selectedSite}
+                        onClick={() => {
+                            if (!selectedSite) {
+                                return;
+                            }
 
-                                setEditing(null);
-                                setFormOpen(true);
-                            }}
-                            className="cursor-pointer gap-2 bg-[#1a2b4c] text-white hover:bg-[#122038] disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            <Plus className="size-4" strokeWidth={2.5} />
-                            <span className="hidden sm:inline">
-                                Nuevo lugar
-                            </span>
-                            <span className="sm:hidden">Nuevo</span>
-                        </Button>
-                    ) : null}
-                </div>
+                            setEditing(null);
+                            setFormOpen(true);
+                        }}
+                        className="cursor-pointer gap-1.5 rounded-xl bg-[#1e4d8c] text-white hover:bg-[#163a6b] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        <Plus className="size-3.5" strokeWidth={2.5} />
+                        <span className="hidden sm:inline">Nuevo lugar</span>
+                        <span className="sm:hidden">Nuevo</span>
+                    </Button>
+                ) : null}
+            </PlatformToolbar>
+
+            <PlatformContentPanel>
                 <PlacesTable
                     places={mergedPlaces}
                     filters={filters}
@@ -250,7 +263,7 @@ export function PlacesPage() {
                         setDeleteOpen(true);
                     }}
                 />
-            </section>
+            </PlatformContentPanel>
 
             {can('places.create') || can('places.update') ? (
                 <>
@@ -294,6 +307,6 @@ export function PlacesPage() {
                     />
                 </>
             ) : null}
-        </div>
+        </PlatformPageShell>
     );
 }

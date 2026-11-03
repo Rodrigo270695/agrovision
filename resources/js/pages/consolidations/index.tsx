@@ -1,11 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import {
-    CheckCircle2,
-    ClipboardList,
-    Eye,
-    FileStack,
-    Reply,
-} from 'lucide-react';
+import { ClipboardList, Eye, Reply } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
 import {
     DataPagination,
@@ -13,11 +7,15 @@ import {
     DataToolbar,
     EmptyState,
     FilterChips,
-    PageHeader,
     StatBadge,
     type DataTableColumn,
     type FilterChip,
 } from '@/components/data-page';
+import {
+    PlatformContentPanel,
+    PlatformHero,
+    PlatformPageShell,
+} from '@/components/platform';
 import { RowActionsMenu } from '@/components/shared/row-actions-menu';
 import { asPaginated } from '@/lib/paginated';
 import { dashboard } from '@/routes';
@@ -206,53 +204,54 @@ export default function ConsolidationsIndexPage() {
         <>
             <Head title="Consolidados" />
 
-            <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
-                <PageHeader
+            <PlatformPageShell>
+                <PlatformHero
                     title="Consolidados"
                     description="Respuestas anteriores, de una en una. Las inspecciones nuevas se envían en el paquete del día."
                     stats={[
                         {
                             label: 'Total',
                             value: stats.total,
-                            variant: 'info',
-                            icon: FileStack,
+                            tone: 'navy',
                         },
                         {
                             label: 'Observados',
                             value: stats.observed,
-                            variant: 'warning',
-                            icon: Eye,
+                            tone: 'amber',
                         },
                         {
                             label: 'Revisados',
                             value: stats.reviewed,
-                            variant: 'success',
-                            icon: CheckCircle2,
+                            tone: 'emerald',
                         },
                     ]}
                 />
 
-                <DataTable
-                    columns={columns}
-                    data={items.data}
-                    rowKey={(item) => item.id}
-                    ariaLiveMessage={`${items.total} consolidados encontrados`}
-                    toolbar={
-                        <DataToolbar
-                            search={filters.search}
-                            onSearchChange={(search) =>
-                                visit({ search, page: 1 })
-                            }
-                            placeholder="Buscar placa o conductor..."
-                        >
-                            <FilterChips
-                                ariaLabel="Filtrar por estado"
-                                value={filters.status}
-                                onChange={(status) => visit({ status, page: 1 })}
-                                options={statusOptions}
-                            />
-                        </DataToolbar>
-                    }
+                <PlatformContentPanel>
+                    <DataTable
+                        className="rounded-none border-0 bg-transparent shadow-none"
+                        columns={columns}
+                        data={items.data}
+                        rowKey={(item) => item.id}
+                        ariaLiveMessage={`${items.total} consolidados encontrados`}
+                        toolbar={
+                            <DataToolbar
+                                search={filters.search}
+                                onSearchChange={(search) =>
+                                    visit({ search, page: 1 })
+                                }
+                                placeholder="Buscar placa o conductor..."
+                            >
+                                <FilterChips
+                                    ariaLabel="Filtrar por estado"
+                                    value={filters.status}
+                                    onChange={(status) =>
+                                        visit({ status, page: 1 })
+                                    }
+                                    options={statusOptions}
+                                />
+                            </DataToolbar>
+                        }
                     footer={
                         <DataPagination
                             meta={asPaginated(items, '/consolidados')}
@@ -269,23 +268,24 @@ export default function ConsolidationsIndexPage() {
                             }}
                         />
                     }
-                    emptyState={
-                        <EmptyState
-                            icon={ClipboardList}
-                            title={
-                                hasFilters
-                                    ? 'Sin resultados'
-                                    : 'Aún no hay consolidados'
-                            }
-                            description={
-                                hasFilters
-                                    ? 'Prueba con otro filtro o limpia la búsqueda.'
-                                    : 'Cuando se envíe una inspección a coordinador, aparecerá aquí.'
-                            }
-                        />
-                    }
-                />
-            </div>
+                        emptyState={
+                            <EmptyState
+                                icon={ClipboardList}
+                                title={
+                                    hasFilters
+                                        ? 'Sin resultados'
+                                        : 'Aún no hay consolidados'
+                                }
+                                description={
+                                    hasFilters
+                                        ? 'Prueba con otro filtro o limpia la búsqueda.'
+                                        : 'Cuando se envíe una inspección a coordinador, aparecerá aquí.'
+                                }
+                            />
+                        }
+                    />
+                </PlatformContentPanel>
+            </PlatformPageShell>
         </>
     );
 }

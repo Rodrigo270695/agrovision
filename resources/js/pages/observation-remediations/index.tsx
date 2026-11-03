@@ -277,32 +277,32 @@ export default function ObservationRemediationsPage() {
                     className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.45),transparent)] opacity-60"
                 />
 
-                <div className="relative z-10 mx-auto flex w-full max-w-[1400px] flex-col gap-5 p-4 sm:gap-6 sm:p-6">
+                <div className="relative z-10 flex w-full flex-col gap-3 p-3 sm:gap-4 sm:p-4">
                     {/* Hero */}
-                    <header className="overflow-hidden rounded-3xl border border-white/70 bg-[#0f1f3a] text-white shadow-[0_24px_60px_-28px_rgba(15,31,58,0.65)]">
-                        <div className="relative px-5 py-6 sm:px-7 sm:py-7">
+                    <header className="overflow-hidden rounded-2xl border border-white/70 bg-[#0f1f3a] text-white shadow-[0_18px_40px_-24px_rgba(15,31,58,0.55)]">
+                        <div className="relative px-4 py-4 sm:px-5 sm:py-4">
                             <div
                                 aria-hidden
-                                className="absolute -right-16 -top-20 size-56 rounded-full bg-amber-400/20 blur-3xl"
+                                className="absolute -right-12 -top-16 size-40 rounded-full bg-amber-400/20 blur-3xl"
                             />
                             <div
                                 aria-hidden
-                                className="absolute -bottom-24 left-1/3 size-64 rounded-full bg-sky-400/15 blur-3xl"
+                                className="absolute -bottom-20 left-1/3 size-48 rounded-full bg-sky-400/15 blur-3xl"
                             />
 
-                            <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-                                <div className="max-w-2xl">
-                                    <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold tracking-[0.14em] text-sky-100 uppercase backdrop-blur-sm">
+                            <div className="relative flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                <div className="min-w-0 flex-1">
+                                    <div className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-0.5 text-[10px] font-semibold tracking-[0.14em] text-sky-100 uppercase backdrop-blur-sm">
                                         <Sparkles
-                                            className="size-3.5"
+                                            className="size-3"
                                             aria-hidden
                                         />
                                         Operaciones · Campo
                                     </div>
-                                    <h1 className="mt-3 font-[Manrope] text-3xl font-bold tracking-tight sm:text-4xl">
+                                    <h1 className="mt-1.5 font-[Manrope] text-2xl font-bold tracking-tight sm:text-[1.75rem]">
                                         Calendario de observaciones
                                     </h1>
-                                    <p className="mt-2 max-w-xl text-sm leading-relaxed text-sky-100/85 sm:text-[15px]">
+                                    <p className="mt-1 max-w-2xl text-xs leading-snug text-sky-100/85 sm:text-sm">
                                         Un vistazo al mes: qué días están OK,
                                         cuáles llevan observaciones por levantar
                                         y dónde hubo desaprobaciones. Toca un
@@ -310,7 +310,7 @@ export default function ObservationRemediationsPage() {
                                     </p>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[420px]">
+                                <div className="grid w-full grid-cols-2 gap-1.5 sm:grid-cols-4 lg:w-auto lg:min-w-[380px]">
                                     <StatPill
                                         label="Días activos"
                                         value={monthStats.activeDays}
@@ -337,7 +337,7 @@ export default function ObservationRemediationsPage() {
                     </header>
 
                     {/* Toolbar */}
-                    <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:p-4">
+                    <div className="flex flex-col gap-2 rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex flex-wrap items-center gap-2">
                             <NavIconButton
                                 label="Mes anterior"
@@ -410,7 +410,7 @@ export default function ObservationRemediationsPage() {
                     </div>
 
                     {/* Calendar */}
-                    <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-3 shadow-[0_18px_50px_-30px_rgba(15,31,58,0.45)] sm:p-5">
+                    <section className="rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-[0_14px_40px_-28px_rgba(15,31,58,0.4)] sm:p-4">
                         <div className="mb-3 grid grid-cols-7 gap-1.5 sm:gap-2">
                             {WEEKDAYS.map((d) => (
                                 <div
@@ -769,14 +769,14 @@ function StatPill({
     return (
         <div
             className={cn(
-                'rounded-2xl border border-white/10 bg-gradient-to-br px-3 py-2.5 backdrop-blur-sm',
+                'rounded-xl border border-white/10 bg-gradient-to-br px-2.5 py-1.5 backdrop-blur-sm',
                 tones[tone],
             )}
         >
-            <p className="text-[10px] font-semibold tracking-wide text-white/70 uppercase">
+            <p className="text-[9px] font-semibold tracking-wide text-white/70 uppercase">
                 {label}
             </p>
-            <p className="mt-0.5 font-[Manrope] text-2xl font-bold tabular-nums">
+            <p className="font-[Manrope] text-xl font-bold leading-tight tabular-nums">
                 {value}
             </p>
         </div>

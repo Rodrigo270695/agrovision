@@ -1,13 +1,8 @@
+import { Download, FileSpreadsheet, Plus } from 'lucide-react';
 import {
-    Building2,
-    Bus,
-    Download,
-    FileSpreadsheet,
-    History,
-    Plus,
-    TriangleAlert,
-} from 'lucide-react';
-import { PageHeader } from '@/components/data-page';
+    PlatformHero,
+    PlatformToolbar,
+} from '@/components/platform';
 import type { UnitsFilters } from '@/components/units/units-table';
 import type { UnitsStatsData } from '@/components/units/units-stats';
 import { Button } from '@/components/ui/button';
@@ -61,83 +56,79 @@ export function UnitsHeader({ stats, filters, onCreate, onImport }: Props) {
     const exportUrl = buildExportUrl(filters);
 
     return (
-        <PageHeader
-            title="Unidades"
-            description="Cada placa es una unidad. Si al importar ya no viene, queda inactiva. Historial guarda cada fecha."
-            stats={[
-                {
-                    label: 'Unidades',
-                    value: stats.units,
-                    variant: 'info',
-                    icon: Bus,
-                },
-                {
-                    label: 'Proveedores',
-                    value: stats.providers,
-                    variant: 'primary',
-                    icon: Building2,
-                },
-                {
-                    label: 'Sin placa',
-                    value: stats.without_plate,
-                    variant: 'warning',
-                    icon: TriangleAlert,
-                },
-                {
-                    label: 'Movimientos',
-                    value: stats.movements ?? 0,
-                    variant: 'success',
-                    icon: History,
-                },
-            ]}
-            action={
-                <div className="flex flex-wrap items-center gap-2">
-                    {can('units.view') ? (
+        <div className="flex flex-col gap-3">
+            <PlatformHero
+                title="Unidades"
+                description="Cada placa es una unidad. Si al importar ya no viene, queda inactiva. Historial guarda cada fecha."
+                stats={[
+                    { label: 'Unidades', value: stats.units, tone: 'navy' },
+                    {
+                        label: 'Proveedores',
+                        value: stats.providers,
+                        tone: 'sky',
+                    },
+                    {
+                        label: 'Sin placa',
+                        value: stats.without_plate,
+                        tone: 'amber',
+                    },
+                    {
+                        label: 'Movimientos',
+                        value: stats.movements ?? 0,
+                        tone: 'emerald',
+                    },
+                ]}
+            />
+
+            <PlatformToolbar>
+                {can('units.view') ? (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-[#0f1f3a] hover:bg-slate-50"
+                    >
+                        <a href={exportUrl}>
+                            <Download className="size-3.5" />
+                            <span className="hidden sm:inline">
+                                Descargar Excel
+                            </span>
+                            <span className="sm:hidden">Excel</span>
+                        </a>
+                    </Button>
+                ) : null}
+
+                {can('units.create') ? (
+                    <>
                         <Button
                             type="button"
                             variant="outline"
-                            asChild
-                            className="cursor-pointer gap-2 border-[#c5d5e6] text-[#1a2b4c] hover:bg-[#e8f1fa]"
+                            size="sm"
+                            onClick={onImport}
+                            className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-[#0f1f3a] hover:bg-slate-50"
                         >
-                            <a href={exportUrl}>
-                                <Download className="size-4" />
-                                <span className="hidden sm:inline">
-                                    Descargar Excel
-                                </span>
-                                <span className="sm:hidden">Excel</span>
-                            </a>
+                            <FileSpreadsheet className="size-3.5" />
+                            <span className="hidden sm:inline">
+                                Importar Excel
+                            </span>
+                            <span className="sm:hidden">Importar</span>
                         </Button>
-                    ) : null}
-
-                    {can('units.create') ? (
-                        <>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={onImport}
-                                className="cursor-pointer gap-2 border-[#c5d5e6] text-[#1a2b4c] hover:bg-[#e8f1fa]"
-                            >
-                                <FileSpreadsheet className="size-4" />
-                                <span className="hidden sm:inline">
-                                    Importar Excel
-                                </span>
-                                <span className="sm:hidden">Importar</span>
-                            </Button>
-                            <Button
-                                type="button"
-                                onClick={onCreate}
-                                className="cursor-pointer gap-2 bg-[#1a2b4c] text-white hover:bg-[#122038]"
-                            >
-                                <Plus className="size-4" strokeWidth={2.5} />
-                                <span className="hidden sm:inline">
-                                    Nueva unidad
-                                </span>
-                                <span className="sm:hidden">Nueva</span>
-                            </Button>
-                        </>
-                    ) : null}
-                </div>
-            }
-        />
+                        <Button
+                            type="button"
+                            size="sm"
+                            onClick={onCreate}
+                            className="cursor-pointer gap-1.5 rounded-xl bg-[#1e4d8c] text-white hover:bg-[#163a6b]"
+                        >
+                            <Plus className="size-3.5" strokeWidth={2.5} />
+                            <span className="hidden sm:inline">
+                                Nueva unidad
+                            </span>
+                            <span className="sm:hidden">Nueva</span>
+                        </Button>
+                    </>
+                ) : null}
+            </PlatformToolbar>
+        </div>
     );
 }

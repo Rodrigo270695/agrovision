@@ -1,9 +1,14 @@
 import { router, usePage } from '@inertiajs/react';
-import { Download, FileSpreadsheet, History, Radio, ShieldCheck } from 'lucide-react';
+import { Download, FileSpreadsheet } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { FleetDataTable } from '@/components/fleet-data/fleet-data-table';
 import { FleetImportModal } from '@/components/fleet-data/fleet-import-modal';
-import { PageHeader } from '@/components/data-page';
+import {
+    PlatformContentPanel,
+    PlatformHero,
+    PlatformPageShell,
+    PlatformToolbar,
+} from '@/components/platform';
 import { Button } from '@/components/ui/button';
 import type { PeriodOption } from '@/components/units/unit-form-fields';
 import { useCan } from '@/hooks/use-can';
@@ -195,130 +200,131 @@ export function FleetDataPage() {
     const tabLabel = activeTab === 'rc' ? 'Seguro RC' : 'GPS';
 
     return (
-        <div className="flex flex-col gap-4 p-4">
-            <PageHeader
+        <PlatformPageShell>
+            <PlatformHero
                 title="Seguro RC y GPS"
                 description="Carga masiva por periodo. El último Excel del día actualiza el catálogo y guarda historial por fecha."
                 stats={[
                     {
                         label: 'Registros',
                         value: stats.records,
-                        variant: 'info',
-                        icon: activeTab === 'rc' ? ShieldCheck : Radio,
+                        tone: 'navy',
                     },
                     {
                         label: 'Activos',
                         value: stats.active,
-                        variant: 'success',
-                        icon: ShieldCheck,
+                        tone: 'emerald',
                     },
                     {
                         label: 'Inactivos',
                         value: stats.inactive,
-                        variant: 'muted',
-                        icon: ShieldCheck,
+                        tone: 'amber',
                     },
                     {
                         label: 'Historial',
                         value: stats.movements,
-                        variant: 'primary',
-                        icon: History,
+                        tone: 'sky',
                     },
                 ]}
-                action={
+            />
+
+            <PlatformToolbar
+                leading={
                     <div className="flex flex-wrap items-center gap-2">
-                        {can('fleet_data.view') ? (
-                            <Button
+                        <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1">
+                            <button
                                 type="button"
-                                variant="outline"
-                                asChild
-                                className="gap-2"
+                                className={cn(
+                                    'cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium',
+                                    activeTab === 'rc'
+                                        ? 'bg-[#1e4d8c] text-white'
+                                        : 'text-[#0f1f3a] hover:bg-slate-50',
+                                )}
+                                onClick={() => setTab('rc')}
                             >
-                                <a href={exportUrl}>
-                                    <Download className="size-4" />
-                                    Descargar Excel
-                                </a>
-                            </Button>
-                        ) : null}
-                        {can('fleet_data.import') ? (
-                            <Button
+                                Seguro RC
+                            </button>
+                            <button
                                 type="button"
-                                variant="outline"
-                                className="gap-2"
-                                onClick={() => setImportOpen(true)}
+                                className={cn(
+                                    'cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium',
+                                    activeTab === 'gps'
+                                        ? 'bg-[#1e4d8c] text-white'
+                                        : 'text-[#0f1f3a] hover:bg-slate-50',
+                                )}
+                                onClick={() => setTab('gps')}
                             >
-                                <FileSpreadsheet className="size-4" />
-                                Importar {tabLabel}
-                            </Button>
-                        ) : null}
+                                GPS
+                            </button>
+                        </div>
+
+                        <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1">
+                            <button
+                                type="button"
+                                className={cn(
+                                    'cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium',
+                                    filters.view === 'records'
+                                        ? 'bg-[#1e4d8c] text-white'
+                                        : 'text-[#0f1f3a] hover:bg-slate-50',
+                                )}
+                                onClick={() => setView('records')}
+                            >
+                                Catálogo
+                            </button>
+                            <button
+                                type="button"
+                                className={cn(
+                                    'cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium',
+                                    filters.view === 'history'
+                                        ? 'bg-[#1e4d8c] text-white'
+                                        : 'text-[#0f1f3a] hover:bg-slate-50',
+                                )}
+                                onClick={() => setView('history')}
+                            >
+                                Historial
+                            </button>
+                        </div>
                     </div>
                 }
-            />
+            >
+                {can('fleet_data.view') ? (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-[#0f1f3a] hover:bg-slate-50"
+                    >
+                        <a href={exportUrl}>
+                            <Download className="size-3.5" />
+                            Descargar Excel
+                        </a>
+                    </Button>
+                ) : null}
+                {can('fleet_data.import') ? (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-[#0f1f3a] hover:bg-slate-50"
+                        onClick={() => setImportOpen(true)}
+                    >
+                        <FileSpreadsheet className="size-3.5" />
+                        Importar {tabLabel}
+                    </Button>
+                ) : null}
+            </PlatformToolbar>
 
-            <div className="flex flex-wrap items-center gap-2">
-                <div className="inline-flex rounded-lg border border-[#d7e3f0] bg-white p-1">
-                    <button
-                        type="button"
-                        className={cn(
-                            'cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium',
-                            activeTab === 'rc'
-                                ? 'bg-[#1a2b4c] text-white'
-                                : 'text-[#1a2b4c] hover:bg-[#e8f1fa]',
-                        )}
-                        onClick={() => setTab('rc')}
-                    >
-                        Seguro RC
-                    </button>
-                    <button
-                        type="button"
-                        className={cn(
-                            'cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium',
-                            activeTab === 'gps'
-                                ? 'bg-[#1a2b4c] text-white'
-                                : 'text-[#1a2b4c] hover:bg-[#e8f1fa]',
-                        )}
-                        onClick={() => setTab('gps')}
-                    >
-                        GPS
-                    </button>
-                </div>
-
-                <div className="inline-flex rounded-lg border border-[#d7e3f0] bg-white p-1">
-                    <button
-                        type="button"
-                        className={cn(
-                            'cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium',
-                            filters.view === 'records'
-                                ? 'bg-[#1a2b4c] text-white'
-                                : 'text-[#1a2b4c] hover:bg-[#e8f1fa]',
-                        )}
-                        onClick={() => setView('records')}
-                    >
-                        Catálogo
-                    </button>
-                    <button
-                        type="button"
-                        className={cn(
-                            'cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium',
-                            filters.view === 'history'
-                                ? 'bg-[#1a2b4c] text-white'
-                                : 'text-[#1a2b4c] hover:bg-[#e8f1fa]',
-                        )}
-                        onClick={() => setView('history')}
-                    >
-                        Historial
-                    </button>
-                </div>
-            </div>
-
-            <FleetDataTable
-                key={`${activeTab}-${filters.view}`}
-                tab={activeTab}
-                filters={filters}
-                records={records}
-                movements={movements}
-                periodOptions={periodOptions}
-            />
+            <PlatformContentPanel>
+                <FleetDataTable
+                    key={`${activeTab}-${filters.view}`}
+                    tab={activeTab}
+                    filters={filters}
+                    records={records}
+                    movements={movements}
+                    periodOptions={periodOptions}
+                />
+            </PlatformContentPanel>
 
             <FleetImportModal
                 open={importOpen}
@@ -326,6 +332,6 @@ export function FleetDataPage() {
                 periodOptions={periodOptions}
                 onClose={() => setImportOpen(false)}
             />
-        </div>
+        </PlatformPageShell>
     );
 }

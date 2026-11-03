@@ -19,6 +19,10 @@ import type {
     UnitsFilters,
     UnitsPagination,
 } from '@/components/units/units-table';
+import {
+    PlatformContentPanel,
+    PlatformPageShell,
+} from '@/components/platform';
 import { useCan } from '@/hooks/use-can';
 import { usePendingPosts } from '@/lib/offline/use-pending-posts';
 
@@ -190,7 +194,7 @@ export function UnitsPage() {
     };
 
     return (
-        <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
+        <PlatformPageShell>
             <UnitsHeader
                 stats={mergedStats}
                 filters={filters}
@@ -201,15 +205,17 @@ export function UnitsPage() {
                     }
                 }}
             />
-            <UnitsTable
-                units={mergedUnits}
-                movements={movements}
-                filters={filters}
-                periodOptions={periodOptions ?? []}
-                onEdit={openEdit}
-                onDelete={openDelete}
-                onDocuments={openDocuments}
-            />
+            <PlatformContentPanel>
+                <UnitsTable
+                    units={mergedUnits}
+                    movements={movements}
+                    filters={filters}
+                    periodOptions={periodOptions ?? []}
+                    onEdit={openEdit}
+                    onDelete={openDelete}
+                    onDocuments={openDocuments}
+                />
+            </PlatformContentPanel>
 
             {can('units.create') || can('units.update') ? (
                 <UnitFormModal
@@ -249,6 +255,6 @@ export function UnitsPage() {
                     onClose={closeDocuments}
                 />
             ) : null}
-        </div>
+        </PlatformPageShell>
     );
 }

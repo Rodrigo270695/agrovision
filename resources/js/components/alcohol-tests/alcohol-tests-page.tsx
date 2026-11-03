@@ -9,6 +9,10 @@ import {
     type AlcoholPackagesFilters,
     type AlcoholPackagesPagination,
 } from '@/components/alcohol-tests/alcohol-packages-table';
+import {
+    PlatformContentPanel,
+    PlatformPageShell,
+} from '@/components/platform';
 import { useCan } from '@/hooks/use-can';
 import { usePendingPosts } from '@/lib/offline/use-pending-posts';
 
@@ -85,7 +89,7 @@ export function AlcoholTestsPage() {
     );
 
     return (
-        <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
+        <PlatformPageShell>
             <AlcoholTestsHeader
                 stats={mergedStats}
                 isCoordinatorView={coordinatorView}
@@ -96,13 +100,15 @@ export function AlcoholTestsPage() {
                 }}
             />
 
-            <AlcoholPackagesTable
-                packages={mergedPackages}
-                filters={filters}
-                isCoordinatorView={coordinatorView}
-                canDelete={canManage}
-                onDelete={setDeleting}
-            />
+            <PlatformContentPanel>
+                <AlcoholPackagesTable
+                    packages={mergedPackages}
+                    filters={filters}
+                    isCoordinatorView={coordinatorView}
+                    canDelete={canManage}
+                    onDelete={setDeleting}
+                />
+            </PlatformContentPanel>
 
             {canManage ? (
                 <AlcoholPackageFormModal
@@ -120,7 +126,7 @@ export function AlcoholTestsPage() {
                     onClose={() => setDeleting(null)}
                 />
             ) : null}
-        </div>
+        </PlatformPageShell>
     );
 }
 

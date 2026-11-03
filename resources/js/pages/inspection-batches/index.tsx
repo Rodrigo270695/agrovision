@@ -1,5 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { CheckCircle2, Eye, FileStack, Package, Reply } from 'lucide-react';
+import { Eye, Package, Reply } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
 import {
     DataPagination,
@@ -7,11 +7,15 @@ import {
     DataToolbar,
     EmptyState,
     FilterChips,
-    PageHeader,
     StatBadge,
     type DataTableColumn,
     type FilterChip,
 } from '@/components/data-page';
+import {
+    PlatformContentPanel,
+    PlatformHero,
+    PlatformPageShell,
+} from '@/components/platform';
 import { RowActionsMenu } from '@/components/shared/row-actions-menu';
 import { asPaginated } from '@/lib/paginated';
 import { dashboard } from '@/routes';
@@ -170,84 +174,91 @@ export default function InspectionBatchesIndexPage() {
     return (
         <>
             <Head title="Paquetes" />
-            <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
-                <PageHeader
+            <PlatformPageShell>
+                <PlatformHero
                     title="Paquetes"
                     description="Inspecciones del mismo día, agrupadas por coordinador. Una firma cubre todo el paquete."
                     stats={[
                         {
                             label: 'Total',
                             value: stats.total,
-                            variant: 'info',
-                            icon: FileStack,
+                            tone: 'navy',
                         },
                         {
                             label: 'Por firmar',
                             value: stats.sent,
-                            variant: 'warning',
-                            icon: Package,
+                            tone: 'amber',
                         },
                         {
                             label: 'Firmados',
                             value: stats.signed,
-                            variant: 'success',
-                            icon: CheckCircle2,
+                            tone: 'emerald',
                         },
                     ]}
                 />
 
-                <DataTable
-                    columns={columns}
-                    data={items.data}
-                    rowKey={(item) => item.id}
-                    ariaLiveMessage={`${items.total} paquetes encontrados`}
-                    toolbar={
-                        <DataToolbar
-                            search={filters.search}
-                            onSearchChange={(search) => visit({ search, page: 1 })}
-                            placeholder="Buscar coordinador, placa o conductor..."
-                        >
-                            <FilterChips
-                                ariaLabel="Filtrar por estado"
-                                value={filters.status}
-                                onChange={(status) => visit({ status, page: 1 })}
-                                options={statusOptions}
+                <PlatformContentPanel>
+                    <DataTable
+                        className="rounded-none border-0 bg-transparent shadow-none"
+                        columns={columns}
+                        data={items.data}
+                        rowKey={(item) => item.id}
+                        ariaLiveMessage={`${items.total} paquetes encontrados`}
+                        toolbar={
+                            <DataToolbar
+                                search={filters.search}
+                                onSearchChange={(search) =>
+                                    visit({ search, page: 1 })
+                                }
+                                placeholder="Buscar coordinador, placa o conductor..."
+                            >
+                                <FilterChips
+                                    ariaLabel="Filtrar por estado"
+                                    value={filters.status}
+                                    onChange={(status) =>
+                                        visit({ status, page: 1 })
+                                    }
+                                    options={statusOptions}
+                                />
+                            </DataToolbar>
+                        }
+                        footer={
+                            <DataPagination
+                                meta={asPaginated(
+                                    items,
+                                    '/paquetes-inspeccion',
+                                )}
+                                onPerPageChange={(per_page) =>
+                                    visit({ per_page, page: 1 })
+                                }
+                                preservedQuery={{
+                                    search: filters.search || undefined,
+                                    per_page: filters.per_page,
+                                    status:
+                                        filters.status !== 'sent'
+                                            ? filters.status
+                                            : undefined,
+                                }}
                             />
-                        </DataToolbar>
-                    }
-                    footer={
-                        <DataPagination
-                            meta={asPaginated(items, '/paquetes-inspeccion')}
-                            onPerPageChange={(per_page) =>
-                                visit({ per_page, page: 1 })
-                            }
-                            preservedQuery={{
-                                search: filters.search || undefined,
-                                per_page: filters.per_page,
-                                status:
-                                    filters.status !== 'sent'
-                                        ? filters.status
-                                        : undefined,
-                            }}
-                        />
-                    }
-                    emptyState={
-                        <EmptyState
-                            icon={Package}
-                            title={
-                                hasFilters
-                                    ? 'Sin resultados'
-                                    : 'Aún no hay paquetes'
-                            }
-                            description={
-                                hasFilters
-                                    ? 'Prueba con otro filtro o limpia la búsqueda.'
-                                    : 'Desde Inspecciones, envía el paquete cuando la 1ra inspección esté cerrada. La 2da no bloquea el envío.'
-                            }
-                        />
-                    }
-                />
-            </div>
+                        }
+                        emptyState={
+                            <EmptyState
+                                icon={Package}
+                                title={
+                                    hasFilters
+                                        ? 'Sin resultados'
+                                        : 'Aún no hay paquetes'
+                                }
+                                description={
+                                    hasFilters
+                                        ? 'Prueba con otro filtro o limpia la búsqueda.'
+                                        : 'Desde Inspecciones, envía el paquete cuando la 1ra inspección esté cerrada. La 2da no bloquea el envío.'
+                                }
+                            />
+                        }
+                    />
+                </PlatformContentPanel>
+            </PlatformPageShell>
         </>
     );
 }

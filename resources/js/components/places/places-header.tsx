@@ -1,5 +1,6 @@
-import { Building2, CheckCircle2, MapPin } from 'lucide-react';
-import { PageHeader } from '@/components/data-page';
+import {
+    PlatformHero,
+} from '@/components/platform';
 
 export type PlacesStatsData = {
     sites: number;
@@ -16,34 +17,18 @@ type Props = {
 
 export function PlacesHeader({ stats }: Props) {
     return (
-        <PageHeader
+        <PlatformHero
             title="Lugares"
             description="Crea una sede, selecciónala y luego registra sus lugares."
             stats={[
-                {
-                    label: 'Sedes',
-                    value: stats.sites,
-                    variant: 'info',
-                    icon: Building2,
-                },
+                { label: 'Sedes', value: stats.sites, tone: 'navy' },
                 {
                     label: 'Sedes activas',
                     value: stats.sites_active,
-                    variant: 'success',
-                    icon: CheckCircle2,
+                    tone: 'emerald',
                 },
-                {
-                    label: 'Lugares',
-                    value: stats.places,
-                    variant: 'primary',
-                    icon: MapPin,
-                },
-                {
-                    label: 'Activos',
-                    value: stats.active,
-                    variant: 'success',
-                    icon: CheckCircle2,
-                },
+                { label: 'Lugares', value: stats.places, tone: 'sky' },
+                { label: 'Activos', value: stats.active, tone: 'emerald' },
             ]}
         />
     );

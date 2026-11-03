@@ -10,6 +10,10 @@ import {
     type PeriodsPagination,
 } from '@/components/periods/periods-table';
 import type { PeriodsStatsData } from '@/components/periods/periods-stats';
+import {
+    PlatformContentPanel,
+    PlatformPageShell,
+} from '@/components/platform';
 import { useCan } from '@/hooks/use-can';
 import { MUTATIONS_EVENT, listMutations } from '@/lib/offline/mutations';
 
@@ -134,14 +138,16 @@ export function PeriodsPage() {
     }, [localPeriods, stats]);
 
     return (
-        <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
+        <PlatformPageShell>
             <PeriodsHeader stats={mergedStats} onCreate={openCreate} />
-            <PeriodsTable
-                periods={mergedPeriods}
-                filters={filters}
-                onEdit={openEdit}
-                onDelete={openDelete}
-            />
+            <PlatformContentPanel>
+                <PeriodsTable
+                    periods={mergedPeriods}
+                    filters={filters}
+                    onEdit={openEdit}
+                    onDelete={openDelete}
+                />
+            </PlatformContentPanel>
 
             {can('periods.create') || can('periods.update') ? (
                 <PeriodFormModal
@@ -158,6 +164,6 @@ export function PeriodsPage() {
                     onClose={closeDelete}
                 />
             ) : null}
-        </div>
+        </PlatformPageShell>
     );
 }

@@ -20,6 +20,10 @@ import {
     type ChecklistsFilters,
     type ChecklistsPagination,
 } from '@/components/checklists/checklists-table';
+import {
+    PlatformContentPanel,
+    PlatformPageShell,
+} from '@/components/platform';
 import { useCan } from '@/hooks/use-can';
 import { isBrowserOnline, isLocalChecklistId } from '@/lib/offline/ids';
 import { MUTATIONS_EVENT } from '@/lib/offline/mutations';
@@ -215,7 +219,7 @@ export function ChecklistsPage() {
     }
 
     return (
-        <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
+        <PlatformPageShell>
             <ChecklistsHeader
                 stats={mergedStats}
                 onExport={() => setExportOpen(true)}
@@ -227,47 +231,52 @@ export function ChecklistsPage() {
                 onSendBatch={() => setBatchOpen(true)}
             />
 
-            <ChecklistsTable
-                checklists={mergedChecklists}
-                filters={filters}
-                templateOptions={(templates ?? []).map((template) => ({
-                    value: template.type,
-                    label: template.label || template.type.toUpperCase(),
-                }))}
-                inspectors={inspectors ?? []}
-                onEdit={(item, pass) => {
-                    if (can('checklists.update') || item.sealed_at) {
-                        void openEditor(item, pass);
-                    }
-                }}
-                onPreviewPdf={(item) => {
-                    if (!can('checklists.view') || typeof item.id !== 'number') {
-                        return;
-                    }
+            <PlatformContentPanel>
+                <ChecklistsTable
+                    checklists={mergedChecklists}
+                    filters={filters}
+                    templateOptions={(templates ?? []).map((template) => ({
+                        value: template.type,
+                        label: template.label || template.type.toUpperCase(),
+                    }))}
+                    inspectors={inspectors ?? []}
+                    onEdit={(item, pass) => {
+                        if (can('checklists.update') || item.sealed_at) {
+                            void openEditor(item, pass);
+                        }
+                    }}
+                    onPreviewPdf={(item) => {
+                        if (
+                            !can('checklists.view') ||
+                            typeof item.id !== 'number'
+                        ) {
+                            return;
+                        }
 
-                    setPdfChecklist(item);
-                    setPdfOpen(true);
-                }}
-                onDelete={(item) => {
-                    if (!can('checklists.delete')) {
-                        return;
-                    }
+                        setPdfChecklist(item);
+                        setPdfOpen(true);
+                    }}
+                    onDelete={(item) => {
+                        if (!can('checklists.delete')) {
+                            return;
+                        }
 
-                    if (isLocalChecklistId(item.id)) {
-                        void deleteLocalDraft(item.id).then(() => {
-                            setLocalRows((prev) =>
-                                prev.filter((row) => row.id !== item.id),
-                            );
-                            toast.success('Borrador local eliminado.');
-                        });
+                        if (isLocalChecklistId(item.id)) {
+                            void deleteLocalDraft(item.id).then(() => {
+                                setLocalRows((prev) =>
+                                    prev.filter((row) => row.id !== item.id),
+                                );
+                                toast.success('Borrador local eliminado.');
+                            });
 
-                        return;
-                    }
+                            return;
+                        }
 
-                    setDeleting(item);
-                    setDeleteOpen(true);
-                }}
-            />
+                        setDeleting(item);
+                        setDeleteOpen(true);
+                    }}
+                />
+            </PlatformContentPanel>
 
             {can('checklists.update') ? (
                 <SendInspectionBatchModal
@@ -321,6 +330,6 @@ export function ChecklistsPage() {
                     }}
                 />
             ) : null}
-        </div>
+        </PlatformPageShell>
     );
 }
