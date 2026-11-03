@@ -54,9 +54,11 @@ function NavIcon({
             className={cn(
                 'flex shrink-0 items-center justify-center rounded-md transition-colors',
                 size === 'sm' ? 'size-6' : 'size-7',
-                active
-                    ? 'bg-white/15 text-white ring-1 ring-white/20'
-                    : 'bg-brand-100 text-brand-500 ring-1 ring-brand-200/70',
+                active && size === 'sm'
+                    ? 'bg-brand-200 text-brand-800 ring-1 ring-brand-300'
+                    : active
+                      ? 'bg-white/15 text-white ring-1 ring-white/20'
+                      : 'bg-brand-100 text-brand-500 ring-1 ring-brand-200/70',
             )}
             aria-hidden
         >
