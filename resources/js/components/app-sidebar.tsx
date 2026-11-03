@@ -162,14 +162,14 @@ const mainNavItems: NavItem[] = [
                 module: 'fleet_data',
             },
             {
-                title: 'Cumpl. proveedor',
+                title: 'Cumplimiento proveedor',
                 href: '/reporte-proveedores',
                 icon: ChartColumn,
                 permission: 'checklists.view',
                 module: 'checklists',
             },
             {
-                title: 'Índice obs.',
+                title: 'Índice observaciones',
                 href: '/reporte-observaciones',
                 icon: ListTree,
                 permission: 'checklists.view',
