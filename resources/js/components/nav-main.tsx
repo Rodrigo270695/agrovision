@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 import type { NavItem } from '@/types';
 
 const itemClass =
-    'h-10 cursor-pointer rounded-xl px-2.5 text-[13px] font-medium text-brand-700/80 transition-colors hover:bg-brand-100 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/35 data-[active=true]:bg-brand-800 data-[active=true]:text-white data-[active=true]:shadow-[0_8px_18px_-12px_rgba(15,31,58,0.65)] data-[active=true]:hover:bg-brand-900 data-[active=true]:hover:text-white';
+    'h-10 cursor-pointer rounded-xl px-2.5 text-[13px] font-medium text-brand-700/80 transition-colors hover:bg-brand-100 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/35 data-[active=true]:bg-brand-800 data-[active=true]:text-white data-[active=true]:shadow-[0_8px_18px_-12px_rgba(15,31,58,0.65)] data-[active=true]:hover:bg-brand-900 data-[active=true]:hover:text-white [&_svg]:shrink-0';
 
 const subItemClass =
     'h-8 cursor-pointer rounded-lg px-2 text-[13px] text-brand-700/75 transition-colors hover:bg-brand-100 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/35 data-[active=true]:bg-brand-100 data-[active=true]:font-semibold data-[active=true]:text-brand-800 data-[active=true]:shadow-[inset_3px_0_0_0_var(--brand-500)]';
@@ -44,18 +44,25 @@ function NavIcon({
     icon: Icon,
     active = false,
     size = 'md',
+    tone = 'solid',
 }: {
     icon: NonNullable<NavItem['icon']>;
     active?: boolean;
     size?: 'md' | 'sm';
+    /** solid = ícono blanco (fondo navy); soft = ícono navy (fondo claro) */
+    tone?: 'solid' | 'soft';
 }) {
+    const useSoft = tone === 'soft' || size === 'sm';
+
     return (
         <span
             className={cn(
                 'flex shrink-0 items-center justify-center rounded-md transition-colors',
                 size === 'sm' ? 'size-6' : 'size-7',
-                active && size === 'sm'
-                    ? 'bg-brand-200 text-brand-800 ring-1 ring-brand-300'
+                useSoft
+                    ? active
+                        ? 'bg-brand-200 text-brand-800 ring-1 ring-brand-300'
+                        : 'bg-brand-100 text-brand-500 ring-1 ring-brand-200/70'
                     : active
                       ? 'bg-white/15 text-white ring-1 ring-white/20'
                       : 'bg-brand-100 text-brand-500 ring-1 ring-brand-200/70',
@@ -63,7 +70,16 @@ function NavIcon({
             aria-hidden
         >
             <Icon
-                className={size === 'sm' ? 'size-3.5' : 'size-4'}
+                className={cn(
+                    size === 'sm' ? 'size-3.5' : 'size-4',
+                    useSoft
+                        ? active
+                            ? '!text-brand-800'
+                            : '!text-brand-500'
+                        : active
+                          ? '!text-white'
+                          : '!text-brand-500',
+                )}
                 strokeWidth={2}
             />
         </span>
@@ -113,7 +129,7 @@ function NavCollapsibleItem({
                         aria-expanded={open}
                         className={cn(
                             itemClass,
-                            'data-[active=true]:bg-transparent data-[active=true]:text-brand-800 data-[active=true]:shadow-none',
+                            'text-brand-800 data-[active=true]:bg-brand-100 data-[active=true]:text-brand-800 data-[active=true]:shadow-none data-[active=true]:hover:bg-brand-100 data-[active=true]:hover:text-brand-800',
                             open &&
                                 !sectionActive &&
                                 'bg-brand-50 text-brand-800',
@@ -124,7 +140,8 @@ function NavCollapsibleItem({
                         {item.icon ? (
                             <NavIcon
                                 icon={item.icon}
-                                active={sectionActive}
+                                active={sectionActive || open}
+                                tone="soft"
                             />
                         ) : null}
                         <NavLabel>{item.title}</NavLabel>
