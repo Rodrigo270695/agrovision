@@ -90,7 +90,7 @@ export function ParetoPage() {
                 className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.45),transparent)] opacity-60"
             />
 
-            <div className="relative z-10 mx-auto flex w-full max-w-[1400px] flex-col gap-5 p-4 sm:gap-6 sm:p-6">
+            <div className="relative z-10 flex w-full flex-col gap-3 p-3 sm:gap-4 sm:p-4">
                 <ParetoHeader
                     stats={stats}
                     onVehicleTypes={() => setVehicleTypesOpen(true)}
@@ -104,7 +104,7 @@ export function ParetoPage() {
                     }}
                 />
 
-                <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-[0_18px_50px_-30px_rgba(15,31,58,0.45)]">
+                <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-[0_14px_40px_-28px_rgba(15,31,58,0.4)]">
                     <ParetoTable
                         items={mergedItems}
                         filters={filters}

@@ -38,14 +38,14 @@ function StatPill({
     return (
         <div
             className={cn(
-                'rounded-2xl border border-white/10 bg-gradient-to-br px-3 py-2.5 backdrop-blur-sm',
+                'rounded-xl border border-white/10 bg-gradient-to-br px-2.5 py-1.5 backdrop-blur-sm',
                 tones[tone],
             )}
         >
-            <p className="text-[10px] font-semibold tracking-wide text-white/70 uppercase">
+            <p className="text-[9px] font-semibold tracking-wide text-white/70 uppercase">
                 {label}
             </p>
-            <p className="mt-0.5 font-[Manrope] text-2xl font-bold tabular-nums">
+            <p className="font-[Manrope] text-xl font-bold tabular-nums leading-tight">
                 {value}
             </p>
         </div>
@@ -56,38 +56,37 @@ export function ParetoHeader({ stats, onCreate, onVehicleTypes }: Props) {
     const { can } = useCan();
 
     return (
-        <div className="flex flex-col gap-4 sm:gap-5">
-            <header className="overflow-hidden rounded-3xl border border-white/70 bg-[#0f1f3a] text-white shadow-[0_24px_60px_-28px_rgba(15,31,58,0.65)]">
-                <div className="relative px-5 py-6 sm:px-7 sm:py-7">
+        <div className="flex flex-col gap-3">
+            <header className="overflow-hidden rounded-2xl border border-white/70 bg-[#0f1f3a] text-white shadow-[0_18px_40px_-24px_rgba(15,31,58,0.55)]">
+                <div className="relative px-4 py-4 sm:px-5 sm:py-4">
                     <div
                         aria-hidden
-                        className="absolute -right-16 -top-20 size-56 rounded-full bg-amber-400/20 blur-3xl"
+                        className="absolute -right-12 -top-16 size-40 rounded-full bg-amber-400/20 blur-3xl"
                     />
                     <div
                         aria-hidden
-                        className="absolute -bottom-24 left-1/3 size-64 rounded-full bg-sky-400/15 blur-3xl"
+                        className="absolute -bottom-20 left-1/3 size-48 rounded-full bg-sky-400/15 blur-3xl"
                     />
 
-                    <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-                        <div className="max-w-2xl">
-                            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold tracking-[0.14em] text-sky-100 uppercase backdrop-blur-sm">
+                    <div className="relative flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="min-w-0 flex-1">
+                            <div className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-0.5 text-[10px] font-semibold tracking-[0.14em] text-sky-100 uppercase backdrop-blur-sm">
                                 <Sparkles
-                                    className="size-3.5"
+                                    className="size-3"
                                     aria-hidden
                                 />
                                 Plataforma · Inspecciones
                             </div>
-                            <h1 className="mt-3 font-[Manrope] text-3xl font-bold tracking-tight sm:text-4xl">
+                            <h1 className="mt-1.5 font-[Manrope] text-2xl font-bold tracking-tight sm:text-[1.75rem]">
                                 Pareto
                             </h1>
-                            <p className="mt-2 max-w-xl text-sm leading-relaxed text-sky-100/85 sm:text-[15px]">
+                            <p className="mt-1 max-w-2xl text-xs leading-snug text-sky-100/85 sm:text-sm">
                                 Exigencias con peso para el checklist. La suma
-                                de pesos activos debe ser exactamente 100% para
-                                poder inspeccionar con criterio.
+                                de pesos activos debe ser exactamente 100%.
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[420px]">
+                        <div className="grid w-full grid-cols-2 gap-1.5 sm:grid-cols-4 lg:w-auto lg:min-w-[380px]">
                             <StatPill
                                 label="Ítems"
                                 value={stats.total}
@@ -113,10 +112,10 @@ export function ParetoHeader({ stats, onCreate, onVehicleTypes }: Props) {
                 </div>
             </header>
 
-            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:p-4">
+            <div className="flex flex-col gap-2 rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between">
                 <div
                     className={cn(
-                        'inline-flex max-w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium ring-1 ring-inset',
+                        'inline-flex max-w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium ring-1 ring-inset',
                         stats.weight_ok
                             ? 'bg-emerald-50 text-emerald-800 ring-emerald-200'
                             : 'bg-amber-50 text-amber-950 ring-amber-200',
@@ -152,10 +151,11 @@ export function ParetoHeader({ stats, onCreate, onVehicleTypes }: Props) {
                         <Button
                             type="button"
                             variant="outline"
+                            size="sm"
                             onClick={onVehicleTypes}
-                            className="cursor-pointer gap-2 rounded-xl border-slate-200 text-[#0f1f3a] hover:bg-slate-50"
+                            className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-[#0f1f3a] hover:bg-slate-50"
                         >
-                            <Car className="size-4" strokeWidth={2.5} />
+                            <Car className="size-3.5" strokeWidth={2.5} />
                             <span className="hidden sm:inline">
                                 Tipos de vehículo
                             </span>
@@ -165,10 +165,11 @@ export function ParetoHeader({ stats, onCreate, onVehicleTypes }: Props) {
                     {can('pareto.create') ? (
                         <Button
                             type="button"
+                            size="sm"
                             onClick={onCreate}
-                            className="cursor-pointer gap-2 rounded-xl bg-[#1e4d8c] text-white hover:bg-[#163a6b]"
+                            className="cursor-pointer gap-1.5 rounded-xl bg-[#1e4d8c] text-white hover:bg-[#163a6b]"
                         >
-                            <Plus className="size-4" strokeWidth={2.5} />
+                            <Plus className="size-3.5" strokeWidth={2.5} />
                             <span className="hidden sm:inline">Nuevo ítem</span>
                             <span className="sm:hidden">Nuevo</span>
                         </Button>
