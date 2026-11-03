@@ -22,10 +22,10 @@ import { cn } from '@/lib/utils';
 import type { NavItem } from '@/types';
 
 const itemClass =
-    'h-9 cursor-pointer rounded-lg px-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-brand-100 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/35 data-[active=true]:bg-brand-800 data-[active=true]:text-white data-[active=true]:shadow-sm data-[active=true]:hover:bg-brand-900 data-[active=true]:hover:text-white';
+    'h-10 cursor-pointer rounded-xl px-2.5 text-[13px] font-medium text-brand-700/80 transition-colors hover:bg-brand-100 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/35 data-[active=true]:bg-brand-800 data-[active=true]:text-white data-[active=true]:shadow-[0_8px_18px_-12px_rgba(15,31,58,0.65)] data-[active=true]:hover:bg-brand-900 data-[active=true]:hover:text-white';
 
 const subItemClass =
-    'h-8 cursor-pointer rounded-md px-2 text-[13px] text-muted-foreground transition-colors hover:bg-brand-100 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/35 data-[active=true]:bg-brand-100 data-[active=true]:font-semibold data-[active=true]:text-brand-800 data-[active=true]:shadow-[inset_3px_0_0_0_var(--brand-500)]';
+    'h-8 cursor-pointer rounded-lg px-2 text-[13px] text-brand-700/75 transition-colors hover:bg-brand-100 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/35 data-[active=true]:bg-brand-100 data-[active=true]:font-semibold data-[active=true]:text-brand-800 data-[active=true]:shadow-[inset_3px_0_0_0_var(--brand-500)]';
 
 function itemIsActive(
     item: NavItem,
@@ -55,8 +55,8 @@ function NavIcon({
                 'flex shrink-0 items-center justify-center rounded-md transition-colors',
                 size === 'sm' ? 'size-6' : 'size-7',
                 active
-                    ? 'bg-brand-500 text-white'
-                    : 'bg-brand-100 text-brand-500',
+                    ? 'bg-white/15 text-white ring-1 ring-white/20'
+                    : 'bg-brand-100 text-brand-500 ring-1 ring-brand-200/70',
             )}
             aria-hidden
         >
@@ -112,9 +112,11 @@ function NavCollapsibleItem({
                         className={cn(
                             itemClass,
                             'data-[active=true]:bg-transparent data-[active=true]:text-brand-800 data-[active=true]:shadow-none',
-                            open && !sectionActive && 'bg-slate-50 text-brand-800',
+                            open &&
+                                !sectionActive &&
+                                'bg-brand-50 text-brand-800',
                             sectionActive &&
-                                'bg-brand-100 font-semibold text-brand-800',
+                                'bg-brand-100 font-semibold text-brand-800 ring-1 ring-brand-200/80',
                         )}
                     >
                         {item.icon ? (
@@ -128,6 +130,7 @@ function NavCollapsibleItem({
                             className={cn(
                                 'ml-auto size-3.5 shrink-0 text-brand-300 transition-transform duration-200 motion-reduce:transition-none',
                                 open && 'rotate-90 text-brand-500',
+                                sectionActive && 'text-brand-500',
                             )}
                             aria-hidden
                         />
@@ -209,11 +212,11 @@ export function NavMain({
     };
 
     return (
-        <SidebarGroup className="px-2 py-1">
-            <SidebarGroupLabel className="mb-1 px-2 text-[10px] font-semibold tracking-[0.16em] text-brand-500 uppercase">
+        <SidebarGroup className="relative px-1.5 py-1">
+            <SidebarGroupLabel className="mb-2 px-2.5 text-[10px] font-bold tracking-[0.18em] text-brand-500 uppercase">
                 {groupLabel}
             </SidebarGroupLabel>
-            <SidebarMenu className="gap-1">
+            <SidebarMenu className="gap-1.5">
                 {items.map((item) => {
                     if (item.items && item.items.length > 0) {
                         return (

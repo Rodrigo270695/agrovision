@@ -55,8 +55,8 @@ export function NavUser() {
                 <SidebarMenuButton
                     size="lg"
                     className={cn(
-                        'h-10 rounded-lg text-muted-foreground hover:bg-brand-100',
-                        open && 'bg-brand-100',
+                        'h-12 rounded-xl border border-brand-200/80 bg-card text-brand-800 shadow-sm hover:bg-brand-100',
+                        open && 'border-brand-300 bg-brand-100',
                     )}
                     data-test="sidebar-menu-button"
                     aria-expanded={open}
@@ -64,13 +64,13 @@ export function NavUser() {
                     onClick={() => setOpen((value) => !value)}
                 >
                     <UserInfo user={auth.user} />
-                    <ChevronsUpDown className="ml-auto size-4" />
+                    <ChevronsUpDown className="ml-auto size-4 text-brand-500" />
                 </SidebarMenuButton>
 
                 {open ? (
                     <div
                         role="menu"
-                        className="bg-popover text-popover-foreground absolute right-0 bottom-[calc(100%+0.5rem)] left-0 z-50 min-w-56 rounded-lg border p-1 shadow-md"
+                        className="bg-popover text-popover-foreground absolute right-0 bottom-[calc(100%+0.5rem)] left-0 z-50 min-w-56 rounded-xl border border-brand-200 p-1 shadow-lg"
                         onClick={() => setOpen(false)}
                     >
                         <UserMenuContent user={auth.user} />

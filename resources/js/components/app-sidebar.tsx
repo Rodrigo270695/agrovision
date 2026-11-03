@@ -307,13 +307,17 @@ export function AppSidebar() {
 
     return (
         <Sidebar collapsible="icon" variant="inset">
-            <SidebarHeader className="border-b border-brand-200 px-2 py-3">
+            <SidebarHeader className="relative overflow-hidden border-b border-brand-200/80 px-3 py-3">
+                <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand-100 via-brand-50/40 to-transparent"
+                />
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton
                             size="lg"
                             asChild
-                            className="h-10 hover:bg-transparent"
+                            className="relative h-11 rounded-xl hover:bg-white/70"
                         >
                             <Link
                                 href={isCentral ? '/plataforma' : dashboard()}
@@ -327,14 +331,18 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarHeader>
 
-            <SidebarContent className="pt-2">
+            <SidebarContent className="relative gap-0 px-1.5 pt-3">
+                <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-brand-50/90 to-transparent"
+                />
                 <NavMain
                     items={visibleNavItems}
                     groupLabel={isCentral ? 'Grupo Indelsi' : 'Operaciones'}
                 />
             </SidebarContent>
 
-            <SidebarFooter className="border-t border-brand-200 px-2 py-2">
+            <SidebarFooter className="border-t border-brand-200/80 bg-gradient-to-t from-brand-50/80 to-transparent px-2.5 py-2.5">
                 {visibleFooterItems.length > 0 ? (
                     <NavFooter items={visibleFooterItems} className="mt-auto" />
                 ) : null}

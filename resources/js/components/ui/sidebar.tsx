@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils"
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
-const SIDEBAR_WIDTH = "16rem"
+const SIDEBAR_WIDTH = "17rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_WIDTH_ICON = "3rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
@@ -237,7 +237,7 @@ function Sidebar({
       >
         <div
           data-sidebar="sidebar"
-          className="bg-sidebar group-data-[variant=floating]:border-sidebar-border group-data-[variant=inset]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm group-data-[variant=inset]:rounded-2xl group-data-[variant=inset]:border group-data-[variant=inset]:shadow-sm"
+          className="bg-sidebar group-data-[variant=floating]:border-sidebar-border group-data-[variant=inset]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm group-data-[variant=inset]:rounded-2xl group-data-[variant=inset]:border group-data-[variant=inset]:shadow-[0_10px_30px_-18px_rgba(15,31,58,0.35)]"
         >
           {children}
         </div>
@@ -264,9 +264,9 @@ function SidebarTrigger({
       aria-label={expanded ? "Ocultar menú" : "Mostrar menú"}
       title={expanded ? "Ocultar menú" : "Mostrar menú"}
       className={cn(
-        "size-9 shrink-0 rounded-xl border border-brand-200/90 bg-card text-brand-800 shadow-sm",
-        "transition-colors hover:border-brand-500/30 hover:bg-brand-100 hover:text-brand-500",
-        "focus-visible:ring-2 focus-visible:ring-brand-500/35",
+        "size-9 shrink-0 rounded-xl border border-brand-200 bg-card text-brand-800 shadow-[0_1px_2px_rgba(15,31,58,0.06)]",
+        "transition-colors hover:border-brand-300 hover:bg-brand-100 hover:text-brand-800",
+        "focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-2",
         className
       )}
       onClick={(event) => {
@@ -275,7 +275,7 @@ function SidebarTrigger({
       }}
       {...props}
     >
-      <Menu className="size-5" strokeWidth={2.25} aria-hidden />
+      <Menu className="size-[18px]" strokeWidth={2.5} aria-hidden />
       <span className="sr-only">
         {expanded ? "Ocultar menú" : "Mostrar menú"}
       </span>

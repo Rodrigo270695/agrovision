@@ -3,24 +3,28 @@ import { TenantBrandMark } from '@/components/tenant-brand-mark';
 
 export default function AppLogo() {
     const { tenant, central, name: appName } = usePage().props;
-    const name = central ? 'Grupo Indelsi' : (tenant?.name ?? appName ?? 'Grupo Indelsi');
-    const logo = central ? '/logo.png' : (tenant?.sidebar_logo ?? tenant?.logo ?? null);
+    const name = central
+        ? 'Grupo Indelsi'
+        : (tenant?.name ?? appName ?? 'Grupo Indelsi');
+    const logo = central
+        ? '/logo.png'
+        : (tenant?.sidebar_logo ?? tenant?.logo ?? null);
 
     return (
         <>
-            <div className="flex aspect-square size-8 items-center justify-center overflow-hidden rounded-lg bg-transparent">
+            <div className="flex aspect-square size-9 items-center justify-center overflow-hidden rounded-xl bg-brand-100 ring-1 ring-brand-200/80">
                 <TenantBrandMark
                     name={name}
                     logo={logo}
-                    className="size-8 rounded-lg text-[11px]"
-                    imageClassName="size-8"
+                    className="size-9 rounded-xl text-[11px]"
+                    imageClassName="size-9"
                 />
             </div>
-            <div className="ml-1.5 grid min-w-0 flex-1 text-left">
-                <span className="truncate text-[13px] leading-tight font-semibold tracking-tight text-brand-700 dark:text-sidebar-foreground">
+            <div className="ml-2 grid min-w-0 flex-1 text-left">
+                <span className="font-display truncate text-[13px] leading-tight font-bold tracking-tight text-brand-800">
                     {name}
                 </span>
-                <span className="truncate text-[10px] leading-tight font-medium text-brand-500">
+                <span className="truncate text-[10px] leading-tight font-semibold tracking-[0.04em] text-brand-500 uppercase">
                     {central ? 'Soporte' : 'Operación SST'}
                 </span>
             </div>
