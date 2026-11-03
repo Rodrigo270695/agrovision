@@ -2,6 +2,12 @@ import { Head, useForm } from '@inertiajs/react';
 import { ChevronDown, Download, ScanSearch } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import InputError from '@/components/input-error';
+import {
+    PlatformContentPanel,
+    PlatformHero,
+    PlatformPageShell,
+    PlatformToolbar,
+} from '@/components/platform';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { dashboard } from '@/routes';
@@ -221,18 +227,40 @@ export default function PlateReportPage({
     return (
         <>
             <Head title="Consulta de placas" />
-            <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
-                <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <h1 className="font-display text-2xl font-semibold text-[#1a2b4c]">
-                            Consulta de placas
-                        </h1>
-                        <p className="mt-1 max-w-2xl text-sm text-[#5a7390]">
-                            Pega una placa o una lista. Cada fila dice de un
-                            vistazo si tiene inspección, documentos, firma del
-                            coordinador e inducción.
-                        </p>
-                    </div>
+            <PlatformPageShell>
+                <PlatformHero
+                    eyebrow="Reportes · Placas"
+                    title="Consulta de placas"
+                    description="Pega una placa o una lista. Cada fila dice de un vistazo si tiene inspección, documentos, firma del coordinador e inducción."
+                    stats={
+                        summary
+                            ? [
+                                  {
+                                      label: 'Consultadas',
+                                      value: summary.consulted,
+                                      tone: 'navy',
+                                  },
+                                  {
+                                      label: 'Sin registro',
+                                      value: summary.missing,
+                                      tone: 'amber',
+                                  },
+                                  {
+                                      label: 'Desaprobadas',
+                                      value: summary.rejected,
+                                      tone: 'rose',
+                                  },
+                                  {
+                                      label: 'Docs incompletos',
+                                      value: summary.docs,
+                                      tone: 'sky',
+                                  },
+                              ]
+                            : []
+                    }
+                />
+
+                <PlatformToolbar>
                     <Button
                         type="button"
                         variant="outline"
@@ -243,171 +271,174 @@ export default function PlateReportPage({
                         {exporting ? <Spinner /> : <Download className="size-4" />}
                         Descargar Excel
                     </Button>
-                </header>
+                </PlatformToolbar>
 
-                <form
-                    className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        setFilter('all');
-                        setOpenKey(null);
-                        form.post('/reporte-placas', { preserveScroll: true });
-                    }}
-                >
-                    <label
-                        htmlFor="plates"
-                        className="text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase"
+                <PlatformContentPanel className="p-4">
+                    <form
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            setFilter('all');
+                            setOpenKey(null);
+                            form.post('/reporte-placas', { preserveScroll: true });
+                        }}
                     >
-                        Placas
-                    </label>
-                    <p className="mt-1 text-xs text-[#5a7390]">
-                        Una debajo de otra, o separadas por coma. Hasta 400.
-                    </p>
-                    <textarea
-                        id="plates"
-                        value={form.data.plates}
-                        onChange={(event) => form.setData('plates', event.target.value)}
-                        rows={6}
-                        placeholder={'ABC-123\nDEF-456\nGHI-789'}
-                        className="mt-3 w-full resize-y rounded-xl border border-[#c5d5e6] bg-white px-3 py-2 font-mono text-sm text-[#1a2b4c] outline-none focus:border-[#2e5a9e] focus:ring-2 focus:ring-[#4a90e2]/35"
-                    />
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                        <p className="text-xs text-[#5a7390]">
-                            {detected === 0
-                                ? 'Todavía no hay placas.'
-                                : `${detected} placa${detected === 1 ? '' : 's'} lista${detected === 1 ? '' : 's'} para consultar.`}
-                        </p>
-                        <Button
-                            type="submit"
-                            disabled={form.processing || detected === 0}
-                            className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                        <label
+                            htmlFor="plates"
+                            className="text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase"
                         >
-                            {form.processing ? <Spinner /> : <ScanSearch className="size-4" />}
-                            Consultar
-                        </Button>
-                    </div>
-                    <InputError message={form.errors.plates} className="mt-2" />
-                    {exportError ? (
-                        <p className="mt-2 text-sm text-red-700">{exportError}</p>
-                    ) : null}
-                    {truncated ? (
-                        <p className="mt-2 text-sm text-amber-800">
-                            Se consultaron las primeras 400 placas.
+                            Placas
+                        </label>
+                        <p className="mt-1 text-xs text-[#5a7390]">
+                            Una debajo de otra, o separadas por coma. Hasta 400.
+                        </p>
+                        <textarea
+                            id="plates"
+                            value={form.data.plates}
+                            onChange={(event) => form.setData('plates', event.target.value)}
+                            rows={6}
+                            placeholder={'ABC-123\nDEF-456\nGHI-789'}
+                            className="mt-3 w-full resize-y rounded-xl border border-[#c5d5e6] bg-white px-3 py-2 font-mono text-sm text-[#1a2b4c] outline-none focus:border-[#2e5a9e] focus:ring-2 focus:ring-[#4a90e2]/35"
+                        />
+                        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                            <p className="text-xs text-[#5a7390]">
+                                {detected === 0
+                                    ? 'Todavía no hay placas.'
+                                    : `${detected} placa${detected === 1 ? '' : 's'} lista${detected === 1 ? '' : 's'} para consultar.`}
+                            </p>
+                            <Button
+                                type="submit"
+                                disabled={form.processing || detected === 0}
+                                className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                            >
+                                {form.processing ? <Spinner /> : <ScanSearch className="size-4" />}
+                                Consultar
+                            </Button>
+                        </div>
+                        <InputError message={form.errors.plates} className="mt-2" />
+                        {exportError ? (
+                            <p className="mt-2 text-sm text-red-700">{exportError}</p>
+                        ) : null}
+                        {truncated ? (
+                            <p className="mt-2 text-sm text-amber-800">
+                                Se consultaron las primeras 400 placas.
+                            </p>
+                        ) : null}
+                    </form>
+                </PlatformContentPanel>
+
+                <PlatformContentPanel className="p-4">
+                    {summary ? (
+                        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+                            <FilterStat
+                                label="Consultadas"
+                                value={summary.consulted}
+                                active={filter === 'all'}
+                                onClick={() => setFilter('all')}
+                            />
+                            <FilterStat
+                                label="Sin registro"
+                                value={summary.missing}
+                                active={filter === 'missing'}
+                                onClick={() => setFilter('missing')}
+                            />
+                            <FilterStat
+                                label="Desaprobadas"
+                                value={summary.rejected}
+                                active={filter === 'rejected'}
+                                onClick={() => setFilter('rejected')}
+                            />
+                            <FilterStat
+                                label="Docs incompletos"
+                                value={summary.docs}
+                                active={filter === 'docs'}
+                                onClick={() => setFilter('docs')}
+                            />
+                            <FilterStat
+                                label="Sin subsanar"
+                                value={summary.unsigned}
+                                active={filter === 'unsigned'}
+                                onClick={() => setFilter('unsigned')}
+                            />
+                            <FilterStat
+                                label="Sin inducción"
+                                value={summary.without_induction}
+                                active={filter === 'without_induction'}
+                                onClick={() => setFilter('without_induction')}
+                            />
+                        </div>
+                    ) : (
+                        <p className="px-4 py-10 text-center text-sm text-[#5a7390]">
+                            El resultado queda en una fila por placa. Abre el
+                            detalle solo cuando necesites ver qué ítem no pasó, qué
+                            documento falta o qué inducción tiene.
+                        </p>
+                    )}
+
+                    {summary && visible.length === 0 ? (
+                        <p className="mt-4 text-sm text-[#5a7390]">
+                            Ninguna placa coincide con este filtro.
                         </p>
                     ) : null}
-                </form>
 
-                {summary ? (
-                    <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
-                        <FilterStat
-                            label="Consultadas"
-                            value={summary.consulted}
-                            active={filter === 'all'}
-                            onClick={() => setFilter('all')}
-                        />
-                        <FilterStat
-                            label="Sin registro"
-                            value={summary.missing}
-                            active={filter === 'missing'}
-                            onClick={() => setFilter('missing')}
-                        />
-                        <FilterStat
-                            label="Desaprobadas"
-                            value={summary.rejected}
-                            active={filter === 'rejected'}
-                            onClick={() => setFilter('rejected')}
-                        />
-                        <FilterStat
-                            label="Docs incompletos"
-                            value={summary.docs}
-                            active={filter === 'docs'}
-                            onClick={() => setFilter('docs')}
-                        />
-                        <FilterStat
-                            label="Sin subsanar"
-                            value={summary.unsigned}
-                            active={filter === 'unsigned'}
-                            onClick={() => setFilter('unsigned')}
-                        />
-                        <FilterStat
-                            label="Sin inducción"
-                            value={summary.without_induction}
-                            active={filter === 'without_induction'}
-                            onClick={() => setFilter('without_induction')}
-                        />
-                    </div>
-                ) : (
-                    <p className="rounded-2xl border border-dashed border-[#d7e3f0] bg-white px-4 py-8 text-center text-sm text-[#5a7390]">
-                        El resultado queda en una fila por placa. Abre el
-                        detalle solo cuando necesites ver qué ítem no pasó, qué
-                        documento falta o qué inducción tiene.
-                    </p>
-                )}
+                    <div className="mt-4 flex flex-col gap-2">
+                        {visible.map((row) => {
+                            const open = openKey === row.key;
 
-                {summary && visible.length === 0 ? (
-                    <p className="text-sm text-[#5a7390]">
-                        Ninguna placa coincide con este filtro.
-                    </p>
-                ) : null}
-
-                <div className="flex flex-col gap-2">
-                    {visible.map((row) => {
-                        const open = openKey === row.key;
-
-                        return (
-                            <article
-                                key={row.key}
-                                className="rounded-2xl border border-[#d7e3f0] bg-white shadow-sm"
-                            >
-                                <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                                            <h2 className="font-mono text-lg font-semibold text-[#1a2b4c]">
-                                                {row.plate}
-                                            </h2>
-                                            <p className="truncate text-sm text-[#5a7390]">
-                                                {row.driver_name || 'Sin conductor'}
-                                                {row.driver_dni ? ` · ${row.driver_dni}` : ''}
-                                                {row.provider ? ` · ${row.provider}` : ''}
-                                            </p>
+                            return (
+                                <article
+                                    key={row.key}
+                                    className="rounded-2xl border border-[#d7e3f0] bg-white shadow-sm"
+                                >
+                                    <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                                                <h2 className="font-mono text-lg font-semibold text-[#1a2b4c]">
+                                                    {row.plate}
+                                                </h2>
+                                                <p className="truncate text-sm text-[#5a7390]">
+                                                    {row.driver_name || 'Sin conductor'}
+                                                    {row.driver_dni ? ` · ${row.driver_dni}` : ''}
+                                                    {row.provider ? ` · ${row.provider}` : ''}
+                                                </p>
+                                            </div>
+                                            <div className="mt-2 flex flex-wrap gap-1.5">
+                                                {row.badges.map((badge) => (
+                                                    <span
+                                                        key={badge.label}
+                                                        className={cn(
+                                                            'inline-flex rounded-full px-2.5 py-1 text-xs font-medium',
+                                                            toneClass[badge.tone],
+                                                        )}
+                                                    >
+                                                        {badge.label}
+                                                    </span>
+                                                ))}
+                                            </div>
                                         </div>
-                                        <div className="mt-2 flex flex-wrap gap-1.5">
-                                            {row.badges.map((badge) => (
-                                                <span
-                                                    key={badge.label}
-                                                    className={cn(
-                                                        'inline-flex rounded-full px-2.5 py-1 text-xs font-medium',
-                                                        toneClass[badge.tone],
-                                                    )}
-                                                >
-                                                    {badge.label}
-                                                </span>
-                                            ))}
-                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            aria-expanded={open}
+                                            onClick={() => setOpenKey(open ? null : row.key)}
+                                            className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                                        >
+                                            {open ? 'Ocultar detalle' : 'Ver detalle'}
+                                            <ChevronDown
+                                                className={cn(
+                                                    'size-4 transition-transform',
+                                                    open && 'rotate-180',
+                                                )}
+                                            />
+                                        </Button>
                                     </div>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        aria-expanded={open}
-                                        onClick={() => setOpenKey(open ? null : row.key)}
-                                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
-                                    >
-                                        {open ? 'Ocultar detalle' : 'Ver detalle'}
-                                        <ChevronDown
-                                            className={cn(
-                                                'size-4 transition-transform',
-                                                open && 'rotate-180',
-                                            )}
-                                        />
-                                    </Button>
-                                </div>
 
-                                {open ? <Detail row={row} /> : null}
-                            </article>
-                        );
-                    })}
-                </div>
-            </div>
+                                    {open ? <Detail row={row} /> : null}
+                                </article>
+                            );
+                        })}
+                    </div>
+                </PlatformContentPanel>
+            </PlatformPageShell>
         </>
     );
 }

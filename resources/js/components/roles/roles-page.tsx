@@ -14,6 +14,10 @@ import {
     type RolesPagination,
 } from '@/components/roles/roles-table';
 import type { RolesStatsData } from '@/components/roles/roles-stats';
+import {
+    PlatformContentPanel,
+    PlatformPageShell,
+} from '@/components/platform';
 import { useCan } from '@/hooks/use-can';
 import { usePendingPosts } from '@/lib/offline/use-pending-posts';
 
@@ -134,15 +138,17 @@ export function RolesPage() {
     );
 
     return (
-        <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
+        <PlatformPageShell>
             <RolesHeader stats={mergedStats} onCreate={openCreate} />
-            <RolesTable
-                roles={mergedRoles}
-                filters={filters}
-                onEdit={openEdit}
-                onDelete={openDelete}
-                onAssignPermissions={openPermissions}
-            />
+            <PlatformContentPanel>
+                <RolesTable
+                    roles={mergedRoles}
+                    filters={filters}
+                    onEdit={openEdit}
+                    onDelete={openDelete}
+                    onAssignPermissions={openPermissions}
+                />
+            </PlatformContentPanel>
 
             {can('roles.create') || can('roles.update') ? (
                 <RoleFormModal
@@ -168,6 +174,6 @@ export function RolesPage() {
                     onClose={closePermissions}
                 />
             ) : null}
-        </div>
+        </PlatformPageShell>
     );
 }

@@ -1,17 +1,25 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import {
-    ProviderUnitBars,
-    type ProviderUnitBar,
+    PlatformHero,
+    PlatformPageShell,
+    PlatformToolbar,
+} from '@/components/platform';
+import {
+    ProviderUnitBars
+    
 } from '@/components/reports/provider-unit-bars';
+import type {ProviderUnitBar} from '@/components/reports/provider-unit-bars';
 import {
-    WeekSlicer,
-    type WeekPoint,
+    WeekSlicer
+    
 } from '@/components/reports/week-slicer';
-import {
-    SstWeeklyVerticalBars,
-    type SstDetailBar,
-} from '@/components/sst-board/sst-item-detail-charts';
+import type {WeekPoint} from '@/components/reports/week-slicer';
 import { DateRangeFilter } from '@/components/shared/date-range-filter';
+import {
+    SstWeeklyVerticalBars
+    
+} from '@/components/sst-board/sst-item-detail-charts';
+import type {SstDetailBar} from '@/components/sst-board/sst-item-detail-charts';
 import { dashboard } from '@/routes';
 
 type TemplateOption = { value: string; label: string };
@@ -74,21 +82,20 @@ export default function ProviderComplianceReportPage() {
         <>
             <Head title="Cumplimiento por proveedor" />
 
-            <div className="flex w-full min-w-0 max-w-none flex-col gap-6 p-4 sm:p-6">
-                <div className="border-b-2 border-[#1a2b4c] pb-4">
-                    <p className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
-                        {template_label} · {range_label} · {week_label}
-                    </p>
-                    <h1 className="mt-1 text-xl font-bold text-[#1a2b4c] sm:text-3xl">
-                        Cumplimiento por proveedor
-                    </h1>
-                    <p className="mt-2 text-sm text-[#5a7390]">
-                        Elige el rango de fechas y la semana dentro de ese
-                        rango. Cada barra es proveedor + placa con % Pareto.
-                    </p>
-                </div>
+            <PlatformPageShell>
+                <PlatformHero
+                    eyebrow="Reportes · SST"
+                    title="Cumplimiento por proveedor"
+                    description="Elige el rango de fechas y la semana dentro de ese rango. Cada barra es proveedor + placa con % Pareto."
+                    stats={[
+                        { label: 'Plantilla', value: template_label, tone: 'navy' },
+                        { label: 'Rango', value: range_label, tone: 'sky' },
+                        { label: 'Semana', value: week_label, tone: 'amber' },
+                        { label: 'Unidades', value: units.length, tone: 'emerald' },
+                    ]}
+                />
 
-                <div className="flex flex-wrap items-end gap-3">
+                <PlatformToolbar>
                     <label className="text-xs font-semibold text-[#1a2b4c]">
                         Plantilla
                         <select
@@ -136,7 +143,7 @@ export default function ProviderComplianceReportPage() {
                             }
                         />
                     </div>
-                </div>
+                </PlatformToolbar>
 
                 <WeekSlicer
                     rangeLabel={range_label}
@@ -177,7 +184,7 @@ export default function ProviderComplianceReportPage() {
                         <SstWeeklyVerticalBars bars={weekly_bars} />
                     </div>
                 </section>
-            </div>
+            </PlatformPageShell>
         </>
     );
 }

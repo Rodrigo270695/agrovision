@@ -1,5 +1,5 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { CheckSquare2, Square, Zap } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import InputError from '@/components/input-error';
@@ -9,7 +9,10 @@ import type {
     PeriodOption,
     SiteOption,
 } from '@/components/inductions/induction-form-fields';
-import { PageHeader } from '@/components/data-page';
+import {
+    PlatformHero,
+    PlatformPageShell,
+} from '@/components/platform';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -223,28 +226,26 @@ export default function InductionQuickCompletePage({
     return (
         <>
             <Head title="Inducción · Cierre rápido" />
-            <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
-                <PageHeader
+            <PlatformPageShell>
+                <PlatformHero
+                    eyebrow="Inducción · Campo"
                     title="Cierre rápido de faltantes"
                     description="Elige el tipo, revisa quién falta con firma y huella, sube la foto de evidencia y cierra el paquete."
                     stats={[
                         {
                             label: 'Tipos',
                             value: types.length,
-                            variant: 'info',
-                            icon: Zap,
+                            tone: 'navy',
                         },
                         {
                             label: 'Elegibles',
                             value: candidates.length,
-                            variant: 'warning',
-                            icon: CheckSquare2,
+                            tone: 'amber',
                         },
                         {
                             label: 'Seleccionados',
                             value: selected.length,
-                            variant: 'success',
-                            icon: Square,
+                            tone: 'emerald',
                         },
                     ]}
                 />
@@ -559,7 +560,7 @@ export default function InductionQuickCompletePage({
                         </section>
                     </form>
                 )}
-            </div>
+            </PlatformPageShell>
         </>
     );
 }

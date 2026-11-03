@@ -1,5 +1,11 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
+import {
+    PlatformContentPanel,
+    PlatformHero,
+    PlatformPageShell,
+    PlatformToolbar,
+} from '@/components/platform';
 import { Button } from '@/components/ui/button';
 import { dashboard } from '@/routes';
 
@@ -20,64 +26,87 @@ export default function CertificatesIndex({ templates }: PageProps) {
     return (
         <>
             <Head title="Certificados" />
-            <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <h1 className="text-xl font-semibold text-[#1a2b4c]">
-                            Plantillas de certificados
-                        </h1>
-                        <p className="mt-1 text-sm text-[#5a7390]">
-                            Cada plantilla está ligada a una inducción. El
-                            fondo, los textos y la firma se arman aquí. El QR
-                            comprueba que esa persona recibió el certificado.
-                        </p>
-                    </div>
+            <PlatformPageShell>
+                <PlatformHero
+                    eyebrow="Certificados · Emisión"
+                    title="Plantillas de certificados"
+                    description="Cada plantilla está ligada a una inducción. El fondo, los textos y la firma se arman aquí. El QR comprueba que esa persona recibió el certificado."
+                    stats={[
+                        {
+                            label: 'Plantillas',
+                            value: templates.length,
+                            tone: 'navy',
+                        },
+                        {
+                            label: 'Emitidos',
+                            value: templates.reduce(
+                                (sum, item) => sum + item.certificates_count,
+                                0,
+                            ),
+                            tone: 'emerald',
+                        },
+                    ]}
+                />
+
+                <PlatformToolbar>
                     <Button
                         type="button"
+                        size="sm"
                         asChild
-                        className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                        className="cursor-pointer gap-1.5 rounded-xl bg-[#1e4d8c] text-white hover:bg-[#163a6b]"
                     >
                         <Link href="/certificados/plantillas/nueva">
-                            <Plus className="size-4" />
+                            <Plus className="size-3.5" />
                             Nueva plantilla
                         </Link>
                     </Button>
-                </div>
+                </PlatformToolbar>
 
-                <div className="overflow-hidden rounded-2xl border border-[#d7e3f0] bg-white shadow-sm">
+                <PlatformContentPanel>
                     {templates.length === 0 ? (
-                        <p className="px-4 py-10 text-center text-sm text-[#5a7390]">
+                        <p className="px-4 py-10 text-center text-sm text-slate-500">
                             Todavía no hay plantillas.
                         </p>
                     ) : (
                         <table className="w-full text-left text-sm">
-                            <thead className="bg-[#f8fafc] text-xs uppercase tracking-wide text-[#6b8ead]">
+                            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                                 <tr>
-                                    <th className="px-4 py-3 font-semibold">Plantilla</th>
-                                    <th className="px-4 py-3 font-semibold">Inducción</th>
-                                    <th className="px-4 py-3 font-semibold">Firma</th>
-                                    <th className="px-4 py-3 font-semibold">Emitidos</th>
+                                    <th className="px-4 py-3 font-semibold">
+                                        Plantilla
+                                    </th>
+                                    <th className="px-4 py-3 font-semibold">
+                                        Inducción
+                                    </th>
+                                    <th className="px-4 py-3 font-semibold">
+                                        Firma
+                                    </th>
+                                    <th className="px-4 py-3 font-semibold">
+                                        Emitidos
+                                    </th>
                                     <th className="px-4 py-3" />
                                 </tr>
                             </thead>
                             <tbody>
                                 {templates.map((template) => (
-                                    <tr key={template.id} className="border-t border-[#e2eaf3]">
-                                        <td className="px-4 py-3 font-medium text-[#1a2b4c]">
+                                    <tr
+                                        key={template.id}
+                                        className="border-t border-slate-100"
+                                    >
+                                        <td className="px-4 py-3 font-medium text-[#0f1f3a]">
                                             {template.name}
                                         </td>
-                                        <td className="px-4 py-3 text-[#3d5166]">
+                                        <td className="px-4 py-3 text-slate-600">
                                             {template.induction_title || '—'}
                                             {template.session_on ? (
-                                                <span className="block text-xs text-[#6b8ead]">
+                                                <span className="block text-xs text-slate-400">
                                                     {template.session_on}
                                                 </span>
                                             ) : null}
                                         </td>
-                                        <td className="px-4 py-3 text-[#3d5166]">
+                                        <td className="px-4 py-3 text-slate-600">
                                             {template.issuer_name}
                                         </td>
-                                        <td className="px-4 py-3 text-[#3d5166]">
+                                        <td className="px-4 py-3 text-slate-600">
                                             {template.certificates_count}
                                         </td>
                                         <td className="px-4 py-3 text-right">
@@ -88,7 +117,7 @@ export default function CertificatesIndex({ templates }: PageProps) {
                                                         `/certificados/plantillas/${template.id}`,
                                                     )
                                                 }
-                                                className="cursor-pointer text-sm font-medium text-[#2e5a9e] hover:underline"
+                                                className="cursor-pointer text-sm font-medium text-[#1e4d8c] hover:underline"
                                             >
                                                 Editar
                                             </button>
@@ -98,8 +127,8 @@ export default function CertificatesIndex({ templates }: PageProps) {
                             </tbody>
                         </table>
                     )}
-                </div>
-            </div>
+                </PlatformContentPanel>
+            </PlatformPageShell>
         </>
     );
 }

@@ -14,6 +14,10 @@ import {
     type UsersPagination,
 } from '@/components/users/users-table';
 import type { UsersStatsData } from '@/components/users/users-stats';
+import {
+    PlatformContentPanel,
+    PlatformPageShell,
+} from '@/components/platform';
 import { useCan } from '@/hooks/use-can';
 import { usePendingPosts } from '@/lib/offline/use-pending-posts';
 
@@ -124,15 +128,17 @@ export function UsersPage() {
     );
 
     return (
-        <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
+        <PlatformPageShell>
             <UsersHeader stats={mergedStats} onCreate={openCreate} />
-            <UsersTable
-                users={mergedUsers}
-                filters={filters}
-                onEdit={openEdit}
-                onDelete={openDelete}
-                onAssignRoles={openRoles}
-            />
+            <PlatformContentPanel>
+                <UsersTable
+                    users={mergedUsers}
+                    filters={filters}
+                    onEdit={openEdit}
+                    onDelete={openDelete}
+                    onAssignRoles={openRoles}
+                />
+            </PlatformContentPanel>
 
             {can('users.create') || can('users.update') ? (
                 <UserFormModal
@@ -160,6 +166,6 @@ export function UsersPage() {
                     onClose={closeRoles}
                 />
             ) : null}
-        </div>
+        </PlatformPageShell>
     );
 }

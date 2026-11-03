@@ -7,23 +7,29 @@ import {
     ScanSearch,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import {
-    InductionFormModal,
-    type InductionGapDraft,
-} from '@/components/inductions/induction-form-modal';
 import type {
     InductionFormOptions,
     InductionTypeOption,
     PeriodOption,
 } from '@/components/inductions/induction-form-fields';
+import {
+    InductionFormModal
+    
+} from '@/components/inductions/induction-form-modal';
+import type {InductionGapDraft} from '@/components/inductions/induction-form-modal';
 import InputError from '@/components/input-error';
+import {
+    PlatformHero,
+    PlatformPageShell,
+    PlatformToolbar,
+} from '@/components/platform';
 import { AppModal } from '@/components/shared/app-modal';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Spinner } from '@/components/ui/spinner';
 import { useCan } from '@/hooks/use-can';
-import { dashboard } from '@/routes';
 import { cn } from '@/lib/utils';
+import { dashboard } from '@/routes';
 
 type Tone = 'ok' | 'bad' | 'warn' | 'info' | 'muted';
 
@@ -370,6 +376,7 @@ export default function DriverReportPage({
 
         if (payload.length === 0) {
             setExportError('Marca acta, RISST o RITRAN en al menos una actividad.');
+
             return;
         }
 
@@ -393,6 +400,7 @@ export default function DriverReportPage({
                     message?: string;
                 } | null;
                 setExportError(data?.message || 'No se pudo generar el archivo.');
+
                 return;
             }
 
@@ -435,6 +443,7 @@ export default function DriverReportPage({
 
             if (!response.ok) {
                 setExportError('No se pudo generar el Excel.');
+
                 return;
             }
 
@@ -463,57 +472,70 @@ export default function DriverReportPage({
     return (
         <>
             <Head title="Consulta de conductores" />
-            <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
-                <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <h1 className="font-display text-2xl font-semibold text-[#1a2b4c]">
-                            Consulta de conductores
-                        </h1>
-                        <p className="mt-1 max-w-2xl text-sm text-[#5a7390]">
-                            Pega los DNI. Cada fila muestra lo que ya cubrió y
-                            lo que le falta. Un solo botón descarga el paquete.
-                        </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {canComplete ? (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                disabled={gaps.length === 0}
-                                onClick={() => setGapsOpen(true)}
-                                className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
-                            >
-                                <ListPlus className="size-4" />
-                                Completar faltantes
-                            </Button>
-                        ) : null}
+            <PlatformPageShell>
+                <PlatformHero
+                    eyebrow="Reportes · Conductores"
+                    title="Consulta de conductores"
+                    description="Pega los DNI. Cada fila muestra lo que ya cubrió y lo que le falta. Un solo botón descarga el paquete."
+                    stats={[
+                        { label: 'Filas', value: rows.length, tone: 'navy' },
+                        {
+                            label: 'Con actividades',
+                            value: summary?.found ?? 0,
+                            tone: 'emerald',
+                        },
+                        {
+                            label: 'Sin registro',
+                            value: summary?.missing ?? 0,
+                            tone: 'rose',
+                        },
+                        {
+                            label: 'Les falta',
+                            value: summary?.lacking ?? 0,
+                            tone: 'amber',
+                        },
+                    ]}
+                />
+
+                <PlatformToolbar>
+                    {canComplete ? (
                         <Button
                             type="button"
                             variant="outline"
-                            disabled={rows.length === 0 || excelLoading}
-                            onClick={() => void downloadExcel()}
+                            disabled={gaps.length === 0}
+                            onClick={() => setGapsOpen(true)}
                             className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
                         >
-                            {excelLoading ? (
-                                <Spinner />
-                            ) : (
-                                <FileSpreadsheet className="size-4" />
-                            )}
-                            Excel
+                            <ListPlus className="size-4" />
+                            Completar faltantes
                         </Button>
-                        <Button
-                            type="button"
-                            disabled={
-                                rows.every((row) => !row.found) || exporting
-                            }
-                            onClick={openModal}
-                            className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
-                        >
-                            <Download className="size-4" />
-                            Descargar
-                        </Button>
-                    </div>
-                </header>
+                    ) : null}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        disabled={rows.length === 0 || excelLoading}
+                        onClick={() => void downloadExcel()}
+                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                    >
+                        {excelLoading ? (
+                            <Spinner />
+                        ) : (
+                            <FileSpreadsheet className="size-4" />
+                        )}
+                        Excel
+                    </Button>
+                    <Button
+                        type="button"
+                        disabled={
+                            rows.every((row) => !row.found) || exporting
+                        }
+                        onClick={openModal}
+                        className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                    >
+                        <Download className="size-4" />
+                        Descargar
+                    </Button>
+                </PlatformToolbar>
 
                 <form
                     className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm"
@@ -689,7 +711,7 @@ export default function DriverReportPage({
                         );
                     })}
                 </div>
-            </div>
+            </PlatformPageShell>
 
             <AppModal
                 open={modalOpen}

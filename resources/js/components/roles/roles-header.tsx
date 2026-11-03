@@ -1,5 +1,8 @@
-import { KeyRound, Plus, Shield, ShieldOff } from 'lucide-react';
-import { PageHeader } from '@/components/data-page';
+import { Plus } from 'lucide-react';
+import {
+    PlatformHero,
+    PlatformToolbar,
+} from '@/components/platform';
 import type { RolesStatsData } from '@/components/roles/roles-stats';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/hooks/use-can';
@@ -13,48 +16,45 @@ export function RolesHeader({ stats, onCreate }: Props) {
     const { can } = useCan();
 
     return (
-        <PageHeader
-            title="Roles"
-            description="Gestión de roles y permisos del sistema."
-            stats={[
-                {
-                    label: 'Roles',
-                    value: stats.roles,
-                    variant: 'info',
-                    icon: Shield,
-                },
-                {
-                    label: 'Tipos de permiso',
-                    value: stats.permission_types,
-                    variant: 'primary',
-                    icon: KeyRound,
-                },
-                {
-                    label: 'Sin permisos',
-                    value: stats.without_permissions,
-                    variant: 'warning',
-                    icon: ShieldOff,
-                },
-                {
-                    label: 'En pantalla',
-                    value: stats.on_screen,
-                    variant: 'success',
-                    icon: Shield,
-                },
-            ]}
-            action={
-                can('roles.create') ? (
+        <div className="flex flex-col gap-3">
+            <PlatformHero
+                eyebrow="Usuarios · Acceso"
+                title="Roles"
+                description="Gestión de roles y permisos del sistema."
+                stats={[
+                    { label: 'Roles', value: stats.roles, tone: 'navy' },
+                    {
+                        label: 'Tipos de permiso',
+                        value: stats.permission_types,
+                        tone: 'sky',
+                    },
+                    {
+                        label: 'Sin permisos',
+                        value: stats.without_permissions,
+                        tone: 'amber',
+                    },
+                    {
+                        label: 'En pantalla',
+                        value: stats.on_screen,
+                        tone: 'emerald',
+                    },
+                ]}
+            />
+
+            {can('roles.create') ? (
+                <PlatformToolbar>
                     <Button
                         type="button"
+                        size="sm"
                         onClick={onCreate}
-                        className="cursor-pointer gap-2 bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                        className="cursor-pointer gap-1.5 rounded-xl bg-[#1e4d8c] text-white hover:bg-[#163a6b]"
                     >
-                        <Plus className="size-4" strokeWidth={2.5} />
+                        <Plus className="size-3.5" strokeWidth={2.5} />
                         <span className="hidden sm:inline">Nuevo rol</span>
                         <span className="sm:hidden">Nuevo</span>
                     </Button>
-                ) : null
-            }
-        />
+                </PlatformToolbar>
+            ) : null}
+        </div>
     );
 }

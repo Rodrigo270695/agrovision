@@ -2,6 +2,12 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import {
+    PlatformContentPanel,
+    PlatformHero,
+    PlatformPageShell,
+    PlatformToolbar,
+} from '@/components/platform';
 import { DateRangeFilter } from '@/components/shared/date-range-filter';
 import { SstBoardItemPicker } from '@/components/sst-board/sst-item-picker';
 import { dashboard } from '@/routes';
@@ -124,19 +130,32 @@ export default function SstBoardPage() {
     return (
         <>
             <Head title="Tablero SST" />
-            <div className="flex w-full flex-col gap-4 p-4 sm:p-6">
-                <div className="border-b-2 border-[#1a2b4c] pb-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                        <div>
-                            <h1 className="text-lg font-bold tracking-wide text-[#1a2b4c] uppercase sm:text-2xl">
-                                Tablero de mando SST {summary.template_label}
-                            </h1>
-                            <p className="mt-1 text-xs text-[#5a7390]">
-                                {summary.units} inspecciones. {summary.week_label}.
-                                Personaliza ítems con el selector de la derecha.
-                                Clic en un gráfico para ampliarlo.
-                            </p>
-                        </div>
+            <PlatformPageShell>
+                <PlatformHero
+                    eyebrow="Reportes · SST"
+                    title={`Tablero de mando SST ${summary.template_label}`}
+                    description={`${summary.units} inspecciones. ${summary.week_label}. Personaliza ítems con el selector de la derecha. Clic en un gráfico para ampliarlo.`}
+                    stats={[
+                        {
+                            label: 'Inspecciones',
+                            value: summary.units,
+                            tone: 'navy',
+                        },
+                        {
+                            label: 'Coordinadores',
+                            value: summary.coordinators.length,
+                            tone: 'sky',
+                        },
+                        {
+                            label: 'Tipos de vehículo',
+                            value: summary.vehicle_types.length,
+                            tone: 'amber',
+                        },
+                    ]}
+                />
+
+                <PlatformToolbar
+                    leading={
                         <div className="flex flex-wrap gap-2">
                             {templates.map((template) => (
                                 <button
@@ -156,162 +175,163 @@ export default function SstBoardPage() {
                                 </button>
                             ))}
                         </div>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap items-end gap-3">
-                        <div className="w-full sm:w-auto">
-                            <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
-                                Fecha
-                            </p>
-                            <DateRangeFilter
-                                desde={filters.date_from}
-                                hasta={filters.date_to}
-                                align="start"
-                                onApply={(dateFrom, dateTo) =>
-                                    visit({
-                                        date_from: dateFrom,
-                                        date_to: dateTo,
-                                    })
-                                }
-                                onClear={() =>
-                                    visit({ date_from: null, date_to: null })
-                                }
-                            />
-                        </div>
-                        <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-56">
-                            Inspector
-                            <select
-                                value={filters.inspector_id ?? ''}
-                                onChange={(event) =>
-                                    visit({
-                                        inspector_id:
-                                            event.target.value === ''
-                                                ? null
-                                                : Number(event.target.value),
-                                    })
-                                }
-                                className={selectClass}
-                            >
-                                <option value="">Todos</option>
-                                {inspectors.map((inspector) => (
-                                    <option
-                                        key={inspector.id}
-                                        value={inspector.id}
-                                    >
-                                        {inspector.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                        <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-64">
-                            Coordinador
-                            <select
-                                value={filters.coordinator_id ?? ''}
-                                onChange={(event) =>
-                                    visit({
-                                        coordinator_id:
-                                            event.target.value === ''
-                                                ? null
-                                                : Number(event.target.value),
-                                    })
-                                }
-                                disabled={scoped}
-                                className={cn(
-                                    selectClass,
-                                    'disabled:cursor-not-allowed disabled:opacity-60',
-                                )}
-                            >
-                                {scoped ? null : <option value="">Todos</option>}
-                                {coordinators.map((coordinator) => (
-                                    <option
-                                        key={coordinator.id}
-                                        value={coordinator.id}
-                                    >
-                                        {coordinator.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                        <div>
-                            <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
-                                Inspección
-                            </p>
-                            <div className="flex gap-1">
-                                {(
-                                    [
-                                        ['actual', 'Actual'],
-                                        ['first', '1ra'],
-                                        ['second', '2da'],
-                                    ] as const
-                                ).map(([value, label]) => (
-                                    <button
-                                        key={value}
-                                        type="button"
-                                        onClick={() =>
-                                            visit({ inspection: value })
-                                        }
-                                        className={cn(
-                                            'h-10 cursor-pointer rounded-lg px-3 text-xs font-semibold',
-                                            filters.inspection === value
-                                                ? 'bg-[#1a2b4c] text-white'
-                                                : 'border border-[#c5d5e6] text-[#1a2b4c]',
-                                        )}
-                                    >
-                                        {label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                        <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-56">
-                            Tipo de vehículo
-                            <select
-                                value={selectedVehicle}
-                                onChange={(event) =>
-                                    visit({
-                                        vehicle_types:
-                                            event.target.value === ''
-                                                ? []
-                                                : [event.target.value],
-                                    })
-                                }
-                                className={selectClass}
-                            >
-                                <option value="">Todos</option>
-                                {vehicleOptions.map((type) => (
-                                    <option key={type} value={type}>
-                                        {type}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                        <SstBoardItemPicker
-                            template={filters.template}
-                            items={items}
-                            onChange={handleVisibleItemsChange}
+                    }
+                >
+                    <div className="w-full sm:w-auto">
+                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                            Fecha
+                        </p>
+                        <DateRangeFilter
+                            desde={filters.date_from}
+                            hasta={filters.date_to}
+                            align="start"
+                            onApply={(dateFrom, dateTo) =>
+                                visit({
+                                    date_from: dateFrom,
+                                    date_to: dateTo,
+                                })
+                            }
+                            onClear={() =>
+                                visit({ date_from: null, date_to: null })
+                            }
                         />
                     </div>
-                </div>
-
-                {items.length === 0 ? (
-                    <section className="rounded-2xl border border-[#d7e3f0] bg-white p-8 text-center text-sm text-[#5a7390] shadow-sm">
-                        Esta plantilla no tiene requisitos para graficar.
-                    </section>
-                ) : displayedItems.length === 0 ? (
-                    <section className="rounded-2xl border border-[#d7e3f0] bg-white p-8 text-center text-sm text-[#5a7390] shadow-sm">
-                        No hay ítems seleccionados. Abre{' '}
-                        <strong>Ítems a mostrar</strong> y marca al menos uno.
-                    </section>
-                ) : (
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
-                        {displayedItems.map((item) => (
-                            <RingCard
-                                key={item.key}
-                                ring={item}
-                                onClick={() => setZoomRing(item)}
-                            />
-                        ))}
+                    <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-56">
+                        Inspector
+                        <select
+                            value={filters.inspector_id ?? ''}
+                            onChange={(event) =>
+                                visit({
+                                    inspector_id:
+                                        event.target.value === ''
+                                            ? null
+                                            : Number(event.target.value),
+                                })
+                            }
+                            className={selectClass}
+                        >
+                            <option value="">Todos</option>
+                            {inspectors.map((inspector) => (
+                                <option
+                                    key={inspector.id}
+                                    value={inspector.id}
+                                >
+                                    {inspector.name}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-64">
+                        Coordinador
+                        <select
+                            value={filters.coordinator_id ?? ''}
+                            onChange={(event) =>
+                                visit({
+                                    coordinator_id:
+                                        event.target.value === ''
+                                            ? null
+                                            : Number(event.target.value),
+                                })
+                            }
+                            disabled={scoped}
+                            className={cn(
+                                selectClass,
+                                'disabled:cursor-not-allowed disabled:opacity-60',
+                            )}
+                        >
+                            {scoped ? null : <option value="">Todos</option>}
+                            {coordinators.map((coordinator) => (
+                                <option
+                                    key={coordinator.id}
+                                    value={coordinator.id}
+                                >
+                                    {coordinator.name}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    <div>
+                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                            Inspección
+                        </p>
+                        <div className="flex gap-1">
+                            {(
+                                [
+                                    ['actual', 'Actual'],
+                                    ['first', '1ra'],
+                                    ['second', '2da'],
+                                ] as const
+                            ).map(([value, label]) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    onClick={() =>
+                                        visit({ inspection: value })
+                                    }
+                                    className={cn(
+                                        'h-10 cursor-pointer rounded-lg px-3 text-xs font-semibold',
+                                        filters.inspection === value
+                                            ? 'bg-[#1a2b4c] text-white'
+                                            : 'border border-[#c5d5e6] text-[#1a2b4c]',
+                                    )}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                )}
+                    <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-56">
+                        Tipo de vehículo
+                        <select
+                            value={selectedVehicle}
+                            onChange={(event) =>
+                                visit({
+                                    vehicle_types:
+                                        event.target.value === ''
+                                            ? []
+                                            : [event.target.value],
+                                })
+                            }
+                            className={selectClass}
+                        >
+                            <option value="">Todos</option>
+                            {vehicleOptions.map((type) => (
+                                <option key={type} value={type}>
+                                    {type}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    <SstBoardItemPicker
+                        template={filters.template}
+                        items={items}
+                        onChange={handleVisibleItemsChange}
+                    />
+                </PlatformToolbar>
+
+                <PlatformContentPanel className="p-4 sm:p-6">
+                    {items.length === 0 ? (
+                        <p className="py-8 text-center text-sm text-[#5a7390]">
+                            Esta plantilla no tiene requisitos para graficar.
+                        </p>
+                    ) : displayedItems.length === 0 ? (
+                        <p className="py-8 text-center text-sm text-[#5a7390]">
+                            No hay ítems seleccionados. Abre{' '}
+                            <strong>Ítems a mostrar</strong> y marca al menos
+                            uno.
+                        </p>
+                    ) : (
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
+                            {displayedItems.map((item) => (
+                                <RingCard
+                                    key={item.key}
+                                    ring={item}
+                                    onClick={() => setZoomRing(item)}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </PlatformContentPanel>
 
                 {zoomRing ? (
                     <RingZoomLightbox
@@ -320,7 +340,7 @@ export default function SstBoardPage() {
                         onViewDetail={() => openItemDetail(zoomRing)}
                     />
                 ) : null}
-            </div>
+            </PlatformPageShell>
         </>
     );
 }

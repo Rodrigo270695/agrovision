@@ -1,7 +1,12 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import {
+    PlatformHero,
+    PlatformPageShell,
+    PlatformToolbar,
+} from '@/components/platform';
 import { DateRangeFilter } from '@/components/shared/date-range-filter';
-import { dashboard } from '@/routes';
 import { cn } from '@/lib/utils';
+import { dashboard } from '@/routes';
 
 type Metric = {
     key: string;
@@ -92,119 +97,125 @@ export default function DriverBoardPage() {
     return (
         <>
             <Head title="Tablero conductores" />
-            <div className="flex w-full flex-col gap-4 p-4 sm:p-6">
-                <div className="border-b-2 border-[#1a2b4c] pb-4">
-                    <h1 className="text-lg font-bold tracking-wide text-[#1a2b4c] uppercase sm:text-2xl">
-                        Tablero de mando SST conductores
-                    </h1>
-                    <p className="mt-1 text-xs text-[#5a7390]">
-                        {summary.drivers} conductores activos y {summary.baja}{' '}
-                        de baja. {summary.week_label}. Cada tarjeta es un tema
-                        de inducción. El anillo es cuántos activos ya la tienen.
-                    </p>
-                    <div className="mt-4 flex flex-wrap items-end gap-3">
-                        <div className="w-full sm:w-auto">
-                            <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
-                                Fecha
-                            </p>
-                            <DateRangeFilter
-                                desde={filters.date_from}
-                                hasta={filters.date_to}
-                                align="start"
-                                onApply={(dateFrom, dateTo) =>
-                                    visit({
-                                        date_from: dateFrom,
-                                        date_to: dateTo,
-                                    })
-                                }
-                                onClear={() =>
-                                    visit({ date_from: null, date_to: null })
-                                }
-                            />
-                        </div>
-                        <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-56">
-                            Inspector
-                            <select
-                                value={filters.inspector_id ?? ''}
-                                onChange={(event) =>
-                                    visit({
-                                        inspector_id:
-                                            event.target.value === ''
-                                                ? null
-                                                : Number(event.target.value),
-                                    })
-                                }
-                                className={selectClass}
-                            >
-                                <option value="">Todos</option>
-                                {inspectors.map((inspector) => (
-                                    <option
-                                        key={inspector.id}
-                                        value={inspector.id}
-                                    >
-                                        {inspector.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                        <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-64">
-                            Coordinador
-                            <select
-                                value={filters.coordinator_id ?? ''}
-                                onChange={(event) =>
-                                    visit({
-                                        coordinator_id:
-                                            event.target.value === ''
-                                                ? null
-                                                : Number(event.target.value),
-                                    })
-                                }
-                                disabled={scoped}
-                                className={selectClass}
-                            >
-                                {scoped ? null : (
-                                    <option value="">Todos</option>
-                                )}
-                                {coordinators.map((coordinator) => (
-                                    <option
-                                        key={coordinator.id}
-                                        value={coordinator.id}
-                                    >
-                                        {coordinator.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                        <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-56">
-                            Sede
-                            <select
-                                value={filters.sede ?? ''}
-                                onChange={(event) =>
-                                    visit({
-                                        sede:
-                                            event.target.value === ''
-                                                ? null
-                                                : Number(event.target.value),
-                                    })
-                                }
-                                className={selectClass}
-                            >
-                                <option value="">Todas</option>
-                                {sedes.map((sede) => (
-                                    <option key={sede.id} value={sede.id}>
-                                        {sede.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                        <a
-                            href={excelHref(filters)}
-                            className="inline-flex h-10 cursor-pointer items-center rounded-lg border border-[#1a2b4c] px-3 text-xs font-semibold text-[#1a2b4c] hover:bg-[#e8f1fa]"
-                        >
-                            Descargar Excel
-                        </a>
+            <PlatformPageShell>
+                <PlatformHero
+                    eyebrow="Reportes · Conductores"
+                    title="Tablero de mando SST conductores"
+                    description={
+                        <>
+                            Cada tarjeta es un tema de inducción. El anillo es
+                            cuántos activos ya la tienen. {summary.week_label}.
+                        </>
+                    }
+                    stats={[
+                        { label: 'Activos', value: summary.drivers, tone: 'navy' },
+                        { label: 'De baja', value: summary.baja, tone: 'rose' },
+                        { label: 'Temas', value: items.length, tone: 'sky' },
+                    ]}
+                />
+
+                <PlatformToolbar>
+                    <div className="w-full sm:w-auto">
+                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                            Fecha
+                        </p>
+                        <DateRangeFilter
+                            desde={filters.date_from}
+                            hasta={filters.date_to}
+                            align="start"
+                            onApply={(dateFrom, dateTo) =>
+                                visit({
+                                    date_from: dateFrom,
+                                    date_to: dateTo,
+                                })
+                            }
+                            onClear={() =>
+                                visit({ date_from: null, date_to: null })
+                            }
+                        />
                     </div>
-                </div>
+                    <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-56">
+                        Inspector
+                        <select
+                            value={filters.inspector_id ?? ''}
+                            onChange={(event) =>
+                                visit({
+                                    inspector_id:
+                                        event.target.value === ''
+                                            ? null
+                                            : Number(event.target.value),
+                                })
+                            }
+                            className={selectClass}
+                        >
+                            <option value="">Todos</option>
+                            {inspectors.map((inspector) => (
+                                <option
+                                    key={inspector.id}
+                                    value={inspector.id}
+                                >
+                                    {inspector.name}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-64">
+                        Coordinador
+                        <select
+                            value={filters.coordinator_id ?? ''}
+                            onChange={(event) =>
+                                visit({
+                                    coordinator_id:
+                                        event.target.value === ''
+                                            ? null
+                                            : Number(event.target.value),
+                                })
+                            }
+                            disabled={scoped}
+                            className={selectClass}
+                        >
+                            {scoped ? null : (
+                                <option value="">Todos</option>
+                            )}
+                            {coordinators.map((coordinator) => (
+                                <option
+                                    key={coordinator.id}
+                                    value={coordinator.id}
+                                >
+                                    {coordinator.name}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-56">
+                        Sede
+                        <select
+                            value={filters.sede ?? ''}
+                            onChange={(event) =>
+                                visit({
+                                    sede:
+                                        event.target.value === ''
+                                            ? null
+                                            : Number(event.target.value),
+                                })
+                            }
+                            className={selectClass}
+                        >
+                            <option value="">Todas</option>
+                            {sedes.map((sede) => (
+                                <option key={sede.id} value={sede.id}>
+                                    {sede.name}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    <a
+                        href={excelHref(filters)}
+                        className="inline-flex h-10 cursor-pointer items-center rounded-lg border border-[#1a2b4c] px-3 text-xs font-semibold text-[#1a2b4c] hover:bg-[#e8f1fa]"
+                    >
+                        Descargar Excel
+                    </a>
+                </PlatformToolbar>
 
                 {items.length === 0 ? (
                     <section className="rounded-2xl border border-[#d7e3f0] bg-white p-8 text-center text-sm text-[#5a7390] shadow-sm">
@@ -217,7 +228,7 @@ export default function DriverBoardPage() {
                         ))}
                     </div>
                 )}
-            </div>
+            </PlatformPageShell>
         </>
     );
 }

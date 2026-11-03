@@ -24,6 +24,10 @@ import {
     type StatusOption,
 } from '@/components/inductions/inductions-table';
 import type { InductionStatsData } from '@/components/inductions/inductions-stats';
+import {
+    PlatformContentPanel,
+    PlatformPageShell,
+} from '@/components/platform';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/hooks/use-can';
 import { prefetchInductionShows } from '@/lib/offline/induction-cache';
@@ -239,7 +243,7 @@ export function InductionsPage() {
     }
 
     return (
-        <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
+        <PlatformPageShell>
             <InductionsHeader
                 title={`Paquetes · ${catalogType.short}`}
                 description={`${catalogType.title}. Cada paquete es una sesión por fecha; ahí cargas los asistentes.`}
@@ -259,11 +263,12 @@ export function InductionsPage() {
                     <Button
                         type="button"
                         variant="outline"
+                        size="sm"
                         asChild
-                        className="cursor-pointer gap-2 border-[#c5d5e6] text-[#1a2b4c] hover:bg-[#e8f1fa]"
+                        className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-[#0f1f3a] hover:bg-slate-50"
                     >
                         <Link href="/inducciones">
-                            <ArrowLeft className="size-4" />
+                            <ArrowLeft className="size-3.5" />
                             Catálogo
                         </Link>
                     </Button>
@@ -275,43 +280,49 @@ export function InductionsPage() {
                 onClose={() => setFormatsOpen(false)}
             />
 
-            <InductionsTable
-                inductions={mergedInductions}
-                filters={filters}
-                statusOptions={statusOptions ?? []}
-                activityOptions={formOptions?.activities ?? []}
-                listBasePath={listBasePath}
-                onEdit={(item) => {
-                    if (!can('inductions.update')) {
-                        return;
-                    }
+            <PlatformContentPanel>
+                <InductionsTable
+                    inductions={mergedInductions}
+                    filters={filters}
+                    statusOptions={statusOptions ?? []}
+                    activityOptions={formOptions?.activities ?? []}
+                    listBasePath={listBasePath}
+                    onEdit={(item) => {
+                        if (!can('inductions.update')) {
+                            return;
+                        }
 
-                    setEditing(item);
-                    setFormOpen(true);
-                }}
-                onDelete={(item) => {
-                    if (!can('inductions.delete')) {
-                        return;
-                    }
+                        setEditing(item);
+                        setFormOpen(true);
+                    }}
+                    onDelete={(item) => {
+                        if (!can('inductions.delete')) {
+                            return;
+                        }
 
-                    setDeleting(item);
-                    setDeleteOpen(true);
-                }}
-                onCopy={(item) => {
-                    if (!can('inductions.duplicate') || item.pending_sync || item.status !== 'closed') {
-                        return;
-                    }
+                        setDeleting(item);
+                        setDeleteOpen(true);
+                    }}
+                    onCopy={(item) => {
+                        if (
+                            !can('inductions.duplicate') ||
+                            item.pending_sync ||
+                            item.status !== 'closed'
+                        ) {
+                            return;
+                        }
 
-                    setCopyTarget(item);
-                }}
-                onOpen={(item) => {
-                    void openInduction(item);
-                }}
-                onViewAttendees={(item) => {
-                    setViewingAttendees(item);
-                    setAttendeesOpen(true);
-                }}
-            />
+                        setCopyTarget(item);
+                    }}
+                    onOpen={(item) => {
+                        void openInduction(item);
+                    }}
+                    onViewAttendees={(item) => {
+                        setViewingAttendees(item);
+                        setAttendeesOpen(true);
+                    }}
+                />
+            </PlatformContentPanel>
 
             <InductionFormModal
                 open={copyTarget !== null}
@@ -374,6 +385,6 @@ export function InductionsPage() {
                     setViewingAttendees(null);
                 }}
             />
-        </div>
+        </PlatformPageShell>
     );
 }

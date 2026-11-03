@@ -15,6 +15,10 @@ import { InductionTypeFormModal } from '@/components/inductions/induction-type-f
 import { InductionsHeader } from '@/components/inductions/inductions-header';
 import type { InductionStatsData } from '@/components/inductions/inductions-stats';
 import type { StatusOption } from '@/components/inductions/inductions-table';
+import {
+    PlatformContentPanel,
+    PlatformPageShell,
+} from '@/components/platform';
 import { useCan } from '@/hooks/use-can';
 import { toast } from 'sonner';
 
@@ -59,7 +63,7 @@ export function InductionsCatalogPage() {
     };
 
     return (
-        <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
+        <PlatformPageShell>
             <InductionsHeader
                 stats={stats}
                 exportHref="/inducciones/exportar?all_dates=1"
@@ -88,10 +92,14 @@ export function InductionsCatalogPage() {
                 onClose={() => setFormatsOpen(false)}
             />
 
-            <InductionCatalog
-                catalog={catalog ?? []}
-                onDeleteType={can('inductions.delete') ? deleteType : undefined}
-            />
+            <PlatformContentPanel className="p-3 sm:p-4">
+                <InductionCatalog
+                    catalog={catalog ?? []}
+                    onDeleteType={
+                        can('inductions.delete') ? deleteType : undefined
+                    }
+                />
+            </PlatformContentPanel>
 
             <InductionTypeFormModal
                 open={typeFormOpen}
@@ -116,6 +124,6 @@ export function InductionsCatalogPage() {
                     onClose={() => setFormOpen(false)}
                 />
             ) : null}
-        </div>
+        </PlatformPageShell>
     );
 }

@@ -1,15 +1,10 @@
-import {
-    CheckCircle2,
-    Clock3,
-    Download,
-    FileText,
-    GraduationCap,
-    LoaderCircle,
-    Plus,
-} from 'lucide-react';
+import { Download, FileText, Plus } from 'lucide-react';
 import type React from 'react';
-import { PageHeader } from '@/components/data-page';
 import type { InductionStatsData } from '@/components/inductions/inductions-stats';
+import {
+    PlatformHero,
+    PlatformToolbar,
+} from '@/components/platform';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/hooks/use-can';
 
@@ -41,90 +36,90 @@ export function InductionsHeader({
     const { can } = useCan();
 
     return (
-        <PageHeader
-            title={title}
-            description={description}
-            stats={[
-                {
-                    label: 'Total',
-                    value: stats.total,
-                    variant: 'info',
-                    icon: GraduationCap,
-                },
-                {
-                    label: 'Programadas',
-                    value: stats.scheduled,
-                    variant: 'warning',
-                    icon: Clock3,
-                },
-                {
-                    label: 'En curso',
-                    value: stats.in_progress,
-                    variant: 'primary',
-                    icon: LoaderCircle,
-                },
-                {
-                    label: 'Cerradas',
-                    value: stats.closed,
-                    variant: 'success',
-                    icon: CheckCircle2,
-                },
-            ]}
-            action={
-                <div className="flex flex-wrap items-center gap-2">
-                    {leadingAction}
-                    {can('inductions.view') ? (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            asChild
-                            className="cursor-pointer gap-2 border-[#1a2b4c] text-[#1a2b4c] hover:bg-[#e8f1fa]"
-                        >
-                            <a href={exportHref}>
-                                <Download className="size-4" />
-                                <span className="hidden sm:inline">
-                                    Descargar Excel
-                                </span>
-                                <span className="sm:hidden">Excel</span>
-                            </a>
-                        </Button>
-                    ) : null}
-                    {onFormats && can('inductions.update') ? (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={onFormats}
-                            className="cursor-pointer gap-2 border-[#1a2b4c] text-[#1a2b4c] hover:bg-[#e8f1fa]"
-                        >
-                            <FileText className="size-4" />
-                            Códigos
-                        </Button>
-                    ) : null}
-                    {onCreateType && can('inductions.create') ? (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={onCreateType}
-                            className="cursor-pointer gap-2 border-[#1a2b4c] text-[#1a2b4c] hover:bg-[#e8f1fa]"
-                        >
-                            <Plus className="size-4" strokeWidth={2.5} />
-                            <span className="hidden sm:inline">{createTypeLabel}</span>
-                            <span className="sm:hidden">Tipo</span>
-                        </Button>
-                    ) : null}
-                    {can('inductions.create') ? (
-                        <Button
-                            type="button"
-                            onClick={onCreate}
-                            className="cursor-pointer gap-2 bg-[#1a2b4c] text-white hover:bg-[#122038]"
-                        >
-                            <Plus className="size-4" strokeWidth={2.5} />
-                            <span className="hidden sm:inline">{createLabel}</span>
-                            <span className="sm:hidden">Nueva</span>
-                        </Button>
-                    ) : null}
-                </div>
-            }
-        />
+        <div className="flex flex-col gap-3">
+            <PlatformHero
+                eyebrow="Inducción · Campo"
+                title={title}
+                description={description}
+                stats={[
+                    { label: 'Total', value: stats.total, tone: 'navy' },
+                    {
+                        label: 'Programadas',
+                        value: stats.scheduled,
+                        tone: 'amber',
+                    },
+                    {
+                        label: 'En curso',
+                        value: stats.in_progress,
+                        tone: 'sky',
+                    },
+                    {
+                        label: 'Cerradas',
+                        value: stats.closed,
+                        tone: 'emerald',
+                    },
+                ]}
+            />
+
+            <PlatformToolbar>
+                {leadingAction}
+                {can('inductions.view') ? (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-[#0f1f3a] hover:bg-slate-50"
+                    >
+                        <a href={exportHref}>
+                            <Download className="size-3.5" />
+                            <span className="hidden sm:inline">
+                                Descargar Excel
+                            </span>
+                            <span className="sm:hidden">Excel</span>
+                        </a>
+                    </Button>
+                ) : null}
+                {onFormats && can('inductions.update') ? (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={onFormats}
+                        className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-[#0f1f3a] hover:bg-slate-50"
+                    >
+                        <FileText className="size-3.5" />
+                        Códigos
+                    </Button>
+                ) : null}
+                {onCreateType && can('inductions.create') ? (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={onCreateType}
+                        className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-[#0f1f3a] hover:bg-slate-50"
+                    >
+                        <Plus className="size-3.5" strokeWidth={2.5} />
+                        <span className="hidden sm:inline">
+                            {createTypeLabel}
+                        </span>
+                        <span className="sm:hidden">Tipo</span>
+                    </Button>
+                ) : null}
+                {can('inductions.create') ? (
+                    <Button
+                        type="button"
+                        size="sm"
+                        onClick={onCreate}
+                        className="cursor-pointer gap-1.5 rounded-xl bg-[#1e4d8c] text-white hover:bg-[#163a6b]"
+                    >
+                        <Plus className="size-3.5" strokeWidth={2.5} />
+                        <span className="hidden sm:inline">{createLabel}</span>
+                        <span className="sm:hidden">Nueva</span>
+                    </Button>
+                ) : null}
+            </PlatformToolbar>
+        </div>
     );
 }

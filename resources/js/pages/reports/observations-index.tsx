@@ -1,13 +1,20 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import {
-    ObservationsIndexChart,
-    type ObservationIndexRow,
-} from '@/components/reports/observations-index-chart';
+    PlatformHero,
+    PlatformPageShell,
+    PlatformToolbar,
+} from '@/components/platform';
 import {
-    WeekSlicer,
-    type WeekPoint,
+    ObservationsIndexChart
+    
+} from '@/components/reports/observations-index-chart';
+import type {ObservationIndexRow} from '@/components/reports/observations-index-chart';
+import {
+    WeekSlicer
+    
 } from '@/components/reports/week-slicer';
+import type {WeekPoint} from '@/components/reports/week-slicer';
 import { AppModal } from '@/components/shared/app-modal';
 import { DateRangeFilter } from '@/components/shared/date-range-filter';
 import { Button } from '@/components/ui/button';
@@ -75,28 +82,23 @@ export default function ObservationsIndexReportPage() {
         <>
             <Head title="Índice de observaciones" />
 
-            <div className="flex w-full min-w-0 max-w-none flex-col gap-6 p-4 sm:p-6">
-                <div className="border-b-2 border-[#1a2b4c] pb-4">
-                    <p className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
-                        {template_label} · {range_label}
-                    </p>
-                    <h1 className="mt-1 text-xl font-bold text-[#1a2b4c] sm:text-3xl">
-                        Observaciones por unidad inspeccionada
-                    </h1>
-                    <p className="mt-2 text-sm text-[#5a7390]">
-                        Vista inversa: cada observación y las placas que la tienen.
-                        Usa el rango de fechas y, si quieres, una semana concreta
-                        del rango.
-                    </p>
-                    <p className="mt-2 text-sm font-semibold text-[#1a2b4c]">
-                        Unidades con observaciones:{' '}
-                        <span className="text-lg tabular-nums">
-                            {units_with_observations}
-                        </span>
-                    </p>
-                </div>
+            <PlatformPageShell>
+                <PlatformHero
+                    eyebrow="Reportes · SST"
+                    title="Observaciones por unidad inspeccionada"
+                    description="Vista inversa: cada observación y las placas que la tienen. Usa el rango de fechas y, si quieres, una semana concreta del rango."
+                    stats={[
+                        { label: 'Plantilla', value: template_label, tone: 'navy' },
+                        { label: 'Rango', value: range_label, tone: 'sky' },
+                        {
+                            label: 'Unidades con obs.',
+                            value: units_with_observations,
+                            tone: 'amber',
+                        },
+                    ]}
+                />
 
-                <div className="flex flex-wrap items-end gap-3">
+                <PlatformToolbar>
                     <label className="text-xs font-semibold text-[#1a2b4c]">
                         Plantilla
                         <select
@@ -144,7 +146,7 @@ export default function ObservationsIndexReportPage() {
                             }
                         />
                     </div>
-                </div>
+                </PlatformToolbar>
 
                 <WeekSlicer
                     rangeLabel={range_label}
@@ -172,7 +174,7 @@ export default function ObservationsIndexReportPage() {
                         />
                     </div>
                 </section>
-            </div>
+            </PlatformPageShell>
 
             <AppModal
                 open={platesModal !== null}

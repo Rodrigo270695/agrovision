@@ -1,5 +1,11 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import {
+    PlatformContentPanel,
+    PlatformHero,
+    PlatformPageShell,
+    PlatformToolbar,
+} from '@/components/platform';
 import { DateRangeFilter } from '@/components/shared/date-range-filter';
 import { dashboard } from '@/routes';
 import { cn } from '@/lib/utils';
@@ -91,98 +97,103 @@ export default function SecurityReportPage() {
     return (
         <>
             <Head title="Reporte SST" />
-            <div className="flex w-full flex-col gap-4 p-4 sm:p-6">
-                <div className="border-b-2 border-[#1a2b4c] pb-4">
-                    <h1 className="text-lg font-bold tracking-wide text-[#1a2b4c] uppercase sm:text-2xl">
-                        Inspecciones de seguridad
-                    </h1>
-                    <p className="mt-1 text-xs text-[#5a7390]">
-                        Unidades del periodo activo. {summary.week_label}.
-                        {summary.previous_period
-                            ? ` La variación es frente a ${summary.previous_period}.`
-                            : ''}
-                    </p>
-                    <div className="mt-4 flex flex-wrap items-end gap-3">
-                        <div className="w-full sm:w-auto">
-                            <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
-                                Fecha
-                            </p>
-                            <DateRangeFilter
-                                desde={filters.date_from}
-                                hasta={filters.date_to}
-                                align="start"
-                                onApply={(dateFrom, dateTo) =>
-                                    visit({
-                                        date_from: dateFrom,
-                                        date_to: dateTo,
-                                    })
-                                }
-                                onClear={() =>
-                                    visit({ date_from: null, date_to: null })
-                                }
-                            />
-                        </div>
-                        <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-64">
-                            Coordinador
-                            <select
-                                value={filters.coordinator_id ?? ''}
-                                onChange={(event) =>
-                                    visit({
-                                        coordinator_id:
-                                            event.target.value === ''
-                                                ? null
-                                                : Number(event.target.value),
-                                    })
-                                }
-                                disabled={scoped}
-                                className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c] normal-case disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                {scoped ? null : <option value="">Todos</option>}
-                                {coordinators.map((coordinator) => (
-                                    <option
-                                        key={coordinator.id}
-                                        value={coordinator.id}
-                                    >
-                                        {coordinator.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                        <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-64">
-                            Inspector
-                            <select
-                                value={filters.inspector_id ?? ''}
-                                onChange={(event) =>
-                                    visit({
-                                        inspector_id:
-                                            event.target.value === ''
-                                                ? null
-                                                : Number(event.target.value),
-                                    })
-                                }
-                                className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c] normal-case"
-                            >
-                                <option value="">Todos</option>
-                                {inspectors.map((inspector) => (
-                                    <option key={inspector.id} value={inspector.id}>
-                                        {inspector.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                        <a
-                            href={pdfHref(filters, unitGroup)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex h-10 items-center rounded-lg bg-[#1a2b4c] px-4 text-xs font-semibold text-white"
-                        >
-                            Descargar PDF
-                        </a>
+            <PlatformPageShell>
+                <PlatformHero
+                    eyebrow="Reportes · SST"
+                    title="Inspecciones de seguridad"
+                    description={`Unidades del periodo activo. ${summary.week_label}.${summary.previous_period ? ` La variación es frente a ${summary.previous_period}.` : ''}`}
+                    stats={[
+                        { label: 'Total', value: summary.total, tone: 'navy' },
+                        { label: 'Hechas', value: summary.ok, tone: 'emerald' },
+                        {
+                            label: 'Pendientes',
+                            value: summary.pendiente,
+                            tone: 'amber',
+                        },
+                        { label: 'Baja', value: summary.baja, tone: 'sky' },
+                    ]}
+                />
+
+                <PlatformToolbar>
+                    <div className="w-full sm:w-auto">
+                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                            Fecha
+                        </p>
+                        <DateRangeFilter
+                            desde={filters.date_from}
+                            hasta={filters.date_to}
+                            align="start"
+                            onApply={(dateFrom, dateTo) =>
+                                visit({
+                                    date_from: dateFrom,
+                                    date_to: dateTo,
+                                })
+                            }
+                            onClear={() =>
+                                visit({ date_from: null, date_to: null })
+                            }
+                        />
                     </div>
-                </div>
+                    <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-64">
+                        Coordinador
+                        <select
+                            value={filters.coordinator_id ?? ''}
+                            onChange={(event) =>
+                                visit({
+                                    coordinator_id:
+                                        event.target.value === ''
+                                            ? null
+                                            : Number(event.target.value),
+                                })
+                            }
+                            disabled={scoped}
+                            className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c] normal-case disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {scoped ? null : <option value="">Todos</option>}
+                            {coordinators.map((coordinator) => (
+                                <option
+                                    key={coordinator.id}
+                                    value={coordinator.id}
+                                >
+                                    {coordinator.name}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-64">
+                        Inspector
+                        <select
+                            value={filters.inspector_id ?? ''}
+                            onChange={(event) =>
+                                visit({
+                                    inspector_id:
+                                        event.target.value === ''
+                                            ? null
+                                            : Number(event.target.value),
+                                })
+                            }
+                            className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c] normal-case"
+                        >
+                            <option value="">Todos</option>
+                            {inspectors.map((inspector) => (
+                                <option key={inspector.id} value={inspector.id}>
+                                    {inspector.name}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    <a
+                        href={pdfHref(filters, unitGroup)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-10 items-center rounded-lg bg-[#1a2b4c] px-4 text-xs font-semibold text-white"
+                    >
+                        Descargar PDF
+                    </a>
+                </PlatformToolbar>
 
                 <div className="grid gap-4 xl:grid-cols-2">
-                    <section className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
+                    <PlatformContentPanel className="p-4">
                         <h2 className="text-base font-bold tracking-wide text-[#1a2b4c] uppercase underline decoration-2 underline-offset-4">
                             Unidades móviles activas
                         </h2>
@@ -234,9 +245,9 @@ export default function SecurityReportPage() {
                                 {summary.total}
                             </span>
                         </div>
-                    </section>
+                    </PlatformContentPanel>
 
-                    <section className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
+                    <PlatformContentPanel className="p-4">
                         <h2 className="text-base font-bold tracking-wide text-[#1a2b4c] uppercase underline decoration-2 underline-offset-4">
                             Avance de inspecciones
                         </h2>
@@ -298,10 +309,10 @@ export default function SecurityReportPage() {
                                 </>
                             )}
                         </div>
-                    </section>
+                    </PlatformContentPanel>
                 </div>
 
-                <section className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
+                <PlatformContentPanel className="p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <h2 className="text-base font-bold tracking-wide text-[#1a2b4c] uppercase">
@@ -429,8 +440,8 @@ export default function SecurityReportPage() {
                         (*) Unidad de baja. Sale así cuando no vino en la
                         última carga o cuando la observación dice baja.
                     </p>
-                </section>
-            </div>
+                </PlatformContentPanel>
+            </PlatformPageShell>
         </>
     );
 }
