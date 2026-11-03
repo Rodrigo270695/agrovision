@@ -13,13 +13,13 @@ export function UserInfo({
 
     return (
         <>
-            <Avatar className="h-8 w-8 overflow-hidden rounded-lg ring-1 ring-brand-200">
+            <Avatar className="h-8 w-8 shrink-0 overflow-hidden rounded-lg ring-1 ring-brand-200">
                 <AvatarImage src={user.avatar} alt={user.name} />
                 <AvatarFallback className="rounded-lg bg-brand-800 text-[10px] font-semibold text-white">
                     {getInitials(user.name)}
                 </AvatarFallback>
             </Avatar>
-            <div className="grid flex-1 text-left text-sm leading-tight">
+            <div className="grid min-w-0 flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                 <span className="font-display truncate text-[13px] font-semibold text-brand-800">
                     {user.name}
                 </span>

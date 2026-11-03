@@ -12,7 +12,7 @@ export default function AppLogo() {
 
     return (
         <>
-            <div className="flex aspect-square size-9 items-center justify-center overflow-hidden rounded-xl bg-brand-100 ring-1 ring-brand-200/80">
+            <div className="flex aspect-square size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-brand-100 ring-1 ring-brand-200/80">
                 <TenantBrandMark
                     name={name}
                     logo={logo}
@@ -20,7 +20,7 @@ export default function AppLogo() {
                     imageClassName="size-9"
                 />
             </div>
-            <div className="ml-2 grid min-w-0 flex-1 text-left">
+            <div className="ml-2 grid min-w-0 flex-1 text-left group-data-[collapsible=icon]:hidden">
                 <span className="font-display truncate text-[13px] leading-tight font-bold tracking-tight text-brand-800">
                     {name}
                 </span>

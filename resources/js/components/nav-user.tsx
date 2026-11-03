@@ -50,12 +50,15 @@ export function NavUser() {
     }
 
     return (
-        <SidebarMenu>
-            <SidebarMenuItem ref={rootRef} className="relative">
+        <SidebarMenu className="group-data-[collapsible=icon]:items-center">
+            <SidebarMenuItem
+                ref={rootRef}
+                className="relative group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center"
+            >
                 <SidebarMenuButton
                     size="lg"
                     className={cn(
-                        'h-12 rounded-xl border border-brand-200/80 bg-card text-brand-800 shadow-sm hover:bg-brand-100',
+                        'h-12 rounded-xl border border-brand-200/80 bg-card text-brand-800 shadow-sm hover:bg-brand-100 group-data-[collapsible=icon]:size-9! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:shadow-none',
                         open && 'border-brand-300 bg-brand-100',
                     )}
                     data-test="sidebar-menu-button"
@@ -64,7 +67,7 @@ export function NavUser() {
                     onClick={() => setOpen((value) => !value)}
                 >
                     <UserInfo user={auth.user} />
-                    <ChevronsUpDown className="ml-auto size-4 text-brand-500" />
+                    <ChevronsUpDown className="ml-auto size-4 text-brand-500 group-data-[collapsible=icon]:hidden" />
                 </SidebarMenuButton>
 
                 {open ? (

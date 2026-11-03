@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 import type { NavItem } from '@/types';
 
 const itemClass =
-    'h-10 cursor-pointer rounded-xl px-2.5 text-[13px] font-medium text-brand-700/80 transition-colors hover:bg-brand-100 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/35 data-[active=true]:bg-brand-800 data-[active=true]:text-white data-[active=true]:shadow-[0_8px_18px_-12px_rgba(15,31,58,0.65)] data-[active=true]:hover:bg-brand-900 data-[active=true]:hover:text-white [&_svg]:shrink-0';
+    'h-10 cursor-pointer rounded-xl px-2.5 text-[13px] font-medium text-brand-700/80 transition-colors hover:bg-brand-100 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/35 data-[active=true]:bg-brand-800 data-[active=true]:text-white data-[active=true]:shadow-[0_8px_18px_-12px_rgba(15,31,58,0.65)] data-[active=true]:hover:bg-brand-900 data-[active=true]:hover:text-white [&_svg]:shrink-0 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-9! group-data-[collapsible=icon]:justify-center! group-data-[collapsible=icon]:gap-0! group-data-[collapsible=icon]:p-0!';
 
 const subItemClass =
     'h-8 cursor-pointer rounded-lg px-2 text-[13px] text-brand-700/75 transition-colors hover:bg-brand-100 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/35 data-[active=true]:bg-brand-100 data-[active=true]:font-semibold data-[active=true]:text-brand-800 data-[active=true]:shadow-[inset_3px_0_0_0_var(--brand-500)] data-[active=true]:[&_svg]:!text-brand-800';
@@ -91,7 +91,10 @@ function NavIcon({
 
 function NavLabel({ children }: { children: string }) {
     return (
-        <span className="min-w-0 truncate" title={children}>
+        <span
+            className="min-w-0 truncate group-data-[collapsible=icon]:hidden"
+            title={children}
+        >
             {children}
         </span>
     );
@@ -150,7 +153,7 @@ function NavCollapsibleItem({
                         <NavLabel>{item.title}</NavLabel>
                         <ChevronRight
                             className={cn(
-                                'ml-auto size-3.5 shrink-0 text-brand-300 transition-transform duration-200 motion-reduce:transition-none',
+                                'ml-auto size-3.5 shrink-0 text-brand-300 transition-transform duration-200 motion-reduce:transition-none group-data-[collapsible=icon]:hidden',
                                 open && 'rotate-90 text-brand-500',
                                 sectionActive && 'text-brand-500',
                             )}
@@ -235,11 +238,11 @@ export function NavMain({
     };
 
     return (
-        <SidebarGroup className="relative px-1.5 py-1">
+        <SidebarGroup className="relative px-1.5 py-1 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0">
             <SidebarGroupLabel className="mb-2 px-2.5 text-[10px] font-bold tracking-[0.18em] text-brand-500 uppercase">
                 {groupLabel}
             </SidebarGroupLabel>
-            <SidebarMenu className="gap-1.5">
+            <SidebarMenu className="gap-1.5 group-data-[collapsible=icon]:items-center">
                 {items.map((item) => {
                     if (item.items && item.items.length > 0) {
                         return (

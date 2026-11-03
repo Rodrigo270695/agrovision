@@ -307,17 +307,17 @@ export function AppSidebar() {
 
     return (
         <Sidebar collapsible="icon" variant="inset">
-            <SidebarHeader className="relative overflow-hidden border-b border-brand-200/80 px-3 py-3">
+            <SidebarHeader className="relative overflow-hidden border-b border-brand-200/80 px-3 py-3 group-data-[collapsible=icon]:!px-1.5 group-data-[collapsible=icon]:!py-2.5">
                 <div
                     aria-hidden
                     className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand-100 via-brand-50/40 to-transparent"
                 />
-                <SidebarMenu>
-                    <SidebarMenuItem>
+                <SidebarMenu className="group-data-[collapsible=icon]:items-center">
+                    <SidebarMenuItem className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
                         <SidebarMenuButton
                             size="lg"
                             asChild
-                            className="relative h-11 rounded-xl hover:bg-white/70"
+                            className="relative h-11 rounded-xl hover:bg-white/70 group-data-[collapsible=icon]:size-9! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0!"
                         >
                             <Link
                                 href={isCentral ? '/plataforma' : dashboard()}
@@ -331,14 +331,14 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarHeader>
 
-            <SidebarContent className="relative gap-0 px-1.5 pt-3">
+            <SidebarContent className="relative gap-0 px-1.5 pt-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:pt-2">
                 <NavMain
                     items={visibleNavItems}
                     groupLabel={isCentral ? 'Grupo Indelsi' : 'Operaciones'}
                 />
             </SidebarContent>
 
-            <SidebarFooter className="border-t border-brand-200/80 px-2.5 py-2.5">
+            <SidebarFooter className="border-t border-brand-200/80 px-2.5 py-2.5 group-data-[collapsible=icon]:!px-1.5 group-data-[collapsible=icon]:!py-2">
                 {visibleFooterItems.length > 0 ? (
                     <NavFooter items={visibleFooterItems} className="mt-auto" />
                 ) : null}
