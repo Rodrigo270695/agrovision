@@ -105,8 +105,8 @@ function CheckTypeBadge({
             className={cn(
                 'inline-flex max-w-full items-center whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ring-inset',
                 isExpiry
-                    ? 'bg-sky-500/10 text-sky-800 ring-sky-500/25'
-                    : 'bg-[#eef3f8] text-[#3d5675] ring-[#c5d5e6]',
+                    ? 'bg-sky-50 text-sky-800 ring-sky-200'
+                    : 'bg-amber-50 text-amber-900 ring-amber-200',
             )}
             title={label}
         >
@@ -125,15 +125,15 @@ function WeightCell({ weight, inactive }: { weight: number; inactive?: boolean }
                 inactive && 'opacity-50',
             )}
         >
-            <span className="text-xs font-semibold tabular-nums text-[#1a2b4c]">
+            <span className="text-xs font-semibold tabular-nums text-[#0f1f3a]">
                 {weight.toFixed(2)}%
             </span>
             <span
-                className="h-1.5 w-full overflow-hidden rounded-full bg-[#e2eaf3]"
+                className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100"
                 aria-hidden
             >
                 <span
-                    className="block h-full rounded-full bg-[#2e5a9e] transition-[width] duration-300 ease-out motion-reduce:transition-none"
+                    className="block h-full rounded-full bg-[#1e4d8c] transition-[width] duration-300 ease-out motion-reduce:transition-none"
                     style={{ width: `${clamped}%` }}
                 />
             </span>
@@ -287,9 +287,9 @@ export function ParetoTable({
                                     className="flex h-5 w-3 items-end"
                                     aria-hidden
                                 >
-                                    <span className="h-3 w-full rounded-bl-md border-b border-l border-[#9eb6d0]" />
+                                    <span className="h-3 w-full rounded-bl-md border-b border-l border-slate-300" />
                                 </span>
-                                <span className="font-mono text-xs font-medium tabular-nums text-[#2e5a9e]">
+                                <span className="font-mono text-xs font-medium tabular-nums text-[#1e4d8c]">
                                     {item.item_number}
                                 </span>
                             </div>
@@ -298,7 +298,7 @@ export function ParetoTable({
 
                     if (childCount === 0) {
                         return (
-                            <span className="font-mono text-sm font-semibold tabular-nums text-[#1a2b4c]">
+                            <span className="font-mono text-sm font-semibold tabular-nums text-[#0f1f3a]">
                                 {item.item_number}
                             </span>
                         );
@@ -309,7 +309,7 @@ export function ParetoTable({
                             <button
                                 type="button"
                                 onClick={() => toggleParent(item.id)}
-                                className="inline-flex size-7 cursor-pointer items-center justify-center rounded-md border border-[#c5d5e6] bg-white text-[#1a2b4c] shadow-sm transition hover:border-[#2e5a9e]/40 hover:bg-[#e8f1fa] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2e5a9e]/35"
+                                className="inline-flex size-7 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white text-[#0f1f3a] shadow-sm transition hover:border-[#1e4d8c]/35 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e4d8c]/30"
                                 aria-expanded={expanded}
                                 aria-label={
                                     expanded
@@ -325,11 +325,11 @@ export function ParetoTable({
                                     strokeWidth={2.5}
                                 />
                             </button>
-                            <span className="font-mono text-sm font-semibold tabular-nums text-[#1a2b4c]">
+                            <span className="font-mono text-sm font-semibold tabular-nums text-[#0f1f3a]">
                                 {item.item_number}
                             </span>
                             <span
-                                className="rounded-full bg-[#e8f1fa] px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-[#2e5a9e]"
+                                className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-[#1e4d8c]"
                                 title={`${childCount} subítems`}
                             >
                                 {childCount}
@@ -350,7 +350,7 @@ export function ParetoTable({
                     >
                         <span
                             className={cn(
-                                'truncate text-sm text-[#1a2b4c]',
+                                'truncate text-sm text-[#0f1f3a]',
                                 item.parent_id
                                     ? 'font-medium'
                                     : 'font-semibold',
@@ -360,7 +360,7 @@ export function ParetoTable({
                         </span>
                         <div className="flex flex-wrap items-center gap-1.5">
                             {!item.is_active ? (
-                                <span className="inline-flex whitespace-nowrap rounded-full bg-zinc-500/10 px-2 py-0.5 text-[10px] font-semibold text-zinc-600 ring-1 ring-zinc-500/20 ring-inset">
+                                <span className="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 ring-1 ring-slate-200 ring-inset">
                                     Inactivo
                                 </span>
                             ) : null}
@@ -379,7 +379,7 @@ export function ParetoTable({
                 key: 'template_type',
                 header: 'Plantilla',
                 cell: (item) => (
-                    <span className="inline-flex rounded-full bg-[#f0f4f8] px-2 py-0.5 text-[11px] font-semibold tracking-wide text-[#3d5675] uppercase ring-1 ring-[#d7e3f0] ring-inset">
+                    <span className="inline-flex rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-slate-600 uppercase ring-1 ring-slate-200/80 ring-inset">
                         {templateLabel(item.template_type)}
                     </span>
                 ),
@@ -389,12 +389,12 @@ export function ParetoTable({
                 header: 'Foto',
                 cell: (item) =>
                     item.allows_photo ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-500/20 ring-inset">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-200 ring-inset">
                             <Camera className="size-3" strokeWidth={2.5} />
                             Sí
                         </span>
                     ) : (
-                        <span className="inline-flex rounded-full bg-[#f0f4f8] px-2 py-0.5 text-[11px] font-medium text-[#6b8ead] ring-1 ring-[#d7e3f0] ring-inset">
+                        <span className="inline-flex rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-500 ring-1 ring-slate-200/80 ring-inset">
                             No
                         </span>
                     ),
@@ -475,12 +475,13 @@ export function ParetoTable({
 
     return (
         <DataTable
+            className="rounded-none border-0 bg-transparent shadow-none"
             columns={columns}
             data={visibleItems}
             rowKey={(item) => item.id}
             getRowClassName={(item) =>
                 cn(
-                    item.parent_id && 'bg-[#f5f8fb]',
+                    item.parent_id && 'bg-slate-50/80',
                     !item.parent_id &&
                         (childrenByParent.get(String(item.id)) ?? 0) > 0 &&
                         'bg-white',
@@ -510,7 +511,7 @@ export function ParetoTable({
                                 variant="outline"
                                 size="sm"
                                 onClick={toggleAllParents}
-                                className="ml-auto cursor-pointer gap-1.5 border-[#c5d5e6] text-[#1a2b4c] hover:bg-[#e8f1fa]"
+                                className="ml-auto cursor-pointer gap-1.5 rounded-xl border-slate-200 text-[#0f1f3a] hover:bg-slate-50"
                             >
                                 {allExpanded ? (
                                     <ChevronsDownUp className="size-3.5" />
