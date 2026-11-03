@@ -1,4 +1,12 @@
-import { ChartPie, ChevronDown, Pencil, Trash2 } from 'lucide-react';
+import {
+    Camera,
+    ChartPie,
+    ChevronDown,
+    ChevronsDownUp,
+    ChevronsUpDown,
+    Pencil,
+    Trash2,
+} from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { useCallback, useMemo, useState } from 'react';
 import {
@@ -12,9 +20,11 @@ import {
     type FilterChip,
 } from '@/components/data-page';
 import { RowActionsMenu } from '@/components/shared/row-actions-menu';
+import { Button } from '@/components/ui/button';
 import { useCan } from '@/hooks/use-can';
 import { isBrowserOnline } from '@/lib/offline/ids';
 import { asPaginated } from '@/lib/paginated';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 export type ParetoTemplateOption = {
@@ -81,6 +91,56 @@ type Props = {
     onDelete: (item: ParetoItem) => void;
 };
 
+function CheckTypeBadge({
+    value,
+    label,
+}: {
+    value: string;
+    label: string;
+}) {
+    const isExpiry = value === 'expiry';
+
+    return (
+        <span
+            className={cn(
+                'inline-flex max-w-full items-center whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ring-inset',
+                isExpiry
+                    ? 'bg-sky-500/10 text-sky-800 ring-sky-500/25'
+                    : 'bg-[#eef3f8] text-[#3d5675] ring-[#c5d5e6]',
+            )}
+            title={label}
+        >
+            {isExpiry ? 'Vencimiento' : 'Observación'}
+        </span>
+    );
+}
+
+function WeightCell({ weight, inactive }: { weight: number; inactive?: boolean }) {
+    const clamped = Math.max(0, Math.min(weight, 100));
+
+    return (
+        <div
+            className={cn(
+                'ml-auto flex w-[4.75rem] flex-col items-end gap-1',
+                inactive && 'opacity-50',
+            )}
+        >
+            <span className="text-xs font-semibold tabular-nums text-[#1a2b4c]">
+                {weight.toFixed(2)}%
+            </span>
+            <span
+                className="h-1.5 w-full overflow-hidden rounded-full bg-[#e2eaf3]"
+                aria-hidden
+            >
+                <span
+                    className="block h-full rounded-full bg-[#2e5a9e] transition-[width] duration-300 ease-out motion-reduce:transition-none"
+                    style={{ width: `${clamped}%` }}
+                />
+            </span>
+        </div>
+    );
+}
+
 export function ParetoTable({
     items,
     filters,
@@ -107,6 +167,15 @@ export function ParetoTable({
 
         return map;
     }, [items.data]);
+    const parentIds = useMemo(
+        () =>
+            items.data
+                .filter((item) => (childrenByParent.get(String(item.id)) ?? 0) > 0)
+                .map((item) => String(item.id)),
+        [childrenByParent, items.data],
+    );
+    const allExpanded =
+        parentIds.length > 0 && parentIds.every((id) => openParents.has(id));
     const visibleItems = useMemo(() => {
         if (filters.search) {
             return items.data;
@@ -139,6 +208,16 @@ export function ParetoTable({
             }
 
             return next;
+        });
+    };
+
+    const toggleAllParents = () => {
+        setOpenParents((current) => {
+            if (parentIds.every((id) => current.has(id))) {
+                return new Set();
+            }
+
+            return new Set(parentIds);
         });
     };
 
@@ -196,45 +275,66 @@ export function ParetoTable({
             {
                 key: 'item_number',
                 header: 'N°',
+                className: 'w-[7.5rem]',
                 cell: (item) => {
                     const childCount = childrenByParent.get(String(item.id)) ?? 0;
                     const expanded = openParents.has(String(item.id));
 
                     if (item.parent_id) {
                         return (
-                            <span className="ml-6 border-l-2 border-[#4a90e2] pl-2 font-mono text-xs text-foreground">
-                                {item.item_number}
-                            </span>
+                            <div className="flex items-center gap-2 pl-3">
+                                <span
+                                    className="flex h-5 w-3 items-end"
+                                    aria-hidden
+                                >
+                                    <span className="h-3 w-full rounded-bl-md border-b border-l border-[#9eb6d0]" />
+                                </span>
+                                <span className="font-mono text-xs font-medium tabular-nums text-[#2e5a9e]">
+                                    {item.item_number}
+                                </span>
+                            </div>
                         );
                     }
 
                     if (childCount === 0) {
                         return (
-                            <span className="font-mono text-xs font-semibold text-foreground">
+                            <span className="font-mono text-sm font-semibold tabular-nums text-[#1a2b4c]">
                                 {item.item_number}
                             </span>
                         );
                     }
 
                     return (
-                        <button
-                            type="button"
-                            onClick={() => toggleParent(item.id)}
-                            className="inline-flex cursor-pointer items-center gap-1 font-mono text-xs font-semibold text-foreground"
-                            aria-expanded={expanded}
-                        >
-                            <ChevronDown
-                                className={
+                        <div className="flex items-center gap-1.5">
+                            <button
+                                type="button"
+                                onClick={() => toggleParent(item.id)}
+                                className="inline-flex size-7 cursor-pointer items-center justify-center rounded-md border border-[#c5d5e6] bg-white text-[#1a2b4c] shadow-sm transition hover:border-[#2e5a9e]/40 hover:bg-[#e8f1fa] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2e5a9e]/35"
+                                aria-expanded={expanded}
+                                aria-label={
                                     expanded
-                                        ? 'size-3.5 text-[#2e5a9e]'
-                                        : 'size-3.5 -rotate-90 text-[#6b8ead]'
+                                        ? `Contraer ${item.item_number}`
+                                        : `Expandir ${item.item_number}`
                                 }
-                            />
-                            {item.item_number}
-                            <span className="font-sans text-[10px] font-medium text-[#6b8ead]">
+                            >
+                                <ChevronDown
+                                    className={cn(
+                                        'size-3.5 transition-transform duration-200 ease-out motion-reduce:transition-none',
+                                        expanded ? 'rotate-0' : '-rotate-90',
+                                    )}
+                                    strokeWidth={2.5}
+                                />
+                            </button>
+                            <span className="font-mono text-sm font-semibold tabular-nums text-[#1a2b4c]">
+                                {item.item_number}
+                            </span>
+                            <span
+                                className="rounded-full bg-[#e8f1fa] px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-[#2e5a9e]"
+                                title={`${childCount} subítems`}
+                            >
                                 {childCount}
                             </span>
-                        </button>
+                        </div>
                     );
                 },
             },
@@ -242,23 +342,44 @@ export function ParetoTable({
                 key: 'label',
                 header: 'Exigencia',
                 cell: (item) => (
-                    <span className="flex items-center gap-2 text-sm text-foreground">
-                        {item.label}
-                        {item.pending_sync ? (
-                            <StatBadge
-                                label="En dispositivo"
-                                value=""
-                                variant="warning"
-                            />
-                        ) : null}
-                    </span>
+                    <div
+                        className={cn(
+                            'flex min-w-0 flex-col gap-1',
+                            !item.is_active && 'opacity-60',
+                        )}
+                    >
+                        <span
+                            className={cn(
+                                'truncate text-sm text-[#1a2b4c]',
+                                item.parent_id
+                                    ? 'font-medium'
+                                    : 'font-semibold',
+                            )}
+                        >
+                            {item.label}
+                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            {!item.is_active ? (
+                                <span className="inline-flex whitespace-nowrap rounded-full bg-zinc-500/10 px-2 py-0.5 text-[10px] font-semibold text-zinc-600 ring-1 ring-zinc-500/20 ring-inset">
+                                    Inactivo
+                                </span>
+                            ) : null}
+                            {item.pending_sync ? (
+                                <StatBadge
+                                    label="En dispositivo"
+                                    value=""
+                                    variant="warning"
+                                />
+                            ) : null}
+                        </div>
+                    </div>
                 ),
             },
             {
                 key: 'template_type',
                 header: 'Plantilla',
                 cell: (item) => (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="inline-flex rounded-full bg-[#f0f4f8] px-2 py-0.5 text-[11px] font-semibold tracking-wide text-[#3d5675] uppercase ring-1 ring-[#d7e3f0] ring-inset">
                         {templateLabel(item.template_type)}
                     </span>
                 ),
@@ -266,28 +387,25 @@ export function ParetoTable({
             {
                 key: 'allows_photo',
                 header: 'Foto',
-                cell: (item) => (
-                    <span
-                        className={
-                            item.allows_photo
-                                ? 'text-xs font-medium text-[#1a7f4b]'
-                                : 'text-xs text-[#6b8ead]'
-                        }
-                    >
-                        {item.allows_photo ? 'Sí' : 'No'}
-                    </span>
-                ),
+                cell: (item) =>
+                    item.allows_photo ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-500/20 ring-inset">
+                            <Camera className="size-3" strokeWidth={2.5} />
+                            Sí
+                        </span>
+                    ) : (
+                        <span className="inline-flex rounded-full bg-[#f0f4f8] px-2 py-0.5 text-[11px] font-medium text-[#6b8ead] ring-1 ring-[#d7e3f0] ring-inset">
+                            No
+                        </span>
+                    ),
             },
             {
                 key: 'check_type',
                 header: 'Tipo check',
                 cell: (item) => (
-                    <StatBadge
+                    <CheckTypeBadge
+                        value={item.check_type}
                         label={typeLabel(item.check_type)}
-                        value=""
-                        variant={
-                            item.check_type === 'expiry' ? 'info' : 'muted'
-                        }
                     />
                 ),
             },
@@ -296,9 +414,10 @@ export function ParetoTable({
                 header: 'Peso %',
                 align: 'right',
                 cell: (item) => (
-                    <span className="text-xs font-semibold text-foreground">
-                        {Number(item.weight).toFixed(2)}%
-                    </span>
+                    <WeightCell
+                        weight={Number(item.weight)}
+                        inactive={!item.is_active}
+                    />
                 ),
             },
             {
@@ -360,7 +479,13 @@ export function ParetoTable({
             data={visibleItems}
             rowKey={(item) => item.id}
             getRowClassName={(item) =>
-                item.parent_id ? 'bg-[#f5f9fd]' : undefined
+                cn(
+                    item.parent_id && 'bg-[#f5f8fb]',
+                    !item.parent_id &&
+                        (childrenByParent.get(String(item.id)) ?? 0) > 0 &&
+                        'bg-white',
+                    !item.is_active && 'opacity-70',
+                )
             }
             ariaLiveMessage={`${items.total} ítems Pareto encontrados`}
             toolbar={
@@ -368,15 +493,34 @@ export function ParetoTable({
                     search={filters.search}
                     onSearchChange={(search) => visit({ search, page: 1 })}
                     placeholder="Buscar exigencia o número..."
+                    className="gap-2"
                 >
-                    <FilterChips
-                        ariaLabel="Filtrar por plantilla"
-                        value={filters.template_type}
-                        onChange={(template_type) =>
-                            visit({ template_type, page: 1 })
-                        }
-                        options={typeOptions}
-                    />
+                    <div className="flex w-full flex-wrap items-center gap-2">
+                        <FilterChips
+                            ariaLabel="Filtrar por plantilla"
+                            value={filters.template_type}
+                            onChange={(template_type) =>
+                                visit({ template_type, page: 1 })
+                            }
+                            options={typeOptions}
+                        />
+                        {parentIds.length > 0 && !filters.search ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={toggleAllParents}
+                                className="ml-auto cursor-pointer gap-1.5 border-[#c5d5e6] text-[#1a2b4c] hover:bg-[#e8f1fa]"
+                            >
+                                {allExpanded ? (
+                                    <ChevronsDownUp className="size-3.5" />
+                                ) : (
+                                    <ChevronsUpDown className="size-3.5" />
+                                )}
+                                {allExpanded ? 'Contraer todo' : 'Expandir todo'}
+                            </Button>
+                        ) : null}
+                    </div>
                 </DataToolbar>
             }
             footer={

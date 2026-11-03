@@ -80,7 +80,7 @@ export function ParetoPage() {
     }, [items, localItems]);
 
     return (
-        <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
+        <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
             <ParetoHeader
                 stats={stats}
                 onVehicleTypes={() => setVehicleTypesOpen(true)}
