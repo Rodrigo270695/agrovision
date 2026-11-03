@@ -91,7 +91,7 @@ export default function CentralParticipants({ trainings, selected, participants 
                     <div>
                         <p className="text-xs font-semibold tracking-wide text-[#0f766e] uppercase">Certificado</p>
                         <h1 className="text-2xl font-semibold text-[#12355b]">Participantes</h1>
-                        <p className="mt-1 max-w-xl text-sm text-[#5a7390]">
+                        <p className="mt-1 max-w-xl text-sm text-muted-foreground">
                             Cada lote queda amarrado a una capacitación. Con el DNI, API Perú completa el nombre.
                         </p>
                     </div>
@@ -102,7 +102,7 @@ export default function CentralParticipants({ trainings, selected, participants 
                 </div>
 
                 <div className="grid items-start gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
-                    <section className="overflow-hidden rounded-2xl border border-[#d7e3f0] bg-white">
+                    <section className="overflow-hidden rounded-2xl border border-brand-200 bg-white">
                         <div className="border-b border-[#e6eef6] bg-[#f7fafc] px-4 py-3">
                             <h2 className="text-sm font-semibold text-[#12355b]">Capacitaciones</h2>
                         </div>
@@ -135,21 +135,21 @@ export default function CentralParticipants({ trainings, selected, participants 
                                             <span className={`h-9 w-1.5 rounded-full ${paint.bar}`} />
                                             <span className="min-w-0 flex-1">
                                                 <span className={`block truncate text-sm font-medium ${paint.text}`}>{training.name}</span>
-                                                <span className="text-xs text-[#5a7390]">{training.participants_count} participantes</span>
+                                                <span className="text-xs text-muted-foreground">{training.participants_count} participantes</span>
                                             </span>
                                         </button>
                                     </li>
                                 );
                             })}
                             {trainings.length === 0 && (
-                                <li className="rounded-xl bg-[#f7fafc] px-3 py-6 text-center text-sm text-[#5a7390]">
+                                <li className="rounded-xl bg-[#f7fafc] px-3 py-6 text-center text-sm text-muted-foreground">
                                     Crea la primera capacitación.
                                 </li>
                             )}
                         </ul>
                     </section>
 
-                    <section className="overflow-hidden rounded-2xl border border-[#d7e3f0] bg-white">
+                    <section className="overflow-hidden rounded-2xl border border-brand-200 bg-white">
                         {current ? (
                             <>
                                 <div className={`flex items-start justify-between gap-3 px-5 py-4 ${currentTone.soft}`}>
@@ -172,13 +172,13 @@ export default function CentralParticipants({ trainings, selected, participants 
                                 </div>
 
                                 <div className="p-4">
-                                    <Collapsible open={importOpen} onOpenChange={setImportOpen} className="rounded-xl border border-[#d7e3f0]">
+                                    <Collapsible open={importOpen} onOpenChange={setImportOpen} className="rounded-xl border border-brand-200">
                                         <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between px-4 py-3 text-left">
                                             <span>
                                                 <span className="block text-sm font-semibold text-[#12355b]">Subir lote de DNI</span>
-                                                <span className="block text-xs text-[#5a7390]">Pega los números o sube un archivo. Máximo 40 por envío.</span>
+                                                <span className="block text-xs text-muted-foreground">Pega los números o sube un archivo. Máximo 40 por envío.</span>
                                             </span>
-                                            <ChevronDown className={`size-4 text-[#5a7390] transition ${importOpen ? 'rotate-180' : ''}`} />
+                                            <ChevronDown className={`size-4 text-muted-foreground transition ${importOpen ? 'rotate-180' : ''}`} />
                                         </CollapsibleTrigger>
                                         <CollapsibleContent className="grid gap-3 border-t border-[#e6eef6] px-4 py-4">
                                             <Label htmlFor="dnis">DNI, uno por línea o separados por coma</Label>
@@ -187,16 +187,16 @@ export default function CentralParticipants({ trainings, selected, participants 
                                                 value={dnis}
                                                 onChange={(event) => setDnis(event.target.value)}
                                                 rows={5}
-                                                className="rounded-lg border border-[#c5d5e6] px-3 py-2 text-sm text-[#12355b]"
+                                                className="rounded-lg border border-brand-300 px-3 py-2 text-sm text-[#12355b]"
                                                 placeholder={'45652349\n12345678'}
                                             />
-                                            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-[#c5d5e6] bg-[#f8fafc] px-3 py-2">
+                                            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-brand-300 bg-background px-3 py-2">
                                                 <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#e7eef6] text-[#12355b]">
                                                     <Upload className="size-4" />
                                                 </span>
                                                 <span className="min-w-0">
                                                     <span className="block text-sm font-medium text-[#12355b]">Archivo .txt o .csv</span>
-                                                    <span className="block truncate text-xs text-[#5a7390]">{file?.name ?? 'Ningún archivo elegido'}</span>
+                                                    <span className="block truncate text-xs text-muted-foreground">{file?.name ?? 'Ningún archivo elegido'}</span>
                                                 </span>
                                                 <input
                                                     type="file"
@@ -230,7 +230,7 @@ export default function CentralParticipants({ trainings, selected, participants 
                                                     <button
                                                         type="button"
                                                         aria-label="Eliminar participante"
-                                                        className="cursor-pointer rounded-lg p-2 text-[#5a7390] hover:bg-[#fde8ee] hover:text-[#9f1239]"
+                                                        className="cursor-pointer rounded-lg p-2 text-muted-foreground hover:bg-[#fde8ee] hover:text-[#9f1239]"
                                                         onClick={() =>
                                                             router.delete(`/plataforma/certificados/participantes/${person.id}`)
                                                         }
@@ -243,14 +243,14 @@ export default function CentralParticipants({ trainings, selected, participants 
                                         {participants.length === 0 && (
                                             <li className="flex flex-col items-center gap-2 rounded-xl bg-[#f7fafc] px-4 py-10 text-center">
                                                 <Users className="size-6 text-[#0f766e]" />
-                                                <p className="text-sm text-[#5a7390]">Este lote todavía no tiene participantes.</p>
+                                                <p className="text-sm text-muted-foreground">Este lote todavía no tiene participantes.</p>
                                             </li>
                                         )}
                                     </ul>
                                 </div>
                             </>
                         ) : (
-                            <p className="px-5 py-10 text-sm text-[#5a7390]">Crea una capacitación para cargar participantes.</p>
+                            <p className="px-5 py-10 text-sm text-muted-foreground">Crea una capacitación para cargar participantes.</p>
                         )}
                     </section>
                 </div>

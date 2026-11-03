@@ -127,7 +127,7 @@ export function AlcoholPackageFormModal({
                         variant="outline"
                         disabled={form.processing}
                         onClick={onClose}
-                        className="cursor-pointer border-[#c5d5e6]"
+                        className="cursor-pointer border-brand-300"
                     >
                         Cancelar
                     </Button>
@@ -135,7 +135,7 @@ export function AlcoholPackageFormModal({
                         type="submit"
                         form="alcohol-package-form"
                         disabled={form.processing}
-                        className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                        className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700"
                     >
                         {form.processing ? <Spinner /> : null}
                         Crear paquete
@@ -149,20 +149,20 @@ export function AlcoholPackageFormModal({
                 className="grid gap-3"
             >
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">
+                    <Label className="text-xs text-brand-700">
                         Título <span className="text-red-500">*</span>
                     </Label>
                     <Input
                         value={form.data.title}
                         onChange={(e) => form.setData('title', e.target.value)}
-                        className="h-9 border-[#c5d5e6]"
+                        className="h-9 border-brand-300"
                         placeholder="Ej. Test inopinada por fecha de fiestas"
                     />
                     <InputError message={form.errors.title} />
                 </div>
 
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">
+                    <Label className="text-xs text-brand-700">
                         Fecha del operativo{' '}
                         <span className="text-red-500">*</span>
                     </Label>
@@ -172,7 +172,7 @@ export function AlcoholPackageFormModal({
                         onChange={(e) =>
                             form.setData('session_date', e.target.value)
                         }
-                        className="h-9 border-[#c5d5e6]"
+                        className="h-9 border-brand-300"
                     />
                     <InputError message={form.errors.session_date} />
                 </div>
@@ -180,7 +180,7 @@ export function AlcoholPackageFormModal({
                 <div className="grid gap-1.5">
                     <Label
                         htmlFor="alcohol-package-place"
-                        className="text-xs text-[#1a2b4c]"
+                        className="text-xs text-brand-700"
                     >
                         Lugar <span className="text-red-500">*</span>
                     </Label>
@@ -205,12 +205,12 @@ export function AlcoholPackageFormModal({
                 </div>
 
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">Notas</Label>
+                    <Label className="text-xs text-brand-700">Notas</Label>
                     <Textarea
                         value={form.data.notes}
                         onChange={(e) => form.setData('notes', e.target.value)}
                         rows={3}
-                        className="border-[#c5d5e6]"
+                        className="border-brand-300"
                         placeholder="Contexto del operativo (opcional)"
                     />
                     <InputError message={form.errors.notes} />

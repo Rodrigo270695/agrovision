@@ -38,7 +38,7 @@ export function PeriodsHeader({ stats, onCreate }: Props) {
                         type="button"
                         size="sm"
                         onClick={onCreate}
-                        className="cursor-pointer gap-1.5 rounded-xl bg-[#1e4d8c] text-white hover:bg-[#163a6b]"
+                        className="cursor-pointer gap-1.5 rounded-xl bg-brand-500 text-white hover:bg-brand-600"
                     >
                         <Plus className="size-3.5" strokeWidth={2.5} />
                         <span className="hidden sm:inline">Nuevo periodo</span>

@@ -35,7 +35,7 @@ export function PlatformStatPill({
             <p className="text-[9px] font-semibold tracking-wide text-white/70 uppercase">
                 {label}
             </p>
-            <p className="font-[Manrope] text-xl font-bold leading-tight tabular-nums">
+            <p className="font-display text-xl font-bold leading-tight tabular-nums">
                 {value}
             </p>
         </div>
@@ -60,7 +60,7 @@ export function PlatformHero({
     return (
         <header
             className={cn(
-                'overflow-hidden rounded-2xl border border-white/70 bg-[#0f1f3a] text-white shadow-[0_18px_40px_-24px_rgba(15,31,58,0.55)]',
+                'overflow-hidden rounded-2xl border border-white/70 bg-brand-800 text-white shadow-[0_18px_40px_-24px_rgba(15,31,58,0.55)]',
                 className,
             )}
         >
@@ -80,7 +80,7 @@ export function PlatformHero({
                             <Sparkles className="size-3" aria-hidden />
                             {eyebrow}
                         </div>
-                        <h1 className="mt-1.5 font-[Manrope] text-2xl font-bold tracking-tight sm:text-[1.75rem]">
+                        <h1 className="font-display mt-1.5 text-2xl font-bold tracking-tight sm:text-[1.75rem]">
                             {title}
                         </h1>
                         <div className="mt-1 max-w-2xl text-xs leading-snug text-sky-100/85 sm:text-sm">
@@ -92,9 +92,12 @@ export function PlatformHero({
                         <div
                             className={cn(
                                 'grid w-full gap-1.5 sm:grid-cols-4 lg:w-auto lg:min-w-[380px]',
-                                stats.length <= 2 && 'grid-cols-2 sm:grid-cols-2',
-                                stats.length === 3 && 'grid-cols-3 sm:grid-cols-3',
-                                stats.length >= 4 && 'grid-cols-2 sm:grid-cols-4',
+                                stats.length <= 2 &&
+                                    'grid-cols-2 sm:grid-cols-2',
+                                stats.length === 3 &&
+                                    'grid-cols-3 sm:grid-cols-3',
+                                stats.length >= 4 &&
+                                    'grid-cols-2 sm:grid-cols-4',
                             )}
                         >
                             {stats.map((stat) => (
@@ -127,7 +130,7 @@ export function PlatformToolbar({
     return (
         <div
             className={cn(
-                'flex flex-col gap-2 rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between',
+                'flex flex-col gap-2 rounded-2xl border border-brand-200/80 bg-card/90 px-3 py-2.5 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between',
                 className,
             )}
         >

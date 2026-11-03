@@ -99,10 +99,10 @@ export default function ObservationsIndexReportPage() {
                 />
 
                 <PlatformToolbar>
-                    <label className="text-xs font-semibold text-[#1a2b4c]">
+                    <label className="text-xs font-semibold text-brand-700">
                         Plantilla
                         <select
-                            className="mt-1 block rounded-lg border border-[#c5d5e6] bg-white px-3 py-2 text-xs font-medium text-[#1a2b4c]"
+                            className="mt-1 block rounded-lg border border-brand-300 bg-white px-3 py-2 text-xs font-medium text-brand-700"
                             value={filters.template}
                             onChange={(event) =>
                                 visit({
@@ -119,7 +119,7 @@ export default function ObservationsIndexReportPage() {
                         </select>
                     </label>
                     <div>
-                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                             Rango de fechas
                         </p>
                         <DateRangeFilter
@@ -163,8 +163,8 @@ export default function ObservationsIndexReportPage() {
                     }
                 />
 
-                <section className="overflow-hidden rounded-2xl border border-[#d7e3f0] bg-white shadow-sm">
-                    <div className="bg-[#1a2b4c] px-4 py-2 text-center text-xs font-bold tracking-wide text-[#fde047] uppercase">
+                <section className="overflow-hidden rounded-2xl border border-brand-200 bg-white shadow-sm">
+                    <div className="bg-brand-700 px-4 py-2 text-center text-xs font-bold tracking-wide text-[#fde047] uppercase">
                         Observaciones por unidad inspeccionada
                     </div>
                     <div className="p-4 sm:p-6">
@@ -197,7 +197,7 @@ export default function ObservationsIndexReportPage() {
                         {platesModal.plates.map((plate) => (
                             <span
                                 key={plate}
-                                className="rounded-md bg-[#f8fafc] px-2 py-1 text-xs font-semibold text-[#1a2b4c] ring-1 ring-[#d7e3f0]"
+                                className="rounded-md bg-background px-2 py-1 text-xs font-semibold text-brand-700 ring-1 ring-brand-200"
                             >
                                 {plate}
                             </span>

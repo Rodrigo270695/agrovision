@@ -34,7 +34,7 @@ function ApprovalList({
     emptyLabel?: string;
 }) {
     if (items.length === 0) {
-        return <p className="mt-3 text-xs text-[#5a7390]">{emptyLabel}</p>;
+        return <p className="mt-3 text-xs text-muted-foreground">{emptyLabel}</p>;
     }
 
     return (
@@ -42,13 +42,13 @@ function ApprovalList({
             {items.map((item) => (
                 <li
                     key={item.id}
-                    className="rounded-lg border border-[#d7e3f0] px-2.5 py-2"
+                    className="rounded-lg border border-brand-200 px-2.5 py-2"
                 >
-                    <p className="text-xs font-semibold text-[#1a2b4c]">
+                    <p className="text-xs font-semibold text-brand-700">
                         {item.plate_number || 'Sin placa'} · {item.pass}{' '}
                         inspección
                     </p>
-                    <p className="mt-0.5 text-[11px] text-[#5a7390]">
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
                         {item.requester_name || 'Inspector'}
                         {item.driver_name ? ` · ${item.driver_name}` : ''} pide
                         autorización
@@ -138,7 +138,7 @@ export function InspectionEditApprovals() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="relative size-9 shrink-0 cursor-pointer text-[#5a7390] hover:bg-[#e8f1fa] hover:text-[#1a2b4c]"
+                        className="relative size-9 shrink-0 cursor-pointer text-muted-foreground hover:bg-brand-100 hover:text-brand-700"
                         aria-label={
                             count > 0
                                 ? `${count} solicitudes de edición por aprobar`
@@ -154,10 +154,10 @@ export function InspectionEditApprovals() {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-80 bg-white p-3">
-                    <p className="text-sm font-medium text-[#1a2b4c]">
+                    <p className="text-sm font-medium text-brand-700">
                         Ediciones por aprobar
                     </p>
-                    <p className="mt-1 text-xs text-[#5a7390]">
+                    <p className="mt-1 text-xs text-muted-foreground">
                         El inspector solo puede corregir la inspección que
                         autorices.
                     </p>
@@ -187,7 +187,7 @@ export function InspectionEditApprovals() {
                         </Button>
                         <Button
                             type="button"
-                            className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                            className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700"
                             onClick={dismissWelcome}
                         >
                             Entendido
@@ -195,7 +195,7 @@ export function InspectionEditApprovals() {
                     </div>
                 }
             >
-                <p className="text-sm text-[#5a7390]">
+                <p className="text-sm text-muted-foreground">
                     Revisa y aprueba o rechaza cada solicitud. También puedes
                     hacerlo desde el icono del portapapeles en la barra
                     superior.
@@ -270,7 +270,7 @@ export function InspectionEditGrants() {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="relative size-9 shrink-0 cursor-pointer text-[#5a7390] hover:bg-[#e8f1fa] hover:text-[#1a2b4c]"
+                    className="relative size-9 shrink-0 cursor-pointer text-muted-foreground hover:bg-brand-100 hover:text-brand-700"
                     aria-label={
                         waiting
                             ? 'Solicitud de edición en espera'
@@ -300,10 +300,10 @@ export function InspectionEditGrants() {
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80 bg-white p-3">
-                <p className="text-sm font-medium text-[#1a2b4c]">
+                <p className="text-sm font-medium text-brand-700">
                     {waiting ? 'Edición en espera' : 'Ya puedes editar'}
                 </p>
-                <p className="mt-1 text-xs text-[#5a7390]">
+                <p className="mt-1 text-xs text-muted-foreground">
                     {waiting
                         ? 'Todavía no responden la solicitud.'
                         : 'Autorizaron estas inspecciones.'}
@@ -314,7 +314,7 @@ export function InspectionEditGrants() {
                             key={item.id}
                             className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2"
                         >
-                            <p className="text-xs font-semibold text-[#1a2b4c]">
+                            <p className="text-xs font-semibold text-brand-700">
                                 {item.plate_number || 'Sin placa'} ·{' '}
                                 {item.pass_label} inspección
                             </p>
@@ -325,7 +325,7 @@ export function InspectionEditGrants() {
                             <Button
                                 type="button"
                                 size="sm"
-                                className="mt-2 h-7 w-full cursor-pointer bg-[#1a2b4c] text-xs text-white hover:bg-[#122038]"
+                                className="mt-2 h-7 w-full cursor-pointer bg-brand-700 text-xs text-white hover:bg-brand-700"
                                 onClick={() =>
                                     router.visit(
                                         `/inspecciones/${item.checklist_id}/editar?pass=${item.pass}`,
@@ -341,7 +341,7 @@ export function InspectionEditGrants() {
                             key={item.id}
                             className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2"
                         >
-                            <p className="text-xs font-semibold text-[#1a2b4c]">
+                            <p className="text-xs font-semibold text-brand-700">
                                 {item.plate_number || 'Sin placa'} ·{' '}
                                 {item.pass_label} inspección
                             </p>

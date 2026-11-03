@@ -504,7 +504,7 @@ export default function DriverReportPage({
                             variant="outline"
                             disabled={gaps.length === 0}
                             onClick={() => setGapsOpen(true)}
-                            className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                            className="cursor-pointer border-brand-300 text-brand-700"
                         >
                             <ListPlus className="size-4" />
                             Completar faltantes
@@ -515,7 +515,7 @@ export default function DriverReportPage({
                         variant="outline"
                         disabled={rows.length === 0 || excelLoading}
                         onClick={() => void downloadExcel()}
-                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                        className="cursor-pointer border-brand-300 text-brand-700"
                     >
                         {excelLoading ? (
                             <Spinner />
@@ -530,7 +530,7 @@ export default function DriverReportPage({
                             rows.every((row) => !row.found) || exporting
                         }
                         onClick={openModal}
-                        className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                        className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700"
                     >
                         <Download className="size-4" />
                         Descargar
@@ -538,7 +538,7 @@ export default function DriverReportPage({
                 </PlatformToolbar>
 
                 <form
-                    className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm"
+                    className="rounded-2xl border border-brand-200 bg-white p-4 shadow-sm"
                     onSubmit={(event) => {
                         event.preventDefault();
                         setFilter('all');
@@ -551,11 +551,11 @@ export default function DriverReportPage({
                 >
                     <label
                         htmlFor="dnis"
-                        className="text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase"
+                        className="text-xs font-semibold tracking-wide text-brand-700 uppercase"
                     >
                         DNI
                     </label>
-                    <p className="mt-1 text-xs text-[#5a7390]">
+                    <p className="mt-1 text-xs text-muted-foreground">
                         Uno debajo de otro, o separados por coma. Hasta 400.
                     </p>
                     <textarea
@@ -566,10 +566,10 @@ export default function DriverReportPage({
                         }
                         rows={5}
                         placeholder={'17626115\n48142513\n72774363'}
-                        className="mt-3 w-full resize-y rounded-xl border border-[#c5d5e6] bg-white px-3 py-2 font-mono text-sm text-[#1a2b4c] outline-none focus:border-[#2e5a9e] focus:ring-2 focus:ring-[#4a90e2]/35"
+                        className="mt-3 w-full resize-y rounded-xl border border-brand-300 bg-white px-3 py-2 font-mono text-sm text-brand-700 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-400/35"
                     />
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                        <p className="text-xs text-[#5a7390]">
+                        <p className="text-xs text-muted-foreground">
                             {detected === 0
                                 ? 'Todavía no hay DNI.'
                                 : `${detected} DNI listo${detected === 1 ? '' : 's'} para consultar.`}
@@ -577,7 +577,7 @@ export default function DriverReportPage({
                         <Button
                             type="submit"
                             disabled={form.processing || detected === 0}
-                            className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                            className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700"
                         >
                             {form.processing ? (
                                 <Spinner />
@@ -635,7 +635,7 @@ export default function DriverReportPage({
                         />
                     </div>
                 ) : (
-                    <p className="rounded-2xl border border-dashed border-[#d7e3f0] bg-white px-4 py-8 text-center text-sm text-[#5a7390]">
+                    <p className="rounded-2xl border border-dashed border-brand-200 bg-white px-4 py-8 text-center text-sm text-muted-foreground">
                         Consulta los DNI y luego descarga. Si varios coinciden
                         en la misma acta, se genera una sola y se resalta a
                         esas personas.
@@ -643,7 +643,7 @@ export default function DriverReportPage({
                 )}
 
                 {summary && visible.length === 0 ? (
-                    <p className="text-sm text-[#5a7390]">
+                    <p className="text-sm text-muted-foreground">
                         Ningún conductor coincide con este filtro.
                     </p>
                 ) : null}
@@ -655,15 +655,15 @@ export default function DriverReportPage({
                         return (
                             <article
                                 key={row.key}
-                                className="rounded-2xl border border-[#d7e3f0] bg-white shadow-sm"
+                                className="rounded-2xl border border-brand-200 bg-white shadow-sm"
                             >
                                 <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
                                     <div className="min-w-0 flex-1">
                                         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                                            <h2 className="font-mono text-lg font-semibold text-[#1a2b4c]">
+                                            <h2 className="font-mono text-lg font-semibold text-brand-700">
                                                 {row.dni}
                                             </h2>
-                                            <p className="truncate text-sm text-[#5a7390]">
+                                            <p className="truncate text-sm text-muted-foreground">
                                                 {row.driver_name || 'Sin nombre'}
                                                 {row.plate ? ` · ${row.plate}` : ''}
                                                 {row.provider
@@ -692,7 +692,7 @@ export default function DriverReportPage({
                                         onClick={() =>
                                             setOpenKey(open ? null : row.key)
                                         }
-                                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                                        className="cursor-pointer border-brand-300 text-brand-700"
                                     >
                                         {open ? 'Ocultar' : 'Detalle'}
                                         <ChevronDown
@@ -739,7 +739,7 @@ export default function DriverReportPage({
                             type="button"
                             disabled={exporting || payload.length === 0}
                             onClick={() => void download()}
-                            className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                            className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700"
                         >
                             {exporting ? <Spinner /> : <Download className="size-4" />}
                             Descargar
@@ -770,8 +770,8 @@ export default function DriverReportPage({
                                 className={cn(
                                     'cursor-pointer rounded-full border px-3 py-1 text-xs font-medium',
                                     on
-                                        ? 'border-[#1a2b4c] bg-[#1a2b4c] text-white'
-                                        : 'border-[#d7e3f0] text-[#1a2b4c] hover:bg-[#f8fafc]',
+                                        ? 'border-brand-700 bg-brand-700 text-white'
+                                        : 'border-brand-200 text-brand-700 hover:bg-background',
                                 )}
                             >
                                 {on ? 'Quitar' : 'Marcar'} {docLabels[kind]}
@@ -785,7 +785,7 @@ export default function DriverReportPage({
                 ) : null}
 
                 {groups.length === 0 ? (
-                    <p className="text-sm text-[#5a7390]">
+                    <p className="text-sm text-muted-foreground">
                         No hay actividades para descargar.
                     </p>
                 ) : (
@@ -793,17 +793,17 @@ export default function DriverReportPage({
                         {groups.map((group) => (
                             <li
                                 key={group.induction_id}
-                                className="rounded-xl border border-[#e2eaf3] p-3"
+                                className="rounded-xl border border-brand-200 p-3"
                             >
-                                <p className="text-sm font-medium text-[#1a2b4c]">
+                                <p className="text-sm font-medium text-brand-700">
                                     {group.title}
                                 </p>
-                                <p className="mt-0.5 text-xs text-[#5a7390]">
+                                <p className="mt-0.5 text-xs text-muted-foreground">
                                     {group.activity_label}
                                     {group.date ? ` · ${group.date}` : ''}
                                     {group.acta ? ` · Acta ${group.acta}` : ''}
                                 </p>
-                                <p className="mt-1 text-xs text-[#2e5a9e]">
+                                <p className="mt-1 text-xs text-brand-500">
                                     {group.drivers
                                         .map((driver) => driver.name)
                                         .join(' · ')}
@@ -822,7 +822,7 @@ export default function DriverReportPage({
                                     ).map((kind) => (
                                         <label
                                             key={kind}
-                                            className="flex cursor-pointer items-center gap-2 text-sm text-[#1a2b4c]"
+                                            className="flex cursor-pointer items-center gap-2 text-sm text-brand-700"
                                         >
                                             <Checkbox
                                                 checked={group.include[kind]}
@@ -833,7 +833,7 @@ export default function DriverReportPage({
                                                         checked === true,
                                                     )
                                                 }
-                                                className="border-[#c5d5e6] data-[state=checked]:border-[#2e5a9e] data-[state=checked]:bg-[#2e5a9e]"
+                                                className="border-brand-300 data-[state=checked]:border-brand-500 data-[state=checked]:bg-brand-500"
                                             />
                                             {docLabels[kind]}
                                         </label>
@@ -864,7 +864,7 @@ export default function DriverReportPage({
                 }
             >
                 {gaps.length === 0 ? (
-                    <p className="text-sm text-[#5a7390]">
+                    <p className="text-sm text-muted-foreground">
                         Todos tienen los tipos del catálogo.
                     </p>
                 ) : (
@@ -872,18 +872,18 @@ export default function DriverReportPage({
                         {gaps.map((item) => (
                             <li
                                 key={item.key}
-                                className="flex items-start justify-between gap-3 rounded-xl border border-[#e2eaf3] p-3"
+                                className="flex items-start justify-between gap-3 rounded-xl border border-brand-200 p-3"
                             >
                                 <div>
-                                    <p className="text-sm font-medium text-[#1a2b4c]">
+                                    <p className="text-sm font-medium text-brand-700">
                                         {item.title}
                                     </p>
-                                    <p className="mt-0.5 text-xs text-[#5a7390]">
+                                    <p className="mt-0.5 text-xs text-muted-foreground">
                                         {item.activity_label} ·{' '}
                                         {item.drivers.length} conductor
                                         {item.drivers.length === 1 ? '' : 'es'}
                                     </p>
-                                    <p className="mt-1 text-xs text-[#2e5a9e]">
+                                    <p className="mt-1 text-xs text-brand-500">
                                         {item.drivers
                                             .map((driver) => driver.name)
                                             .join(' · ')}
@@ -901,7 +901,7 @@ export default function DriverReportPage({
                                             drivers: item.drivers,
                                         });
                                     }}
-                                    className="shrink-0 cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c]"
+                                    className="shrink-0 cursor-pointer bg-brand-500 text-white hover:bg-brand-700"
                                 >
                                     Crear
                                 </Button>
@@ -952,14 +952,14 @@ function FilterStat({
             className={cn(
                 'cursor-pointer rounded-2xl border px-3 py-2 text-left',
                 active
-                    ? 'border-[#1a2b4c] bg-[#1a2b4c] text-white'
-                    : 'border-[#d7e3f0] bg-white text-[#1a2b4c] hover:bg-[#f8fafc]',
+                    ? 'border-brand-700 bg-brand-700 text-white'
+                    : 'border-brand-200 bg-white text-brand-700 hover:bg-background',
             )}
         >
             <p
                 className={cn(
                     'text-[10px] font-semibold tracking-wide uppercase',
-                    active ? 'text-white/70' : 'text-[#6b8ead]',
+                    active ? 'text-white/70' : 'text-muted-foreground',
                 )}
             >
                 {label}
@@ -977,13 +977,13 @@ function Detail({
     onOpen: (dni: string, inductionId: number, doc: DocKind) => void;
 }) {
     return (
-        <div className="grid gap-4 border-t border-[#e2eaf3] px-4 py-4 lg:grid-cols-2">
+        <div className="grid gap-4 border-t border-brand-200 px-4 py-4 lg:grid-cols-2">
             <section>
-                <h3 className="text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
+                <h3 className="text-xs font-semibold tracking-wide text-brand-700 uppercase">
                     Cubiertas
                 </h3>
                 {row.inductions.length === 0 ? (
-                    <p className="mt-2 text-sm text-[#5a7390]">
+                    <p className="mt-2 text-sm text-muted-foreground">
                         Sin inducciones ni capacitaciones.
                     </p>
                 ) : (
@@ -991,12 +991,12 @@ function Detail({
                         {row.inductions.map((induction) => (
                             <li
                                 key={induction.id}
-                                className="rounded-xl border border-[#e2eaf3] px-3 py-2"
+                                className="rounded-xl border border-brand-200 px-3 py-2"
                             >
-                                <p className="text-sm font-medium text-[#1a2b4c]">
+                                <p className="text-sm font-medium text-brand-700">
                                     {induction.title}
                                 </p>
-                                <p className="mt-0.5 text-xs text-[#5a7390]">
+                                <p className="mt-0.5 text-xs text-muted-foreground">
                                     {induction.activity_label}
                                     {induction.date ? ` · ${induction.date}` : ''}
                                     {induction.acta
@@ -1024,7 +1024,7 @@ function Detail({
                                                     doc,
                                                 )
                                             }
-                                            className="cursor-pointer font-medium text-[#2e5a9e] underline-offset-2 hover:underline"
+                                            className="cursor-pointer font-medium text-brand-500 underline-offset-2 hover:underline"
                                         >
                                             Ver {docLabels[doc]}
                                         </button>
@@ -1040,7 +1040,7 @@ function Detail({
                     Les falta
                 </h3>
                 {(row.missing ?? []).length === 0 ? (
-                    <p className="mt-2 text-sm text-[#5a7390]">
+                    <p className="mt-2 text-sm text-muted-foreground">
                         Tiene todos los tipos del catálogo.
                     </p>
                 ) : (

@@ -25,7 +25,7 @@ export function PeriodFormFields({ values, errors, onChange }: Props) {
     return (
         <div className="space-y-4">
             <div className="grid gap-2">
-                <Label htmlFor="period-name" className="text-[#1a2b4c]">
+                <Label htmlFor="period-name" className="text-brand-700">
                     Nombre <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -35,13 +35,13 @@ export function PeriodFormFields({ values, errors, onChange }: Props) {
                     onChange={(event) => onChange('name', event.target.value)}
                     placeholder="Ej. Periodo Julio 2026"
                     autoFocus
-                    className="h-11 border-[#c5d5e6] bg-white focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35"
+                    className="h-11 border-brand-300 bg-white focus-visible:border-brand-500 focus-visible:ring-brand-400/35"
                 />
                 <InputError message={errors.name} />
             </div>
 
             <div className="grid gap-2">
-                <Label htmlFor="period-date" className="text-[#1a2b4c]">
+                <Label htmlFor="period-date" className="text-brand-700">
                     Fecha <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -50,23 +50,23 @@ export function PeriodFormFields({ values, errors, onChange }: Props) {
                     type="date"
                     value={values.date}
                     onChange={(event) => onChange('date', event.target.value)}
-                    className="h-11 border-[#c5d5e6] bg-white focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35"
+                    className="h-11 border-brand-300 bg-white focus-visible:border-brand-500 focus-visible:ring-brand-400/35"
                 />
                 <InputError message={errors.date} />
             </div>
 
             <div className="grid gap-2">
-                <Label className="text-[#1a2b4c]">
+                <Label className="text-brand-700">
                     Estado <span className="text-red-500">*</span>
                 </Label>
                 <Select
                     value={values.status || 'active'}
                     onValueChange={(value) => onChange('status', value)}
                 >
-                    <SelectTrigger className="h-11 w-full cursor-pointer border-[#c5d5e6] bg-white text-[#1a2b4c]">
+                    <SelectTrigger className="h-11 w-full cursor-pointer border-brand-300 bg-white text-brand-700">
                         <SelectValue placeholder="Selecciona estado" />
                     </SelectTrigger>
-                    <SelectContent className="border-[#d7e3f0] bg-white">
+                    <SelectContent className="border-brand-200 bg-white">
                         <SelectItem value="active" className="cursor-pointer">
                             Activo
                         </SelectItem>

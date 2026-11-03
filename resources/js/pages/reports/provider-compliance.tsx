@@ -96,10 +96,10 @@ export default function ProviderComplianceReportPage() {
                 />
 
                 <PlatformToolbar>
-                    <label className="text-xs font-semibold text-[#1a2b4c]">
+                    <label className="text-xs font-semibold text-brand-700">
                         Plantilla
                         <select
-                            className="mt-1 block rounded-lg border border-[#c5d5e6] bg-white px-3 py-2 text-xs font-medium text-[#1a2b4c]"
+                            className="mt-1 block rounded-lg border border-brand-300 bg-white px-3 py-2 text-xs font-medium text-brand-700"
                             value={filters.template}
                             onChange={(event) =>
                                 visit({
@@ -116,7 +116,7 @@ export default function ProviderComplianceReportPage() {
                         </select>
                     </label>
                     <div>
-                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                             Rango de fechas
                         </p>
                         <DateRangeFilter
@@ -163,8 +163,8 @@ export default function ProviderComplianceReportPage() {
                     }}
                 />
 
-                <section className="overflow-hidden rounded-2xl border border-[#d7e3f0] bg-white shadow-sm">
-                    <div className="bg-[#1a2b4c] px-4 py-2 text-center text-xs font-bold tracking-wide text-[#fde047] uppercase">
+                <section className="overflow-hidden rounded-2xl border border-brand-200 bg-white shadow-sm">
+                    <div className="bg-brand-700 px-4 py-2 text-center text-xs font-bold tracking-wide text-[#fde047] uppercase">
                         % cumplimiento por proveedor
                     </div>
                     <div className="p-4 sm:p-6">
@@ -172,11 +172,11 @@ export default function ProviderComplianceReportPage() {
                     </div>
                 </section>
 
-                <section className="min-w-0 overflow-hidden rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-6">
-                    <h2 className="text-sm font-semibold text-[#1a2b4c]">
+                <section className="min-w-0 overflow-hidden rounded-2xl border border-brand-200 bg-white p-4 shadow-sm sm:p-6">
+                    <h2 className="text-sm font-semibold text-brand-700">
                         Promedio semanal en el rango
                     </h2>
-                    <p className="mt-0.5 text-xs text-[#6b8ead]">
+                    <p className="mt-0.5 text-xs text-muted-foreground">
                         Solo semanas con inspecciones dentro de las fechas
                         filtradas
                     </p>

@@ -8,7 +8,7 @@ export type ProviderUnitBar = {
 export function ProviderUnitBars({ units }: { units: ProviderUnitBar[] }) {
     if (units.length === 0) {
         return (
-            <p className="py-16 text-center text-sm text-[#6b8ead]">
+            <p className="py-16 text-center text-sm text-muted-foreground">
                 Sin unidades inspeccionadas en la semana seleccionada.
             </p>
         );
@@ -46,7 +46,7 @@ export function ProviderUnitBars({ units }: { units: ProviderUnitBar[] }) {
                                     style={{ height: `${barHeight}px` }}
                                 >
                                     <span
-                                        className="absolute left-1/2 z-10 -translate-x-1/2 rounded bg-[#1a2b4c] px-1.5 py-0.5 text-[10px] font-bold text-white tabular-nums"
+                                        className="absolute left-1/2 z-10 -translate-x-1/2 rounded bg-brand-700 px-1.5 py-0.5 text-[10px] font-bold text-white tabular-nums"
                                         style={{
                                             bottom: `${barHeight + 4}px`,
                                         }}
@@ -57,12 +57,12 @@ export function ProviderUnitBars({ units }: { units: ProviderUnitBar[] }) {
                             </div>
                             <div className="mt-2 w-full text-center">
                                 <p
-                                    className="line-clamp-3 text-[9px] leading-tight font-semibold text-[#2e5a9e] uppercase"
+                                    className="line-clamp-3 text-[9px] leading-tight font-semibold text-brand-500 uppercase"
                                     title={unit.provider}
                                 >
                                     {unit.provider}
                                 </p>
-                                <p className="mt-0.5 text-[10px] font-bold text-[#6b8ead] tabular-nums">
+                                <p className="mt-0.5 text-[10px] font-bold text-muted-foreground tabular-nums">
                                     {unit.plate}
                                 </p>
                             </div>

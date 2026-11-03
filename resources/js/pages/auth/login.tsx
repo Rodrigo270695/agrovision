@@ -17,7 +17,7 @@ type Props = {
 };
 
 const fieldClass =
-    'h-12 rounded-none border-0 bg-transparent text-[15px] text-[#122038] shadow-none placeholder:text-[#9aadc0] focus-visible:border-transparent focus-visible:ring-0';
+    'h-12 rounded-none border-0 bg-transparent text-[15px] text-brand-700 shadow-none placeholder:text-[#9aadc0] focus-visible:border-transparent focus-visible:ring-0';
 
 function useTenantBranding() {
     const tenant = usePage().props.tenant;
@@ -70,7 +70,7 @@ export default function Login({ status }: Props) {
                 <meta name="color-scheme" content="light" />
             </Head>
 
-            <div className="login-shell relative isolate flex min-h-dvh flex-col bg-[#f4f6f8] font-login text-[#122038] scheme-light lg:h-dvh lg:max-h-dvh lg:flex-row lg:overflow-hidden">
+            <div className="login-shell relative isolate flex min-h-dvh flex-col bg-[#f4f6f8] font-login text-brand-700 scheme-light lg:h-dvh lg:max-h-dvh lg:flex-row lg:overflow-hidden">
                 <aside className="relative hidden h-full w-[46%] shrink-0 lg:flex">
                     <div className="login-hero-media absolute inset-0" />
                     <div className="login-hex-grid pointer-events-none absolute inset-0" />
@@ -200,7 +200,7 @@ export default function Login({ status }: Props) {
                                     imageClassName="h-14 w-auto max-w-[4.5rem] object-contain"
                                 />
                                 <div className="min-w-0">
-                                    <p className="font-display truncate text-[17px] font-semibold tracking-[-0.02em] text-[#122038]">
+                                    <p className="font-display truncate text-[17px] font-semibold tracking-[-0.02em] text-brand-700">
                                         {branding.name}
                                     </p>
                                     <p className="truncate text-[13px] text-[#6b8298]">
@@ -219,7 +219,7 @@ export default function Login({ status }: Props) {
                             </p>
 
                             {status ? (
-                                <div className="mt-5 rounded-md border border-[#c5d9ee] bg-[#eef5fb] px-3 py-2.5 text-[13px] font-medium text-[#1a2b4c]">
+                                <div className="mt-5 rounded-md border border-[#c5d9ee] bg-[#eef5fb] px-3 py-2.5 text-[13px] font-medium text-brand-700">
                                     {status}
                                 </div>
                             ) : null}
@@ -301,7 +301,7 @@ export default function Login({ status }: Props) {
                                                 id="remember"
                                                 name="remember"
                                                 tabIndex={3}
-                                                className="cursor-pointer border-[#9aafc2] data-[state=checked]:border-[#122038] data-[state=checked]:bg-[#122038]"
+                                                className="cursor-pointer border-[#9aafc2] data-[state=checked]:border-brand-700 data-[state=checked]:bg-brand-700"
                                             />
                                             <span className="text-[13px] text-[#5c738c]">
                                                 Recordarme
@@ -313,7 +313,7 @@ export default function Login({ status }: Props) {
                                             tabIndex={4}
                                             disabled={processing}
                                             data-test="login-button"
-                                            className="h-12 w-full cursor-pointer rounded-xl bg-[#122038] text-[15px] font-medium tracking-[-0.01em] text-white hover:bg-[#0c1626]"
+                                            className="h-12 w-full cursor-pointer rounded-xl bg-brand-700 text-[15px] font-medium tracking-[-0.01em] text-white hover:bg-[#0c1626]"
                                         >
                                             {processing ? <Spinner /> : null}
                                             Entrar

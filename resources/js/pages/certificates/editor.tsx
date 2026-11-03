@@ -101,20 +101,20 @@ function RemoveButton({ onRemove }: { onRemove: () => void }) {
 function ImageSizeControl({ label, value, onChange }: { label: string; value: number; onChange: (delta: number) => void }) {
     return (
         <div className="grid gap-1.5">
-            <Label className="text-xs text-[#1a2b4c]">{label}</Label>
+            <Label className="text-xs text-brand-700">{label}</Label>
             <div className="flex items-center gap-2">
                 <button
                     type="button"
                     onClick={() => onChange(-2)}
-                    className="h-9 w-9 cursor-pointer rounded-lg border border-[#c5d5e6] text-lg text-[#1a2b4c]"
+                    className="h-9 w-9 cursor-pointer rounded-lg border border-brand-300 text-lg text-brand-700"
                 >
                     −
                 </button>
-                <span className="min-w-12 text-sm text-[#1a2b4c]">{value}%</span>
+                <span className="min-w-12 text-sm text-brand-700">{value}%</span>
                 <button
                     type="button"
                     onClick={() => onChange(2)}
-                    className="h-9 w-9 cursor-pointer rounded-lg border border-[#c5d5e6] text-lg text-[#1a2b4c]"
+                    className="h-9 w-9 cursor-pointer rounded-lg border border-brand-300 text-lg text-brand-700"
                 >
                     +
                 </button>
@@ -203,17 +203,17 @@ function FontPicker({
                 ref={buttonRef}
                 type="button"
                 onClick={() => setOpen((currentOpen) => !currentOpen)}
-                className="flex h-9 w-full cursor-pointer items-center justify-between rounded-lg border border-[#c5d5e6] bg-white px-2 text-left text-sm text-[#1a2b4c]"
+                className="flex h-9 w-full cursor-pointer items-center justify-between rounded-lg border border-brand-300 bg-white px-2 text-left text-sm text-brand-700"
                 style={{ fontFamily: current.family }}
             >
                 <span className="truncate">{current.label}</span>
-                <span className="text-[#6b8ead]">▾</span>
+                <span className="text-muted-foreground">▾</span>
             </button>
             {open
                 ? createPortal(
                       <div
                           ref={menuRef}
-                          className="overflow-auto rounded-lg border border-[#c5d5e6] bg-white py-1 shadow-lg"
+                          className="overflow-auto rounded-lg border border-brand-300 bg-white py-1 shadow-lg"
                           style={{ position: 'fixed', top: box.top, left: box.left, width: box.width, maxHeight: box.maxHeight, zIndex: 200 }}
                       >
                           {fonts.map((font) => (
@@ -224,7 +224,7 @@ function FontPicker({
                                       onChange(font.id);
                                       setOpen(false);
                                   }}
-                                  className="block w-full cursor-pointer px-3 py-2 text-left text-lg leading-tight text-[#1a2b4c] hover:bg-[#e8f0fb]"
+                                  className="block w-full cursor-pointer px-3 py-2 text-left text-lg leading-tight text-brand-700 hover:bg-[#e8f0fb]"
                                   style={{
                                       fontFamily: font.family,
                                       background: font.id === value ? '#dbe7f8' : undefined,
@@ -467,23 +467,23 @@ export default function CertificateEditor({
             <form onSubmit={submit} className="flex w-full flex-col gap-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                        <Link href="/certificados" className="text-xs font-medium text-[#2e5a9e] hover:underline">
+                        <Link href="/certificados" className="text-xs font-medium text-brand-500 hover:underline">
                             Volver a plantillas
                         </Link>
-                        <h1 className="mt-1 text-xl font-semibold text-[#1a2b4c]">
+                        <h1 className="mt-1 text-xl font-semibold text-brand-700">
                             {template ? 'Editar plantilla' : 'Nueva plantilla'}
                         </h1>
                     </div>
-                    <Button type="submit" disabled={form.processing} className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]">
+                    <Button type="submit" disabled={form.processing} className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700">
                         Guardar plantilla
                     </Button>
                 </div>
 
                 <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
                     <div className="space-y-4">
-                        <section className="space-y-3 rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
+                        <section className="space-y-3 rounded-2xl border border-brand-200 bg-white p-4 shadow-sm">
                             <div className="grid gap-1.5">
-                                <Label className="text-xs text-[#1a2b4c]">Inducción</Label>
+                                <Label className="text-xs text-brand-700">Inducción</Label>
                                 <SearchableCombobox
                                     value={form.data.induction_id || null}
                                     options={inductions.map((induction) => ({
@@ -499,23 +499,23 @@ export default function CertificateEditor({
                                 {form.errors.induction_id ? <p className="text-xs text-red-600">{form.errors.induction_id}</p> : null}
                             </div>
                             <div className="grid gap-1.5">
-                                <Label className="text-xs text-[#1a2b4c]">Nombre de la plantilla</Label>
-                                <Input value={form.data.name} onChange={(event) => form.setData('name', event.target.value)} className="h-10 border-[#c5d5e6]" />
+                                <Label className="text-xs text-brand-700">Nombre de la plantilla</Label>
+                                <Input value={form.data.name} onChange={(event) => form.setData('name', event.target.value)} className="h-10 border-brand-300" />
                                 {form.errors.name ? <p className="text-xs text-red-600">{form.errors.name}</p> : null}
                             </div>
                             <div className="grid gap-1.5">
-                                <Label className="text-xs text-[#1a2b4c]">Vigencia (meses)</Label>
+                                <Label className="text-xs text-brand-700">Vigencia (meses)</Label>
                                 <Input
                                     type="number"
                                     min={1}
                                     max={120}
                                     value={form.data.validity_months}
                                     onChange={(event) => form.setData('validity_months', Number(event.target.value))}
-                                    className="h-10 border-[#c5d5e6]"
+                                    className="h-10 border-brand-300"
                                 />
                             </div>
                             <div className="grid gap-1.5">
-                                <Label className="text-xs text-[#1a2b4c]">Fondo del certificado</Label>
+                                <Label className="text-xs text-brand-700">Fondo del certificado</Label>
                                 <Input
                                     type="file"
                                     accept="image/jpeg,image/png,image/webp"
@@ -527,7 +527,7 @@ export default function CertificateEditor({
                                             setRemoveBackground(false);
                                         }
                                     }}
-                                    className="h-10 border-[#c5d5e6]"
+                                    className="h-10 border-brand-300"
                                 />
                                 {backgroundPreview ? (
                                     <button
@@ -544,7 +544,7 @@ export default function CertificateEditor({
                                 ) : null}
                             </div>
                             <div className="grid gap-1.5">
-                                <Label className="text-xs text-[#1a2b4c]">Logo</Label>
+                                <Label className="text-xs text-brand-700">Logo</Label>
                                 <Input
                                     type="file"
                                     accept="image/jpeg,image/png,image/webp"
@@ -556,7 +556,7 @@ export default function CertificateEditor({
                                             setShowLogo(true);
                                         }
                                     }}
-                                    className="h-10 border-[#c5d5e6]"
+                                    className="h-10 border-brand-300"
                                 />
                                 <ImageSizeControl
                                     label="Tamaño del logo"
@@ -574,26 +574,26 @@ export default function CertificateEditor({
                                         Quitar logo
                                     </button>
                                 ) : (
-                                    <button type="button" onClick={() => setShowLogo(true)} className="cursor-pointer text-left text-xs font-medium text-[#2e5a9e]">
+                                    <button type="button" onClick={() => setShowLogo(true)} className="cursor-pointer text-left text-xs font-medium text-brand-500">
                                         Poner logo
                                     </button>
                                 )}
                             </div>
                         </section>
 
-                        <section className="space-y-3 rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
-                            <h2 className="text-sm font-semibold text-[#1a2b4c]">Quien firma</h2>
+                        <section className="space-y-3 rounded-2xl border border-brand-200 bg-white p-4 shadow-sm">
+                            <h2 className="text-sm font-semibold text-brand-700">Quien firma</h2>
                             <div className="grid gap-1.5">
-                                <Label className="text-xs text-[#1a2b4c]">Nombre</Label>
-                                <Input value={form.data.issuer_name} onChange={(event) => form.setData('issuer_name', event.target.value)} className="h-10 border-[#c5d5e6]" />
+                                <Label className="text-xs text-brand-700">Nombre</Label>
+                                <Input value={form.data.issuer_name} onChange={(event) => form.setData('issuer_name', event.target.value)} className="h-10 border-brand-300" />
                                 {form.errors.issuer_name ? <p className="text-xs text-red-600">{form.errors.issuer_name}</p> : null}
                             </div>
                             <div className="grid gap-1.5">
-                                <Label className="text-xs text-[#1a2b4c]">Cargo</Label>
-                                <Input value={form.data.issuer_title} onChange={(event) => form.setData('issuer_title', event.target.value)} className="h-10 border-[#c5d5e6]" />
+                                <Label className="text-xs text-brand-700">Cargo</Label>
+                                <Input value={form.data.issuer_title} onChange={(event) => form.setData('issuer_title', event.target.value)} className="h-10 border-brand-300" />
                             </div>
                             <div className="grid gap-1.5">
-                                <Label className="text-xs text-[#1a2b4c]">Firma</Label>
+                                <Label className="text-xs text-brand-700">Firma</Label>
                                 <Input
                                     type="file"
                                     accept="image/jpeg,image/png,image/webp"
@@ -605,7 +605,7 @@ export default function CertificateEditor({
                                             setShowSignature(true);
                                         }
                                     }}
-                                    className="h-10 border-[#c5d5e6]"
+                                    className="h-10 border-brand-300"
                                 />
                                 <ImageSizeControl
                                     label="Tamaño de la firma"
@@ -623,7 +623,7 @@ export default function CertificateEditor({
                                         Quitar firma
                                     </button>
                                 ) : (
-                                    <button type="button" onClick={() => setShowSignature(true)} className="cursor-pointer text-left text-xs font-medium text-[#2e5a9e]">
+                                    <button type="button" onClick={() => setShowSignature(true)} className="cursor-pointer text-left text-xs font-medium text-brand-500">
                                         Poner firma
                                     </button>
                                 )}
@@ -638,15 +638,15 @@ export default function CertificateEditor({
                                     Quitar QR
                                 </button>
                             ) : (
-                                <button type="button" onClick={() => setShowQr(true)} className="cursor-pointer text-left text-xs font-medium text-[#2e5a9e]">
+                                <button type="button" onClick={() => setShowQr(true)} className="cursor-pointer text-left text-xs font-medium text-brand-500">
                                     Poner QR
                                 </button>
                             )}
                         </section>
 
-                        <section className="space-y-3 rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
-                            <h2 className="text-sm font-semibold text-[#1a2b4c]">Variables</h2>
-                            <p className="text-xs text-[#5a7390]">
+                        <section className="space-y-3 rounded-2xl border border-brand-200 bg-white p-4 shadow-sm">
+                            <h2 className="text-sm font-semibold text-brand-700">Variables</h2>
+                            <p className="text-xs text-muted-foreground">
                                 Se llenan con los datos de la inducción y de cada participante. Pulsa una para ponerla en el certificado.
                             </p>
                             <div className="flex flex-wrap gap-1.5">
@@ -655,37 +655,37 @@ export default function CertificateEditor({
                                         key={variable.key}
                                         type="button"
                                         onClick={() => addBlock(`{{${variable.key}}}`)}
-                                        className="cursor-pointer rounded-full border border-[#c5d5e6] px-2 py-1 text-[11px] text-[#1a2b4c] hover:bg-[#e8f1fa]"
+                                        className="cursor-pointer rounded-full border border-brand-300 px-2 py-1 text-[11px] text-brand-700 hover:bg-brand-100"
                                         title={variable.label}
                                     >
                                         {variable.label}
                                     </button>
                                 ))}
                             </div>
-                            <div className="grid gap-2 border-t border-[#e2eaf3] pt-3">
-                                <p className="text-xs font-medium text-[#1a2b4c]">Variable propia</p>
+                            <div className="grid gap-2 border-t border-brand-200 pt-3">
+                                <p className="text-xs font-medium text-brand-700">Variable propia</p>
                                 <Input
                                     placeholder="clave, ej. resolucion"
                                     value={customDraft.key}
                                     onChange={(event) => setCustomDraft((current) => ({ ...current, key: event.target.value }))}
-                                    className="h-9 border-[#c5d5e6]"
+                                    className="h-9 border-brand-300"
                                 />
                                 <Input
                                     placeholder="Nombre visible"
                                     value={customDraft.label}
                                     onChange={(event) => setCustomDraft((current) => ({ ...current, label: event.target.value }))}
-                                    className="h-9 border-[#c5d5e6]"
+                                    className="h-9 border-brand-300"
                                 />
                                 <Input
                                     placeholder="Texto que se imprime"
                                     value={customDraft.value}
                                     onChange={(event) => setCustomDraft((current) => ({ ...current, value: event.target.value }))}
-                                    className="h-9 border-[#c5d5e6]"
+                                    className="h-9 border-brand-300"
                                 />
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    className="cursor-pointer border-[#c5d5e6]"
+                                    className="cursor-pointer border-brand-300"
                                     onClick={() => {
                                         const key = customDraft.key.toLowerCase().replace(/[^a-z0-9_]/g, '');
                                         if (!/^[a-z][a-z0-9_]{0,30}$/.test(key)) {
@@ -705,21 +705,21 @@ export default function CertificateEditor({
                         </section>
 
                         {selectedBlock ? (
-                            <section className="space-y-2 rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
-                                <h2 className="text-sm font-semibold text-[#1a2b4c]">Texto seleccionado</h2>
+                            <section className="space-y-2 rounded-2xl border border-brand-200 bg-white p-4 shadow-sm">
+                                <h2 className="text-sm font-semibold text-brand-700">Texto seleccionado</h2>
                                 <textarea
                                     value={selectedBlock.text}
                                     onChange={(event) => patchBlock(selectedBlock.id, { text: event.target.value })}
                                     rows={4}
-                                    className="w-full rounded-lg border border-[#c5d5e6] p-2 text-sm"
+                                    className="w-full rounded-lg border border-brand-300 p-2 text-sm"
                                 />
                                 <div className="grid gap-1.5">
-                                    <Label className="text-xs text-[#1a2b4c]">Tamaño</Label>
+                                    <Label className="text-xs text-brand-700">Tamaño</Label>
                                     <div className="flex items-center gap-2">
                                         <button
                                             type="button"
                                             onClick={() => patchBlock(selectedBlock.id, { size: clamp(selectedBlock.size - 2, 8, 96) })}
-                                            className="h-9 w-9 cursor-pointer rounded-lg border border-[#c5d5e6] text-lg text-[#1a2b4c]"
+                                            className="h-9 w-9 cursor-pointer rounded-lg border border-brand-300 text-lg text-brand-700"
                                         >
                                             −
                                         </button>
@@ -729,12 +729,12 @@ export default function CertificateEditor({
                                             max={96}
                                             value={selectedBlock.size}
                                             onChange={(event) => patchBlock(selectedBlock.id, { size: clamp(Number(event.target.value) || 8, 8, 96) })}
-                                            className="h-9 border-[#c5d5e6]"
+                                            className="h-9 border-brand-300"
                                         />
                                         <button
                                             type="button"
                                             onClick={() => patchBlock(selectedBlock.id, { size: clamp(selectedBlock.size + 2, 8, 96) })}
-                                            className="h-9 w-9 cursor-pointer rounded-lg border border-[#c5d5e6] text-lg text-[#1a2b4c]"
+                                            className="h-9 w-9 cursor-pointer rounded-lg border border-brand-300 text-lg text-brand-700"
                                         >
                                             +
                                         </button>
@@ -742,7 +742,7 @@ export default function CertificateEditor({
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
                                     <div className="grid gap-1.5">
-                                        <Label className="text-xs text-[#1a2b4c]">Fuente</Label>
+                                        <Label className="text-xs text-brand-700">Fuente</Label>
                                         <FontPicker
                                             fonts={fonts}
                                             value={selectedBlock.font}
@@ -750,11 +750,11 @@ export default function CertificateEditor({
                                         />
                                     </div>
                                     <div className="grid gap-1.5">
-                                        <Label className="text-xs text-[#1a2b4c]">Alineación</Label>
+                                        <Label className="text-xs text-brand-700">Alineación</Label>
                                         <select
                                             value={selectedBlock.align}
                                             onChange={(event) => patchBlock(selectedBlock.id, { align: event.target.value as Block['align'] })}
-                                            className="h-9 rounded-lg border border-[#c5d5e6] bg-white px-2 text-sm"
+                                            className="h-9 rounded-lg border border-brand-300 bg-white px-2 text-sm"
                                         >
                                             <option value="left">Izquierda</option>
                                             <option value="center">Centro</option>
@@ -762,7 +762,7 @@ export default function CertificateEditor({
                                         </select>
                                     </div>
                                 </div>
-                                <label className="flex items-center gap-2 text-xs text-[#1a2b4c]">
+                                <label className="flex items-center gap-2 text-xs text-brand-700">
                                     <input
                                         type="checkbox"
                                         checked={selectedBlock.weight === 'bold'}
@@ -784,11 +784,11 @@ export default function CertificateEditor({
                         ) : null}
                     </div>
 
-                    <div className="rounded-2xl border border-[#d7e3f0] bg-[#eef3f8] p-3 shadow-sm">
-                        <p className="mb-2 text-xs text-[#5a7390]">Arrastra los elementos. La × los quita. La vista usa un participante de muestra.</p>
+                    <div className="rounded-2xl border border-brand-200 bg-muted p-3 shadow-sm">
+                        <p className="mb-2 text-xs text-muted-foreground">Arrastra los elementos. La × los quita. La vista usa un participante de muestra.</p>
                         <div
                             ref={canvasRef}
-                            className="relative aspect-[297/210] w-full overflow-hidden rounded-lg border border-[#d7e3f0] bg-white"
+                            className="relative aspect-[297/210] w-full overflow-hidden rounded-lg border border-brand-200 bg-white"
                             onPointerDown={() => setSelected(null)}
                         >
                             {backgroundPreview ? (
@@ -806,14 +806,14 @@ export default function CertificateEditor({
                                     top: `${logoBox.y}%`,
                                     width: `${logoBox.w}%`,
                                     height: `${logoBox.h}%`,
-                                    outline: selected === 'logo' ? '1px dashed #2e5a9e' : undefined,
+                                    outline: selected === 'logo' ? '1px dashed #1e4d8c' : undefined,
                                 }}
                             >
                                 <RemoveButton onRemove={() => { setShowLogo(false); setSelected(null); }} />
                                 {logoPreview ? (
                                     <img src={logoPreview} alt="Logo" className="h-full w-full object-contain" />
                                 ) : (
-                                    <p className="flex h-full items-center justify-center rounded border border-dashed border-[#6b8ead] text-center text-[10px] text-[#6b8ead]">Logo</p>
+                                    <p className="flex h-full items-center justify-center rounded border border-dashed border-muted-foreground text-center text-[10px] text-muted-foreground">Logo</p>
                                 )}
                             </div>
                             ) : null}
@@ -834,7 +834,7 @@ export default function CertificateEditor({
                                         fontFamily: fontFamily(fonts, block.font),
                                         fontWeight: block.weight,
                                         color: block.color,
-                                        outline: selected === block.id ? '1px dashed #2e5a9e' : undefined,
+                                        outline: selected === block.id ? '1px dashed #1e4d8c' : undefined,
                                     }}
                                 >
                                     {fill(block.text, previewValues)}
@@ -860,14 +860,14 @@ export default function CertificateEditor({
                                     top: `${signatureBox.y}%`,
                                     width: `${signatureBox.w}%`,
                                     height: `${signatureBox.h}%`,
-                                    outline: selected === 'signature' ? '1px dashed #2e5a9e' : undefined,
+                                    outline: selected === 'signature' ? '1px dashed #1e4d8c' : undefined,
                                 }}
                             >
                                 <RemoveButton onRemove={() => { setShowSignature(false); setSelected(null); }} />
                                 {signaturePreview ? (
                                     <img src={signaturePreview} alt="Firma" className="h-full w-full object-contain" />
                                 ) : (
-                                    <p className="flex h-full items-center justify-center text-center text-[10px] text-[#6b8ead]">Firma</p>
+                                    <p className="flex h-full items-center justify-center text-center text-[10px] text-muted-foreground">Firma</p>
                                 )}
                             </div>
                             ) : null}
@@ -877,13 +877,13 @@ export default function CertificateEditor({
                                     setSelected('qr');
                                     drag(event, qr, (x, y) => setQr((current) => ({ ...current, x, y })));
                                 }}
-                                className="absolute flex cursor-move items-center justify-center border border-[#1a2b4c] bg-white text-[10px] font-semibold text-[#1a2b4c]"
+                                className="absolute flex cursor-move items-center justify-center border border-brand-700 bg-white text-[10px] font-semibold text-brand-700"
                                 style={{
                                     left: `${qr.x}%`,
                                     top: `${qr.y}%`,
                                     width: `${qr.size}%`,
                                     aspectRatio: '1',
-                                    outline: selected === 'qr' ? '1px dashed #2e5a9e' : undefined,
+                                    outline: selected === 'qr' ? '1px dashed #1e4d8c' : undefined,
                                 }}
                             >
                                 <RemoveButton onRemove={() => { setShowQr(false); setSelected(null); }} />
@@ -896,11 +896,11 @@ export default function CertificateEditor({
             </form>
 
             {template ? (
-                <section className="w-full rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
+                <section className="w-full rounded-2xl border border-brand-200 bg-white p-4 shadow-sm">
                     <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <h2 className="text-sm font-semibold text-[#1a2b4c]">Emitir certificados</h2>
-                            <p className="text-xs text-[#5a7390]">Quienes asistieron y firmaron reciben el PDF en el correo de su unidad. El QR abre la verificación de esa persona.</p>
+                            <h2 className="text-sm font-semibold text-brand-700">Emitir certificados</h2>
+                            <p className="text-xs text-muted-foreground">Quienes asistieron y firmaron reciben el PDF en el correo de su unidad. El QR abre la verificación de esa persona.</p>
                         </div>
                         <div className="flex flex-wrap gap-2">
                             <Button
@@ -910,7 +910,7 @@ export default function CertificateEditor({
                                     setPreviewAttendeeId(attendees[0]?.id ?? null);
                                     setPreviewOpen(true);
                                 }}
-                                className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                                className="cursor-pointer border-brand-300 text-brand-700"
                             >
                                 Previsualizar
                             </Button>
@@ -918,7 +918,7 @@ export default function CertificateEditor({
                                 type="button"
                                 disabled={attendedIds.length === 0}
                                 onClick={() => emit(attendedIds)}
-                                className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                                className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700"
                             >
                                 Emitir a quienes asistieron
                             </Button>
@@ -926,7 +926,7 @@ export default function CertificateEditor({
                                 type="button"
                                 disabled={sendingCertificates || attendees.length === 0}
                                 onClick={sendCertificates}
-                                className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c]"
+                                className="cursor-pointer bg-brand-500 text-white hover:bg-brand-700"
                             >
                                 {sendingCertificates ? 'Enviando…' : 'Enviar a los conductores'}
                             </Button>
@@ -934,7 +934,7 @@ export default function CertificateEditor({
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm">
-                            <thead className="text-xs uppercase text-[#6b8ead]">
+                            <thead className="text-xs uppercase text-muted-foreground">
                                 <tr>
                                     <th className="py-2 pr-3">Participante</th>
                                     <th className="py-2 pr-3">DNI</th>
@@ -946,7 +946,7 @@ export default function CertificateEditor({
                             </thead>
                             <tbody>
                                 {attendees.map((attendee) => (
-                                    <tr key={attendee.id} className="border-t border-[#e2eaf3]">
+                                    <tr key={attendee.id} className="border-t border-brand-200">
                                         <td className="py-2 pr-3">{attendee.name}</td>
                                         <td className="py-2 pr-3">{attendee.dni || '—'}</td>
                                         <td className="py-2 pr-3">{attendee.email || 'Sin correo'}</td>
@@ -959,16 +959,16 @@ export default function CertificateEditor({
                                                     setPreviewAttendeeId(attendee.id);
                                                     setPreviewOpen(true);
                                                 }}
-                                                className="mr-3 cursor-pointer font-medium text-[#2e5a9e] hover:underline"
+                                                className="mr-3 cursor-pointer font-medium text-brand-500 hover:underline"
                                             >
                                                 Vista previa
                                             </button>
                                             {attendee.certificate_id ? (
-                                                <a href={`/certificados/${attendee.certificate_id}/pdf`} target="_blank" rel="noopener noreferrer" className="font-medium text-[#2e5a9e] hover:underline">
+                                                <a href={`/certificados/${attendee.certificate_id}/pdf`} target="_blank" rel="noopener noreferrer" className="font-medium text-brand-500 hover:underline">
                                                     PDF
                                                 </a>
                                             ) : (
-                                                <button type="button" onClick={() => emit([attendee.id])} className="cursor-pointer font-medium text-[#2e5a9e] hover:underline">
+                                                <button type="button" onClick={() => emit([attendee.id])} className="cursor-pointer font-medium text-brand-500 hover:underline">
                                                     Emitir
                                                 </button>
                                             )}
@@ -979,11 +979,11 @@ export default function CertificateEditor({
                         </table>
                     </div>
                     {issued.length > 0 ? (
-                        <ul className="mt-3 space-y-1 text-xs text-[#5a7390]">
+                        <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
                             {issued.map((item) => (
                                 <li key={item.id}>
                                     {item.code} · {item.name} · vence {item.expires_on} ·{' '}
-                                    <a href={item.verify_url} target="_blank" rel="noopener noreferrer" className="text-[#2e5a9e] hover:underline">
+                                    <a href={item.verify_url} target="_blank" rel="noopener noreferrer" className="text-brand-500 hover:underline">
                                         Verificar
                                     </a>
                                 </li>

@@ -41,14 +41,14 @@ export function DashboardDonutChart({
     return (
         <div
             className={cn(
-                'rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm',
+                'rounded-2xl border border-brand-200 bg-white p-4 shadow-sm',
                 className,
             )}
         >
             <div className="mb-4">
-                <h3 className="text-sm font-semibold text-[#1a2b4c]">{title}</h3>
+                <h3 className="text-sm font-semibold text-brand-700">{title}</h3>
                 {subtitle ? (
-                    <p className="mt-0.5 text-xs text-[#6b8ead]">{subtitle}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
                 ) : null}
             </div>
 
@@ -70,7 +70,7 @@ export function DashboardDonutChart({
                                 cy="70"
                                 r={radius}
                                 fill="none"
-                                stroke={arc.color ?? '#2e5a9e'}
+                                stroke={arc.color ?? '#1e4d8c'}
                                 strokeWidth="16"
                                 strokeDasharray={`${arc.dash} ${arc.gap}`}
                                 strokeDashoffset={-arc.offset}
@@ -79,10 +79,10 @@ export function DashboardDonutChart({
                         ))}
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-2xl font-semibold text-[#1a2b4c]">
+                        <span className="text-2xl font-semibold text-brand-700">
                             {total}
                         </span>
-                        <span className="text-[10px] tracking-wide text-[#6b8ead] uppercase">
+                        <span className="text-[10px] tracking-wide text-muted-foreground uppercase">
                             Total
                         </span>
                     </div>
@@ -94,19 +94,19 @@ export function DashboardDonutChart({
                             key={item.label}
                             className="flex items-center justify-between gap-3 text-xs"
                         >
-                            <span className="flex min-w-0 items-center gap-2 text-[#5a7390]">
+                            <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
                                 <span
                                     className="size-2.5 shrink-0 rounded-full"
                                     style={{
-                                        backgroundColor: item.color ?? '#2e5a9e',
+                                        backgroundColor: item.color ?? '#1e4d8c',
                                     }}
                                 />
                                 <span className="truncate">{item.label}</span>
                             </span>
-                            <span className="font-semibold text-[#1a2b4c]">
+                            <span className="font-semibold text-brand-700">
                                 {item.value}
                                 {total > 0 ? (
-                                    <span className="ml-1 font-normal text-[#6b8ead]">
+                                    <span className="ml-1 font-normal text-muted-foreground">
                                         ({Math.round((item.value / total) * 100)}
                                         %)
                                     </span>

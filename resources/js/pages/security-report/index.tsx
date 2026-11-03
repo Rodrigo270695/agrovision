@@ -116,7 +116,7 @@ export default function SecurityReportPage() {
 
                 <PlatformToolbar>
                     <div className="w-full sm:w-auto">
-                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                             Fecha
                         </p>
                         <DateRangeFilter
@@ -134,7 +134,7 @@ export default function SecurityReportPage() {
                             }
                         />
                     </div>
-                    <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-64">
+                    <label className="w-full text-[11px] font-semibold tracking-wide text-muted-foreground uppercase sm:w-64">
                         Coordinador
                         <select
                             value={filters.coordinator_id ?? ''}
@@ -147,7 +147,7 @@ export default function SecurityReportPage() {
                                 })
                             }
                             disabled={scoped}
-                            className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c] normal-case disabled:cursor-not-allowed disabled:opacity-60"
+                            className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-brand-300 bg-white px-2 text-xs font-medium text-brand-700 normal-case disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {scoped ? null : <option value="">Todos</option>}
                             {coordinators.map((coordinator) => (
@@ -160,7 +160,7 @@ export default function SecurityReportPage() {
                             ))}
                         </select>
                     </label>
-                    <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-64">
+                    <label className="w-full text-[11px] font-semibold tracking-wide text-muted-foreground uppercase sm:w-64">
                         Inspector
                         <select
                             value={filters.inspector_id ?? ''}
@@ -172,7 +172,7 @@ export default function SecurityReportPage() {
                                             : Number(event.target.value),
                                 })
                             }
-                            className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c] normal-case"
+                            className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-brand-300 bg-white px-2 text-xs font-medium text-brand-700 normal-case"
                         >
                             <option value="">Todos</option>
                             {inspectors.map((inspector) => (
@@ -186,7 +186,7 @@ export default function SecurityReportPage() {
                         href={pdfHref(filters, unitGroup)}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex h-10 items-center rounded-lg bg-[#1a2b4c] px-4 text-xs font-semibold text-white"
+                        className="inline-flex h-10 items-center rounded-lg bg-brand-700 px-4 text-xs font-semibold text-white"
                     >
                         Descargar PDF
                     </a>
@@ -194,13 +194,13 @@ export default function SecurityReportPage() {
 
                 <div className="grid gap-4 xl:grid-cols-2">
                     <PlatformContentPanel className="p-4">
-                        <h2 className="text-base font-bold tracking-wide text-[#1a2b4c] uppercase underline decoration-2 underline-offset-4">
+                        <h2 className="text-base font-bold tracking-wide text-brand-700 uppercase underline decoration-2 underline-offset-4">
                             Unidades móviles activas
                         </h2>
                         <div className="mt-4 overflow-x-auto">
                             <table className="w-full min-w-72 text-sm">
                                 <thead>
-                                    <tr className="bg-[#e8eef8] text-left text-[11px] font-bold tracking-wide text-[#1a2b4c] uppercase">
+                                    <tr className="bg-[#e8eef8] text-left text-[11px] font-bold tracking-wide text-brand-700 uppercase">
                                         <th className="px-3 py-2">Tipo de unidad</th>
                                         <th className="px-3 py-2">Cantidad</th>
                                     </tr>
@@ -210,7 +210,7 @@ export default function SecurityReportPage() {
                                         <tr>
                                             <td
                                                 colSpan={2}
-                                                className="px-3 py-6 text-center text-xs text-[#6b8ead]"
+                                                className="px-3 py-6 text-center text-xs text-muted-foreground"
                                             >
                                                 No hay unidades en el periodo
                                                 activo.
@@ -222,10 +222,10 @@ export default function SecurityReportPage() {
                                                 key={row.type}
                                                 className="border-b border-[#e8eef5]"
                                             >
-                                                <td className="px-3 py-2 font-medium text-[#1a2b4c]">
+                                                <td className="px-3 py-2 font-medium text-brand-700">
                                                     {row.type}
                                                 </td>
-                                                <td className="px-3 py-2 text-[#1a2b4c]">
+                                                <td className="px-3 py-2 text-brand-700">
                                                     {row.count}
                                                     {row.delta === null
                                                         ? ''
@@ -238,17 +238,17 @@ export default function SecurityReportPage() {
                             </table>
                         </div>
                         <div className="mt-4 flex items-center justify-between gap-3">
-                            <p className="text-sm font-semibold text-[#1a2b4c]">
+                            <p className="text-sm font-semibold text-brand-700">
                                 Total de unidades para transporte de personal
                             </p>
-                            <span className="inline-flex min-w-14 items-center justify-center rounded-md bg-[#1a2b4c] px-3 py-2 text-lg font-bold text-white">
+                            <span className="inline-flex min-w-14 items-center justify-center rounded-md bg-brand-700 px-3 py-2 text-lg font-bold text-white">
                                 {summary.total}
                             </span>
                         </div>
                     </PlatformContentPanel>
 
                     <PlatformContentPanel className="p-4">
-                        <h2 className="text-base font-bold tracking-wide text-[#1a2b4c] uppercase underline decoration-2 underline-offset-4">
+                        <h2 className="text-base font-bold tracking-wide text-brand-700 uppercase underline decoration-2 underline-offset-4">
                             Avance de inspecciones
                         </h2>
                         <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
@@ -264,13 +264,13 @@ export default function SecurityReportPage() {
                                         <th className="bg-[#22c55e] px-2 py-2">
                                             Hechas
                                         </th>
-                                        <th className="bg-[#e8eef8] px-2 py-2 text-[#1a2b4c]">
+                                        <th className="bg-[#e8eef8] px-2 py-2 text-brand-700">
                                             Total
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr className="border-b border-[#e8eef5] font-semibold text-[#1a2b4c]">
+                                    <tr className="border-b border-[#e8eef5] font-semibold text-brand-700">
                                         <td className="px-2 py-2">
                                             {summary.pendiente}
                                         </td>
@@ -290,7 +290,7 @@ export default function SecurityReportPage() {
                             approved={summary.approved}
                             rejected={summary.rejected}
                         />
-                        <div className="mt-4 text-xs text-[#1a2b4c]">
+                        <div className="mt-4 text-xs text-brand-700">
                             {full_coverage.length === 0 ? (
                                 <p>
                                     Ningún requisito está al 100% en todas las
@@ -315,10 +315,10 @@ export default function SecurityReportPage() {
                 <PlatformContentPanel className="p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                         <div>
-                            <h2 className="text-base font-bold tracking-wide text-[#1a2b4c] uppercase">
+                            <h2 className="text-base font-bold tracking-wide text-brand-700 uppercase">
                                 Unidades
                             </h2>
-                            <p className="mt-1 text-xs text-[#5a7390]">
+                            <p className="mt-1 text-xs text-muted-foreground">
                                 OK, No OK y pendientes suman el total de{' '}
                                 {summary.total}.
                             </p>
@@ -339,8 +339,8 @@ export default function SecurityReportPage() {
                                     className={cn(
                                         'cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold',
                                         unitGroup === value
-                                            ? 'bg-[#1a2b4c] text-white'
-                                            : 'border border-[#c5d5e6] text-[#1a2b4c]',
+                                            ? 'bg-brand-700 text-white'
+                                            : 'border border-brand-300 text-brand-700',
                                     )}
                                 >
                                     {label} {count}
@@ -348,7 +348,7 @@ export default function SecurityReportPage() {
                             ))}
                             <a
                                 href={excelHref(filters, unitGroup)}
-                                className="inline-flex h-9 cursor-pointer items-center rounded-lg border border-[#1a2b4c] px-3 text-xs font-semibold text-[#1a2b4c] hover:bg-[#e8f1fa]"
+                                className="inline-flex h-9 cursor-pointer items-center rounded-lg border border-brand-700 px-3 text-xs font-semibold text-brand-700 hover:bg-brand-100"
                             >
                                 Descargar Excel
                             </a>
@@ -357,7 +357,7 @@ export default function SecurityReportPage() {
                     <div className="mt-4 overflow-x-auto">
                         <table className="w-full min-w-[860px] border-collapse text-left text-xs">
                             <thead>
-                                <tr className="bg-[#1a2b4c] text-[11px] font-bold tracking-wide text-white uppercase">
+                                <tr className="bg-brand-700 text-[11px] font-bold tracking-wide text-white uppercase">
                                     <th className="px-2 py-2">N°</th>
                                     <th className="px-2 py-2">Tipo de servicio</th>
                                     <th className="px-2 py-2">Placa</th>
@@ -374,7 +374,7 @@ export default function SecurityReportPage() {
                                     <tr>
                                         <td
                                             colSpan={9}
-                                            className="px-3 py-8 text-center text-sm text-[#5a7390]"
+                                            className="px-3 py-8 text-center text-sm text-muted-foreground"
                                         >
                                             {emptyUnitMessage(unitGroup)}
                                         </td>
@@ -383,7 +383,7 @@ export default function SecurityReportPage() {
                                     visibleUnits.map((row, index) => (
                                         <tr
                                             key={row.id}
-                                            className="border-b border-[#e8eef5] text-[#1a2b4c]"
+                                            className="border-b border-[#e8eef5] text-brand-700"
                                         >
                                             <td className="px-2 py-2">
                                                 {index + 1}
@@ -436,7 +436,7 @@ export default function SecurityReportPage() {
                             </tbody>
                         </table>
                     </div>
-                    <p className="mt-3 inline-block bg-[#fde68a] px-2 py-1 text-xs font-semibold text-[#1a2b4c]">
+                    <p className="mt-3 inline-block bg-[#fde68a] px-2 py-1 text-xs font-semibold text-brand-700">
                         (*) Unidad de baja. Sale así cuando no vino en la
                         última carga o cuando la observación dice baja.
                     </p>
@@ -617,12 +617,12 @@ function Donut({ summary }: { summary: Summary }) {
                     ))}
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-xl font-bold text-[#1a2b4c]">
+                    <span className="text-xl font-bold text-brand-700">
                         {summary.total === 0 ? '—' : `${summary.percent}%`}
                     </span>
                 </div>
             </div>
-            <p className="mt-1 text-[11px] text-[#5a7390]">Hechas del total</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">Hechas del total</p>
         </div>
     );
 }

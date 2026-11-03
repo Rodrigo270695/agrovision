@@ -65,20 +65,20 @@ export default function ConsolidationShowPage() {
             />
             <div className="flex flex-col gap-4 p-4">
                 <div className="mx-auto w-full max-w-5xl space-y-4">
-                    <div className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-5">
+                    <div className="rounded-2xl border border-brand-200 bg-white p-4 shadow-sm sm:p-5">
                         <Link
                             href="/consolidados"
-                            className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-[#2e5a9e] hover:underline"
+                            className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-brand-500 hover:underline"
                         >
                             <ArrowLeft className="size-3.5" />
                             Volver a consolidados
                         </Link>
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                                <h1 className="text-xl font-semibold text-[#1a2b4c]">
+                                <h1 className="text-xl font-semibold text-brand-700">
                                     Consolidado {checklist.plate_number}
                                 </h1>
-                                <p className="text-sm text-[#5a7390]">
+                                <p className="text-sm text-muted-foreground">
                                     {(checklist.template?.type ?? '').toUpperCase()}{' '}
                                     · {checklist.period?.name ?? 'Periodo'} ·{' '}
                                     {checklist.driver_name || 'Sin conductor'}
@@ -102,7 +102,7 @@ export default function ConsolidationShowPage() {
                                 type="button"
                                 variant="outline"
                                 asChild
-                                className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                                className="cursor-pointer border-brand-300 text-brand-700"
                             >
                                 <a
                                     href={`/inspecciones/${checklist.id}/pdf`}
@@ -118,12 +118,12 @@ export default function ConsolidationShowPage() {
                     {checklist.can_respond ? (
                         <form
                             onSubmit={handleSubmit}
-                            className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-5"
+                            className="rounded-2xl border border-brand-200 bg-white p-4 shadow-sm sm:p-5"
                         >
-                            <h2 className="text-sm font-semibold text-[#1a2b4c]">
+                            <h2 className="text-sm font-semibold text-brand-700">
                                 Recibido y plan de acción
                             </h2>
-                            <p className="mt-1 text-xs text-[#5a7390]">
+                            <p className="mt-1 text-xs text-muted-foreground">
                                 Firma el recibido, describe el descargo / plan de
                                 acción y envía la respuesta. El consolidado
                                 pasará a estado Revisado.
@@ -131,16 +131,16 @@ export default function ConsolidationShowPage() {
 
                             <div className="mt-4 grid gap-3">
                                 <div className="grid gap-1.5">
-                                    <Label className="text-xs text-[#1a2b4c]">
+                                    <Label className="text-xs text-brand-700">
                                         Nombre de quien recibe{' '}
                                         <span className="text-red-500">*</span>
                                     </Label>
                                     <Input
                                         value={form.data.coordinator_signer_name}
                                         readOnly
-                                        className="h-9 border-[#c5d5e6] bg-[#f8fafc] text-[#1a2b4c]"
+                                        className="h-9 border-brand-300 bg-background text-brand-700"
                                     />
-                                    <p className="text-[11px] text-[#5a7390]">
+                                    <p className="text-[11px] text-muted-foreground">
                                         Se completa automáticamente con el
                                         coordinador en sesión.
                                     </p>
@@ -152,7 +152,7 @@ export default function ConsolidationShowPage() {
                                 </div>
 
                                 <div className="grid gap-1.5">
-                                    <Label className="text-xs text-[#1a2b4c]">
+                                    <Label className="text-xs text-brand-700">
                                         Plan de acción / descargo{' '}
                                         <span className="text-red-500">*</span>
                                     </Label>
@@ -165,7 +165,7 @@ export default function ConsolidationShowPage() {
                                             )
                                         }
                                         rows={5}
-                                        className="border-[#c5d5e6]"
+                                        className="border-brand-300"
                                         placeholder="Describe el plan de acción, descargo y acuerdos..."
                                     />
                                     {form.errors.coordinator_action_plan ? (
@@ -176,7 +176,7 @@ export default function ConsolidationShowPage() {
                                 </div>
 
                                 <div className="grid gap-1.5">
-                                    <Label className="text-xs text-[#1a2b4c]">
+                                    <Label className="text-xs text-brand-700">
                                         Firma de recibido{' '}
                                         <span className="text-red-500">*</span>
                                     </Label>
@@ -204,7 +204,7 @@ export default function ConsolidationShowPage() {
                                     type="button"
                                     variant="outline"
                                     onClick={() => router.visit('/consolidados')}
-                                    className="cursor-pointer border-[#c5d5e6]"
+                                    className="cursor-pointer border-brand-300"
                                 >
                                     Cancelar
                                 </Button>
@@ -216,7 +216,7 @@ export default function ConsolidationShowPage() {
                                         !form.data.coordinator_action_plan.trim() ||
                                         !form.data.signature_data_url
                                     }
-                                    className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038] disabled:opacity-50"
+                                    className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700 disabled:opacity-50"
                                 >
                                     {form.processing ? <Spinner /> : null}
                                     Enviar respuesta
@@ -224,20 +224,20 @@ export default function ConsolidationShowPage() {
                             </div>
                         </form>
                     ) : (
-                        <div className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-5">
-                            <h2 className="text-sm font-semibold text-[#1a2b4c]">
+                        <div className="rounded-2xl border border-brand-200 bg-white p-4 shadow-sm sm:p-5">
+                            <h2 className="text-sm font-semibold text-brand-700">
                                 Respuesta del coordinador
                             </h2>
-                            <p className="mt-2 text-sm text-[#1a2b4c]">
+                            <p className="mt-2 text-sm text-brand-700">
                                 <strong>Recibido por:</strong>{' '}
                                 {checklist.coordinator_signer_name || '—'}
                             </p>
                             {checklist.coordinator_signed_at ? (
-                                <p className="text-xs text-[#5a7390]">
+                                <p className="text-xs text-muted-foreground">
                                     Firmado: {checklist.coordinator_signed_at}
                                 </p>
                             ) : null}
-                            <p className="mt-3 whitespace-pre-wrap text-sm text-[#1a2b4c]">
+                            <p className="mt-3 whitespace-pre-wrap text-sm text-brand-700">
                                 {checklist.coordinator_action_plan ||
                                     'Sin plan de acción.'}
                             </p>
@@ -245,7 +245,7 @@ export default function ConsolidationShowPage() {
                                 <img
                                     src={checklist.coordinator_signature_url}
                                     alt="Firma"
-                                    className="mt-3 max-h-24 rounded border border-[#e2eaf3] bg-white"
+                                    className="mt-3 max-h-24 rounded border border-brand-200 bg-white"
                                 />
                             ) : null}
                             <p className="mt-3 text-xs text-violet-700">

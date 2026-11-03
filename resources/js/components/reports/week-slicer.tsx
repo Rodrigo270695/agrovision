@@ -32,8 +32,8 @@ export function WeekSlicer({
 
     if (availableWeeks.length === 0) {
         return (
-            <section className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
-                <p className="text-xs text-[#6b8ead]">
+            <section className="rounded-2xl border border-brand-200 bg-white p-4 shadow-sm">
+                <p className="text-xs text-muted-foreground">
                     No hay inspecciones en el rango ({rangeLabel}) para elegir
                     semana.
                 </p>
@@ -42,12 +42,12 @@ export function WeekSlicer({
     }
 
     return (
-        <section className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
+        <section className="rounded-2xl border border-brand-200 bg-white p-4 shadow-sm">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs font-bold tracking-wide text-[#1a2b4c] uppercase">
+                <p className="text-xs font-bold tracking-wide text-brand-700 uppercase">
                     Semana · {rangeLabel}
                 </p>
-                <p className="text-[10px] text-[#6b8ead]">
+                <p className="text-[10px] text-muted-foreground">
                     {availableWeeks.length} con datos en el rango
                 </p>
             </div>
@@ -60,7 +60,7 @@ export function WeekSlicer({
                             className={cn(
                                 'cursor-pointer rounded-md border px-3 py-2 text-xs font-bold transition',
                                 allActive
-                                    ? 'border-[#1a2b4c] bg-[#1a2b4c] text-white'
+                                    ? 'border-brand-700 bg-brand-700 text-white'
                                     : 'border-[#bae6fd] bg-[#e0f2fe] text-[#0c4a6e] hover:bg-[#bae6fd]',
                             )}
                         >
@@ -78,7 +78,7 @@ export function WeekSlicer({
                                 className={cn(
                                     'cursor-pointer rounded-md border px-3 py-2 text-xs font-bold tabular-nums transition',
                                     active
-                                        ? 'border-[#1a2b4c] bg-[#1a2b4c] text-white'
+                                        ? 'border-brand-700 bg-brand-700 text-white'
                                         : 'border-[#bae6fd] bg-[#e0f2fe] text-[#0c4a6e] hover:bg-[#bae6fd]',
                                 )}
                                 title={`Año ${entry.year}`}

@@ -109,7 +109,7 @@ export function RowActionsMenu({ label, items }: Props) {
                 aria-label={label}
                 aria-expanded={open}
                 aria-haspopup="menu"
-                className="size-8 cursor-pointer text-[#5a7390] hover:bg-[#f2f5f8] hover:text-[#1a2b4c]"
+                className="size-8 cursor-pointer text-muted-foreground hover:bg-[#f2f5f8] hover:text-brand-700"
                 onClick={() => setOpen((value) => !value)}
             >
                 <MoreHorizontal className="size-4" strokeWidth={2.5} />

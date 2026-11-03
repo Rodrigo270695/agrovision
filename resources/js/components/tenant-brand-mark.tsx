@@ -40,7 +40,7 @@ export function TenantBrandMark({
     return (
         <div
             className={cn(
-                'flex items-center justify-center rounded-xl bg-[#122038] text-white',
+                'flex items-center justify-center rounded-xl bg-brand-700 text-white',
                 className,
                 fallbackClassName,
             )}

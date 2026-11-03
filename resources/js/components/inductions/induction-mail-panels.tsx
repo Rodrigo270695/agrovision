@@ -59,11 +59,11 @@ export function InductionMailPanels({
 
     return (
         <div className="grid shrink-0 gap-4 xl:grid-cols-2">
-            <section className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
+            <section className="rounded-2xl border border-brand-200 bg-white p-4 shadow-sm">
                 <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                     <div>
-                        <h2 className="text-sm font-semibold text-[#1a2b4c]">Reglamentos</h2>
-                        <p className="mt-0.5 text-xs text-[#6b8ead]">
+                        <h2 className="text-sm font-semibold text-brand-700">Reglamentos</h2>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
                             PDF de esta inducción. Al jalar conductores se envían al correo del coordinador de cada uno.
                         </p>
                     </div>
@@ -74,7 +74,7 @@ export function InductionMailPanels({
                                 variant="outline"
                                 disabled={uploading}
                                 onClick={() => inputRef.current?.click()}
-                                className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                                className="cursor-pointer border-brand-300 text-brand-700"
                             >
                                 {uploading ? <Spinner /> : <FileText className="size-4" />}
                                 Subir PDF
@@ -89,7 +89,7 @@ export function InductionMailPanels({
                                         onFinish: () => setSendingRegulations(false),
                                     });
                                 }}
-                                className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c]"
+                                className="cursor-pointer bg-brand-500 text-white hover:bg-brand-700"
                             >
                                 {sendingRegulations ? <Spinner /> : <Mail className="size-4" />}
                                 Enviar a coordinadores
@@ -106,17 +106,17 @@ export function InductionMailPanels({
                     onChange={(event) => upload(event.target.files)}
                 />
                 {regulations.length === 0 ? (
-                    <p className="text-sm text-[#6b8ead]">Todavía no hay reglamentos.</p>
+                    <p className="text-sm text-muted-foreground">Todavía no hay reglamentos.</p>
                 ) : (
                     <ul className="space-y-2">
                         {regulations.map((file) => (
-                            <li key={file.id} className="flex items-center justify-between gap-2 rounded-lg border border-[#e2eaf3] px-3 py-2">
+                            <li key={file.id} className="flex items-center justify-between gap-2 rounded-lg border border-brand-200 px-3 py-2">
                                 {file.url ? (
-                                    <a href={file.url} target="_blank" rel="noopener noreferrer" className="truncate text-sm text-[#2e5a9e] hover:underline">
+                                    <a href={file.url} target="_blank" rel="noopener noreferrer" className="truncate text-sm text-brand-500 hover:underline">
                                         {file.name}
                                     </a>
                                 ) : (
-                                    <span className="truncate text-sm text-[#1a2b4c]">{file.name}</span>
+                                    <span className="truncate text-sm text-brand-700">{file.name}</span>
                                 )}
                                 {canUpdate && !cancelled ? (
                                     <button
@@ -138,23 +138,23 @@ export function InductionMailPanels({
                 )}
             </section>
 
-            <section className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
-                <h2 className="text-sm font-semibold text-[#1a2b4c]">Certificados por correo</h2>
-                <p className="mt-0.5 text-xs text-[#6b8ead]">
+            <section className="rounded-2xl border border-brand-200 bg-white p-4 shadow-sm">
+                <h2 className="text-sm font-semibold text-brand-700">Certificados por correo</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">
                     Cuando la inducción termina y los conductores asistieron y firmaron, la plantilla toma esos datos y envía el PDF al correo de cada unidad.
                 </p>
                 {templates.length === 0 ? (
-                    <p className="mt-3 text-sm text-[#6b8ead]">
+                    <p className="mt-3 text-sm text-muted-foreground">
                         No hay plantilla para esta inducción.{' '}
-                        <a href="/certificados/plantillas/nueva" className="font-medium text-[#2e5a9e] hover:underline">
+                        <a href="/certificados/plantillas/nueva" className="font-medium text-brand-500 hover:underline">
                             Crear plantilla
                         </a>
                     </p>
                 ) : (
                     <ul className="mt-3 space-y-2">
                         {templates.map((template) => (
-                            <li key={template.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#e2eaf3] px-3 py-2">
-                                <a href={`/certificados/plantillas/${template.id}`} className="text-sm font-medium text-[#1a2b4c] hover:underline">
+                            <li key={template.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-brand-200 px-3 py-2">
+                                <a href={`/certificados/plantillas/${template.id}`} className="text-sm font-medium text-brand-700 hover:underline">
                                     {template.name}
                                 </a>
                                 {canPreview || canIssue ? (
@@ -164,7 +164,7 @@ export function InductionMailPanels({
                                                 type="button"
                                                 variant="outline"
                                                 onClick={() => setPreviewTemplateId(template.id)}
-                                                className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                                                className="cursor-pointer border-brand-300 text-brand-700"
                                             >
                                                 Previsualizar
                                             </Button>
@@ -180,7 +180,7 @@ export function InductionMailPanels({
                                                         onFinish: () => setSendingTemplate(null),
                                                     });
                                                 }}
-                                                className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                                                className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700"
                                             >
                                                 {sendingTemplate === template.id ? <Spinner /> : <Mail className="size-4" />}
                                                 Enviar a conductores

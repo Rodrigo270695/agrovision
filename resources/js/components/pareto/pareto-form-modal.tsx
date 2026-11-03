@@ -174,7 +174,7 @@ export function ParetoFormModal({
                         type="button"
                         variant="outline"
                         onClick={onClose}
-                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                        className="cursor-pointer border-brand-300 text-brand-700"
                     >
                         Cancelar
                     </Button>
@@ -182,7 +182,7 @@ export function ParetoFormModal({
                         type="submit"
                         form="pareto-form"
                         disabled={!canSubmit}
-                        className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="cursor-pointer bg-brand-500 text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {form.processing ? <Spinner /> : null}
                         {isEditing ? 'Guardar' : 'Crear'}
@@ -194,7 +194,7 @@ export function ParetoFormModal({
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="grid min-w-0 gap-1.5">
                         <div className="flex items-center gap-1">
-                            <Label className="text-xs text-[#1a2b4c]">
+                            <Label className="text-xs text-brand-700">
                                 Plantilla <span className="text-red-500">*</span>
                             </Label>
                             <Popover>
@@ -202,14 +202,14 @@ export function ParetoFormModal({
                                     <button
                                         type="button"
                                         aria-label="Cómo usar las plantillas"
-                                        className="rounded p-0.5 text-[#6b8ead] hover:bg-[#eef1f5] hover:text-[#1a2b4c]"
+                                        className="rounded p-0.5 text-muted-foreground hover:bg-[#eef1f5] hover:text-brand-700"
                                     >
                                         <CircleHelp className="size-3.5" />
                                     </button>
                                 </PopoverTrigger>
                                 <PopoverContent
                                     align="start"
-                                    className="z-[80] w-64 p-3 text-xs leading-relaxed text-[#1a2b4c]"
+                                    className="z-[80] w-64 p-3 text-xs leading-relaxed text-brand-700"
                                 >
                                     Escribe un nombre para crear otra
                                     plantilla. El lápiz cambia el nombre. El
@@ -375,7 +375,7 @@ export function ParetoFormModal({
                         <InputError message={form.errors.template_type} />
                     </div>
                     <div className="grid min-w-0 gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">
+                        <Label className="text-xs text-brand-700">
                             Número <span className="text-red-500">*</span>
                         </Label>
                         <Input
@@ -384,28 +384,28 @@ export function ParetoFormModal({
                                 form.setData('item_number', e.target.value)
                             }
                             placeholder="1, 2, a..."
-                            className="h-9 border-[#c5d5e6]"
+                            className="h-9 border-brand-300"
                         />
                         <InputError message={form.errors.item_number} />
                     </div>
                 </div>
 
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">
+                    <Label className="text-xs text-brand-700">
                         Exigencia <span className="text-red-500">*</span>
                     </Label>
                     <Input
                         value={form.data.label}
                         onChange={(e) => form.setData('label', e.target.value)}
                         placeholder="Texto de la exigencia"
-                        className="h-9 border-[#c5d5e6]"
+                        className="h-9 border-brand-300"
                     />
                     <InputError message={form.errors.label} />
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="grid min-w-0 gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">
+                        <Label className="text-xs text-brand-700">
                             Tipo de check <span className="text-red-500">*</span>
                         </Label>
                         <SearchableCombobox
@@ -426,7 +426,7 @@ export function ParetoFormModal({
                         <InputError message={form.errors.check_type} />
                     </div>
                     <div className="grid min-w-0 gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">
+                        <Label className="text-xs text-brand-700">
                             Peso % <span className="text-red-500">*</span>
                         </Label>
                         <Input
@@ -438,14 +438,14 @@ export function ParetoFormModal({
                             onChange={(e) =>
                                 form.setData('weight', e.target.value)
                             }
-                            className="h-9 border-[#c5d5e6]"
+                            className="h-9 border-brand-300"
                         />
                         <InputError message={form.errors.weight} />
                     </div>
                 </div>
 
                 <div className="grid min-w-0 gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">Padre</Label>
+                    <Label className="text-xs text-brand-700">Padre</Label>
                     <SearchableCombobox
                         compact
                         allowClear
@@ -460,7 +460,7 @@ export function ParetoFormModal({
                     />
                 </div>
                 <div className="grid min-w-0 gap-1.5 sm:max-w-[10rem]">
-                    <Label className="text-xs text-[#1a2b4c]">Orden</Label>
+                    <Label className="text-xs text-brand-700">Orden</Label>
                     <Input
                         type="number"
                         min={0}
@@ -468,27 +468,27 @@ export function ParetoFormModal({
                         onChange={(e) =>
                             form.setData('sort_order', e.target.value)
                         }
-                        className="h-9 w-full border-[#c5d5e6]"
+                        className="h-9 w-full border-brand-300"
                     />
                 </div>
 
-                <label className="flex cursor-pointer items-center gap-2 text-sm text-[#1a2b4c]">
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-brand-700">
                     <Checkbox
                         checked={form.data.allows_photo}
                         onCheckedChange={(checked) =>
                             form.setData('allows_photo', Boolean(checked))
                         }
-                        className="border-[#c5d5e6] data-[state=checked]:border-[#2e5a9e] data-[state=checked]:bg-[#2e5a9e] data-[state=checked]:text-white"
+                        className="border-brand-300 data-[state=checked]:border-brand-500 data-[state=checked]:bg-brand-500 data-[state=checked]:text-white"
                     />
                     Se sube imagen
                 </label>
-                <label className="flex cursor-pointer items-center gap-2 text-sm text-[#1a2b4c]">
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-brand-700">
                     <Checkbox
                         checked={form.data.is_active}
                         onCheckedChange={(checked) =>
                             form.setData('is_active', Boolean(checked))
                         }
-                        className="border-[#c5d5e6] data-[state=checked]:border-[#2e5a9e] data-[state=checked]:bg-[#2e5a9e] data-[state=checked]:text-white"
+                        className="border-brand-300 data-[state=checked]:border-brand-500 data-[state=checked]:bg-brand-500 data-[state=checked]:text-white"
                     />
                     Activo (cuenta para el 100%)
                 </label>

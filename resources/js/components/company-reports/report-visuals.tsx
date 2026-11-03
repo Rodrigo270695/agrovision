@@ -93,12 +93,12 @@ export function Ring({
                     textAnchor="middle"
                     fontSize="14"
                     fontWeight="700"
-                    fill="#1a2b4c"
+                    fill="#0f1f3a"
                 >
                     {percent}%
                 </text>
             </svg>
-            <p className="max-w-28 text-center text-[11px] text-[#5a7390]">
+            <p className="max-w-28 text-center text-[11px] text-muted-foreground">
                 {label}
             </p>
         </div>
@@ -112,7 +112,7 @@ export function BarChart({
 }) {
     if (rows.length === 0) {
         return (
-            <p className="text-sm text-[#5a7390]">No hay datos para el gráfico.</p>
+            <p className="text-sm text-muted-foreground">No hay datos para el gráfico.</p>
         );
     }
 
@@ -124,7 +124,7 @@ export function BarChart({
 
                 return (
                     <div key={row.label}>
-                        <div className="mb-1 flex items-center justify-between gap-3 text-xs text-[#1a2b4c]">
+                        <div className="mb-1 flex items-center justify-between gap-3 text-xs text-brand-700">
                             <span className="truncate">{row.label}</span>
                             <span className="tabular-nums">{row.value}</span>
                         </div>

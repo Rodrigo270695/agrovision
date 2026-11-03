@@ -50,7 +50,7 @@ export default function Profile({
 
                                 <Input
                                     id="name"
-                                    className="mt-1 block w-full border-[#c5d5e6]"
+                                    className="mt-1 block w-full border-brand-300"
                                     defaultValue={auth.user.name}
                                     name="name"
                                     required
@@ -70,7 +70,7 @@ export default function Profile({
                                 <Input
                                     id="email"
                                     type="email"
-                                    className="mt-1 block w-full border-[#c5d5e6]"
+                                    className="mt-1 block w-full border-brand-300"
                                     defaultValue={auth.user.email}
                                     name="email"
                                     required
@@ -87,12 +87,12 @@ export default function Profile({
                             {mustVerifyEmail &&
                                 auth.user.email_verified_at === null && (
                                     <div>
-                                        <p className="-mt-4 text-sm text-[#5a7390]">
+                                        <p className="-mt-4 text-sm text-muted-foreground">
                                             Tu correo aún no está verificado.{' '}
                                             <Link
                                                 href={send()}
                                                 as="button"
-                                                className="font-medium text-[#2e5a9e] underline underline-offset-4 hover:text-[#1a2b4c]"
+                                                className="font-medium text-brand-500 underline underline-offset-4 hover:text-brand-700"
                                             >
                                                 Haz clic aquí para reenviar el
                                                 correo de verificación.
@@ -113,7 +113,7 @@ export default function Profile({
                                 <Button
                                     disabled={processing}
                                     data-test="update-profile-button"
-                                    className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c]"
+                                    className="cursor-pointer bg-brand-500 text-white hover:bg-brand-700"
                                 >
                                     Guardar
                                 </Button>

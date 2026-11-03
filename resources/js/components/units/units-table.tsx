@@ -605,7 +605,7 @@ export function UnitsTable({
     );
 
     const viewToggle = (
-        <div className="flex rounded-lg border border-[#c5d5e6] bg-white p-0.5">
+        <div className="flex rounded-lg border border-brand-300 bg-white p-0.5">
             <button
                 type="button"
                 onClick={() =>
@@ -618,8 +618,8 @@ export function UnitsTable({
                 }
                 className={`cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium ${
                     showingHistory
-                        ? 'text-[#5a7390]'
-                        : 'bg-[#1a2b4c] text-white'
+                        ? 'text-muted-foreground'
+                        : 'bg-brand-700 text-white'
                 }`}
             >
                 Unidades
@@ -636,8 +636,8 @@ export function UnitsTable({
                 }
                 className={`cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium ${
                     showingHistory
-                        ? 'bg-[#1a2b4c] text-white'
-                        : 'text-[#5a7390]'
+                        ? 'bg-brand-700 text-white'
+                        : 'text-muted-foreground'
                 }`}
             >
                 Historial

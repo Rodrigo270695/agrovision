@@ -285,7 +285,7 @@ export default function CentralTenantsIndex({
                         <Button
                             type="button"
                             onClick={openCreate}
-                            className="cursor-pointer gap-2 bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                            className="cursor-pointer gap-2 bg-brand-700 text-white hover:bg-brand-700"
                         >
                             <Plus className="size-4" strokeWidth={2.5} />
                             <span className="hidden sm:inline">Nueva empresa</span>
@@ -352,7 +352,7 @@ export default function CentralTenantsIndex({
                                     <Button
                                         type="button"
                                         onClick={openCreate}
-                                        className="cursor-pointer gap-2 bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                                        className="cursor-pointer gap-2 bg-brand-700 text-white hover:bg-brand-700"
                                     >
                                         <Plus className="size-4" strokeWidth={2.5} />
                                         Crear empresa

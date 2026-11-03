@@ -29,26 +29,26 @@ export function DocumentsProgressBar({
                     <span
                         className={cn(
                             'font-medium',
-                            complete ? 'text-emerald-700' : 'text-[#5a7390]',
+                            complete ? 'text-emerald-700' : 'text-muted-foreground',
                         )}
                     >
                         {percent}%
                     </span>
-                    <span className="text-[#6b8ead]">
+                    <span className="text-muted-foreground">
                         {progress.done}/{progress.total}
                     </span>
                 </div>
             ) : null}
             <div
                 className={cn(
-                    'overflow-hidden rounded-full bg-[#e8eef6]',
+                    'overflow-hidden rounded-full bg-brand-100',
                     size === 'md' ? 'h-2.5' : 'h-1.5',
                 )}
             >
                 <div
                     className={cn(
                         'h-full rounded-full transition-all duration-300',
-                        complete ? 'bg-emerald-600' : 'bg-[#2e5a9e]',
+                        complete ? 'bg-emerald-600' : 'bg-brand-500',
                     )}
                     style={{ width: `${percent}%` }}
                 />

@@ -49,14 +49,14 @@ export function InspectionsTab({
     return (
         <div className="grid gap-4">
             <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
-                <div className="flex items-center justify-center rounded-2xl border border-[#d7e3f0] bg-white p-4">
+                <div className="flex items-center justify-center rounded-2xl border border-brand-200 bg-white p-4">
                     <Ring
                         percent={goalPercent}
                         label="Días en que se cumplió la meta"
                     />
                 </div>
-                <div className="rounded-2xl border border-[#d7e3f0] bg-white p-4">
-                    <h3 className="mb-3 text-sm font-semibold text-[#1a2b4c]">
+                <div className="rounded-2xl border border-brand-200 bg-white p-4">
+                    <h3 className="mb-3 text-sm font-semibold text-brand-700">
                         Inspecciones por inspector
                     </h3>
                     <BarChart
@@ -69,9 +69,9 @@ export function InspectionsTab({
                     />
                 </div>
             </div>
-            <div className="overflow-x-auto rounded-2xl border border-[#d7e3f0] bg-white">
+            <div className="overflow-x-auto rounded-2xl border border-brand-200 bg-white">
                 <table className="w-full min-w-[720px] text-sm">
-                    <thead className="bg-[#f7fafc] text-left text-xs tracking-wide text-[#5a7390] uppercase">
+                    <thead className="bg-[#f7fafc] text-left text-xs tracking-wide text-muted-foreground uppercase">
                         <tr>
                             <th className="px-4 py-3">Inspector</th>
                             <th className="px-4 py-3">Inspecciones</th>
@@ -84,7 +84,7 @@ export function InspectionsTab({
                     <tbody>
                         {inspectors.length === 0 ? (
                             <tr>
-                                <td colSpan={6} className="px-4 py-6 text-[#5a7390]">
+                                <td colSpan={6} className="px-4 py-6 text-muted-foreground">
                                     No hay inspecciones en este periodo.
                                 </td>
                             </tr>
@@ -92,9 +92,9 @@ export function InspectionsTab({
                             inspectors.map((row) => (
                                 <tr
                                     key={row.user_id}
-                                    className="border-t border-[#e2eaf3]"
+                                    className="border-t border-brand-200"
                                 >
-                                    <td className="px-4 py-3 font-medium text-[#1a2b4c]">
+                                    <td className="px-4 py-3 font-medium text-brand-700">
                                         {row.name}
                                     </td>
                                     <td className="px-4 py-3 tabular-nums">{row.total}</td>
@@ -118,13 +118,13 @@ export function InspectionsTab({
                     </tbody>
                 </table>
             </div>
-            <div className="overflow-x-auto rounded-2xl border border-[#d7e3f0] bg-white">
-                <div className="flex flex-col gap-3 border-b border-[#e2eaf3] px-4 py-3 lg:flex-row lg:items-end lg:justify-between">
+            <div className="overflow-x-auto rounded-2xl border border-brand-200 bg-white">
+                <div className="flex flex-col gap-3 border-b border-brand-200 px-4 py-3 lg:flex-row lg:items-end lg:justify-between">
                     <div>
-                        <h3 className="text-sm font-semibold text-[#1a2b4c]">
+                        <h3 className="text-sm font-semibold text-brand-700">
                             Duración de cada inspección
                         </h3>
-                        <p className="text-xs text-[#5a7390]">
+                        <p className="text-xs text-muted-foreground">
                             La 1ra cierra al aprobar o desaprobar. La inspección
                             completa cierra cuando también existe la 2da.
                         </p>
@@ -139,7 +139,7 @@ export function InspectionsTab({
                                         : null,
                                 })
                             }
-                            className="h-9 rounded-lg border border-[#c5d5e6] bg-white px-2 text-sm text-[#1a2b4c]"
+                            className="h-9 rounded-lg border border-brand-300 bg-white px-2 text-sm text-brand-700"
                         >
                             <option value="">Todos los inspectores</option>
                             {inspectors.map((row) => (
@@ -153,7 +153,7 @@ export function InspectionsTab({
                             onChange={(event) =>
                                 visit({ detail_status: event.target.value })
                             }
-                            className="h-9 rounded-lg border border-[#c5d5e6] bg-white px-2 text-sm text-[#1a2b4c]"
+                            className="h-9 rounded-lg border border-brand-300 bg-white px-2 text-sm text-brand-700"
                         >
                             <option value="all">Todos los estados</option>
                             <option value="open">1ra pendiente</option>
@@ -163,7 +163,7 @@ export function InspectionsTab({
                     </div>
                 </div>
                 <table className="w-full min-w-[760px] text-sm">
-                    <thead className="bg-[#f7fafc] text-left text-xs tracking-wide text-[#5a7390] uppercase">
+                    <thead className="bg-[#f7fafc] text-left text-xs tracking-wide text-muted-foreground uppercase">
                         <tr>
                             <th className="px-4 py-3">Placa</th>
                             <th className="px-4 py-3">Inspector</th>
@@ -177,27 +177,27 @@ export function InspectionsTab({
                     <tbody>
                         {details.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="px-4 py-6 text-[#5a7390]">
+                                <td colSpan={7} className="px-4 py-6 text-muted-foreground">
                                     No hay inspecciones en este periodo.
                                 </td>
                             </tr>
                         ) : (
                             details.map((row) => (
-                                <tr key={row.id} className="border-t border-[#e2eaf3]">
-                                    <td className="px-4 py-3 font-medium text-[#1a2b4c]">
+                                <tr key={row.id} className="border-t border-brand-200">
+                                    <td className="px-4 py-3 font-medium text-brand-700">
                                         {row.plate}
                                     </td>
                                     <td className="px-4 py-3">{row.inspector}</td>
                                     <td className="px-4 py-3">{row.sede}</td>
                                     <td className="px-4 py-3">{row.lugar}</td>
                                     <td className="px-4 py-3">
-                                        <p className="tabular-nums text-[#1a2b4c]">
+                                        <p className="tabular-nums text-brand-700">
                                             Empezó {row.first_at}
                                         </p>
-                                        <p className="tabular-nums text-[#1a2b4c]">
+                                        <p className="tabular-nums text-brand-700">
                                             Terminó {row.first_finished}
                                         </p>
-                                        <p className="text-xs text-[#5a7390]">
+                                        <p className="text-xs text-muted-foreground">
                                             Duró {row.first_duration}
                                         </p>
                                         <p
@@ -213,7 +213,7 @@ export function InspectionsTab({
                                         </p>
                                     </td>
                                     <td className="px-4 py-3">
-                                        <p className="tabular-nums text-[#1a2b4c]">
+                                        <p className="tabular-nums text-brand-700">
                                             {row.second_at}
                                         </p>
                                         <p

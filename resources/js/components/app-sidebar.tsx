@@ -307,7 +307,7 @@ export function AppSidebar() {
 
     return (
         <Sidebar collapsible="icon" variant="inset">
-            <SidebarHeader className="border-b border-[#d7e3f0] px-2 py-3">
+            <SidebarHeader className="border-b border-brand-200 px-2 py-3">
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton
@@ -334,7 +334,7 @@ export function AppSidebar() {
                 />
             </SidebarContent>
 
-            <SidebarFooter className="border-t border-[#d7e3f0] px-2 py-2">
+            <SidebarFooter className="border-t border-brand-200 px-2 py-2">
                 {visibleFooterItems.length > 0 ? (
                     <NavFooter items={visibleFooterItems} className="mt-auto" />
                 ) : null}

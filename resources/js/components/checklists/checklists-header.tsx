@@ -50,7 +50,7 @@ export function ChecklistsHeader({
                         variant="outline"
                         size="sm"
                         onClick={onExport}
-                        className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-[#0f1f3a] hover:bg-slate-50"
+                        className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-brand-800 hover:bg-slate-50"
                     >
                         <Download className="size-3.5" />
                         <span className="hidden sm:inline">Exportar</span>
@@ -63,7 +63,7 @@ export function ChecklistsHeader({
                         variant="outline"
                         size="sm"
                         onClick={onSendBatch}
-                        className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-[#0f1f3a] hover:bg-slate-50"
+                        className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-brand-800 hover:bg-slate-50"
                     >
                         <Package className="size-3.5" />
                         <span className="hidden sm:inline">Enviar paquete</span>
@@ -75,7 +75,7 @@ export function ChecklistsHeader({
                         type="button"
                         size="sm"
                         onClick={onCreate}
-                        className="cursor-pointer gap-1.5 rounded-xl bg-[#1e4d8c] text-white hover:bg-[#163a6b]"
+                        className="cursor-pointer gap-1.5 rounded-xl bg-brand-500 text-white hover:bg-brand-600"
                     >
                         <Plus className="size-3.5" strokeWidth={2.5} />
                         <span className="hidden sm:inline">

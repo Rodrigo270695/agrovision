@@ -265,7 +265,7 @@ export function InductionsPage() {
                         variant="outline"
                         size="sm"
                         asChild
-                        className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-[#0f1f3a] hover:bg-slate-50"
+                        className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-brand-800 hover:bg-slate-50"
                     >
                         <Link href="/inducciones">
                             <ArrowLeft className="size-3.5" />

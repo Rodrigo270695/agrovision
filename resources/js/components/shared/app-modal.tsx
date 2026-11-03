@@ -57,7 +57,7 @@ export function AppModal({
             }}
         >
             <DialogPortal>
-                <DialogOverlay className="bg-[#0b1729]/55 backdrop-blur-[2px]" />
+                <DialogOverlay className="bg-brand-950/55 backdrop-blur-[2px]" />
                 <DialogPrimitive.Content
                     data-slot="dialog-content"
                     onPointerDownOutside={(event) => {
@@ -75,17 +75,17 @@ export function AppModal({
                         event.preventDefault();
                     }}
                     className={cn(
-                        'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-[60] flex h-fit max-h-[min(90vh,40rem)] w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] flex-col overflow-hidden rounded-2xl border border-[#d7e3f0] shadow-2xl duration-200 sm:max-w-lg',
+                        'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-[60] flex h-fit max-h-[min(90vh,40rem)] w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] flex-col overflow-hidden rounded-2xl border border-brand-200 shadow-2xl duration-200 sm:max-w-lg',
                         className,
                     )}
                 >
-                    <header className="flex shrink-0 items-start justify-between gap-4 border-b border-[#e2eaf3] bg-[#f7fafc] px-4 py-3 sm:px-5">
+                    <header className="flex shrink-0 items-start justify-between gap-4 border-b border-brand-200 bg-[#f7fafc] px-4 py-3 sm:px-5">
                         <div className="space-y-0.5 pr-6">
-                            <DialogTitle className="font-display text-base font-semibold text-[#1a2b4c] sm:text-lg">
+                            <DialogTitle className="font-display text-base font-semibold text-brand-700 sm:text-lg">
                                 {title}
                             </DialogTitle>
                             {description ? (
-                                <DialogDescription className="text-xs text-[#5a7390] sm:text-sm">
+                                <DialogDescription className="text-xs text-muted-foreground sm:text-sm">
                                     {description}
                                 </DialogDescription>
                             ) : (
@@ -98,7 +98,7 @@ export function AppModal({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="cursor-pointer rounded-lg p-1.5 text-[#6b8ead] transition-colors hover:bg-white hover:text-[#1a2b4c]"
+                            className="cursor-pointer rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-white hover:text-brand-700"
                             aria-label="Cerrar"
                         >
                             <XIcon className="size-4" />
@@ -114,7 +114,7 @@ export function AppModal({
                         {children}
                     </div>
 
-                    <footer className="flex shrink-0 flex-col-reverse gap-2 border-t border-[#e2eaf3] bg-[#f7fafc] px-4 py-3 sm:flex-row sm:justify-end sm:px-5">
+                    <footer className="flex shrink-0 flex-col-reverse gap-2 border-t border-brand-200 bg-[#f7fafc] px-4 py-3 sm:flex-row sm:justify-end sm:px-5">
                         {footer}
                     </footer>
                 </DialogPrimitive.Content>

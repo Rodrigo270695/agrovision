@@ -330,7 +330,7 @@ export function InductionFormModal({
                         type="button"
                         variant="outline"
                         onClick={handleClose}
-                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                        className="cursor-pointer border-brand-300 text-brand-700"
                     >
                         Cancelar
                     </Button>
@@ -338,7 +338,7 @@ export function InductionFormModal({
                         type="submit"
                         form="induction-form"
                         disabled={!canSubmit}
-                        className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c] disabled:opacity-50"
+                        className="cursor-pointer bg-brand-500 text-white hover:bg-brand-700 disabled:opacity-50"
                     >
                         {form.processing ? <Spinner /> : null}
                         {completing
@@ -356,8 +356,8 @@ export function InductionFormModal({
         >
             <form id="induction-form" onSubmit={handleSubmit}>
                 {completing && gap ? (
-                    <div className="mb-5 rounded-xl border border-[#d7e3f0] bg-[#f7fafc] p-3">
-                        <p className="text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
+                    <div className="mb-5 rounded-xl border border-brand-200 bg-[#f7fafc] p-3">
+                        <p className="text-xs font-semibold tracking-wide text-brand-700 uppercase">
                             Conductores ({gap.drivers.length})
                         </p>
                         <p className="mt-1 text-xs leading-5 text-[#5a6f8c]">
@@ -383,7 +383,7 @@ export function InductionFormModal({
                                 className="mt-0.5"
                             />
                             <span>
-                                <span className="block text-sm font-medium text-[#1a2b4c]">
+                                <span className="block text-sm font-medium text-brand-700">
                                     Cerrar al crear
                                 </span>
                                 <span className="block text-xs text-[#5a6f8c]">
@@ -422,7 +422,7 @@ export function InductionFormModal({
                 />
                 {isEditing || copying || completing ? null : (
                     <div className="mt-5 grid gap-1.5">
-                        <p className="border-b border-[#e2eaf3] pb-1 text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
+                        <p className="border-b border-brand-200 pb-1 text-xs font-semibold tracking-wide text-brand-700 uppercase">
                             Reglamentos
                         </p>
                         <p className="text-xs text-[#5a6f8c]">
@@ -433,7 +433,7 @@ export function InductionFormModal({
                             accept="application/pdf,.pdf"
                             multiple
                             onChange={(event) => setRegulationFiles(Array.from(event.target.files ?? []))}
-                            className="text-sm text-[#1a2b4c] file:mr-3 file:rounded-lg file:border file:border-[#c5d5e6] file:bg-white file:px-3 file:py-1.5"
+                            className="text-sm text-brand-700 file:mr-3 file:rounded-lg file:border file:border-brand-300 file:bg-white file:px-3 file:py-1.5"
                         />
                         {regulationFiles.length > 0 ? (
                             <p className="text-xs text-[#5a6f8c]">

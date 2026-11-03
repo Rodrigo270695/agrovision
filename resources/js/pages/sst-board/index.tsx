@@ -61,7 +61,7 @@ const BAJA = '#94a3b8';
 const FALTA = '#ef4444';
 
 const selectClass =
-    'mt-1 h-10 w-full cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c] normal-case';
+    'mt-1 h-10 w-full cursor-pointer rounded-lg border border-brand-300 bg-white px-2 text-xs font-medium text-brand-700 normal-case';
 
 export default function SstBoardPage() {
     const {
@@ -167,8 +167,8 @@ export default function SstBoardPage() {
                                     className={cn(
                                         'cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold',
                                         filters.template === template.value
-                                            ? 'bg-[#1a2b4c] text-white'
-                                            : 'border border-[#c5d5e6] text-[#1a2b4c]',
+                                            ? 'bg-brand-700 text-white'
+                                            : 'border border-brand-300 text-brand-700',
                                     )}
                                 >
                                     {template.label}
@@ -178,7 +178,7 @@ export default function SstBoardPage() {
                     }
                 >
                     <div className="w-full sm:w-auto">
-                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                             Fecha
                         </p>
                         <DateRangeFilter
@@ -196,7 +196,7 @@ export default function SstBoardPage() {
                             }
                         />
                     </div>
-                    <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-56">
+                    <label className="w-full text-[11px] font-semibold tracking-wide text-muted-foreground uppercase sm:w-56">
                         Inspector
                         <select
                             value={filters.inspector_id ?? ''}
@@ -221,7 +221,7 @@ export default function SstBoardPage() {
                             ))}
                         </select>
                     </label>
-                    <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-64">
+                    <label className="w-full text-[11px] font-semibold tracking-wide text-muted-foreground uppercase sm:w-64">
                         Coordinador
                         <select
                             value={filters.coordinator_id ?? ''}
@@ -251,7 +251,7 @@ export default function SstBoardPage() {
                         </select>
                     </label>
                     <div>
-                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                             Inspección
                         </p>
                         <div className="flex gap-1">
@@ -271,8 +271,8 @@ export default function SstBoardPage() {
                                     className={cn(
                                         'h-10 cursor-pointer rounded-lg px-3 text-xs font-semibold',
                                         filters.inspection === value
-                                            ? 'bg-[#1a2b4c] text-white'
-                                            : 'border border-[#c5d5e6] text-[#1a2b4c]',
+                                            ? 'bg-brand-700 text-white'
+                                            : 'border border-brand-300 text-brand-700',
                                     )}
                                 >
                                     {label}
@@ -280,7 +280,7 @@ export default function SstBoardPage() {
                             ))}
                         </div>
                     </div>
-                    <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-56">
+                    <label className="w-full text-[11px] font-semibold tracking-wide text-muted-foreground uppercase sm:w-56">
                         Tipo de vehículo
                         <select
                             value={selectedVehicle}
@@ -311,11 +311,11 @@ export default function SstBoardPage() {
 
                 <PlatformContentPanel className="p-4 sm:p-6">
                     {items.length === 0 ? (
-                        <p className="py-8 text-center text-sm text-[#5a7390]">
+                        <p className="py-8 text-center text-sm text-muted-foreground">
                             Esta plantilla no tiene requisitos para graficar.
                         </p>
                     ) : displayedItems.length === 0 ? (
-                        <p className="py-8 text-center text-sm text-[#5a7390]">
+                        <p className="py-8 text-center text-sm text-muted-foreground">
                             No hay ítems seleccionados. Abre{' '}
                             <strong>Ítems a mostrar</strong> y marca al menos
                             uno.
@@ -408,7 +408,7 @@ function RingZoomLightbox({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="absolute top-3 right-3 z-10 flex size-8 cursor-pointer items-center justify-center rounded-full border border-[#d7e3f0]/80 bg-white/80 text-[#1a2b4c] shadow-sm transition hover:bg-white"
+                            className="absolute top-3 right-3 z-10 flex size-8 cursor-pointer items-center justify-center rounded-full border border-brand-200/80 bg-white/80 text-brand-700 shadow-sm transition hover:bg-white"
                             aria-label="Cerrar"
                         >
                             <X className="size-4" />
@@ -416,14 +416,14 @@ function RingZoomLightbox({
 
                         <p
                             id="sst-ring-zoom-title"
-                            className="pr-8 text-center text-[11px] font-bold tracking-[0.12em] text-[#6b8ead] uppercase"
+                            className="pr-8 text-center text-[11px] font-bold tracking-[0.12em] text-muted-foreground uppercase"
                         >
                             Detalle
                         </p>
-                        <h2 className="mt-1 text-center text-sm leading-snug font-bold text-[#1a2b4c] uppercase sm:text-base">
+                        <h2 className="mt-1 text-center text-sm leading-snug font-bold text-brand-700 uppercase sm:text-base">
                             {ring.label}
                         </h2>
-                        <div className="mx-auto mt-4 h-px w-16 bg-gradient-to-r from-transparent via-[#1a2b4c]/25 to-transparent" />
+                        <div className="mx-auto mt-4 h-px w-16 bg-gradient-to-r from-transparent via-brand-700/25 to-transparent" />
 
                         <RingDonut ring={ring} size="xl" />
 
@@ -448,12 +448,12 @@ function RingZoomLightbox({
                         <button
                             type="button"
                             onClick={onViewDetail}
-                            className="mt-5 w-full cursor-pointer rounded-xl bg-[#1a2b4c] px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#243a5e]"
+                            className="mt-5 w-full cursor-pointer rounded-xl bg-brand-700 px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#243a5e]"
                         >
                             Ver detalle por semana
                         </button>
 
-                        <p className="mt-3 text-center text-[10px] text-[#6b8ead]">
+                        <p className="mt-3 text-center text-[10px] text-muted-foreground">
                             Clic fuera o Esc para cerrar
                         </p>
                     </div>
@@ -475,7 +475,7 @@ function ZoomStat({
 }) {
     const styles = {
         ok: 'border-[#bbf7d0]/80 bg-[#f0fdf4]/90 text-[#166534]',
-        baja: 'border-[#e2e8f0] bg-[#f8fafc]/90 text-[#64748b]',
+        baja: 'border-[#e2e8f0] bg-background/90 text-[#64748b]',
         falta: 'border-[#fecaca]/80 bg-[#fef2f2]/90 text-[#b91c1c]',
     }[tone];
 
@@ -509,12 +509,12 @@ function RingCard({
             onClick={onClick}
             title={onClick ? 'Clic para ampliar' : undefined}
             className={cn(
-                'flex w-full flex-col rounded-xl border border-[#d7e3f0] bg-white p-2 text-left shadow-sm transition',
+                'flex w-full flex-col rounded-xl border border-brand-200 bg-white p-2 text-left shadow-sm transition',
                 onClick &&
-                    'cursor-pointer hover:border-[#1a2b4c]/30 hover:shadow-md active:scale-[0.98]',
+                    'cursor-pointer hover:border-brand-700/30 hover:shadow-md active:scale-[0.98]',
             )}
         >
-            <h2 className="line-clamp-2 min-h-8 text-center text-[10px] leading-tight font-bold tracking-wide text-[#1a2b4c] uppercase">
+            <h2 className="line-clamp-2 min-h-8 text-center text-[10px] leading-tight font-bold tracking-wide text-brand-700 uppercase">
                 {ring.label}
             </h2>
             <RingDonut ring={ring} size="sm" />
@@ -612,7 +612,7 @@ function RingDonut({
             <div className="absolute inset-0 flex items-center justify-center">
                 <span
                     className={cn(
-                        'font-bold text-[#1a2b4c]',
+                        'font-bold text-brand-700',
                         size === 'xl'
                             ? 'text-4xl'
                             : size === 'lg'
@@ -642,7 +642,7 @@ function Count({
         <div>
             <p
                 className={cn(
-                    'font-semibold tracking-wide text-[#6b8ead] uppercase',
+                    'font-semibold tracking-wide text-muted-foreground uppercase',
                     compact ? 'text-[9px]' : 'text-[10px]',
                 )}
             >

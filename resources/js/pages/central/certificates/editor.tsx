@@ -355,8 +355,8 @@ export default function CentralCertificateEditor({ template, trainings, particip
             <div className="flex flex-col gap-4 p-4 md:p-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <p className="text-xs font-semibold tracking-wide text-[#5a7390] uppercase">Certificado</p>
-                        <h1 className="text-2xl font-semibold text-[#1a2b4c]">Plantilla</h1>
+                        <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Certificado</p>
+                        <h1 className="text-2xl font-semibold text-brand-700">Plantilla</h1>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <Button type="button" variant="outline" onClick={openPreview}>
@@ -385,7 +385,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                             <select
                                 value={trainingId}
                                 onChange={(event) => setTrainingId(event.target.value)}
-                                className="h-10 w-full rounded-lg border border-[#c5d5e6] bg-white px-3 text-sm text-[#1a2b4c]"
+                                className="h-10 w-full rounded-lg border border-brand-300 bg-white px-3 text-sm text-brand-700"
                             >
                                 <option value="">Sin amarrar</option>
                                 {trainings.map((training) => (
@@ -489,7 +489,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                         />
                         </div>
                         {logos.length > 0 && (
-                            <p className="text-xs text-[#5a7390]">{logos.length} logo{logos.length === 1 ? '' : 's'} en el certificado. Muévelos en la hoja.</p>
+                            <p className="text-xs text-muted-foreground">{logos.length} logo{logos.length === 1 ? '' : 's'} en el certificado. Muévelos en la hoja.</p>
                         )}
                         </Accordion>
                         <Accordion title="Textos" hint="Variables del participante y textos libres" defaultOpen>
@@ -523,14 +523,14 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                     }`}
                                 >
                                     <span className="mt-0.5 size-3.5 shrink-0 rounded-full border border-black/10" style={{ background: block.color }} />
-                                    <span className="min-w-0 flex-1 whitespace-pre-line text-[#1a2b4c] line-clamp-2">
+                                    <span className="min-w-0 flex-1 whitespace-pre-line text-brand-700 line-clamp-2">
                                         <RichText text={fill(block.text, sample) || 'Texto vacío'} />
                                     </span>
                                 </button>
                             ))}
                         </div>
                         <div className="mt-4 grid gap-3">
-                            <p className="text-xs font-medium text-[#1a2b4c]">Variables propias</p>
+                            <p className="text-xs font-medium text-brand-700">Variables propias</p>
                             {custom.map((item, index) => (
                                 <div key={index} className="grid gap-2 rounded-lg border border-[#e6eef6] p-2">
                                     <Input
@@ -596,7 +596,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                     </div>
 
                     <div className="grid gap-4">
-                    <div className="rounded-2xl border border-[#d7e3f0] bg-[#e7eef6] p-3 md:p-6">
+                    <div className="rounded-2xl border border-brand-200 bg-[#e7eef6] p-3 md:p-6">
 
                     <div
                         ref={canvasRef}
@@ -710,7 +710,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                 onDrag={(event) => drag(event, qr.x, qr.y, (x, y) => setQr((current) => ({ ...current, x, y })))}
                                 onRemove={() => setQr((current) => ({ ...current, visible: false }))}
                             >
-                                <div className="grid h-full place-items-center border border-dashed border-[#1a2b4c] bg-white text-[10px] text-[#1a2b4c]">
+                                <div className="grid h-full place-items-center border border-dashed border-brand-700 bg-white text-[10px] text-brand-700">
                                     QR
                                 </div>
                             </Movable>
@@ -718,12 +718,12 @@ export default function CentralCertificateEditor({ template, trainings, particip
                     </div>
                     </div>
 
-                    <section className="rounded-2xl border border-[#d7e3f0] bg-white p-4">
+                    <section className="rounded-2xl border border-brand-200 bg-white p-4">
                         <h2 className="text-sm font-semibold text-[#12355b]">Elemento seleccionado</h2>
                         {selectedBlock && (
                             <div className="mt-3 grid gap-3 md:grid-cols-2">
                                 <div className="md:col-span-2">
-                                    <p className="mb-2 text-xs font-medium text-[#5a7390]">Color</p>
+                                    <p className="mb-2 text-xs font-medium text-muted-foreground">Color</p>
                                     <div className="flex flex-wrap items-center gap-2">
                                         {TEXT_COLORS.map((swatch) => (
                                             <button
@@ -746,7 +746,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                                 type="color"
                                                 value={selectedBlock.color}
                                                 onChange={(event) => patchBlock(selectedBlock.id, { color: event.target.value })}
-                                                className="h-8 w-10 cursor-pointer rounded border border-[#c5d5e6] bg-white"
+                                                className="h-8 w-10 cursor-pointer rounded border border-brand-300 bg-white"
                                             />
                                         </label>
                                     </div>
@@ -758,7 +758,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                         value={selectedBlock.text}
                                         rows={4}
                                         onChange={(event) => patchBlock(selectedBlock.id, { text: event.target.value })}
-                                        className="w-full rounded-md border border-[#c5d5e6] px-2 py-1 text-sm"
+                                        className="w-full rounded-md border border-brand-300 px-2 py-1 text-sm"
                                     />
                                     <button
                                         type="button"
@@ -775,7 +775,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                     >
                                         Negrita solo en lo seleccionado
                                     </button>
-                                    <p className="text-xs text-[#5a7390]">
+                                    <p className="text-xs text-muted-foreground">
                                         Deja el recuadro en peso normal y marca así el curso: **{'{{curso}}'}**
                                     </p>
                                 </Field>
@@ -800,7 +800,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                         onChange={(event) =>
                                             patchBlock(selectedBlock.id, { align: event.target.value as Block['align'] })
                                         }
-                                        className="h-9 w-full rounded-md border border-[#c5d5e6] bg-white px-2 text-sm"
+                                        className="h-9 w-full rounded-md border border-brand-300 bg-white px-2 text-sm"
                                     >
                                         <option value="left">Izquierda</option>
                                         <option value="center">Centro</option>
@@ -811,7 +811,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                     <select
                                         value={selectedBlock.font}
                                         onChange={(event) => patchBlock(selectedBlock.id, { font: event.target.value })}
-                                        className="h-9 w-full rounded-md border border-[#c5d5e6] bg-white px-2 text-sm"
+                                        className="h-9 w-full rounded-md border border-brand-300 bg-white px-2 text-sm"
                                     >
                                         {fonts.map((font) => (
                                             <option key={font.id} value={font.id}>
@@ -821,7 +821,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                     </select>
                                 </Field>
                                 </div>
-                                <label className="flex items-center gap-2 text-sm text-[#1a2b4c]">
+                                <label className="flex items-center gap-2 text-sm text-brand-700">
                                     <input
                                         type="checkbox"
                                         checked={selectedBlock.weight === 'bold'}
@@ -869,7 +869,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                                 }
                             />
                         )}
-                        {!selected && <p className="text-sm text-[#5a7390]">Selecciona un texto, logo, firma, sello o el QR para moverlo o ajustar su tamaño.</p>}
+                        {!selected && <p className="text-sm text-muted-foreground">Selecciona un texto, logo, firma, sello o el QR para moverlo o ajustar su tamaño.</p>}
                         {!qr.visible && (
                             <Button type="button" variant="outline" onClick={() => setQr((current) => ({ ...current, visible: true }))}>
                                 Mostrar QR
@@ -895,7 +895,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                     <select
                         value={previewPerson ?? ''}
                         onChange={(event) => setPreviewPerson(Number(event.target.value))}
-                        className="h-9 rounded-md border border-[#c5d5e6] px-2 text-sm"
+                        className="h-9 rounded-md border border-brand-300 px-2 text-sm"
                     >
                         {participants.map((item) => (
                             <option key={item.id} value={item.id}>
@@ -907,7 +907,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
                 {template.id && previewPerson && (
                     <iframe
                         title="Vista previa"
-                        className="h-[70vh] w-full rounded-lg border border-[#d7e3f0]"
+                        className="h-[70vh] w-full rounded-lg border border-brand-200"
                         src={`/plataforma/certificados/plantillas/${template.id}/previsualizar?participante=${previewPerson}`}
                     />
                 )}
@@ -919,7 +919,7 @@ export default function CentralCertificateEditor({ template, trainings, particip
 function Field({ label, children }: { label: string; children: ReactNode }) {
     return (
         <div className="grid gap-1">
-            <Label className="text-xs text-[#1a2b4c]">{label}</Label>
+            <Label className="text-xs text-brand-700">{label}</Label>
             {children}
         </div>
     );
@@ -935,7 +935,7 @@ function FileField({
     onChange: (file: File | null) => void;
 }) {
     return (
-        <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-[#c5d5e6] bg-[#f8fafc] px-3 py-2 hover:border-[#12355b]">
+        <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-brand-300 bg-background px-3 py-2 hover:border-[#12355b]">
             {preview ? (
                 <img src={preview} alt="" className="h-11 w-11 rounded-lg bg-white object-contain" />
             ) : (
@@ -943,7 +943,7 @@ function FileField({
             )}
             <span className="min-w-0">
                 <span className="block text-sm font-medium text-[#12355b]">{label}</span>
-                <span className="block text-xs text-[#5a7390]">PNG o JPG</span>
+                <span className="block text-xs text-muted-foreground">PNG o JPG</span>
             </span>
             <input
                 type="file"
@@ -969,13 +969,13 @@ function Accordion({
     const [open, setOpen] = useState(defaultOpen);
 
     return (
-        <Collapsible open={open} onOpenChange={setOpen} className="overflow-hidden rounded-2xl border border-[#d7e3f0] bg-white">
+        <Collapsible open={open} onOpenChange={setOpen} className="overflow-hidden rounded-2xl border border-brand-200 bg-white">
             <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left">
                 <span>
                     <span className="block text-sm font-semibold text-[#12355b]">{title}</span>
-                    <span className="block text-xs text-[#5a7390]">{hint}</span>
+                    <span className="block text-xs text-muted-foreground">{hint}</span>
                 </span>
-                <ChevronDown className={`size-4 shrink-0 text-[#5a7390] transition ${open ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`size-4 shrink-0 text-muted-foreground transition ${open ? 'rotate-180' : ''}`} />
             </CollapsibleTrigger>
             <CollapsibleContent className="grid gap-3 border-t border-[#e6eef6] px-4 py-4">{children}</CollapsibleContent>
         </Collapsible>
@@ -999,7 +999,7 @@ function Movable({
 }) {
     return (
         <div
-            className={`absolute cursor-move ${selected ? 'ring-2 ring-[#1a2b4c]' : ''}`}
+            className={`absolute cursor-move ${selected ? 'ring-2 ring-brand-700' : ''}`}
             style={style}
             onPointerDown={(event) => {
                 onSelect();

@@ -237,8 +237,8 @@ export function FleetDataPage() {
                                 className={cn(
                                     'cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium',
                                     activeTab === 'rc'
-                                        ? 'bg-[#1e4d8c] text-white'
-                                        : 'text-[#0f1f3a] hover:bg-slate-50',
+                                        ? 'bg-brand-500 text-white'
+                                        : 'text-brand-800 hover:bg-slate-50',
                                 )}
                                 onClick={() => setTab('rc')}
                             >
@@ -249,8 +249,8 @@ export function FleetDataPage() {
                                 className={cn(
                                     'cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium',
                                     activeTab === 'gps'
-                                        ? 'bg-[#1e4d8c] text-white'
-                                        : 'text-[#0f1f3a] hover:bg-slate-50',
+                                        ? 'bg-brand-500 text-white'
+                                        : 'text-brand-800 hover:bg-slate-50',
                                 )}
                                 onClick={() => setTab('gps')}
                             >
@@ -264,8 +264,8 @@ export function FleetDataPage() {
                                 className={cn(
                                     'cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium',
                                     filters.view === 'records'
-                                        ? 'bg-[#1e4d8c] text-white'
-                                        : 'text-[#0f1f3a] hover:bg-slate-50',
+                                        ? 'bg-brand-500 text-white'
+                                        : 'text-brand-800 hover:bg-slate-50',
                                 )}
                                 onClick={() => setView('records')}
                             >
@@ -276,8 +276,8 @@ export function FleetDataPage() {
                                 className={cn(
                                     'cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium',
                                     filters.view === 'history'
-                                        ? 'bg-[#1e4d8c] text-white'
-                                        : 'text-[#0f1f3a] hover:bg-slate-50',
+                                        ? 'bg-brand-500 text-white'
+                                        : 'text-brand-800 hover:bg-slate-50',
                                 )}
                                 onClick={() => setView('history')}
                             >
@@ -293,7 +293,7 @@ export function FleetDataPage() {
                         variant="outline"
                         size="sm"
                         asChild
-                        className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-[#0f1f3a] hover:bg-slate-50"
+                        className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-brand-800 hover:bg-slate-50"
                     >
                         <a href={exportUrl}>
                             <Download className="size-3.5" />
@@ -306,7 +306,7 @@ export function FleetDataPage() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-[#0f1f3a] hover:bg-slate-50"
+                        className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-brand-800 hover:bg-slate-50"
                         onClick={() => setImportOpen(true)}
                     >
                         <FileSpreadsheet className="size-3.5" />

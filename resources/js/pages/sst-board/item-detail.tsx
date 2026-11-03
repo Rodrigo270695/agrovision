@@ -54,31 +54,31 @@ export default function SstBoardItemDetailPage() {
             <Head title={`${item.label} — Tablero SST`} />
 
             <div className="flex w-full min-w-0 max-w-none flex-col gap-6 p-4 sm:p-6">
-                <div className="flex flex-wrap items-start gap-3 border-b-2 border-[#1a2b4c] pb-4">
+                <div className="flex flex-wrap items-start gap-3 border-b-2 border-brand-700 pb-4">
                     <Link
                         href={backHref}
-                        className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[#c5d5e6] bg-white px-3 py-2 text-xs font-semibold text-[#1a2b4c] shadow-sm transition hover:bg-[#f8fafc]"
+                        className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-brand-300 bg-white px-3 py-2 text-xs font-semibold text-brand-700 shadow-sm transition hover:bg-background"
                     >
                         <ArrowLeft className="size-4" />
                         Volver al tablero
                     </Link>
                     <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                        <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                             {summary_meta.template_label} ·{' '}
                             {summary_meta.week_label}
                         </p>
                         <h1
-                            className="mt-1 text-xl font-bold text-[#1a2b4c] underline decoration-[#1a2b4c]/30 underline-offset-4 sm:text-3xl"
+                            className="mt-1 text-xl font-bold text-brand-700 underline decoration-brand-700/30 underline-offset-4 sm:text-3xl"
                         >
                             {item.label}
                         </h1>
-                        <p className="mt-2 text-sm text-[#5a7390]">
+                        <p className="mt-2 text-sm text-muted-foreground">
                             A continuación se detallan los porcentajes de las
                             unidades móviles que cumplen este requisito. Cada
                             semana agrupa la planilla cargada en esa fecha
                             (placas únicas, sin repetir).
                         </p>
-                        <p className="mt-2 text-sm font-semibold text-[#1a2b4c]">
+                        <p className="mt-2 text-sm font-semibold text-brand-700">
                             Unidades en el rango ({summary_meta.week_label}):{' '}
                             <span className="text-lg tabular-nums">
                                 {summary.total}
@@ -89,7 +89,7 @@ export default function SstBoardItemDetailPage() {
 
                 <div className="flex flex-wrap items-end gap-3">
                     <div>
-                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                             Rango de fechas
                         </p>
                         <DateRangeFilter
@@ -107,25 +107,25 @@ export default function SstBoardItemDetailPage() {
                             }
                         />
                     </div>
-                    <p className="max-w-xl text-xs text-[#5a7390]">
+                    <p className="max-w-xl text-xs text-muted-foreground">
                         Solo se listan semanas con unidades en el rango
                         (planilla o inspección).
                     </p>
                 </div>
 
-                <section className="w-full min-w-0 rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-6">
-                    <p className="mb-3 text-xs font-semibold tracking-wide text-[#6b8ead] uppercase">
+                <section className="w-full min-w-0 rounded-2xl border border-brand-200 bg-white p-4 shadow-sm sm:p-6">
+                    <p className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                         Resumen del rango seleccionado
                     </p>
                     <SstSummaryStrip summary={summary} />
                 </section>
 
                 <div className="grid w-full min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]">
-                    <section className="min-w-0 overflow-hidden rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-6">
-                        <h2 className="text-sm font-semibold text-[#1a2b4c]">
+                    <section className="min-w-0 overflow-hidden rounded-2xl border border-brand-200 bg-white p-4 shadow-sm sm:p-6">
+                        <h2 className="text-sm font-semibold text-brand-700">
                             % OK por semana
                         </h2>
-                        <p className="mt-0.5 text-xs text-[#6b8ead]">
+                        <p className="mt-0.5 text-xs text-muted-foreground">
                             Barras verdes: cumplimiento del ítem en la carga de
                             esa semana
                         </p>
@@ -134,9 +134,9 @@ export default function SstBoardItemDetailPage() {
                         </div>
                     </section>
 
-                    <section className="min-w-0 rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-6">
+                    <section className="min-w-0 rounded-2xl border border-brand-200 bg-white p-4 shadow-sm sm:p-6">
                         <SstDetailDonut title={item.label} summary={summary} />
-                        <p className="mt-4 text-center text-[10px] text-[#6b8ead]">
+                        <p className="mt-4 text-center text-[10px] text-muted-foreground">
                             Fuente: {source_label}
                         </p>
                     </section>

@@ -30,25 +30,25 @@ export function DashboardBarChart({
     return (
         <div
             className={cn(
-                'rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm',
+                'rounded-2xl border border-brand-200 bg-white p-4 shadow-sm',
                 className,
             )}
         >
             <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
-                    <h3 className="text-sm font-semibold text-[#1a2b4c]">
+                    <h3 className="text-sm font-semibold text-brand-700">
                         {title}
                     </h3>
                     {subtitle ? (
-                        <p className="mt-0.5 text-xs text-[#6b8ead]">
+                        <p className="mt-0.5 text-xs text-muted-foreground">
                             {subtitle}
                         </p>
                     ) : null}
                 </div>
                 {dual ? (
-                    <div className="flex flex-wrap gap-2 text-[10px] text-[#5a7390]">
+                    <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
                         <span className="inline-flex items-center gap-1">
-                            <span className="size-2 rounded-sm bg-[#2e5a9e]" />
+                            <span className="size-2 rounded-sm bg-brand-500" />
                             {primaryLegend}
                         </span>
                         <span className="inline-flex items-center gap-1">
@@ -63,7 +63,7 @@ export function DashboardBarChart({
             points.every(
                 (item) => item.value === 0 && (item.secondary ?? 0) === 0,
             ) ? (
-                <p className="py-10 text-center text-sm text-[#6b8ead]">
+                <p className="py-10 text-center text-sm text-muted-foreground">
                     Sin datos para graficar
                 </p>
             ) : (
@@ -82,12 +82,12 @@ export function DashboardBarChart({
                             <div key={item.label} className="space-y-1">
                                 <div className="flex items-center justify-between gap-2 text-xs">
                                     <span
-                                        className="truncate font-medium text-[#5a7390]"
+                                        className="truncate font-medium text-muted-foreground"
                                         title={item.label}
                                     >
                                         {item.label}
                                     </span>
-                                    <span className="shrink-0 font-semibold text-[#1a2b4c]">
+                                    <span className="shrink-0 font-semibold text-brand-700">
                                         {dual
                                             ? `${item.value} / ${item.secondary ?? 0}`
                                             : item.value}
@@ -95,13 +95,13 @@ export function DashboardBarChart({
                                 </div>
                                 {dual ? (
                                     <div className="space-y-1">
-                                        <div className="h-2 overflow-hidden rounded-full bg-[#eef3f8]">
+                                        <div className="h-2 overflow-hidden rounded-full bg-muted">
                                             <div
-                                                className="h-full rounded-full bg-[#2e5a9e] transition-all"
+                                                className="h-full rounded-full bg-brand-500 transition-all"
                                                 style={{ width: `${width}%` }}
                                             />
                                         </div>
-                                        <div className="h-2 overflow-hidden rounded-full bg-[#eef3f8]">
+                                        <div className="h-2 overflow-hidden rounded-full bg-muted">
                                             <div
                                                 className="h-full rounded-full bg-[#9ec4e8] transition-all"
                                                 style={{
@@ -111,13 +111,13 @@ export function DashboardBarChart({
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="h-2.5 overflow-hidden rounded-full bg-[#eef3f8]">
+                                    <div className="h-2.5 overflow-hidden rounded-full bg-muted">
                                         <div
                                             className="h-full rounded-full transition-all"
                                             style={{
                                                 width: `${width}%`,
                                                 backgroundColor:
-                                                    item.color ?? '#2e5a9e',
+                                                    item.color ?? '#1e4d8c',
                                             }}
                                         />
                                     </div>

@@ -163,8 +163,8 @@ function ResultChip({
 
 function ResultLegend() {
     return (
-        <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[11px] text-[#5a7390]">
-            <span className="font-medium text-[#1a2b4c]">Leyenda Pareto:</span>
+        <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[11px] text-muted-foreground">
+            <span className="font-medium text-brand-700">Leyenda Pareto:</span>
             <span className="inline-flex items-center gap-1.5">
                 <span className="size-2 rounded-full bg-red-500" />
                 Desaprobado (&lt; 85%)
@@ -497,7 +497,7 @@ export function ChecklistsTable({
                 key: 'type',
                 header: 'Tipo',
                 cell: (item) => (
-                    <span className="text-xs font-semibold uppercase text-[#2e5a9e]">
+                    <span className="text-xs font-semibold uppercase text-brand-500">
                         {item.template?.type ?? '—'}
                     </span>
                 ),

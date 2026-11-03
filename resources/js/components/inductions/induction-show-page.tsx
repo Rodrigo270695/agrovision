@@ -506,7 +506,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
 
     return (
         <div className="flex flex-col gap-4 p-4">
-            <div className="shrink-0 rounded-2xl border border-[#d7e3f0] bg-white p-5 shadow-sm">
+            <div className="shrink-0 rounded-2xl border border-brand-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="space-y-2">
                         {onBack ? (
@@ -514,7 +514,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                 type="button"
                                 variant="ghost"
                                 onClick={onBack}
-                                className="-ml-2 h-8 cursor-pointer px-2 text-[#2e5a9e] hover:bg-[#e8f1fa] hover:text-[#1a2b4c]"
+                                className="-ml-2 h-8 cursor-pointer px-2 text-brand-500 hover:bg-brand-100 hover:text-brand-700"
                             >
                                 <ArrowLeft className="size-4" />
                                 Volver a configuración
@@ -524,7 +524,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                 type="button"
                                 variant="ghost"
                                 asChild
-                                className="-ml-2 h-8 cursor-pointer px-2 text-[#2e5a9e] hover:bg-[#e8f1fa] hover:text-[#1a2b4c]"
+                                className="-ml-2 h-8 cursor-pointer px-2 text-brand-500 hover:bg-brand-100 hover:text-brand-700"
                             >
                                 <Link href="/inducciones">
                                     <ArrowLeft className="size-4" />
@@ -539,7 +539,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                             </p>
                         ) : null}
                         <div className="flex flex-wrap items-center gap-2">
-                            <h1 className="font-display text-2xl font-semibold text-[#1a2b4c]">
+                            <h1 className="font-display text-2xl font-semibold text-brand-700">
                                 {induction.title}
                             </h1>
                             {canCopy ? (
@@ -551,14 +551,14 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                             setCopyOpen(true);
                                         }
                                     }}
-                                    className="h-8 cursor-pointer border-[#c5d5e6] text-[#1a2b4c] hover:bg-[#e8f1fa]"
+                                    className="h-8 cursor-pointer border-brand-300 text-brand-700 hover:bg-brand-100"
                                 >
                                     <Copy className="size-4" />
                                     Copiar
                                 </Button>
                             ) : null}
                         </div>
-                        <p className="text-sm text-[#5a7390]">
+                        <p className="text-sm text-muted-foreground">
                             Acta {induction.acta_number || '—'} ·{' '}
                             {formatDateTime(induction.scheduled_at)}
                             {induction.sede || induction.location
@@ -578,13 +578,13 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                             >
                                 {labelOf(induction.status, statusOptions)}
                             </span>
-                            <span className="inline-flex items-center gap-1 rounded-full border border-[#d7e3f0] bg-[#f8fafc] px-2.5 py-1 text-xs text-[#5a7390]">
+                            <span className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-background px-2.5 py-1 text-xs text-muted-foreground">
                                 <Users className="size-3.5" />
                                 Firmas {counts.signed}/{counts.total}
                             </span>
                         </div>
                         {!locked ? (
-                            <p className="text-xs text-[#6b8ead]">
+                            <p className="text-xs text-muted-foreground">
                                 {induction.status === 'scheduled'
                                     ? canStart
                                         ? 'Ya puedes iniciar la inducción. Luego se habilitan asistencia, firmas y huellas.'
@@ -616,7 +616,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                     onClick={() =>
                                         patchInductionStatus('closed')
                                     }
-                                    className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c]"
+                                    className="cursor-pointer bg-brand-500 text-white hover:bg-brand-700"
                                     title="Finalizar inducción"
                                 >
                                     Finalizar
@@ -625,7 +625,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                             {canUpdate &&
                             induction.status === 'in_progress' &&
                             !induction.can_finalize ? (
-                                <p className="self-center text-xs text-[#6b8ead]">
+                                <p className="self-center text-xs text-muted-foreground">
                                     {!induction.speaker_signed ||
                                     !induction.all_signed
                                         ? 'Firma asistentes y expositor.'
@@ -640,7 +640,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                     onClick={() => {
                                         void openInductionPdf(induction.id);
                                     }}
-                                    className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                                    className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700"
                                 >
                                     <FileText className="size-4" />
                                     Ver documentos
@@ -653,7 +653,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                     onClick={() =>
                                         patchInductionStatus('scheduled')
                                     }
-                                    className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                                    className="cursor-pointer border-brand-300 text-brand-700"
                                 >
                                     Reabrir
                                 </Button>
@@ -675,17 +675,17 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
             />
 
             <div className="grid shrink-0 gap-4 xl:grid-cols-2">
-                <section className="overflow-hidden rounded-2xl border border-[#d7e3f0] bg-white shadow-sm">
-                    <div className="border-b border-[#e2eaf3] px-4 py-3">
-                        <h2 className="text-sm font-semibold text-[#1a2b4c]">
+                <section className="overflow-hidden rounded-2xl border border-brand-200 bg-white shadow-sm">
+                    <div className="border-b border-brand-200 px-4 py-3">
+                        <h2 className="text-sm font-semibold text-brand-700">
                             Jalar conductores desde unidades
                         </h2>
-                        <p className="mt-0.5 text-xs text-[#6b8ead]">
+                        <p className="mt-0.5 text-xs text-muted-foreground">
                             Solo unidades activas. Si el conductor ya tiene esta
                             inducción vigente (un año), no aparece.
                         </p>
                     </div>
-                    <div className="flex flex-col gap-2 border-b border-[#e2eaf3] px-3 py-2.5 sm:flex-row sm:items-center">
+                    <div className="flex flex-col gap-2 border-b border-brand-200 px-3 py-2.5 sm:flex-row sm:items-center">
                         <TableSearchFilter
                             value={unitFilters.unit_search}
                             onChange={(unit_search) =>
@@ -696,11 +696,11 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                         />
                     </div>
                     {locked ? (
-                        <p className="px-4 py-8 text-center text-sm text-[#6b8ead]">
+                        <p className="px-4 py-8 text-center text-sm text-muted-foreground">
                             La inducción está cerrada.
                         </p>
                     ) : availableUnits.length === 0 ? (
-                        <p className="px-4 py-8 text-center text-sm text-[#6b8ead]">
+                        <p className="px-4 py-8 text-center text-sm text-muted-foreground">
                             No hay conductores disponibles.
                         </p>
                     ) : (
@@ -716,7 +716,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                                 : availableUnits.map((u) => u.id),
                                         )
                                     }
-                                    className="cursor-pointer text-xs font-medium text-[#2e5a9e] hover:underline"
+                                    className="cursor-pointer text-xs font-medium text-brand-500 hover:underline"
                                 >
                                     {selected.length === availableUnits.length
                                         ? 'Quitar selección'
@@ -731,7 +731,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                         pulling
                                     }
                                     onClick={pull}
-                                    className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c] disabled:opacity-50"
+                                    className="cursor-pointer bg-brand-500 text-white hover:bg-brand-700 disabled:opacity-50"
                                 >
                                     {pulling ? (
                                         <Spinner />
@@ -748,7 +748,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                     return (
                                         <li
                                             key={unit.id}
-                                            className="flex cursor-pointer items-start gap-3 px-3 py-2.5 hover:bg-[#f8fafc]"
+                                            className="flex cursor-pointer items-start gap-3 px-3 py-2.5 hover:bg-background"
                                             onClick={() => toggleUnit(unit.id)}
                                         >
                                             <Checkbox
@@ -756,17 +756,17 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                                 onCheckedChange={() =>
                                                     toggleUnit(unit.id)
                                                 }
-                                                className="mt-0.5 size-4 border-[#c5d5e6] shadow-none hover:border-[#4a90e2] data-[state=checked]:border-[#2e5a9e] data-[state=checked]:bg-[#2e5a9e] data-[state=checked]:text-white"
+                                                className="mt-0.5 size-4 border-brand-300 shadow-none hover:border-brand-400 data-[state=checked]:border-brand-500 data-[state=checked]:bg-brand-500 data-[state=checked]:text-white"
                                                 onClick={(event) =>
                                                     event.stopPropagation()
                                                 }
                                             />
                                             <div className="min-w-0 flex-1">
-                                                <p className="text-sm font-medium text-[#1a2b4c]">
+                                                <p className="text-sm font-medium text-brand-700">
                                                     {unit.driver_name ||
                                                         'Sin conductor'}
                                                 </p>
-                                                <p className="text-[11px] text-[#6b8ead]">
+                                                <p className="text-[11px] text-muted-foreground">
                                                     {unit.correlative}
                                                     {unit.plate_number
                                                         ? ` · ${unit.plate_number}`
@@ -787,12 +787,12 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                     )}
                 </section>
 
-                <section className="overflow-hidden rounded-2xl border border-[#d7e3f0] bg-white shadow-sm">
-                    <div className="border-b border-[#e2eaf3] px-4 py-3">
-                        <h2 className="text-sm font-semibold text-[#1a2b4c]">
+                <section className="overflow-hidden rounded-2xl border border-brand-200 bg-white shadow-sm">
+                    <div className="border-b border-brand-200 px-4 py-3">
+                        <h2 className="text-sm font-semibold text-brand-700">
                             Asistentes ({counts.total})
                         </h2>
-                        <p className="mt-0.5 text-xs text-[#6b8ead]">
+                        <p className="mt-0.5 text-xs text-muted-foreground">
                             {canManageAttendance
                                 ? 'Firma cada asistente. Luego firma el expositor.'
                                 : 'Puedes jalar conductores. Asistencia, firmas y huellas se habilitan al iniciar la inducción.'}
@@ -802,13 +802,13 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                     <div className="border-b border-[#eef2f7] px-3 py-3">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <p className="text-sm font-medium text-[#1a2b4c]">
+                                <p className="text-sm font-medium text-brand-700">
                                     Expositor
                                     {induction.speaker_name
                                         ? `: ${induction.speaker_name}`
                                         : ''}
                                 </p>
-                                <p className="text-[11px] text-[#6b8ead]">
+                                <p className="text-[11px] text-muted-foreground">
                                     Firma obligatoria para cerrar la inducción
                                 </p>
                             </div>
@@ -836,7 +836,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                             setSignatureDataUrl(null);
                                             setFingerprintDataUrl(null);
                                         }}
-                                        className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c]"
+                                        className="cursor-pointer bg-brand-500 text-white hover:bg-brand-700"
                                     >
                                         <PenLine className="size-3.5" />
                                         Firmar expositor
@@ -848,13 +848,13 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                             <img
                                 src={induction.speaker_signature_url}
                                 alt="Firma expositor"
-                                className="mt-2 h-12 rounded border border-[#e2eaf3] bg-white object-contain"
+                                className="mt-2 h-12 rounded border border-brand-200 bg-white object-contain"
                             />
                         ) : null}
                     </div>
 
                     {induction.attendees.length === 0 ? (
-                        <p className="px-4 py-8 text-center text-sm text-[#6b8ead]">
+                        <p className="px-4 py-8 text-center text-sm text-muted-foreground">
                             Aún no hay conductores en esta inducción.
                         </p>
                     ) : (
@@ -865,13 +865,13 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                         type="button"
                                         onClick={markAllAttended}
                                         disabled={bulkBusy}
-                                        className="cursor-pointer text-xs font-medium text-[#2e5a9e] hover:underline disabled:opacity-50"
+                                        className="cursor-pointer text-xs font-medium text-brand-500 hover:underline disabled:opacity-50"
                                     >
                                         {bulkBusy
                                             ? 'Actualizando…'
                                             : 'Marcar todos como asistieron'}
                                     </button>
-                                    <span className="text-[11px] text-[#6b8ead]">
+                                    <span className="text-[11px] text-muted-foreground">
                                         {
                                             induction.attendees.filter(
                                                 (item) =>
@@ -884,7 +884,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                             ) : canUpdate &&
                               !locked &&
                               induction.status === 'scheduled' ? (
-                                <p className="border-b border-[#eef2f7] px-3 py-2 text-xs text-[#6b8ead]">
+                                <p className="border-b border-[#eef2f7] px-3 py-2 text-xs text-muted-foreground">
                                     Inicia la inducción para marcar asistencia y
                                     capturar firmas/huellas.
                                 </p>
@@ -897,10 +897,10 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                 >
                                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
                                         <div className="min-w-0 flex-1">
-                                            <p className="text-sm font-medium text-[#1a2b4c]">
+                                            <p className="text-sm font-medium text-brand-700">
                                                 {attendee.driver_name}
                                             </p>
-                                            <p className="text-[11px] text-[#6b8ead]">
+                                            <p className="text-[11px] text-muted-foreground">
                                                 DNI {attendee.driver_dni || '—'}
                                                 {attendee.plate_number
                                                     ? ` · ${attendee.plate_number}`
@@ -949,7 +949,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                                             bulkBusy
                                                         }
                                                     >
-                                                        <SelectTrigger className="h-8 w-[8.5rem] cursor-pointer border-[#c5d5e6] bg-white text-xs">
+                                                        <SelectTrigger className="h-8 w-[8.5rem] cursor-pointer border-brand-300 bg-white text-xs">
                                                             <SelectValue placeholder="Estado" />
                                                         </SelectTrigger>
                                                         <SelectContent className="bg-white">
@@ -979,7 +979,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                                         onClick={() =>
                                                             openSign(attendee)
                                                         }
-                                                        className="size-8 cursor-pointer text-[#2e5a9e] hover:bg-[#e8f1fa] hover:text-[#1a2b4c]"
+                                                        className="size-8 cursor-pointer text-brand-500 hover:bg-brand-100 hover:text-brand-700"
                                                         title="Firmar"
                                                     >
                                                         <PenLine className="size-3.5" />
@@ -1041,7 +1041,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                                                 attendee,
                                                             )
                                                         }
-                                                        className="size-8 cursor-pointer text-[#6b8ead] hover:bg-[#eef2f7] hover:text-red-600"
+                                                        className="size-8 cursor-pointer text-muted-foreground hover:bg-[#eef2f7] hover:text-red-600"
                                                         title="Quitar"
                                                     >
                                                         <UserMinus className="size-3.5" />
@@ -1056,7 +1056,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                                 <img
                                                     src={attendee.signature_url}
                                                     alt={`Firma ${attendee.driver_name}`}
-                                                    className="h-12 rounded border border-[#e2eaf3] bg-white object-contain"
+                                                    className="h-12 rounded border border-brand-200 bg-white object-contain"
                                                 />
                                             ) : null}
                                             {attendee.fingerprint_url ? (
@@ -1065,7 +1065,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                                         attendee.fingerprint_url
                                                     }
                                                     alt={`Huella ${attendee.driver_name}`}
-                                                    className="h-12 w-10 rounded border border-[#e2eaf3] bg-white object-contain"
+                                                    className="h-12 w-10 rounded border border-brand-200 bg-white object-contain"
                                                 />
                                             ) : null}
                                         </div>
@@ -1080,13 +1080,13 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
 
             {induction.status === 'in_progress' ||
             induction.has_verification_photo ? (
-                <section className="shrink-0 rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm sm:p-5">
+                <section className="shrink-0 rounded-2xl border border-brand-200 bg-white p-4 shadow-sm sm:p-5">
                     <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                            <h2 className="text-sm font-semibold text-[#1a2b4c]">
+                            <h2 className="text-sm font-semibold text-brand-700">
                                 Foto de verificación
                             </h2>
-                            <p className="mt-0.5 text-xs text-[#6b8ead]">
+                            <p className="mt-0.5 text-xs text-muted-foreground">
                                 Obligatoria antes de finalizar. Se adjunta al
                                 final del PDF de registro e identifica la
                                 sesión.
@@ -1108,10 +1108,10 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                             <img
                                 src={induction.verification_photo_url}
                                 alt="Foto de verificación"
-                                className="max-h-72 w-full rounded-xl border border-[#e2eaf3] object-contain"
+                                className="max-h-72 w-full rounded-xl border border-brand-200 object-contain"
                             />
                         ) : (
-                            <p className="text-sm text-[#6b8ead]">
+                            <p className="text-sm text-muted-foreground">
                                 Sin foto de verificación.
                             </p>
                         )
@@ -1131,10 +1131,10 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                         <img
                             src={induction.verification_photo_url}
                             alt="Foto de verificación"
-                            className="max-h-72 w-full rounded-xl border border-[#e2eaf3] object-contain"
+                            className="max-h-72 w-full rounded-xl border border-brand-200 object-contain"
                         />
                     ) : (
-                        <p className="text-sm text-[#6b8ead]">
+                        <p className="text-sm text-muted-foreground">
                             No tienes permiso para subir la foto de
                             verificación.
                         </p>
@@ -1172,7 +1172,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                             variant="outline"
                             disabled={savingSignature}
                             onClick={closeSignModal}
-                            className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                            className="cursor-pointer border-brand-300 text-brand-700"
                         >
                             Cancelar
                         </Button>
@@ -1180,7 +1180,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                             type="button"
                             disabled={!canSaveSign || savingSignature}
                             onClick={saveSignature}
-                            className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c] disabled:opacity-50"
+                            className="cursor-pointer bg-brand-500 text-white hover:bg-brand-700 disabled:opacity-50"
                         >
                             {savingSignature ? <Spinner /> : null}
                             {signingSpeaker
@@ -1198,7 +1198,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                             className={
                                 reuseSaved
                                     ? 'w-full cursor-pointer rounded-xl border border-[#166534] bg-emerald-50 px-3 py-2 text-left text-xs font-semibold text-[#166534]'
-                                    : 'w-full cursor-pointer rounded-xl border border-[#c5d5e6] bg-[#f8fafc] px-3 py-2 text-left text-xs font-semibold text-[#1a2b4c]'
+                                    : 'w-full cursor-pointer rounded-xl border border-brand-300 bg-background px-3 py-2 text-left text-xs font-semibold text-brand-700'
                             }
                         >
                             {reuseSaved
@@ -1207,7 +1207,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                         </button>
                     ) : null}
                     <div className="space-y-1.5">
-                        <p className="text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
+                        <p className="text-xs font-semibold tracking-wide text-brand-700 uppercase">
                             Firma
                         </p>
                         <SignaturePad
@@ -1225,7 +1225,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
 
                     {!signingSpeaker ? (
                         <div className="space-y-1.5">
-                            <p className="text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
+                            <p className="text-xs font-semibold tracking-wide text-brand-700 uppercase">
                                 Huella
                             </p>
                             <FingerprintCameraCapture

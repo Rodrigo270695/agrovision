@@ -47,7 +47,7 @@ export function AppDeleteModal({
                         variant="outline"
                         onClick={onClose}
                         disabled={processing}
-                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c] hover:bg-white disabled:cursor-not-allowed"
+                        className="cursor-pointer border-brand-300 text-brand-700 hover:bg-white disabled:cursor-not-allowed"
                     >
                         {cancelLabel}
                     </Button>
@@ -70,7 +70,7 @@ export function AppDeleteModal({
                         {itemName ? (
                             <>
                                 ¿Seguro que deseas eliminar{' '}
-                                <strong className="font-semibold text-[#1a2b4c]">
+                                <strong className="font-semibold text-brand-700">
                                     {itemName}
                                 </strong>
                                 ? No podrás recuperar este registro

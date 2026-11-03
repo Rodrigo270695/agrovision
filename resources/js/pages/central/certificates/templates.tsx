@@ -23,9 +23,9 @@ export default function CentralTemplates({ templates }: Props) {
             <div className="flex flex-col gap-6 p-4 md:p-6">
                 <div className="flex items-start justify-between gap-3">
                     <div>
-                        <p className="text-xs font-semibold tracking-wide text-[#5a7390] uppercase">Certificado</p>
-                        <h1 className="text-2xl font-semibold text-[#1a2b4c]">Plantilla</h1>
-                        <p className="mt-1 text-sm text-[#5a7390]">
+                        <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Certificado</p>
+                        <h1 className="text-2xl font-semibold text-brand-700">Plantilla</h1>
+                        <p className="mt-1 text-sm text-muted-foreground">
                             Diseña el certificado y descárgalo para los participantes de la capacitación amarrada.
                         </p>
                     </div>
@@ -37,9 +37,9 @@ export default function CentralTemplates({ templates }: Props) {
                     </Button>
                 </div>
 
-                <div className="overflow-x-auto rounded-2xl border border-[#d7e3f0] bg-white">
+                <div className="overflow-x-auto rounded-2xl border border-brand-200 bg-white">
                     <table className="w-full text-left text-sm">
-                        <thead className="text-[#5a7390]">
+                        <thead className="text-muted-foreground">
                             <tr>
                                 <th className="px-4 py-3 font-medium">Curso</th>
                                 <th className="px-4 py-3 font-medium">Participantes</th>
@@ -51,10 +51,10 @@ export default function CentralTemplates({ templates }: Props) {
                         <tbody>
                             {templates.map((template) => (
                                 <tr key={template.id} className="border-t border-[#e6eef6]">
-                                    <td className="px-4 py-3 text-[#1a2b4c]">{template.course_title || template.name}</td>
-                                    <td className="px-4 py-3 text-[#1a2b4c]">{template.training ?? 'Sin amarrar'}</td>
-                                    <td className="px-4 py-3 text-[#1a2b4c]">{template.starts_on ?? '—'}</td>
-                                    <td className="px-4 py-3 text-[#1a2b4c]">{template.expires_on ?? '—'}</td>
+                                    <td className="px-4 py-3 text-brand-700">{template.course_title || template.name}</td>
+                                    <td className="px-4 py-3 text-brand-700">{template.training ?? 'Sin amarrar'}</td>
+                                    <td className="px-4 py-3 text-brand-700">{template.starts_on ?? '—'}</td>
+                                    <td className="px-4 py-3 text-brand-700">{template.expires_on ?? '—'}</td>
                                     <td className="px-4 py-3">
                                         <div className="flex justify-end gap-2">
                                             <Button variant="outline" size="sm" asChild>
@@ -86,7 +86,7 @@ export default function CentralTemplates({ templates }: Props) {
                             ))}
                             {templates.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="px-4 py-8 text-[#5a7390]">
+                                    <td colSpan={5} className="px-4 py-8 text-muted-foreground">
                                         Todavía no hay plantillas.
                                     </td>
                                 </tr>

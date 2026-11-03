@@ -41,18 +41,18 @@ export default function ConfirmPassword() {
     return (
         <>
             <Head title="Confirmar contraseña">
-                <meta name="theme-color" content="#1a2b4c" />
+                <meta name="theme-color" content="#0f1f3a" />
                 <meta name="color-scheme" content="light" />
             </Head>
 
-            <div className="login-shell relative isolate h-dvh max-h-dvh overflow-hidden bg-[#e8eef6] font-sans text-[#1a2b4c] scheme-light">
+            <div className="login-shell relative isolate h-dvh max-h-dvh overflow-hidden bg-brand-100 font-sans text-brand-700 scheme-light">
                 <div
                     aria-hidden
                     className="login-hero-media pointer-events-none absolute inset-x-0 top-0 h-[38%] lg:hidden"
                 />
                 <div
                     aria-hidden
-                    className="pointer-events-none absolute inset-x-0 top-0 h-[38%] bg-linear-to-b from-transparent to-[#e8eef6] lg:hidden"
+                    className="pointer-events-none absolute inset-x-0 top-0 h-[38%] bg-linear-to-b from-transparent to-brand-100 lg:hidden"
                 />
 
                 <div className="pointer-events-none absolute inset-y-0 left-0 hidden h-full w-[52%] lg:block">
@@ -64,7 +64,7 @@ export default function ConfirmPassword() {
                             ready ? 'login-fade-in' : 'opacity-0',
                         )}
                     >
-                        <div className="rounded-3xl bg-white px-8 py-6 shadow-[0_16px_40px_rgba(0,0,0,0.25)] ring-4 ring-[#4a90e2]/45">
+                        <div className="rounded-3xl bg-white px-8 py-6 shadow-[0_16px_40px_rgba(0,0,0,0.25)] ring-4 ring-brand-400/45">
                             {tenant?.login_logo || tenant?.logo ? (
                                 <img
                                     src={tenant?.login_logo ?? tenant?.logo ?? ''}
@@ -72,7 +72,7 @@ export default function ConfirmPassword() {
                                     className="mx-auto h-32 w-auto max-w-[300px] object-contain xl:h-36 xl:max-w-[340px]"
                                 />
                             ) : (
-                                <span className="font-display text-2xl font-semibold text-[#122038]">
+                                <span className="font-display text-2xl font-semibold text-brand-700">
                                     {tenant?.name ?? 'Empresa'}
                                 </span>
                             )}
@@ -100,14 +100,14 @@ export default function ConfirmPassword() {
                 <div className="relative z-10 flex h-full w-full items-center justify-center overflow-hidden px-4 py-4 sm:px-6 lg:ml-[52%] lg:w-[48%] lg:px-10 lg:py-6">
                     <div
                         className={cn(
-                            'w-full max-w-[400px] rounded-3xl border border-[#d7e3f0] bg-white p-5 shadow-[0_20px_50px_rgba(26,43,76,0.16)] sm:p-7',
+                            'w-full max-w-[400px] rounded-3xl border border-brand-200 bg-white p-5 shadow-[0_20px_50px_rgba(26,43,76,0.16)] sm:p-7',
                             ready
                                 ? 'login-rise-in'
                                 : 'translate-y-4 opacity-0',
                         )}
                     >
                         <div className="mb-5 flex flex-col items-center gap-3 text-center">
-                            <div className="rounded-2xl bg-white px-5 py-3 shadow-sm ring-2 ring-[#4a90e2]/35 lg:hidden">
+                            <div className="rounded-2xl bg-white px-5 py-3 shadow-sm ring-2 ring-brand-400/35 lg:hidden">
                                 {tenant?.login_logo || tenant?.logo ? (
                                     <img
                                         src={tenant?.login_logo ?? tenant?.logo ?? ''}
@@ -115,13 +115,13 @@ export default function ConfirmPassword() {
                                         className="mx-auto h-16 w-auto max-w-[200px] object-contain"
                                     />
                                 ) : (
-                                    <span className="font-display text-lg font-semibold text-[#122038]">
+                                    <span className="font-display text-lg font-semibold text-brand-700">
                                         {tenant?.name ?? 'Empresa'}
                                     </span>
                                 )}
                             </div>
-                            <div className="w-full rounded-2xl border border-[#e2eaf3] bg-[#f7fafc] px-4 py-3">
-                                <p className="mb-2 text-[10px] font-semibold tracking-[0.2em] text-[#6b8ead] uppercase">
+                            <div className="w-full rounded-2xl border border-brand-200 bg-[#f7fafc] px-4 py-3">
+                                <p className="mb-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
                                     Cliente
                                 </p>
                                 <TenantBrandMark
@@ -134,10 +134,10 @@ export default function ConfirmPassword() {
                         </div>
 
                         <div className="mb-5 space-y-1.5 text-center sm:text-left">
-                            <h1 className="font-display text-2xl font-semibold tracking-tight text-[#1a2b4c]">
+                            <h1 className="font-display text-2xl font-semibold tracking-tight text-brand-700">
                                 Confirmar contraseña
                             </h1>
-                            <p className="text-sm leading-relaxed text-[#5a7390]">
+                            <p className="text-sm leading-relaxed text-muted-foreground">
                                 Área segura. Confirma tu contraseña para
                                 continuar.
                             </p>
@@ -164,7 +164,7 @@ export default function ConfirmPassword() {
                                         <div className="grid gap-1.5">
                                             <Label
                                                 htmlFor="password"
-                                                className="text-[#1a2b4c]"
+                                                className="text-brand-700"
                                             >
                                                 Contraseña
                                             </Label>
@@ -174,7 +174,7 @@ export default function ConfirmPassword() {
                                                 placeholder="Tu contraseña"
                                                 autoComplete="current-password"
                                                 autoFocus
-                                                className="h-12 border-[#c5d5e6] bg-white text-base text-[#1a2b4c] shadow-none placeholder:text-[#8aa3bd] focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35"
+                                                className="h-12 border-brand-300 bg-white text-base text-brand-700 shadow-none placeholder:text-[#8aa3bd] focus-visible:border-brand-500 focus-visible:ring-brand-400/35"
                                             />
                                             <InputError
                                                 message={errors.password}
@@ -185,7 +185,7 @@ export default function ConfirmPassword() {
                                             type="submit"
                                             disabled={processing}
                                             data-test="confirm-password-button"
-                                            className="mt-1 h-12 w-full bg-[#1a2b4c] text-base font-semibold text-white hover:bg-[#122038]"
+                                            className="mt-1 h-12 w-full bg-brand-700 text-base font-semibold text-white hover:bg-brand-700"
                                         >
                                             {processing ? <Spinner /> : null}
                                             Confirmar contraseña
@@ -195,7 +195,7 @@ export default function ConfirmPassword() {
                             </Form>
                         </div>
 
-                        <p className="mt-6 text-center text-[11px] leading-relaxed text-[#6b8ead]">
+                        <p className="mt-6 text-center text-[11px] leading-relaxed text-muted-foreground">
                             Sistema Indelsi · Uso autorizado Agrovision
                         </p>
                     </div>

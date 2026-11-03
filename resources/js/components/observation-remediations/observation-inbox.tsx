@@ -71,8 +71,8 @@ export function ObservationInbox() {
                     variant="ghost"
                     size="icon"
                     className={cn(
-                        'relative size-9 shrink-0 cursor-pointer text-[#5a7390] hover:bg-[#e8f1fa] hover:text-[#1a2b4c]',
-                        hasMessages && 'text-[#1e4d8c]',
+                        'relative size-9 shrink-0 cursor-pointer text-muted-foreground hover:bg-brand-100 hover:text-brand-700',
+                        hasMessages && 'text-brand-500',
                     )}
                     aria-label={
                         hasMessages
@@ -84,7 +84,7 @@ export function ObservationInbox() {
                         className={cn(
                             'size-4',
                             hasMessages &&
-                                'animate-[obsBlink_1s_ease-in-out_infinite] text-[#1e4d8c]',
+                                'animate-[obsBlink_1s_ease-in-out_infinite] text-brand-500',
                         )}
                     />
                     {hasMessages ? (
@@ -98,16 +98,16 @@ export function ObservationInbox() {
                 align="end"
                 className="w-[min(22rem,calc(100vw-1.5rem))] bg-white p-3"
             >
-                <p className="text-sm font-medium text-[#1a2b4c]">
+                <p className="text-sm font-medium text-brand-700">
                     Mensajes de observaciones
                 </p>
-                <p className="mt-1 text-xs text-[#5a7390]">
+                <p className="mt-1 text-xs text-muted-foreground">
                     Levantamientos enviados o rechazados que requieren tu
                     atención.
                 </p>
 
                 {items.length === 0 ? (
-                    <p className="mt-3 text-xs text-[#5a7390]">
+                    <p className="mt-3 text-xs text-muted-foreground">
                         No hay mensajes pendientes.
                     </p>
                 ) : (
@@ -119,14 +119,14 @@ export function ObservationInbox() {
                                     'rounded-lg border px-2.5 py-2',
                                     item.kind === 'rejected'
                                         ? 'border-amber-200 bg-amber-50'
-                                        : 'border-[#d7e3f0] bg-[#f7fbff]',
+                                        : 'border-brand-200 bg-[#f7fbff]',
                                 )}
                             >
-                                <p className="text-xs font-semibold text-[#1a2b4c]">
+                                <p className="text-xs font-semibold text-brand-700">
                                     {item.plate_number || 'Sin placa'} ·{' '}
                                     {item.pass_label}
                                 </p>
-                                <p className="mt-0.5 text-[11px] text-[#5a7390]">
+                                <p className="mt-0.5 text-[11px] text-muted-foreground">
                                     {item.status_label}
                                     {item.from_name
                                         ? ` · ${item.from_name}`
@@ -138,7 +138,7 @@ export function ObservationInbox() {
                                 <Button
                                     type="button"
                                     size="sm"
-                                    className="mt-2 h-7 w-full cursor-pointer bg-[#1a2b4c] text-xs text-white hover:bg-[#122038]"
+                                    className="mt-2 h-7 w-full cursor-pointer bg-brand-700 text-xs text-white hover:bg-brand-700"
                                     onClick={() => {
                                         const params = new URLSearchParams();
                                         if (item.date) {

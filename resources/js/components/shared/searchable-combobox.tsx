@@ -389,11 +389,11 @@ export function SearchableCombobox({
         <div ref={rootRef} className={cn('relative', className)}>
             <div
                 className={cn(
-                    'flex w-full items-center gap-1.5 rounded-md border border-[#c5d5e6] bg-white px-2.5 shadow-none transition',
+                    'flex w-full items-center gap-1.5 rounded-md border border-brand-300 bg-white px-2.5 shadow-none transition',
                     compact ? 'h-9' : 'h-10',
-                    'focus-within:border-[#2e5a9e] focus-within:ring-[3px] focus-within:ring-[#4a90e2]/35',
+                    'focus-within:border-brand-500 focus-within:ring-[3px] focus-within:ring-brand-400/35',
                     disabled && 'opacity-50',
-                    open && 'border-[#2e5a9e] ring-[3px] ring-[#4a90e2]/35',
+                    open && 'border-brand-500 ring-[3px] ring-brand-400/35',
                 )}
             >
                 <input
@@ -415,7 +415,7 @@ export function SearchableCombobox({
                         setHighlight(0);
                     }}
                     onKeyDown={onKeyDown}
-                    className="min-w-0 flex-1 bg-transparent text-sm text-[#1a2b4c] outline-none placeholder:text-[#6b8ead] disabled:cursor-not-allowed"
+                    className="min-w-0 flex-1 bg-transparent text-sm text-brand-700 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
                     autoComplete="off"
                     spellCheck={false}
                 />
@@ -423,7 +423,7 @@ export function SearchableCombobox({
                     <button
                         type="button"
                         aria-label="Limpiar"
-                        className="rounded p-0.5 text-[#6b8ead] hover:bg-[#eef1f5] hover:text-[#1a2b4c]"
+                        className="rounded p-0.5 text-muted-foreground hover:bg-[#eef1f5] hover:text-brand-700"
                         onMouseDown={(event) => event.preventDefault()}
                         onClick={clear}
                     >
@@ -435,7 +435,7 @@ export function SearchableCombobox({
                     tabIndex={-1}
                     aria-label="Abrir lista"
                     disabled={disabled}
-                    className="rounded p-0.5 text-[#6b8ead] hover:bg-[#eef1f5] disabled:cursor-not-allowed"
+                    className="rounded p-0.5 text-muted-foreground hover:bg-[#eef1f5] disabled:cursor-not-allowed"
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => {
                         if (open) {
@@ -461,10 +461,10 @@ export function SearchableCombobox({
                     role="listbox"
                     data-portal-dropdown=""
                     data-scroll-lock-scrollable=""
-                    className="pointer-events-auto fixed z-[200] overflow-y-auto overscroll-contain rounded-lg border border-[#d7e3f0] bg-white py-1 shadow-lg"
+                    className="pointer-events-auto fixed z-[200] overflow-y-auto overscroll-contain rounded-lg border border-brand-200 bg-white py-1 shadow-lg"
                 >
                     {filtered.length === 0 && !canCreate ? (
-                        <p className="px-3 py-3 text-center text-sm text-[#6b8ead]">
+                        <p className="px-3 py-3 text-center text-sm text-muted-foreground">
                             {emptyMessage}
                         </p>
                     ) : (
@@ -479,13 +479,13 @@ export function SearchableCombobox({
                                         key={option.value}
                                         className="flex items-center gap-2 px-3 py-1.5"
                                     >
-                                        <Pencil className="size-3.5 shrink-0 text-[#2e5a9e]" />
+                                        <Pencil className="size-3.5 shrink-0 text-brand-500" />
                                         <input
                                             autoFocus
                                             value={renameDraft}
                                             disabled={renaming}
                                             aria-label="Nuevo nombre de la plantilla"
-                                            className="h-8 min-w-0 flex-1 rounded-md border border-[#c5d5e6] px-2 text-sm text-[#1a2b4c] outline-none focus:border-[#2e5a9e]"
+                                            className="h-8 min-w-0 flex-1 rounded-md border border-brand-300 px-2 text-sm text-brand-700 outline-none focus:border-brand-500"
                                             onChange={(event) =>
                                                 setRenameDraft(event.target.value)
                                             }
@@ -518,8 +518,8 @@ export function SearchableCombobox({
                                     className={cn(
                                         'flex w-full items-center gap-1 pr-2 text-sm transition',
                                         isActive
-                                            ? 'bg-[#e8f1fa] text-[#1a2b4c]'
-                                            : 'text-[#1a2b4c] hover:bg-[#f8fafc]',
+                                            ? 'bg-brand-100 text-brand-700'
+                                            : 'text-brand-700 hover:bg-background',
                                     )}
                                     onMouseEnter={() => setHighlight(index)}
                                 >
@@ -537,7 +537,7 @@ export function SearchableCombobox({
                                             className={cn(
                                                 'size-3.5 shrink-0',
                                                 isSelected
-                                                    ? 'text-[#2e5a9e] opacity-100'
+                                                    ? 'text-brand-500 opacity-100'
                                                     : 'opacity-0',
                                             )}
                                         />
@@ -546,7 +546,7 @@ export function SearchableCombobox({
                                                 {option.label}
                                             </span>
                                             {option.description ? (
-                                                <span className="mt-0.5 block truncate text-xs leading-tight text-[#5a7390]">
+                                                <span className="mt-0.5 block truncate text-xs leading-tight text-muted-foreground">
                                                     {option.description}
                                                 </span>
                                             ) : null}
@@ -557,7 +557,7 @@ export function SearchableCombobox({
                                             type="button"
                                             aria-label={`Editar ${option.label}`}
                                             disabled={renaming}
-                                            className="rounded p-1 text-[#6b8ead] hover:bg-white hover:text-[#1a2b4c] disabled:opacity-50"
+                                            className="rounded p-1 text-muted-foreground hover:bg-white hover:text-brand-700 disabled:opacity-50"
                                             onMouseDown={(event) => {
                                                 event.preventDefault();
                                                 event.stopPropagation();
@@ -572,7 +572,7 @@ export function SearchableCombobox({
                                             type="button"
                                             aria-label={`Eliminar ${option.label}`}
                                             disabled={deleting}
-                                            className="rounded p-1 text-[#6b8ead] hover:bg-white hover:text-red-600 disabled:opacity-50"
+                                            className="rounded p-1 text-muted-foreground hover:bg-white hover:text-red-600 disabled:opacity-50"
                                             onMouseDown={(event) => {
                                                 event.preventDefault();
                                                 event.stopPropagation();
@@ -593,8 +593,8 @@ export function SearchableCombobox({
                             className={cn(
                                 'flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm transition',
                                 highlight === filtered.length
-                                    ? 'bg-[#e8f1fa] text-[#1a2b4c]'
-                                    : 'text-[#1a2b4c] hover:bg-[#f8fafc]',
+                                    ? 'bg-brand-100 text-brand-700'
+                                    : 'text-brand-700 hover:bg-background',
                             )}
                             onMouseEnter={() => setHighlight(filtered.length)}
                             onMouseDown={(event) => {
@@ -602,7 +602,7 @@ export function SearchableCombobox({
                                 createCurrent();
                             }}
                         >
-                            <Plus className="size-3.5 shrink-0 text-[#2e5a9e]" />
+                            <Plus className="size-3.5 shrink-0 text-brand-500" />
                             <span className="min-w-0 flex-1 truncate font-medium">
                                 {creating
                                     ? 'Creando...'

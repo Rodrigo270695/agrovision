@@ -24,7 +24,7 @@ function stampFingerprint(
     ctx.save();
     ctx.translate(x, y);
     ctx.fillStyle = 'rgba(26, 43, 76, 0.12)';
-    ctx.strokeStyle = '#1a2b4c';
+    ctx.strokeStyle = '#0f1f3a';
     ctx.lineCap = 'round';
 
     ctx.beginPath();
@@ -100,8 +100,8 @@ export function SignaturePad({
             ctx.lineWidth = mode === 'stamp' ? 3.5 : 2.2;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
-            ctx.strokeStyle = '#1a2b4c';
-            ctx.fillStyle = '#1a2b4c';
+            ctx.strokeStyle = '#0f1f3a';
+            ctx.fillStyle = '#0f1f3a';
 
             if (valueUrl) {
                 const image = new Image();
@@ -168,7 +168,7 @@ export function SignaturePad({
 
     return (
         <div className={cn('space-y-2', className)}>
-            <div className="relative overflow-hidden rounded-xl border border-dashed border-[#c5d5e6] bg-[#f8fafc]">
+            <div className="relative overflow-hidden rounded-xl border border-dashed border-brand-300 bg-background">
                 <canvas
                     ref={canvasRef}
                     className={cn(
@@ -254,7 +254,7 @@ export function SignaturePad({
                     }}
                 />
                 {!disabled && !valueUrl && !dirty ? (
-                    <p className="pointer-events-none absolute inset-0 flex items-center justify-center px-3 text-center text-xs text-[#6b8ead]">
+                    <p className="pointer-events-none absolute inset-0 flex items-center justify-center px-3 text-center text-xs text-muted-foreground">
                         {placeholder}
                     </p>
                 ) : null}
@@ -265,7 +265,7 @@ export function SignaturePad({
                     variant="outline"
                     size="sm"
                     onClick={clear}
-                    className="h-8 cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                    className="h-8 cursor-pointer border-brand-300 text-brand-700"
                 >
                     <Eraser className="size-3.5" />
                     {clearLabel}

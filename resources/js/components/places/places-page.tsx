@@ -172,8 +172,8 @@ export function PlacesPage() {
             <PlatformToolbar
                 leading={
                     <div className="flex min-w-0 items-center gap-2">
-                        <Building2 className="size-4 shrink-0 text-[#1e4d8c]" />
-                        <h2 className="text-sm font-semibold text-[#0f1f3a]">
+                        <Building2 className="size-4 shrink-0 text-brand-500" />
+                        <h2 className="text-sm font-semibold text-brand-800">
                             Sedes
                         </h2>
                     </div>
@@ -187,7 +187,7 @@ export function PlacesPage() {
                             setEditingSite(null);
                             setSiteFormOpen(true);
                         }}
-                        className="cursor-pointer gap-1.5 rounded-xl bg-[#1e4d8c] text-white hover:bg-[#163a6b]"
+                        className="cursor-pointer gap-1.5 rounded-xl bg-brand-500 text-white hover:bg-brand-600"
                     >
                         <Plus className="size-3.5" strokeWidth={2.5} />
                         <span className="hidden sm:inline">Nueva sede</span>
@@ -217,8 +217,8 @@ export function PlacesPage() {
             <PlatformToolbar
                 leading={
                     <div className="flex min-w-0 items-center gap-2">
-                        <MapPin className="size-4 shrink-0 text-[#1e4d8c]" />
-                        <h2 className="truncate text-sm font-semibold text-[#0f1f3a]">
+                        <MapPin className="size-4 shrink-0 text-brand-500" />
+                        <h2 className="truncate text-sm font-semibold text-brand-800">
                             {selectedSite
                                 ? `Lugares de ${selectedSite.name}`
                                 : 'Lugares'}
@@ -239,7 +239,7 @@ export function PlacesPage() {
                             setEditing(null);
                             setFormOpen(true);
                         }}
-                        className="cursor-pointer gap-1.5 rounded-xl bg-[#1e4d8c] text-white hover:bg-[#163a6b] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="cursor-pointer gap-1.5 rounded-xl bg-brand-500 text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         <Plus className="size-3.5" strokeWidth={2.5} />
                         <span className="hidden sm:inline">Nuevo lugar</span>

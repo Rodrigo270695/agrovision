@@ -266,7 +266,7 @@ export default function PlateReportPage({
                         variant="outline"
                         disabled={rows.length === 0 || exporting}
                         onClick={download}
-                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                        className="cursor-pointer border-brand-300 text-brand-700"
                     >
                         {exporting ? <Spinner /> : <Download className="size-4" />}
                         Descargar Excel
@@ -284,11 +284,11 @@ export default function PlateReportPage({
                     >
                         <label
                             htmlFor="plates"
-                            className="text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase"
+                            className="text-xs font-semibold tracking-wide text-brand-700 uppercase"
                         >
                             Placas
                         </label>
-                        <p className="mt-1 text-xs text-[#5a7390]">
+                        <p className="mt-1 text-xs text-muted-foreground">
                             Una debajo de otra, o separadas por coma. Hasta 400.
                         </p>
                         <textarea
@@ -297,10 +297,10 @@ export default function PlateReportPage({
                             onChange={(event) => form.setData('plates', event.target.value)}
                             rows={6}
                             placeholder={'ABC-123\nDEF-456\nGHI-789'}
-                            className="mt-3 w-full resize-y rounded-xl border border-[#c5d5e6] bg-white px-3 py-2 font-mono text-sm text-[#1a2b4c] outline-none focus:border-[#2e5a9e] focus:ring-2 focus:ring-[#4a90e2]/35"
+                            className="mt-3 w-full resize-y rounded-xl border border-brand-300 bg-white px-3 py-2 font-mono text-sm text-brand-700 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-400/35"
                         />
                         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                            <p className="text-xs text-[#5a7390]">
+                            <p className="text-xs text-muted-foreground">
                                 {detected === 0
                                     ? 'Todavía no hay placas.'
                                     : `${detected} placa${detected === 1 ? '' : 's'} lista${detected === 1 ? '' : 's'} para consultar.`}
@@ -308,7 +308,7 @@ export default function PlateReportPage({
                             <Button
                                 type="submit"
                                 disabled={form.processing || detected === 0}
-                                className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                                className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700"
                             >
                                 {form.processing ? <Spinner /> : <ScanSearch className="size-4" />}
                                 Consultar
@@ -367,7 +367,7 @@ export default function PlateReportPage({
                             />
                         </div>
                     ) : (
-                        <p className="px-4 py-10 text-center text-sm text-[#5a7390]">
+                        <p className="px-4 py-10 text-center text-sm text-muted-foreground">
                             El resultado queda en una fila por placa. Abre el
                             detalle solo cuando necesites ver qué ítem no pasó, qué
                             documento falta o qué inducción tiene.
@@ -375,7 +375,7 @@ export default function PlateReportPage({
                     )}
 
                     {summary && visible.length === 0 ? (
-                        <p className="mt-4 text-sm text-[#5a7390]">
+                        <p className="mt-4 text-sm text-muted-foreground">
                             Ninguna placa coincide con este filtro.
                         </p>
                     ) : null}
@@ -387,15 +387,15 @@ export default function PlateReportPage({
                             return (
                                 <article
                                     key={row.key}
-                                    className="rounded-2xl border border-[#d7e3f0] bg-white shadow-sm"
+                                    className="rounded-2xl border border-brand-200 bg-white shadow-sm"
                                 >
                                     <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
                                         <div className="min-w-0 flex-1">
                                             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                                                <h2 className="font-mono text-lg font-semibold text-[#1a2b4c]">
+                                                <h2 className="font-mono text-lg font-semibold text-brand-700">
                                                     {row.plate}
                                                 </h2>
-                                                <p className="truncate text-sm text-[#5a7390]">
+                                                <p className="truncate text-sm text-muted-foreground">
                                                     {row.driver_name || 'Sin conductor'}
                                                     {row.driver_dni ? ` · ${row.driver_dni}` : ''}
                                                     {row.provider ? ` · ${row.provider}` : ''}
@@ -420,7 +420,7 @@ export default function PlateReportPage({
                                             variant="outline"
                                             aria-expanded={open}
                                             onClick={() => setOpenKey(open ? null : row.key)}
-                                            className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                                            className="cursor-pointer border-brand-300 text-brand-700"
                                         >
                                             {open ? 'Ocultar detalle' : 'Ver detalle'}
                                             <ChevronDown
@@ -461,11 +461,11 @@ function FilterStat({
             className={cn(
                 'cursor-pointer rounded-2xl border px-3 py-2 text-left',
                 active
-                    ? 'border-[#1a2b4c] bg-[#1a2b4c] text-white'
-                    : 'border-[#d7e3f0] bg-white text-[#1a2b4c] hover:bg-[#f8fafc]',
+                    ? 'border-brand-700 bg-brand-700 text-white'
+                    : 'border-brand-200 bg-white text-brand-700 hover:bg-background',
             )}
         >
-            <p className={cn('text-[10px] font-semibold tracking-wide uppercase', active ? 'text-white/70' : 'text-[#6b8ead]')}>
+            <p className={cn('text-[10px] font-semibold tracking-wide uppercase', active ? 'text-white/70' : 'text-muted-foreground')}>
                 {label}
             </p>
             <p className="text-lg font-bold">{value}</p>
@@ -476,19 +476,19 @@ function FilterStat({
 function Detail({ row }: { row: PlateRow }) {
     if (!row.found) {
         return (
-            <div className="border-t border-[#e2eaf3] px-4 py-4 text-sm text-[#5a7390]">
+            <div className="border-t border-brand-200 px-4 py-4 text-sm text-muted-foreground">
                 Esta placa no tiene unidad, inspección ni inducción.
             </div>
         );
     }
 
     return (
-        <div className="grid gap-4 border-t border-[#e2eaf3] px-4 py-4 lg:grid-cols-3">
+        <div className="grid gap-4 border-t border-brand-200 px-4 py-4 lg:grid-cols-3">
             <section>
-                <h3 className="text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
+                <h3 className="text-xs font-semibold tracking-wide text-brand-700 uppercase">
                     Unidad y documentos
                 </h3>
-                <p className="mt-2 text-sm text-[#5a7390]">
+                <p className="mt-2 text-sm text-muted-foreground">
                     {row.unit_status || 'Sin unidad'}
                     {row.period ? ` · ${row.period}` : ''}
                     {row.correlative ? ` · ${row.correlative}` : ''}
@@ -500,7 +500,7 @@ function Detail({ row }: { row: PlateRow }) {
                             key={document.type}
                             className="flex items-center justify-between gap-3 text-sm"
                         >
-                            <span className="text-[#1a2b4c]">{document.label}</span>
+                            <span className="text-brand-700">{document.label}</span>
                             <span
                                 className={cn(
                                     'rounded-full px-2 py-0.5 text-xs font-medium',
@@ -518,19 +518,19 @@ function Detail({ row }: { row: PlateRow }) {
             </section>
 
             <section>
-                <h3 className="text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
+                <h3 className="text-xs font-semibold tracking-wide text-brand-700 uppercase">
                     Inspecciones
                 </h3>
                 {row.inspections.length === 0 ? (
-                    <p className="mt-2 text-sm text-[#5a7390]">Sin inspección.</p>
+                    <p className="mt-2 text-sm text-muted-foreground">Sin inspección.</p>
                 ) : (
                     <div className="mt-2 space-y-3">
                         {row.inspections.map((inspection) => (
                             <div
                                 key={inspection.id}
-                                className="rounded-xl border border-[#e2eaf3] p-3"
+                                className="rounded-xl border border-brand-200 p-3"
                             >
-                                <p className="text-xs text-[#5a7390]">
+                                <p className="text-xs text-muted-foreground">
                                     {inspection.period || 'Sin periodo'}
                                     {inspection.inspector ? ` · ${inspection.inspector}` : ''}
                                 </p>
@@ -548,7 +548,7 @@ function Detail({ row }: { row: PlateRow }) {
                                     date={inspection.second_date}
                                     failed={inspection.second_failed}
                                 />
-                                <p className="mt-2 text-xs text-[#5a7390]">
+                                <p className="mt-2 text-xs text-muted-foreground">
                                     {inspection.subsanada
                                         ? `Subsanada${inspection.signer ? ` por ${inspection.signer}` : ''}${inspection.signed_at ? ` · ${inspection.signed_at}` : ''}`
                                         : 'Sin firma del coordinador'}
@@ -560,11 +560,11 @@ function Detail({ row }: { row: PlateRow }) {
             </section>
 
             <section>
-                <h3 className="text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
+                <h3 className="text-xs font-semibold tracking-wide text-brand-700 uppercase">
                     Inducciones
                 </h3>
                 {row.inductions.length === 0 ? (
-                    <p className="mt-2 text-sm text-[#5a7390]">
+                    <p className="mt-2 text-sm text-muted-foreground">
                         Este conductor no figura en inducciones.
                     </p>
                 ) : (
@@ -572,12 +572,12 @@ function Detail({ row }: { row: PlateRow }) {
                         {row.inductions.map((induction) => (
                             <li
                                 key={induction.id}
-                                className="rounded-xl border border-[#e2eaf3] px-3 py-2"
+                                className="rounded-xl border border-brand-200 px-3 py-2"
                             >
-                                <p className="text-sm font-medium text-[#1a2b4c]">
+                                <p className="text-sm font-medium text-brand-700">
                                     {induction.title}
                                 </p>
-                                <p className="mt-0.5 text-xs text-[#5a7390]">
+                                <p className="mt-0.5 text-xs text-muted-foreground">
                                     {induction.date || 'Sin fecha'}
                                     {induction.acta ? ` · Acta ${induction.acta}` : ''}
                                     {` · ${induction.status}`}
@@ -608,12 +608,12 @@ function PassLine({
 }) {
     return (
         <div className="mt-2">
-            <p className="text-sm text-[#1a2b4c]">
+            <p className="text-sm text-brand-700">
                 <span className="font-medium">{label}</span>{' '}
                 <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', toneClass[tone])}>
                     {result}
                 </span>
-                {date ? <span className="text-[#5a7390]"> · {date}</span> : null}
+                {date ? <span className="text-muted-foreground"> · {date}</span> : null}
             </p>
             {failed.length > 0 ? (
                 <ul className="mt-1 list-disc pl-4 text-xs text-red-700">

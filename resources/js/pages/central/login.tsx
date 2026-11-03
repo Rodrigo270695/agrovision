@@ -16,27 +16,27 @@ export default function CentralLogin({ status }: Props) {
         <>
             <Head title="Gindelsi · Soporte" />
 
-            <div className="flex min-h-dvh items-center justify-center bg-[#e8eef6] px-4 text-[#1a2b4c]">
-                <div className="w-full max-w-md rounded-3xl border border-[#d7e3f0] bg-white p-8 shadow-[0_20px_50px_rgba(26,43,76,0.16)]">
+            <div className="flex min-h-dvh items-center justify-center bg-brand-100 px-4 text-brand-700">
+                <div className="w-full max-w-md rounded-3xl border border-brand-200 bg-white p-8 shadow-[0_20px_50px_rgba(26,43,76,0.16)]">
                     <div className="mb-6 flex flex-col items-center gap-3 text-center">
                         <img
                             src="/logo.png"
                             alt="Grupo Indelsi"
                             className="h-16 w-auto object-contain"
                         />
-                        <p className="text-[10px] font-semibold tracking-[0.2em] text-[#6b8ead] uppercase">
+                        <p className="text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
                             Panel central
                         </p>
                         <h1 className="font-display text-2xl font-semibold">
                             Gindelsi
                         </h1>
-                        <p className="text-sm text-[#5a7390]">
+                        <p className="text-sm text-muted-foreground">
                             Acceso de soporte para administrar empresas.
                         </p>
                     </div>
 
                     {status ? (
-                        <div className="mb-4 rounded-xl border border-[#9ec4e8] bg-[#e8f1fa] px-3 py-2 text-center text-sm font-medium">
+                        <div className="mb-4 rounded-xl border border-[#9ec4e8] bg-brand-100 px-3 py-2 text-center text-sm font-medium">
                             {status}
                         </div>
                     ) : null}
@@ -76,7 +76,7 @@ export default function CentralLogin({ status }: Props) {
                                 <Button
                                     type="submit"
                                     disabled={processing}
-                                    className="h-12 bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                                    className="h-12 bg-brand-700 text-white hover:bg-brand-700"
                                 >
                                     {processing ? <Spinner /> : null}
                                     Entrar

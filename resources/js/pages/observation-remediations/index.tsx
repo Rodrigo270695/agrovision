@@ -279,7 +279,7 @@ export default function ObservationRemediationsPage() {
 
                 <div className="relative z-10 flex w-full flex-col gap-3 p-3 sm:gap-4 sm:p-4">
                     {/* Hero */}
-                    <header className="overflow-hidden rounded-2xl border border-white/70 bg-[#0f1f3a] text-white shadow-[0_18px_40px_-24px_rgba(15,31,58,0.55)]">
+                    <header className="overflow-hidden rounded-2xl border border-white/70 bg-brand-800 text-white shadow-[0_18px_40px_-24px_rgba(15,31,58,0.55)]">
                         <div className="relative px-4 py-4 sm:px-5 sm:py-4">
                             <div
                                 aria-hidden
@@ -299,7 +299,7 @@ export default function ObservationRemediationsPage() {
                                         />
                                         Operaciones · Campo
                                     </div>
-                                    <h1 className="mt-1.5 font-[Manrope] text-2xl font-bold tracking-tight sm:text-[1.75rem]">
+                                    <h1 className="mt-1.5 font-display text-2xl font-bold tracking-tight sm:text-[1.75rem]">
                                         Calendario de observaciones
                                     </h1>
                                     <p className="mt-1 max-w-2xl text-xs leading-snug text-sky-100/85 sm:text-sm">
@@ -348,7 +348,7 @@ export default function ObservationRemediationsPage() {
                             <Button
                                 type="button"
                                 onClick={goToday}
-                                className="cursor-pointer rounded-xl bg-[#1e4d8c] px-4 text-white hover:bg-[#163a6b]"
+                                className="cursor-pointer rounded-xl bg-brand-500 px-4 text-white hover:bg-brand-600"
                             >
                                 <CalendarDays className="mr-1.5 size-4" />
                                 Hoy
@@ -362,7 +362,7 @@ export default function ObservationRemediationsPage() {
 
                             <select
                                 aria-label="Mes"
-                                className="h-10 cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-800 outline-none transition focus:border-[#1e4d8c] focus:ring-2 focus:ring-[#1e4d8c]/20"
+                                className="h-10 cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
                                 value={calendar.month}
                                 onChange={(e) =>
                                     visit({
@@ -379,7 +379,7 @@ export default function ObservationRemediationsPage() {
                             </select>
                             <select
                                 aria-label="Año"
-                                className="h-10 cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-800 outline-none transition focus:border-[#1e4d8c] focus:ring-2 focus:ring-[#1e4d8c]/20"
+                                className="h-10 cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
                                 value={calendar.year}
                                 onChange={(e) =>
                                     visit({
@@ -461,7 +461,7 @@ export default function ObservationRemediationsPage() {
                                             'motion-safe:animate-[fadeInUp_420ms_ease-out_both]',
                                             slot.inMonth
                                                 ? cn(
-                                                      'cursor-pointer focus-visible:ring-2 focus-visible:ring-[#1e4d8c] focus-visible:ring-offset-2 focus-visible:outline-none',
+                                                      'cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:outline-none',
                                                       'hover:-translate-y-0.5 hover:shadow-md',
                                                       daySurface(tone, selected),
                                                   )
@@ -483,7 +483,7 @@ export default function ObservationRemediationsPage() {
                                                 className={cn(
                                                     'inline-flex size-7 items-center justify-center rounded-full text-sm font-bold transition sm:size-8',
                                                     isToday
-                                                        ? 'bg-[#1e4d8c] text-white shadow-sm'
+                                                        ? 'bg-brand-500 text-white shadow-sm'
                                                         : slot.inMonth
                                                           ? 'text-slate-800 group-hover:bg-white/70'
                                                           : 'text-slate-300',
@@ -536,10 +536,10 @@ export default function ObservationRemediationsPage() {
                         >
                             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 bg-[linear-gradient(135deg,#f8fbff,#ffffff_55%)] px-4 py-4 sm:px-6">
                                 <div>
-                                    <p className="text-[11px] font-semibold tracking-[0.14em] text-[#6b8ead] uppercase">
+                                    <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
                                         Detalle del día
                                     </p>
-                                    <h2 className="mt-1 font-[Manrope] text-xl font-bold capitalize tracking-tight text-[#0f1f3a]">
+                                    <h2 className="mt-1 font-display text-xl font-bold capitalize tracking-tight text-brand-800">
                                         {formatDateLabel(selected_date)}
                                     </h2>
                                     <p
@@ -574,7 +574,7 @@ export default function ObservationRemediationsPage() {
                                         <CalendarDays className="size-7" />
                                     </div>
                                     <div>
-                                        <p className="font-semibold text-[#0f1f3a]">
+                                        <p className="font-semibold text-brand-800">
                                             Sin inspecciones este día
                                         </p>
                                         <p className="mt-1 max-w-sm text-sm text-slate-500">
@@ -616,7 +616,7 @@ export default function ObservationRemediationsPage() {
                                             <div className="flex flex-col gap-3 pl-2 sm:flex-row sm:items-center sm:justify-between">
                                                 <div className="min-w-0 space-y-2">
                                                     <div className="flex flex-wrap items-center gap-2">
-                                                        <span className="font-[Manrope] text-lg font-bold tracking-tight text-[#0f1f3a]">
+                                                        <span className="font-display text-lg font-bold tracking-tight text-brand-800">
                                                             {unit.plate_number}
                                                         </span>
                                                         <StatusBadge
@@ -684,7 +684,7 @@ export default function ObservationRemediationsPage() {
                                                                 'green'
                                                               ? 'border-emerald-200 bg-white text-emerald-800 hover:bg-emerald-50'
                                                               : unit.can_verify
-                                                                ? 'bg-[#1e4d8c] text-white hover:bg-[#163a6b]'
+                                                                ? 'bg-brand-500 text-white hover:bg-brand-600'
                                                                 : 'bg-amber-500 text-white hover:bg-amber-600',
                                                     )}
                                                     variant={
@@ -776,7 +776,7 @@ function StatPill({
             <p className="text-[9px] font-semibold tracking-wide text-white/70 uppercase">
                 {label}
             </p>
-            <p className="font-[Manrope] text-xl font-bold leading-tight tabular-nums">
+            <p className="font-display text-xl font-bold leading-tight tabular-nums">
                 {value}
             </p>
         </div>
@@ -901,7 +901,7 @@ function DayCountChips({ cell }: { cell: DayCell }) {
 
 function daySurface(tone: DayCell['tone'], selected: boolean) {
     if (selected) {
-        return 'border-[#1e4d8c] bg-[#e8f1fb] shadow-md ring-2 ring-[#1e4d8c]/20';
+        return 'border-brand-500 bg-[#e8f1fb] shadow-md ring-2 ring-brand-500/20';
     }
     switch (tone) {
         case 'green':
@@ -1075,7 +1075,7 @@ function RemediationDetailModal({
                             </Button>
                             <Button
                                 type="button"
-                                className="cursor-pointer rounded-xl bg-[#1e4d8c] text-white hover:bg-[#163a6b]"
+                                className="cursor-pointer rounded-xl bg-brand-500 text-white hover:bg-brand-600"
                                 disabled={
                                     verifyForm.processing || !allChecked
                                 }
@@ -1163,8 +1163,8 @@ function RemediationDetailModal({
 
                 {(unit.history?.length ?? 0) > 0 ? (
                     <div>
-                        <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-[#0f1f3a]">
-                            <ClipboardCheck className="size-4 text-[#1e4d8c]" />
+                        <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-brand-800">
+                            <ClipboardCheck className="size-4 text-brand-500" />
                             Historial del levantamiento
                         </h3>
                         <ol className="relative space-y-3 border-l-2 border-slate-200 pl-4">
@@ -1178,10 +1178,10 @@ function RemediationDetailModal({
                                                 ? 'bg-emerald-500'
                                                 : step.event === 'rejected'
                                                   ? 'bg-amber-500'
-                                                  : 'bg-[#1e4d8c]',
+                                                  : 'bg-brand-500',
                                         )}
                                     />
-                                    <p className="text-sm font-semibold text-[#0f1f3a]">
+                                    <p className="text-sm font-semibold text-brand-800">
                                         {step.label}
                                     </p>
                                     <p className="text-[11px] text-slate-500">
@@ -1206,7 +1206,7 @@ function RemediationDetailModal({
                 ) : null}
 
                 <div>
-                    <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-[#0f1f3a]">
+                    <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-brand-800">
                         <XCircle className="size-4 text-rose-600" />
                         Ítems en NO ({noItems.length})
                     </h3>
@@ -1353,7 +1353,7 @@ function RemediationDetailModal({
                                                     <label className="mt-2 block text-xs font-medium text-slate-700">
                                                         Comentario del inspector
                                                         <textarea
-                                                            className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[#1e4d8c] focus:ring-2 focus:ring-[#1e4d8c]/20"
+                                                            className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
                                                             rows={2}
                                                             placeholder="Observación al verificar (opcional)"
                                                             value={
@@ -1413,7 +1413,7 @@ function RemediationDetailModal({
                         <label className="block text-sm font-semibold text-slate-800">
                             Nota general para el inspector (opcional)
                             <textarea
-                                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#1e4d8c] focus:ring-2 focus:ring-[#1e4d8c]/20"
+                                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
                                 rows={2}
                                 value={submitNote}
                                 onChange={(e) => setSubmitNote(e.target.value)}
@@ -1445,7 +1445,7 @@ function RemediationDetailModal({
                             </span>
                             <textarea
                                 id="verify-general-note"
-                                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#1e4d8c] focus:ring-2 focus:ring-[#1e4d8c]/20"
+                                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
                                 rows={2}
                                 placeholder="Ej. Falta evidencia del botiquín / no se corrigió la alarma"
                                 value={verifyForm.data.note}

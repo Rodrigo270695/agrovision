@@ -574,7 +574,7 @@ export function UnitFormFields({
     return (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="grid gap-1.5 sm:col-span-2">
-                <Label className="text-xs text-[#1a2b4c]">
+                <Label className="text-xs text-brand-700">
                     Periodo <span className="text-red-500">*</span>
                 </Label>
                 <Select
@@ -587,10 +587,10 @@ export function UnitFormFields({
                         onChange('period_id', value);
                     }}
                 >
-                    <SelectTrigger className="h-9 w-full cursor-pointer border-[#c5d5e6] bg-white text-sm text-[#1a2b4c]">
+                    <SelectTrigger className="h-9 w-full cursor-pointer border-brand-300 bg-white text-sm text-brand-700">
                         <SelectValue placeholder="Selecciona un periodo" />
                     </SelectTrigger>
-                    <SelectContent className="border-[#d7e3f0] bg-white">
+                    <SelectContent className="border-brand-200 bg-white">
                         {periodOptions.length === 0 ? (
                             <SelectItem value="none" disabled>
                                 No hay periodos disponibles
@@ -615,17 +615,17 @@ export function UnitFormFields({
             </div>
 
             <div className="grid gap-1.5">
-                <Label className="text-xs text-[#1a2b4c]">
+                <Label className="text-xs text-brand-700">
                     Estado <span className="text-red-500">*</span>
                 </Label>
                 <Select
                     value={values.status === 'inactive' ? 'inactive' : 'active'}
                     onValueChange={(value) => onChange('status', value)}
                 >
-                    <SelectTrigger className="h-9 w-full cursor-pointer border-[#c5d5e6] bg-white text-sm text-[#1a2b4c]">
+                    <SelectTrigger className="h-9 w-full cursor-pointer border-brand-300 bg-white text-sm text-brand-700">
                         <SelectValue placeholder="Estado" />
                     </SelectTrigger>
-                    <SelectContent className="border-[#d7e3f0] bg-white">
+                    <SelectContent className="border-brand-200 bg-white">
                         <SelectItem value="active" className="cursor-pointer">
                             Activo
                         </SelectItem>
@@ -639,7 +639,7 @@ export function UnitFormFields({
 
             {/* RUC + DNI primero para consultas SUNAT / RENIEC */}
             <div className="grid gap-1.5">
-                <Label htmlFor="unit-ruc" className="text-xs text-[#1a2b4c]">
+                <Label htmlFor="unit-ruc" className="text-xs text-brand-700">
                     RUC
                 </Label>
                 <div className="flex gap-1.5">
@@ -659,9 +659,9 @@ export function UnitFormFields({
                             }}
                             placeholder="Ej. 20554556192"
                             maxLength={11}
-                            className="h-9 border-[#c5d5e6] bg-white pr-14 text-sm focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35"
+                            className="h-9 border-brand-300 bg-white pr-14 text-sm focus-visible:border-brand-500 focus-visible:ring-brand-400/35"
                         />
-                        <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[11px] font-medium text-[#6b8ead]">
+                        <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[11px] font-medium text-muted-foreground">
                             {rucDigits.length}/11
                         </span>
                     </div>
@@ -671,7 +671,7 @@ export function UnitFormFields({
                         size="icon"
                         disabled={rucLoading}
                         onClick={() => void lookupRuc()}
-                        className="size-9 shrink-0 cursor-pointer border-[#c5d5e6] text-[#2e5a9e] hover:bg-[#e8f1fa]"
+                        className="size-9 shrink-0 cursor-pointer border-brand-300 text-brand-500 hover:bg-brand-100"
                         aria-label="Consultar RUC en SUNAT"
                         title="Consultar RUC"
                     >
@@ -684,19 +684,19 @@ export function UnitFormFields({
                 </div>
                 <InputError message={errors.ruc ?? rucError ?? undefined} />
                 {rucInfo ? (
-                    <div className="rounded-lg border border-[#d7e3f0] bg-[#f8fafc] px-2.5 py-2 text-[11px] text-[#5a7390]">
-                        <p className="font-semibold text-[#1a2b4c]">
+                    <div className="rounded-lg border border-brand-200 bg-background px-2.5 py-2 text-[11px] text-muted-foreground">
+                        <p className="font-semibold text-brand-700">
                             {rucInfo.name || 'Sin razón social'}
                         </p>
                         {rucInfo.state ? (
                             <p>
-                                Estado: <span className="text-[#1a2b4c]">{rucInfo.state}</span>
+                                Estado: <span className="text-brand-700">{rucInfo.state}</span>
                             </p>
                         ) : null}
                         {rucInfo.condition ? (
                             <p>
                                 Condición:{' '}
-                                <span className="text-[#1a2b4c]">{rucInfo.condition}</span>
+                                <span className="text-brand-700">{rucInfo.condition}</span>
                             </p>
                         ) : null}
                         {rucInfo.address ? <p>Dirección: {rucInfo.address}</p> : null}
@@ -705,7 +705,7 @@ export function UnitFormFields({
             </div>
 
             <div className="grid gap-1.5">
-                <Label htmlFor="unit-driver_dni" className="text-xs text-[#1a2b4c]">
+                <Label htmlFor="unit-driver_dni" className="text-xs text-brand-700">
                     DNI conductor
                 </Label>
                 <div className="flex gap-1.5">
@@ -723,9 +723,9 @@ export function UnitFormFields({
                                 );
                             }}
                             placeholder="Ej. 46909313"
-                            className="h-9 border-[#c5d5e6] bg-white pr-12 text-sm focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35"
+                            className="h-9 border-brand-300 bg-white pr-12 text-sm focus-visible:border-brand-500 focus-visible:ring-brand-400/35"
                         />
-                        <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[11px] font-medium text-[#6b8ead]">
+                        <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[11px] font-medium text-muted-foreground">
                             {dniDigits.length}/8
                         </span>
                     </div>
@@ -735,7 +735,7 @@ export function UnitFormFields({
                         size="icon"
                         disabled={dniLoading}
                         onClick={() => void lookupDni()}
-                        className="size-9 shrink-0 cursor-pointer border-[#c5d5e6] text-[#2e5a9e] hover:bg-[#e8f1fa]"
+                        className="size-9 shrink-0 cursor-pointer border-brand-300 text-brand-500 hover:bg-brand-100"
                         aria-label="Consultar DNI"
                         title="Consultar DNI"
                     >
@@ -746,7 +746,7 @@ export function UnitFormFields({
             </div>
 
             <div className="grid gap-1.5 sm:col-span-2">
-                <Label htmlFor="unit-provider" className="text-xs text-[#1a2b4c]">
+                <Label htmlFor="unit-provider" className="text-xs text-brand-700">
                     Proveedor <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -755,13 +755,13 @@ export function UnitFormFields({
                     value={values.provider}
                     onChange={(event) => onChange('provider', event.target.value)}
                     placeholder="Ej. AGROVISION PERU S.A.C."
-                    className="h-9 border-[#c5d5e6] bg-white text-sm focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35"
+                    className="h-9 border-brand-300 bg-white text-sm focus-visible:border-brand-500 focus-visible:ring-brand-400/35"
                 />
                 <InputError message={errors.provider} />
             </div>
 
             <div className="grid gap-1.5 sm:col-span-2">
-                <Label htmlFor="unit-driver_name" className="text-xs text-[#1a2b4c]">
+                <Label htmlFor="unit-driver_name" className="text-xs text-brand-700">
                     Conductor
                 </Label>
                 <Input
@@ -770,7 +770,7 @@ export function UnitFormFields({
                     value={values.driver_name}
                     onChange={(event) => onChange('driver_name', event.target.value)}
                     placeholder="Nombre del conductor"
-                    className="h-9 border-[#c5d5e6] bg-white text-sm focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35"
+                    className="h-9 border-brand-300 bg-white text-sm focus-visible:border-brand-500 focus-visible:ring-brand-400/35"
                 />
                 <InputError message={errors.driver_name} />
             </div>
@@ -784,7 +784,7 @@ export function UnitFormFields({
                 >
                     <Label
                         htmlFor={`unit-${field.key}`}
-                        className="text-xs text-[#1a2b4c]"
+                        className="text-xs text-brand-700"
                     >
                         {field.label}
                         {field.required ? (
@@ -890,8 +890,8 @@ export function UnitFormFields({
                             autoFocus={field.key === 'correlative'}
                             className={
                                 field.key === 'plate_number'
-                                    ? 'h-9 border-[#c5d5e6] bg-white text-sm uppercase focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35'
-                                    : 'h-9 border-[#c5d5e6] bg-white text-sm focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35'
+                                    ? 'h-9 border-brand-300 bg-white text-sm uppercase focus-visible:border-brand-500 focus-visible:ring-brand-400/35'
+                                    : 'h-9 border-brand-300 bg-white text-sm focus-visible:border-brand-500 focus-visible:ring-brand-400/35'
                             }
                         />
                     )}
@@ -912,7 +912,7 @@ export function UnitFormFields({
             <div className="grid gap-1.5 sm:col-span-2">
                 <Label
                     htmlFor="unit-coordinator_id"
-                    className="text-xs text-[#1a2b4c]"
+                    className="text-xs text-brand-700"
                 >
                     Coordinador
                 </Label>
@@ -927,7 +927,7 @@ export function UnitFormFields({
                             value === 'none' ? '' : value,
                         );
                     }}
-                    className="h-9 w-full cursor-pointer rounded-md border border-[#c5d5e6] bg-white px-3 text-sm text-[#1a2b4c] outline-none focus:border-[#2e5a9e] focus:ring-[3px] focus:ring-[#4a90e2]/35"
+                    className="h-9 w-full cursor-pointer rounded-md border border-brand-300 bg-white px-3 text-sm text-brand-700 outline-none focus:border-brand-500 focus:ring-[3px] focus:ring-brand-400/35"
                 >
                     <option value="none">Sin coordinador</option>
                     {coordinatorOptions.map((coordinator) => (

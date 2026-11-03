@@ -107,7 +107,7 @@ export default function InspectionBatchesIndexPage() {
                 key: 'date',
                 header: 'Fecha',
                 cell: (item) => (
-                    <span className="text-sm font-semibold text-[#1a2b4c]">
+                    <span className="text-sm font-semibold text-brand-700">
                         {formatDay(item.inspected_on)}
                     </span>
                 ),
@@ -116,7 +116,7 @@ export default function InspectionBatchesIndexPage() {
                 key: 'coordinator',
                 header: 'Coordinador',
                 cell: (item) => (
-                    <span className="text-sm text-[#1a2b4c]">
+                    <span className="text-sm text-brand-700">
                         {item.coordinator_name || '—'}
                     </span>
                 ),
@@ -125,7 +125,7 @@ export default function InspectionBatchesIndexPage() {
                 key: 'count',
                 header: 'Inspecciones',
                 cell: (item) => (
-                    <span className="text-sm tabular-nums text-[#1a2b4c]">
+                    <span className="text-sm tabular-nums text-brand-700">
                         {item.checklists_count}
                     </span>
                 ),

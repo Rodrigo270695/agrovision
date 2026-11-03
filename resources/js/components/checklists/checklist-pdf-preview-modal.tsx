@@ -40,7 +40,7 @@ export function ChecklistPdfPreviewModal({ open, checklist, onClose }: Props) {
                         type="button"
                         variant="outline"
                         onClick={onClose}
-                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                        className="cursor-pointer border-brand-300 text-brand-700"
                     >
                         Cerrar
                     </Button>
@@ -48,7 +48,7 @@ export function ChecklistPdfPreviewModal({ open, checklist, onClose }: Props) {
                         type="button"
                         variant="outline"
                         asChild
-                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                        className="cursor-pointer border-brand-300 text-brand-700"
                     >
                         <a
                             href={previewSrc}
@@ -62,7 +62,7 @@ export function ChecklistPdfPreviewModal({ open, checklist, onClose }: Props) {
                     <Button
                         type="button"
                         asChild
-                        className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c]"
+                        className="cursor-pointer bg-brand-500 text-white hover:bg-brand-700"
                     >
                         <a href={downloadSrc} download>
                             <Download className="size-4" />
@@ -73,8 +73,8 @@ export function ChecklistPdfPreviewModal({ open, checklist, onClose }: Props) {
             }
         >
             <div className="flex min-h-[70vh] flex-col bg-[#eef2f7]">
-                <div className="flex flex-wrap items-center gap-2 border-b border-[#e2eaf3] bg-white px-4 py-2 text-xs text-[#5a7390]">
-                    <FileText className="size-3.5 text-[#2e5a9e]" />
+                <div className="flex flex-wrap items-center gap-2 border-b border-brand-200 bg-white px-4 py-2 text-xs text-muted-foreground">
+                    <FileText className="size-3.5 text-brand-500" />
                     Vista previa. El coordinador recibe el paquete de esta
                     fecha, no esta inspección sola.
                 </div>

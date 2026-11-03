@@ -502,7 +502,7 @@ export function FilterChips<TValue extends string>({
                                                   )}
                                               </span>
                                               {opt.description ? (
-                                                  <span className="block truncate text-[11px] text-[#6b8ead]">
+                                                  <span className="block truncate text-[11px] text-muted-foreground">
                                                       {opt.description}
                                                   </span>
                                               ) : null}

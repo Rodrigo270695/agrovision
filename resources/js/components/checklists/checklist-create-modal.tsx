@@ -243,7 +243,7 @@ export function ChecklistCreateModal({
                         variant="outline"
                         onClick={handleClose}
                         disabled={sending}
-                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c] hover:bg-white"
+                        className="cursor-pointer border-brand-300 text-brand-700 hover:bg-white"
                     >
                         Cancelar
                     </Button>
@@ -251,7 +251,7 @@ export function ChecklistCreateModal({
                         type="submit"
                         form="checklist-create-form"
                         disabled={!unit || !template || sending}
-                        className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {sending ? <Spinner /> : null}
                         Crear inspección
@@ -265,18 +265,18 @@ export function ChecklistCreateModal({
                 className="space-y-3"
             >
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">
+                    <Label className="text-xs text-brand-700">
                         Fecha <span className="text-red-500">*</span>
                     </Label>
                     <Input
                         type="date"
                         value={date}
                         onChange={(event) => setDate(event.target.value)}
-                        className="h-10 border-[#c5d5e6]"
+                        className="h-10 border-brand-300"
                     />
                 </div>
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">
+                    <Label className="text-xs text-brand-700">
                         Unidad <span className="text-red-500">*</span>
                     </Label>
                     <SearchableCombobox
@@ -288,12 +288,12 @@ export function ChecklistCreateModal({
                     />
                 </div>
                 {unit ? (
-                    <div className="rounded-xl border border-[#d7e3f0] bg-[#f8fafc] px-3 py-2.5">
-                        <p className="text-[11px] font-medium tracking-wide text-[#6b8ead] uppercase">
+                    <div className="rounded-xl border border-brand-200 bg-background px-3 py-2.5">
+                        <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
                             Checklist
                         </p>
                         {template ? (
-                            <p className="mt-0.5 text-sm font-semibold text-[#1a2b4c]">
+                            <p className="mt-0.5 text-sm font-semibold text-brand-700">
                                 {template.label || template.type.toUpperCase()}
                                 {unit.vehicle_type
                                     ? ` · ${unit.vehicle_type}`

@@ -84,7 +84,7 @@ export function ParetoHeader({ stats, onCreate, onVehicleTypes }: Props) {
                         Venc.
                     </span>
                     <span className="inline-flex items-center gap-1.5">
-                        <ChartPie className="size-3.5 text-[#1e4d8c]" />
+                        <ChartPie className="size-3.5 text-brand-500" />
                         Peso
                     </span>
                 </span>
@@ -95,7 +95,7 @@ export function ParetoHeader({ stats, onCreate, onVehicleTypes }: Props) {
                         variant="outline"
                         size="sm"
                         onClick={onVehicleTypes}
-                        className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-[#0f1f3a] hover:bg-slate-50"
+                        className="cursor-pointer gap-1.5 rounded-xl border-slate-200 text-brand-800 hover:bg-slate-50"
                     >
                         <Car className="size-3.5" strokeWidth={2.5} />
                         <span className="hidden sm:inline">
@@ -109,7 +109,7 @@ export function ParetoHeader({ stats, onCreate, onVehicleTypes }: Props) {
                         type="button"
                         size="sm"
                         onClick={onCreate}
-                        className="cursor-pointer gap-1.5 rounded-xl bg-[#1e4d8c] text-white hover:bg-[#163a6b]"
+                        className="cursor-pointer gap-1.5 rounded-xl bg-brand-500 text-white hover:bg-brand-600"
                     >
                         <Plus className="size-3.5" strokeWidth={2.5} />
                         <span className="hidden sm:inline">Nuevo ítem</span>

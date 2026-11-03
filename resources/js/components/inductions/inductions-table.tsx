@@ -526,7 +526,7 @@ export function InductionsTable({
                                 {activityLabel(induction.activity)}
                             </span>
                             {matches.length > 0 ? (
-                                <span className="mt-0.5 truncate text-[11px] text-[#2e5a9e]">
+                                <span className="mt-0.5 truncate text-[11px] text-brand-500">
                                     {matches
                                         .slice(0, 2)
                                         .map((attendee) => {
@@ -603,12 +603,12 @@ export function InductionsTable({
                                         ? 'text-xs font-semibold text-[#b91c1c]'
                                         : next.tone === 'soon'
                                           ? 'text-xs font-semibold text-[#8a5a12]'
-                                          : 'text-xs font-medium text-[#1a2b4c]'
+                                          : 'text-xs font-medium text-brand-700'
                                 }
                             >
                                 {next.label}
                             </span>
-                            <span className="text-[10px] text-[#6b8ead]">
+                            <span className="text-[10px] text-muted-foreground">
                                 {next.hint}
                             </span>
                         </div>
@@ -652,7 +652,7 @@ export function InductionsTable({
                     <button
                         type="button"
                         onClick={() => onViewAttendees(induction)}
-                        className="cursor-pointer text-xs font-medium text-[#2e5a9e] underline-offset-2 hover:underline"
+                        className="cursor-pointer text-xs font-medium text-brand-500 underline-offset-2 hover:underline"
                         title="Ver asistentes"
                     >
                         {induction.attended_count ?? 0}/

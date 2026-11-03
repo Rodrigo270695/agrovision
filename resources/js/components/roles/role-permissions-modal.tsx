@@ -24,7 +24,7 @@ type Props = {
 };
 
 const checkClassName =
-    'size-3.5 shrink-0 border-[#9bb4ce] data-[state=checked]:border-[#2e5a9e] data-[state=checked]:bg-[#2e5a9e] data-[state=checked]:text-white data-[state=indeterminate]:border-[#2e5a9e] data-[state=indeterminate]:bg-[#2e5a9e] data-[state=indeterminate]:text-white';
+    'size-3.5 shrink-0 border-[#9bb4ce] data-[state=checked]:border-brand-500 data-[state=checked]:bg-brand-500 data-[state=checked]:text-white data-[state=indeterminate]:border-brand-500 data-[state=indeterminate]:bg-brand-500 data-[state=indeterminate]:text-white';
 
 export function RolePermissionsModal({
     open,
@@ -145,7 +145,7 @@ export function RolePermissionsModal({
                         variant="outline"
                         onClick={handleClose}
                         disabled={form.processing}
-                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c] hover:bg-white"
+                        className="cursor-pointer border-brand-300 text-brand-700 hover:bg-white"
                     >
                         Cancelar
                     </Button>
@@ -153,7 +153,7 @@ export function RolePermissionsModal({
                         type="submit"
                         form="role-permissions-form"
                         disabled={form.processing || !role}
-                        className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {form.processing ? <Spinner /> : null}
                         Guardar permisos
@@ -166,21 +166,21 @@ export function RolePermissionsModal({
                 onSubmit={handleSubmit}
                 className="flex flex-col"
             >
-                <div className="sticky top-0 z-10 border-b border-[#e2eaf3] bg-white px-4 py-2 sm:px-5">
+                <div className="sticky top-0 z-10 border-b border-brand-200 bg-white px-4 py-2 sm:px-5">
                     <div className="relative">
-                        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-[#6b8ead]" />
+                        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
                         <Input
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Buscar permiso o módulo..."
-                            className="h-8 border-[#c5d5e6] bg-[#f8fafc] pl-8 text-xs focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/30"
+                            className="h-8 border-brand-300 bg-background pl-8 text-xs focus-visible:border-brand-500 focus-visible:ring-brand-400/30"
                         />
                     </div>
                 </div>
 
                 <div className="space-y-2 px-4 py-2.5 sm:px-5">
                     {grouped.length === 0 ? (
-                        <p className="py-6 text-center text-xs text-[#6b8ead]">
+                        <p className="py-6 text-center text-xs text-muted-foreground">
                             No se encontraron permisos.
                         </p>
                     ) : (
@@ -197,16 +197,16 @@ export function RolePermissionsModal({
                             return (
                                 <section
                                     key={module}
-                                    className="rounded-lg border border-[#e2eaf3] bg-[#f8fafc]/70"
+                                    className="rounded-lg border border-brand-200 bg-background/70"
                                 >
-                                    <div className="flex items-center justify-between gap-2 border-b border-[#e2eaf3] px-2.5 py-1.5">
-                                        <h3 className="text-xs font-semibold text-[#1a2b4c]">
+                                    <div className="flex items-center justify-between gap-2 border-b border-brand-200 px-2.5 py-1.5">
+                                        <h3 className="text-xs font-semibold text-brand-700">
                                             {module}
-                                            <span className="ml-1.5 font-normal text-[#6b8ead]">
+                                            <span className="ml-1.5 font-normal text-muted-foreground">
                                                 {selectedCount}/{items.length}
                                             </span>
                                         </h3>
-                                        <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-[#5a7390]">
+                                        <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground">
                                             <Checkbox
                                                 checked={
                                                     allSelected
@@ -239,9 +239,9 @@ export function RolePermissionsModal({
                                                     key={item.name}
                                                     title={item.name}
                                                     className={cn(
-                                                        'flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-xs text-[#1a2b4c] transition-colors hover:bg-white',
+                                                        'flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-xs text-brand-700 transition-colors hover:bg-white',
                                                         checked &&
-                                                            'bg-[#e8f1fa]/70 ring-1 ring-[#c5d5e6]',
+                                                            'bg-brand-100/70 ring-1 ring-brand-300',
                                                     )}
                                                 >
                                                     <Checkbox

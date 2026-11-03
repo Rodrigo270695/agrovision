@@ -73,7 +73,7 @@ export function ChecklistExportModal({
                         type="button"
                         variant="outline"
                         onClick={onClose}
-                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c] hover:bg-white"
+                        className="cursor-pointer border-brand-300 text-brand-700 hover:bg-white"
                     >
                         Cancelar
                     </Button>
@@ -90,7 +90,7 @@ export function ChecklistExportModal({
                             );
                             onClose();
                         }}
-                        className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         Descargar
                     </Button>
@@ -98,7 +98,7 @@ export function ChecklistExportModal({
             }
         >
             {templates.length === 0 ? (
-                <p className="text-sm text-[#6b8ead]">
+                <p className="text-sm text-muted-foreground">
                     No hay plantillas de checklist activas.
                 </p>
             ) : (
@@ -116,20 +116,20 @@ export function ChecklistExportModal({
                                 className={cn(
                                     'cursor-pointer rounded-xl border px-3 py-2.5 text-left transition',
                                     active
-                                        ? 'border-[#1a2b4c] bg-[#e8f1fa]'
-                                        : 'border-[#d7e3f0] bg-white hover:bg-[#f7fbff]',
+                                        ? 'border-brand-700 bg-brand-100'
+                                        : 'border-brand-200 bg-white hover:bg-[#f7fbff]',
                                 )}
                             >
-                                <span className="block text-sm font-semibold text-[#1a2b4c]">
+                                <span className="block text-sm font-semibold text-brand-700">
                                     {label}
                                 </span>
-                                <span className="block text-xs text-[#6b8ead]">
+                                <span className="block text-xs text-muted-foreground">
                                     Ítems y observaciones de {label}
                                 </span>
                             </button>
                         );
                     })}
-                    <p className="text-xs text-[#6b8ead]">
+                    <p className="text-xs text-muted-foreground">
                         Respeta la búsqueda, el estado, el inspector y las
                         fechas que ya tienes en el listado.
                     </p>

@@ -205,7 +205,7 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
                         variant="outline"
                         onClick={handleClose}
                         disabled={form.processing}
-                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c] hover:bg-white"
+                        className="cursor-pointer border-brand-300 text-brand-700 hover:bg-white"
                     >
                         Cerrar
                     </Button>
@@ -213,7 +213,7 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
                         type="submit"
                         form="unit-import-form"
                         disabled={!canSubmit}
-                        className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {form.processing ? <Spinner /> : null}
                         Importar Excel
@@ -222,12 +222,12 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
             }
         >
             <div className="space-y-4">
-                <div className="rounded-xl border border-[#d7e3f0] bg-[#f8fafc] p-3">
-                    <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#1a2b4c]">
-                        <Download className="size-4 text-[#2e5a9e]" />
+                <div className="rounded-xl border border-brand-200 bg-background p-3">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-brand-700">
+                        <Download className="size-4 text-brand-500" />
                         Descargar plantilla
                     </div>
-                    <p className="mb-3 text-xs text-[#5a7390]">
+                    <p className="mb-3 text-xs text-muted-foreground">
                         Incluye las columnas del Excel. Campos obligatorios con
                         asterisco (*). Fecha en formato{' '}
                         <strong>dd/mm/yyyy</strong>.
@@ -236,7 +236,7 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
                         type="button"
                         variant="outline"
                         asChild
-                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c] hover:bg-white"
+                        className="cursor-pointer border-brand-300 text-brand-700 hover:bg-white"
                     >
                         <a href="/unidades/plantilla">
                             <FileSpreadsheet className="size-4" />
@@ -251,7 +251,7 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
                     className="space-y-3"
                 >
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">
+                        <Label className="text-xs text-brand-700">
                             Periodo destino <span className="text-red-500">*</span>
                         </Label>
                         <Select
@@ -264,10 +264,10 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
                                 form.setData('period_id', value);
                             }}
                         >
-                            <SelectTrigger className="h-10 w-full cursor-pointer border-[#c5d5e6] bg-white text-[#1a2b4c]">
+                            <SelectTrigger className="h-10 w-full cursor-pointer border-brand-300 bg-white text-brand-700">
                                 <SelectValue placeholder="Selecciona periodo" />
                             </SelectTrigger>
-                            <SelectContent className="border-[#d7e3f0] bg-white">
+                            <SelectContent className="border-brand-200 bg-white">
                                 {periodOptions.length === 0 ? (
                                     <SelectItem value="none" disabled>
                                         No hay periodos
@@ -295,15 +295,15 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
                     <div className="grid gap-1.5">
                         <Label
                             htmlFor="unit-import-file"
-                            className="text-xs text-[#1a2b4c]"
+                            className="text-xs text-brand-700"
                         >
                             Subir plantilla (.xlsx){' '}
                             <span className="text-red-500">*</span>
                         </Label>
-                        <div className="flex items-center gap-2 rounded-lg border border-dashed border-[#c5d5e6] bg-white px-3 py-2.5">
-                            <Upload className="size-4 shrink-0 text-[#2e5a9e]" />
+                        <div className="flex items-center gap-2 rounded-lg border border-dashed border-brand-300 bg-white px-3 py-2.5">
+                            <Upload className="size-4 shrink-0 text-brand-500" />
                             <div className="min-w-0 flex-1">
-                                <p className="truncate text-xs text-[#1a2b4c]">
+                                <p className="truncate text-xs text-brand-700">
                                     {fileName || 'Ningún archivo seleccionado'}
                                 </p>
                             </div>
@@ -312,7 +312,7 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
                                 id="unit-import-file"
                                 type="file"
                                 accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                                className="max-w-[9.5rem] cursor-pointer border-0 p-0 text-xs shadow-none file:mr-2 file:cursor-pointer file:rounded-md file:border-0 file:bg-[#e8f1fa] file:px-2 file:py-1 file:text-[#1a2b4c]"
+                                className="max-w-[9.5rem] cursor-pointer border-0 p-0 text-xs shadow-none file:mr-2 file:cursor-pointer file:rounded-md file:border-0 file:bg-brand-100 file:px-2 file:py-1 file:text-brand-700"
                                 onChange={(event) => {
                                     const file =
                                         event.target.files?.[0] ?? null;
@@ -330,8 +330,8 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
                     </div>
                 </form>
 
-                <div className="rounded-lg bg-[#f8fafc] px-3 py-2 text-[11px] text-[#5a7390]">
-                    <p className="font-medium text-[#1a2b4c]">
+                <div className="rounded-lg bg-background px-3 py-2 text-[11px] text-muted-foreground">
+                    <p className="font-medium text-brand-700">
                         Columnas de la plantilla
                     </p>
                     <p className="mt-1 leading-relaxed">

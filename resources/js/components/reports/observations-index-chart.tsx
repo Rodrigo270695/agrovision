@@ -14,7 +14,7 @@ type Props = {
 export function ObservationsIndexChart({ rows, onViewPlates }: Props) {
     if (rows.length === 0) {
         return (
-            <p className="py-8 text-center text-sm text-[#6b8ead]">
+            <p className="py-8 text-center text-sm text-muted-foreground">
                 No hay observaciones en el rango seleccionado.
             </p>
         );
@@ -33,7 +33,7 @@ export function ObservationsIndexChart({ rows, onViewPlates }: Props) {
                         className="grid gap-2 border-b border-[#e8eef5] pb-3 last:border-0 md:grid-cols-[minmax(0,1fr)_minmax(8rem,12rem)_auto] md:items-center"
                     >
                         <p
-                            className="text-xs font-semibold text-[#2e5a9e] uppercase leading-snug"
+                            className="text-xs font-semibold text-brand-500 uppercase leading-snug"
                             title={row.observation}
                         >
                             {row.observation}
@@ -45,7 +45,7 @@ export function ObservationsIndexChart({ rows, onViewPlates }: Props) {
                                     style={{ width: `${width}%` }}
                                 />
                             </div>
-                            <span className="w-8 text-right text-xs font-bold tabular-nums text-[#1a2b4c]">
+                            <span className="w-8 text-right text-xs font-bold tabular-nums text-brand-700">
                                 {row.count}
                             </span>
                         </div>
@@ -53,7 +53,7 @@ export function ObservationsIndexChart({ rows, onViewPlates }: Props) {
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="h-8 shrink-0 border-[#c5d5e6] text-[11px] font-semibold text-[#1a2b4c]"
+                            className="h-8 shrink-0 border-brand-300 text-[11px] font-semibold text-brand-700"
                             onClick={() => onViewPlates(row)}
                         >
                             Ver placas ({row.count})

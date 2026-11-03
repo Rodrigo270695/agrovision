@@ -56,13 +56,13 @@ const TONE = {
     ok: { bar: '#22c55e', text: 'text-[#166534]' },
     bad: { bar: '#ef4444', text: 'text-[#b91c1c]' },
     muted: { bar: '#94a3b8', text: 'text-[#64748b]' },
-    info: { bar: '#1a2b4c', text: 'text-[#1a2b4c]' },
+    info: { bar: '#0f1f3a', text: 'text-brand-700' },
 };
 
 const CHART_KEYS = new Set(['tienen', 'faltan']);
 
 const selectClass =
-    'mt-1 h-10 w-full cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 text-xs font-medium text-[#1a2b4c] normal-case disabled:cursor-not-allowed disabled:opacity-60';
+    'mt-1 h-10 w-full cursor-pointer rounded-lg border border-brand-300 bg-white px-2 text-xs font-medium text-brand-700 normal-case disabled:cursor-not-allowed disabled:opacity-60';
 
 export default function DriverBoardPage() {
     const {
@@ -116,7 +116,7 @@ export default function DriverBoardPage() {
 
                 <PlatformToolbar>
                     <div className="w-full sm:w-auto">
-                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                             Fecha
                         </p>
                         <DateRangeFilter
@@ -134,7 +134,7 @@ export default function DriverBoardPage() {
                             }
                         />
                     </div>
-                    <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-56">
+                    <label className="w-full text-[11px] font-semibold tracking-wide text-muted-foreground uppercase sm:w-56">
                         Inspector
                         <select
                             value={filters.inspector_id ?? ''}
@@ -159,7 +159,7 @@ export default function DriverBoardPage() {
                             ))}
                         </select>
                     </label>
-                    <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-64">
+                    <label className="w-full text-[11px] font-semibold tracking-wide text-muted-foreground uppercase sm:w-64">
                         Coordinador
                         <select
                             value={filters.coordinator_id ?? ''}
@@ -187,7 +187,7 @@ export default function DriverBoardPage() {
                             ))}
                         </select>
                     </label>
-                    <label className="w-full text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase sm:w-56">
+                    <label className="w-full text-[11px] font-semibold tracking-wide text-muted-foreground uppercase sm:w-56">
                         Sede
                         <select
                             value={filters.sede ?? ''}
@@ -211,14 +211,14 @@ export default function DriverBoardPage() {
                     </label>
                     <a
                         href={excelHref(filters)}
-                        className="inline-flex h-10 cursor-pointer items-center rounded-lg border border-[#1a2b4c] px-3 text-xs font-semibold text-[#1a2b4c] hover:bg-[#e8f1fa]"
+                        className="inline-flex h-10 cursor-pointer items-center rounded-lg border border-brand-700 px-3 text-xs font-semibold text-brand-700 hover:bg-brand-100"
                     >
                         Descargar Excel
                     </a>
                 </PlatformToolbar>
 
                 {items.length === 0 ? (
-                    <section className="rounded-2xl border border-[#d7e3f0] bg-white p-8 text-center text-sm text-[#5a7390] shadow-sm">
+                    <section className="rounded-2xl border border-brand-200 bg-white p-8 text-center text-sm text-muted-foreground shadow-sm">
                         No hay inducciones para este filtro.
                     </section>
                 ) : (
@@ -288,14 +288,14 @@ function RingCard({ ring }: { ring: Ring }) {
               });
 
     return (
-        <article className="flex flex-col rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
-            <p className="text-center text-[10px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+        <article className="flex flex-col rounded-2xl border border-brand-200 bg-white p-4 shadow-sm">
+            <p className="text-center text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
                 {ring.activity}
             </p>
-            <h2 className="mt-1 line-clamp-2 min-h-10 text-center text-xs font-bold tracking-wide text-[#1a2b4c] uppercase">
+            <h2 className="mt-1 line-clamp-2 min-h-10 text-center text-xs font-bold tracking-wide text-brand-700 uppercase">
                 {ring.label}
             </h2>
-            <p className="mt-1 text-center text-[11px] text-[#5a7390]">
+            <p className="mt-1 text-center text-[11px] text-muted-foreground">
                 {ring.detail}
             </p>
             <div className="relative mx-auto mt-2 size-32">
@@ -323,7 +323,7 @@ function RingCard({ ring }: { ring: Ring }) {
                     ))}
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-xl font-bold text-[#1a2b4c]">
+                    <span className="text-xl font-bold text-brand-700">
                         {chartTotal === 0 ? '—' : `${ring.percent}%`}
                     </span>
                 </div>
@@ -358,7 +358,7 @@ function Count({
 }) {
     return (
         <div>
-            <p className="text-[10px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+            <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
                 {label}
             </p>
             <p className={cn('text-lg font-bold', className)}>{value}</p>

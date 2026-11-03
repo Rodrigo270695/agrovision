@@ -163,7 +163,7 @@ export function ParetoVehicleTypesModal({
                         variant="outline"
                         onClick={handleClose}
                         disabled={saving}
-                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c] hover:bg-white"
+                        className="cursor-pointer border-brand-300 text-brand-700 hover:bg-white"
                     >
                         Cancelar
                     </Button>
@@ -172,7 +172,7 @@ export function ParetoVehicleTypesModal({
                             type="button"
                             onClick={handleSave}
                             disabled={saving || usableTemplates.length === 0}
-                            className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038] disabled:cursor-not-allowed disabled:opacity-50"
+                            className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             {saving ? <Spinner /> : null}
                             Guardar asignación
@@ -182,13 +182,13 @@ export function ParetoVehicleTypesModal({
             }
         >
             {usableTemplates.length === 0 ? (
-                <p className="px-4 py-6 text-sm text-[#5a7390] sm:px-5">
+                <p className="px-4 py-6 text-sm text-muted-foreground sm:px-5">
                     Primero crea una plantilla de checklist en Pareto.
                 </p>
             ) : (
                 <div className="grid min-h-[22rem] md:grid-cols-[13.5rem_1fr]">
-                    <aside className="border-b border-[#e2eaf3] md:border-r md:border-b-0">
-                        <p className="px-4 py-2 text-[11px] font-medium tracking-wide text-[#6b8ead] uppercase">
+                    <aside className="border-b border-brand-200 md:border-r md:border-b-0">
+                        <p className="px-4 py-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
                             Checklists
                         </p>
                         <div className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-col md:overflow-visible md:px-2">
@@ -204,8 +204,8 @@ export function ParetoVehicleTypesModal({
                                         className={cn(
                                             'flex min-w-28 cursor-pointer items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors md:min-w-0',
                                             active
-                                                ? 'bg-[#1a2b4c] text-white'
-                                                : 'text-[#1a2b4c] hover:bg-[#e8f1fa]',
+                                                ? 'bg-brand-700 text-white'
+                                                : 'text-brand-700 hover:bg-brand-100',
                                         )}
                                     >
                                         <span className="truncate font-medium">
@@ -216,7 +216,7 @@ export function ParetoVehicleTypesModal({
                                                 'rounded-full px-1.5 text-[10px] tabular-nums',
                                                 active
                                                     ? 'bg-white/15'
-                                                    : 'bg-[#e8f1fa] text-[#2e5a9e]',
+                                                    : 'bg-brand-100 text-brand-500',
                                             )}
                                         >
                                             {counts[id] ?? 0}
@@ -228,11 +228,11 @@ export function ParetoVehicleTypesModal({
                     </aside>
                     <div className="flex min-w-0 flex-col gap-3 px-4 py-3 sm:px-5">
                         <div>
-                            <p className="text-sm font-medium text-[#1a2b4c]">
+                            <p className="text-sm font-medium text-brand-700">
                                 Tipos de vehículo
                                 {selected ? ` · ${selected.label}` : ''}
                             </p>
-                            <p className="text-[11px] text-[#5a7390]">
+                            <p className="text-[11px] text-muted-foreground">
                                 Solo ves tipos libres o los de este checklist.
                                 Los ya asignados a otro no aparecen.
                             </p>
@@ -241,10 +241,10 @@ export function ParetoVehicleTypesModal({
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Buscar tipo..."
-                            className="h-9 border-[#c5d5e6]"
+                            className="h-9 border-brand-300"
                         />
                         {filteredTypes.length === 0 ? (
-                            <p className="py-6 text-center text-sm text-[#5a7390]">
+                            <p className="py-6 text-center text-sm text-muted-foreground">
                                 No hay tipos de vehículo
                                 {search ? ' con esa búsqueda' : ''}.
                             </p>
@@ -263,8 +263,8 @@ export function ParetoVehicleTypesModal({
                                                 className={cn(
                                                     'flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-sm',
                                                     checked
-                                                        ? 'border-[#1a2b4c] bg-[#e8f1fa]'
-                                                        : 'border-[#e2eaf3] hover:bg-[#f8fafc]',
+                                                        ? 'border-brand-700 bg-brand-100'
+                                                        : 'border-brand-200 hover:bg-background',
                                                     canEdit
                                                         ? 'cursor-pointer'
                                                         : 'cursor-default opacity-80',
@@ -275,7 +275,7 @@ export function ParetoVehicleTypesModal({
                                                     disabled={!canEdit || selectedId == null}
                                                     className="pointer-events-none"
                                                 />
-                                                <span className="min-w-0 flex-1 truncate font-medium text-[#1a2b4c]">
+                                                <span className="min-w-0 flex-1 truncate font-medium text-brand-700">
                                                     {type.name}
                                                 </span>
                                             </button>

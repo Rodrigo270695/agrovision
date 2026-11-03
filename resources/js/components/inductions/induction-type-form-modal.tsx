@@ -23,7 +23,7 @@ type Props = {
 };
 
 const inputClass =
-    'h-9 border-[#c5d5e6] bg-white text-sm focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35';
+    'h-9 border-brand-300 bg-white text-sm focus-visible:border-brand-500 focus-visible:ring-brand-400/35';
 
 export function InductionTypeFormModal({
     open,
@@ -82,7 +82,7 @@ export function InductionTypeFormModal({
                         type="button"
                         variant="outline"
                         onClick={handleClose}
-                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                        className="cursor-pointer border-brand-300 text-brand-700"
                     >
                         Cancelar
                     </Button>
@@ -90,7 +90,7 @@ export function InductionTypeFormModal({
                         type="submit"
                         form="induction-type-form"
                         disabled={form.data.title.trim() === '' || form.processing}
-                        className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c] disabled:opacity-50"
+                        className="cursor-pointer bg-brand-500 text-white hover:bg-brand-700 disabled:opacity-50"
                     >
                         {form.processing ? <Spinner /> : null}
                         Crear tipo
@@ -100,7 +100,7 @@ export function InductionTypeFormModal({
         >
             <form id="induction-type-form" onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">
+                    <Label className="text-xs text-brand-700">
                         Nombre <span className="text-red-500">*</span>
                     </Label>
                     <Input
@@ -113,7 +113,7 @@ export function InductionTypeFormModal({
                     <InputError message={form.errors.title} />
                 </div>
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">
+                    <Label className="text-xs text-brand-700">
                         Actividad <span className="text-red-500">*</span>
                     </Label>
                     <Select
@@ -139,7 +139,7 @@ export function InductionTypeFormModal({
                     <InputError message={form.errors.activity} />
                 </div>
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">Nombre corto</Label>
+                    <Label className="text-xs text-brand-700">Nombre corto</Label>
                     <Input
                         value={form.data.short}
                         onChange={(e) => form.setData('short', e.target.value)}

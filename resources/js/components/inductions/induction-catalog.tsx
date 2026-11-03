@@ -99,7 +99,7 @@ export function InductionCatalog({ catalog, onDeleteType }: Props) {
             key: 'packages',
             header: 'Paquetes',
             cell: (item) => (
-                <span className="text-sm font-medium text-[#1a2b4c]">
+                <span className="text-sm font-medium text-brand-700">
                     {item.packages_count}
                 </span>
             ),
@@ -110,7 +110,7 @@ export function InductionCatalog({ catalog, onDeleteType }: Props) {
             cell: (item) => (
                 <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
                     <span className="inline-flex items-center gap-1">
-                        <Clock3 className="size-3 text-[#2e5a9e]" />
+                        <Clock3 className="size-3 text-brand-500" />
                         {item.scheduled}
                     </span>
                     <span className="inline-flex items-center gap-1">

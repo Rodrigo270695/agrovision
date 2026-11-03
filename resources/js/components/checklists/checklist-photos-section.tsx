@@ -510,13 +510,13 @@ function PhotoPassSection({
     };
 
     return (
-        <div className="rounded-xl border border-[#e2eaf3] bg-[#f8fafc] p-3.5 sm:p-4">
+        <div className="rounded-xl border border-brand-200 bg-background p-3.5 sm:p-4">
             <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h3 className="text-sm font-semibold text-[#1a2b4c]">
+                    <h3 className="text-sm font-semibold text-brand-700">
                         {title}
                     </h3>
-                    <p className="text-[11px] text-[#5a7390]">
+                    <p className="text-[11px] text-muted-foreground">
                         La foto incluye fecha, hora y GPS (si el celular lo
                         permite).
                     </p>
@@ -525,7 +525,7 @@ function PhotoPassSection({
                 <div className="flex gap-2">
                     {!readonly ? (
                         <>
-                            <label className="relative inline-flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border border-[#c5d5e6] bg-white px-3 text-sm text-[#1a2b4c] sm:h-9 sm:flex-none">
+                            <label className="relative inline-flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border border-brand-300 bg-white px-3 text-sm text-brand-700 sm:h-9 sm:flex-none">
                                 <input
                                     type="file"
                                     accept="image/*"
@@ -546,7 +546,7 @@ function PhotoPassSection({
                                 )}
                                 Cámara
                             </label>
-                            <label className="relative inline-flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border border-[#c5d5e6] bg-white px-3 text-sm text-[#1a2b4c] sm:h-9 sm:flex-none">
+                            <label className="relative inline-flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border border-brand-300 bg-white px-3 text-sm text-brand-700 sm:h-9 sm:flex-none">
                                 <input
                                     type="file"
                                     accept="image/*"
@@ -572,9 +572,9 @@ function PhotoPassSection({
             ) : null}
 
             {visiblePhotos.length === 0 ? (
-                <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-[#c5d5e6] bg-white px-3 py-8 text-center">
-                    <ImagePlus className="mb-2 size-6 text-[#6b8ead]" />
-                    <p className="text-xs text-[#6b8ead]">
+                <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-brand-300 bg-white px-3 py-8 text-center">
+                    <ImagePlus className="mb-2 size-6 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">
                         Sin fotos en esta inspección
                     </p>
                 </div>
@@ -583,7 +583,7 @@ function PhotoPassSection({
                     {visiblePhotos.map((photo) => (
                         <figure
                             key={photo.id}
-                            className="group relative overflow-hidden rounded-lg border border-[#d7e3f0] bg-white"
+                            className="group relative overflow-hidden rounded-lg border border-brand-200 bg-white"
                         >
                             <a
                                 href={photo.url}
@@ -597,14 +597,14 @@ function PhotoPassSection({
                                     className="aspect-[4/3] w-full object-cover"
                                 />
                             </a>
-                            <figcaption className="space-y-0.5 p-2 text-[10px] leading-tight text-[#5a7390]">
-                                <p className="font-medium text-[#1a2b4c]">
+                            <figcaption className="space-y-0.5 p-2 text-[10px] leading-tight text-muted-foreground">
+                                <p className="font-medium text-brand-700">
                                     {photo.captured_at || 'Sin fecha'}
                                 </p>
                                 {photo.latitude !== null &&
                                 photo.longitude !== null ? (
                                     <p className="inline-flex items-start gap-1">
-                                        <MapPin className="mt-0.5 size-3 shrink-0 text-[#2e5a9e]" />
+                                        <MapPin className="mt-0.5 size-3 shrink-0 text-brand-500" />
                                         <span>
                                             {photo.latitude.toFixed(5)},{' '}
                                             {photo.longitude.toFixed(5)}
@@ -662,12 +662,12 @@ export function ChecklistPhotosSection({
     );
 
     return (
-        <div className="rounded-2xl border border-[#d7e3f0] bg-white p-3 shadow-sm sm:p-5">
+        <div className="rounded-2xl border border-brand-200 bg-white p-3 shadow-sm sm:p-5">
             <div className="mb-3">
-                <h2 className="text-sm font-semibold text-[#1a2b4c]">
+                <h2 className="text-sm font-semibold text-brand-700">
                     Evidencias fotográficas
                 </h2>
-                <p className="text-xs text-[#5a7390]">
+                <p className="text-xs text-muted-foreground">
                     Las fotos incluyen fecha, hora y GPS para el reporte.
                 </p>
             </div>

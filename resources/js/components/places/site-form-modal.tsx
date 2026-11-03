@@ -82,7 +82,7 @@ export function SiteFormModal({ open, site = null, onClose }: Props) {
                         type="button"
                         variant="outline"
                         onClick={handleClose}
-                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c] hover:bg-white"
+                        className="cursor-pointer border-brand-300 text-brand-700 hover:bg-white"
                     >
                         Cancelar
                     </Button>
@@ -90,7 +90,7 @@ export function SiteFormModal({ open, site = null, onClose }: Props) {
                         type="submit"
                         form="site-form"
                         disabled={!canSubmit}
-                        className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {form.processing ? <Spinner /> : null}
                         {isEditing ? 'Guardar cambios' : 'Crear sede'}

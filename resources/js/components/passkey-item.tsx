@@ -26,27 +26,27 @@ export default function PasskeyItem({ passkey, onDelete }: Props) {
     };
 
     return (
-        <div className="flex items-center justify-between border-b border-[#c5d5e6] p-4 last:border-b-0">
+        <div className="flex items-center justify-between border-b border-brand-300 p-4 last:border-b-0">
             <div className="flex items-center gap-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#e8f1fa]">
-                    <KeyRound className="h-5 w-5 text-[#2e5a9e]" />
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-100">
+                    <KeyRound className="h-5 w-5 text-brand-500" />
                 </div>
                 <div className="space-y-1">
                     <div className="flex items-center gap-2.5">
-                        <p className="font-medium tracking-tight text-[#1a2b4c]">
+                        <p className="font-medium tracking-tight text-brand-700">
                             {passkey.name}
                         </p>
                         {passkey.authenticator && (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-[#eef4fb] px-2 py-0.5 text-[11px] font-medium tracking-wide text-[#5a7390] uppercase ring-1 ring-[#c5d5e6] ring-inset">
+                            <span className="inline-flex items-center gap-1 rounded-md bg-brand-100 px-2 py-0.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase ring-1 ring-brand-300 ring-inset">
                                 {passkey.authenticator}
                             </span>
                         )}
                     </div>
-                    <p className="text-sm text-[#5a7390]">
+                    <p className="text-sm text-muted-foreground">
                         Agregada {passkey.created_at_diff}
                         {passkey.last_used_at_diff && (
                             <>
-                                <span className="mx-1 text-[#c5d5e6]">/</span>
+                                <span className="mx-1 text-brand-300">/</span>
                                 Último uso {passkey.last_used_at_diff}
                             </>
                         )}

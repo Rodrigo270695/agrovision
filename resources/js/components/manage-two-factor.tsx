@@ -53,7 +53,7 @@ export default function ManageTwoFactor(props: Props) {
             />
             {twoFactorEnabled ? (
                 <div className="flex flex-col items-start justify-start space-y-4">
-                    <p className="text-sm text-[#5a7390]">
+                    <p className="text-sm text-muted-foreground">
                         Al iniciar sesión se te pedirá un código PIN seguro que
                         puedes obtener desde una aplicación TOTP en tu teléfono.
                     </p>
@@ -81,7 +81,7 @@ export default function ManageTwoFactor(props: Props) {
                 </div>
             ) : (
                 <div className="flex flex-col items-start justify-start space-y-4">
-                    <p className="text-sm text-[#5a7390]">
+                    <p className="text-sm text-muted-foreground">
                         Al activar la autenticación en dos pasos, se te pedirá
                         un PIN seguro al iniciar sesión. Ese PIN lo obtienes de
                         una aplicación TOTP en tu teléfono.
@@ -91,7 +91,7 @@ export default function ManageTwoFactor(props: Props) {
                         {hasSetupData ? (
                             <Button
                                 onClick={() => setShowSetupModal(true)}
-                                className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c]"
+                                className="cursor-pointer bg-brand-500 text-white hover:bg-brand-700"
                             >
                                 <ShieldCheck />
                                 Continuar configuración
@@ -105,7 +105,7 @@ export default function ManageTwoFactor(props: Props) {
                                     <Button
                                         type="submit"
                                         disabled={processing}
-                                        className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c]"
+                                        className="cursor-pointer bg-brand-500 text-white hover:bg-brand-700"
                                     >
                                         Activar 2FA
                                     </Button>

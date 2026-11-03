@@ -41,15 +41,15 @@ export function SemaforoCard({ item }: Props) {
                     className={cn('size-3.5 rounded-full', style.lamp)}
                     aria-hidden
                 />
-                <span className="text-[11px] font-semibold tracking-[0.14em] text-[#5a7390] uppercase">
+                <span className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
                     {style.label}
                 </span>
             </div>
-            <p className="text-sm font-medium text-[#1a2b4c]">{item.label}</p>
-            <p className="mt-1 font-display text-3xl font-semibold text-[#1a2b4c]">
+            <p className="text-sm font-medium text-brand-700">{item.label}</p>
+            <p className="mt-1 font-display text-3xl font-semibold text-brand-700">
                 {item.value}
             </p>
-            <p className="mt-2 text-xs leading-relaxed text-[#5a7390]">
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                 {item.detail}
             </p>
         </div>

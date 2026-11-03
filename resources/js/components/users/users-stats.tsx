@@ -14,7 +14,7 @@ const items = [
         key: 'users',
         label: 'Usuarios',
         icon: Users,
-        className: 'bg-[#e8f1fa] text-[#2e5a9e]',
+        className: 'bg-brand-100 text-brand-500',
     },
     {
         key: 'with_roles',

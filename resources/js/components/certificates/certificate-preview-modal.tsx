@@ -42,19 +42,19 @@ export function CertificatePreviewModal({
             className="sm:max-w-5xl"
             bodyClassName="max-h-[80vh]"
             footer={
-                <Button type="button" variant="outline" onClick={onClose} className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]">
+                <Button type="button" variant="outline" onClick={onClose} className="cursor-pointer border-brand-300 text-brand-700">
                     Cerrar
                 </Button>
             }
         >
             <div className="space-y-3">
                 {attendees.length > 1 ? (
-                    <label className="grid gap-1 text-xs text-[#1a2b4c]">
+                    <label className="grid gap-1 text-xs text-brand-700">
                         Conductor
                         <select
                             value={personId ?? ''}
                             onChange={(event) => setPersonId(Number(event.target.value))}
-                            className="h-9 rounded-lg border border-[#c5d5e6] bg-white px-2 text-sm"
+                            className="h-9 rounded-lg border border-brand-300 bg-white px-2 text-sm"
                         >
                             {attendees.map((person) => (
                                 <option key={person.id} value={person.id}>
@@ -69,7 +69,7 @@ export function CertificatePreviewModal({
                         key={src}
                         src={src}
                         title="Vista previa del certificado"
-                        className="h-[68vh] w-full rounded-lg border border-[#d7e3f0] bg-white"
+                        className="h-[68vh] w-full rounded-lg border border-brand-200 bg-white"
                     />
                 ) : null}
             </div>

@@ -53,7 +53,7 @@ export default function CertificatesIndex({ templates }: PageProps) {
                         type="button"
                         size="sm"
                         asChild
-                        className="cursor-pointer gap-1.5 rounded-xl bg-[#1e4d8c] text-white hover:bg-[#163a6b]"
+                        className="cursor-pointer gap-1.5 rounded-xl bg-brand-500 text-white hover:bg-brand-600"
                     >
                         <Link href="/certificados/plantillas/nueva">
                             <Plus className="size-3.5" />
@@ -92,7 +92,7 @@ export default function CertificatesIndex({ templates }: PageProps) {
                                         key={template.id}
                                         className="border-t border-slate-100"
                                     >
-                                        <td className="px-4 py-3 font-medium text-[#0f1f3a]">
+                                        <td className="px-4 py-3 font-medium text-brand-800">
                                             {template.name}
                                         </td>
                                         <td className="px-4 py-3 text-slate-600">
@@ -117,7 +117,7 @@ export default function CertificatesIndex({ templates }: PageProps) {
                                                         `/certificados/plantillas/${template.id}`,
                                                     )
                                                 }
-                                                className="cursor-pointer text-sm font-medium text-[#1e4d8c] hover:underline"
+                                                className="cursor-pointer text-sm font-medium text-brand-500 hover:underline"
                                             >
                                                 Editar
                                             </button>

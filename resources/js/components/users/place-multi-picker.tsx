@@ -18,7 +18,7 @@ type Props = {
 };
 
 const checkClassName =
-    'size-3.5 shrink-0 border-[#9bb4ce] data-[state=checked]:border-[#2e5a9e] data-[state=checked]:bg-[#2e5a9e] data-[state=checked]:text-white';
+    'size-3.5 shrink-0 border-[#9bb4ce] data-[state=checked]:border-brand-500 data-[state=checked]:bg-brand-500 data-[state=checked]:text-white';
 
 export function PlaceMultiPicker({
     places,
@@ -64,9 +64,9 @@ export function PlaceMultiPicker({
     };
 
     return (
-        <div className="overflow-hidden rounded-md border border-[#c5d5e6] bg-white">
-            <div className="relative border-b border-[#e2eaf3]">
-                <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-[#6b8ead]" />
+        <div className="overflow-hidden rounded-md border border-brand-300 bg-white">
+            <div className="relative border-b border-brand-200">
+                <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
@@ -77,17 +77,17 @@ export function PlaceMultiPicker({
             </div>
             <div className="max-h-52 overflow-y-auto p-1">
                 {places.length === 0 ? (
-                    <p className="px-2 py-3 text-center text-xs text-[#6b8ead]">
+                    <p className="px-2 py-3 text-center text-xs text-muted-foreground">
                         No hay lugares activos. Créalos en Lugares.
                     </p>
                 ) : filtered.length === 0 ? (
-                    <p className="px-2 py-3 text-center text-xs text-[#6b8ead]">
+                    <p className="px-2 py-3 text-center text-xs text-muted-foreground">
                         Sin coincidencias
                     </p>
                 ) : (
                     groups.map(([siteName, sitePlaces]) => (
                         <div key={siteName} className="mb-1">
-                            <p className="px-2 pt-1.5 pb-0.5 text-[10px] font-semibold tracking-wide text-[#2e5a9e] uppercase">
+                            <p className="px-2 pt-1.5 pb-0.5 text-[10px] font-semibold tracking-wide text-brand-500 uppercase">
                                 {siteName}
                             </p>
                             {sitePlaces.map((place) => {
@@ -98,8 +98,8 @@ export function PlaceMultiPicker({
                                     <label
                                         key={place.id}
                                         className={cn(
-                                            'flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs text-[#1a2b4c] hover:bg-[#f8fafc]',
-                                            checked && 'bg-[#e8f1fa]/70',
+                                            'flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs text-brand-700 hover:bg-background',
+                                            checked && 'bg-brand-100/70',
                                             disabled &&
                                                 'pointer-events-none opacity-60',
                                         )}

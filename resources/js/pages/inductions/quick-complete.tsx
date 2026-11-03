@@ -76,7 +76,7 @@ type PageProps = {
 };
 
 const inputClass =
-    'h-9 border-[#c5d5e6] bg-white text-sm focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35';
+    'h-9 border-brand-300 bg-white text-sm focus-visible:border-brand-500 focus-visible:ring-brand-400/35';
 
 export default function InductionQuickCompletePage({
     selectedType,
@@ -217,7 +217,7 @@ export default function InductionQuickCompletePage({
 
     if (!can('inductions.quick_complete')) {
         return (
-            <div className="flex flex-1 items-center justify-center p-8 text-sm text-[#5a7390]">
+            <div className="flex flex-1 items-center justify-center p-8 text-sm text-muted-foreground">
                 No tienes permiso para esta vista.
             </div>
         );
@@ -263,8 +263,8 @@ export default function InductionQuickCompletePage({
                     </p>
                 ) : null}
 
-                <section className="rounded-2xl border border-[#e2eaf3] bg-white p-4">
-                    <h2 className="text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
+                <section className="rounded-2xl border border-brand-200 bg-white p-4">
+                    <h2 className="text-xs font-semibold tracking-wide text-brand-700 uppercase">
                         1. Tipo de inducción / capacitación
                     </h2>
                     <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -279,14 +279,14 @@ export default function InductionQuickCompletePage({
                                     className={cn(
                                         'cursor-pointer rounded-xl border px-3 py-3 text-left transition',
                                         active
-                                            ? 'border-[#2e5a9e] bg-[#e8f1fa] shadow-sm'
-                                            : 'border-[#e2eaf3] hover:border-[#c5d5e6] hover:bg-[#f8fafc]',
+                                            ? 'border-brand-500 bg-brand-100 shadow-sm'
+                                            : 'border-brand-200 hover:border-brand-300 hover:bg-background',
                                     )}
                                 >
-                                    <p className="text-sm font-semibold text-[#1a2b4c]">
+                                    <p className="text-sm font-semibold text-brand-700">
                                         {type.short || type.label}
                                     </p>
-                                    <p className="mt-1 line-clamp-2 text-xs text-[#5a7390]">
+                                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                                         {type.label}
                                     </p>
                                 </button>
@@ -296,18 +296,18 @@ export default function InductionQuickCompletePage({
                 </section>
 
                 {!selectedType ? (
-                    <p className="text-sm text-[#5a7390]">
+                    <p className="text-sm text-muted-foreground">
                         Selecciona un tipo para ver quién falta.
                     </p>
                 ) : (
                     <form onSubmit={handleSubmit} className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-                        <section className="rounded-2xl border border-[#e2eaf3] bg-white p-4">
+                        <section className="rounded-2xl border border-brand-200 bg-white p-4">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                                 <div>
-                                    <h2 className="text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
+                                    <h2 className="text-xs font-semibold tracking-wide text-brand-700 uppercase">
                                         2. Conductores faltantes
                                     </h2>
-                                    <p className="mt-1 text-xs text-[#5a7390]">
+                                    <p className="mt-1 text-xs text-muted-foreground">
                                         Solo con firma y huella guardadas ·{' '}
                                         {catalogType?.title}
                                     </p>
@@ -317,14 +317,14 @@ export default function InductionQuickCompletePage({
                                     variant="outline"
                                     onClick={toggleAll}
                                     disabled={candidates.length === 0}
-                                    className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                                    className="cursor-pointer border-brand-300 text-brand-700"
                                 >
                                     {allSelected ? 'Quitar todos' : 'Marcar todos'}
                                 </Button>
                             </div>
 
                             {candidates.length === 0 ? (
-                                <p className="mt-4 rounded-xl border border-dashed border-[#d7e3f0] bg-[#f8fafc] px-3 py-8 text-center text-sm text-[#5a7390]">
+                                <p className="mt-4 rounded-xl border border-dashed border-brand-200 bg-background px-3 py-8 text-center text-sm text-muted-foreground">
                                     Nadie falta con firma y huella para este tipo.
                                 </p>
                             ) : (
@@ -335,7 +335,7 @@ export default function InductionQuickCompletePage({
                                         return (
                                             <li
                                                 key={item.dni}
-                                                className="flex items-start gap-3 rounded-xl border border-[#e2eaf3] px-3 py-2.5"
+                                                className="flex items-start gap-3 rounded-xl border border-brand-200 px-3 py-2.5"
                                             >
                                                 <Checkbox
                                                     checked={checked}
@@ -345,10 +345,10 @@ export default function InductionQuickCompletePage({
                                                     className="mt-0.5"
                                                 />
                                                 <div className="min-w-0 flex-1">
-                                                    <p className="truncate text-sm font-medium text-[#1a2b4c]">
+                                                    <p className="truncate text-sm font-medium text-brand-700">
                                                         {item.name}
                                                     </p>
-                                                    <p className="mt-0.5 text-xs text-[#5a7390]">
+                                                    <p className="mt-0.5 text-xs text-muted-foreground">
                                                         DNI {item.dni}
                                                         {item.plate ? ` · ${item.plate}` : ''}
                                                         {item.provider
@@ -364,14 +364,14 @@ export default function InductionQuickCompletePage({
                             <InputError message={(form.errors as Record<string, string>).dnis} />
                         </section>
 
-                        <section className="space-y-4 rounded-2xl border border-[#e2eaf3] bg-white p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
+                        <section className="space-y-4 rounded-2xl border border-brand-200 bg-white p-4">
+                            <h2 className="text-xs font-semibold tracking-wide text-brand-700 uppercase">
                                 3. Paquete y evidencia
                             </h2>
 
                             <div className="grid gap-3 sm:grid-cols-2">
                                 <div className="grid gap-1.5">
-                                    <Label className="text-xs text-[#1a2b4c]">
+                                    <Label className="text-xs text-brand-700">
                                         Fecha <span className="text-red-500">*</span>
                                     </Label>
                                     <Input
@@ -385,7 +385,7 @@ export default function InductionQuickCompletePage({
                                     <InputError message={form.errors.session_date} />
                                 </div>
                                 <div className="grid gap-1.5">
-                                    <Label className="text-xs text-[#1a2b4c]">
+                                    <Label className="text-xs text-brand-700">
                                         Periodo <span className="text-red-500">*</span>
                                     </Label>
                                     <Select
@@ -415,7 +415,7 @@ export default function InductionQuickCompletePage({
                                     <InputError message={form.errors.period_id} />
                                 </div>
                                 <div className="grid gap-1.5">
-                                    <Label className="text-xs text-[#1a2b4c]">Inicio</Label>
+                                    <Label className="text-xs text-brand-700">Inicio</Label>
                                     <Input
                                         type="time"
                                         value={form.data.start_time}
@@ -427,7 +427,7 @@ export default function InductionQuickCompletePage({
                                     <InputError message={form.errors.start_time} />
                                 </div>
                                 <div className="grid gap-1.5">
-                                    <Label className="text-xs text-[#1a2b4c]">Fin</Label>
+                                    <Label className="text-xs text-brand-700">Fin</Label>
                                     <Input
                                         type="time"
                                         value={form.data.end_time}
@@ -442,7 +442,7 @@ export default function InductionQuickCompletePage({
 
                             <div className="grid gap-3 sm:grid-cols-2">
                                 <div className="grid gap-1.5">
-                                    <Label className="text-xs text-[#1a2b4c]">Sede</Label>
+                                    <Label className="text-xs text-brand-700">Sede</Label>
                                     <SearchableCombobox
                                         value={form.data.site_id || null}
                                         onChange={(value) => {
@@ -457,7 +457,7 @@ export default function InductionQuickCompletePage({
                                     />
                                 </div>
                                 <div className="grid gap-1.5">
-                                    <Label className="text-xs text-[#1a2b4c]">Lugar</Label>
+                                    <Label className="text-xs text-brand-700">Lugar</Label>
                                     <SearchableCombobox
                                         value={form.data.place_id || null}
                                         onChange={(value) =>
@@ -479,7 +479,7 @@ export default function InductionQuickCompletePage({
 
                             <div className="grid gap-3 sm:grid-cols-2">
                                 <div className="grid gap-1.5">
-                                    <Label className="text-xs text-[#1a2b4c]">Expositor</Label>
+                                    <Label className="text-xs text-brand-700">Expositor</Label>
                                     <Input
                                         value={form.data.speaker_name}
                                         onChange={(e) =>
@@ -489,7 +489,7 @@ export default function InductionQuickCompletePage({
                                     />
                                 </div>
                                 <div className="grid gap-1.5">
-                                    <Label className="text-xs text-[#1a2b4c]">Institución</Label>
+                                    <Label className="text-xs text-brand-700">Institución</Label>
                                     <Input
                                         value={form.data.speaker_institution}
                                         onChange={(e) =>
@@ -504,7 +504,7 @@ export default function InductionQuickCompletePage({
                             </div>
 
                             <div className="grid gap-1.5">
-                                <Label className="text-xs text-[#1a2b4c]">
+                                <Label className="text-xs text-brand-700">
                                     Foto de evidencia <span className="text-red-500">*</span>
                                 </Label>
                                 <VerificationPhotoCapture
@@ -552,7 +552,7 @@ export default function InductionQuickCompletePage({
                             <Button
                                 type="submit"
                                 disabled={form.processing}
-                                className="w-full cursor-pointer gap-2 bg-[#1a2b4c] text-white hover:bg-[#122038] disabled:opacity-50"
+                                className="w-full cursor-pointer gap-2 bg-brand-700 text-white hover:bg-brand-700 disabled:opacity-50"
                             >
                                 {form.processing ? <Spinner /> : <Zap className="size-4" />}
                                 Crear paquete y cerrar ({selected.length})

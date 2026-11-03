@@ -264,9 +264,9 @@ function SidebarTrigger({
       aria-label={expanded ? "Ocultar menú" : "Mostrar menú"}
       title={expanded ? "Ocultar menú" : "Mostrar menú"}
       className={cn(
-        "size-9 shrink-0 rounded-xl border border-slate-200/90 bg-white text-[#0f1f3a] shadow-sm",
-        "transition-colors hover:border-[#1e4d8c]/30 hover:bg-[#e8f1fa] hover:text-[#1e4d8c]",
-        "focus-visible:ring-2 focus-visible:ring-[#1e4d8c]/35",
+        "size-9 shrink-0 rounded-xl border border-brand-200/90 bg-card text-brand-800 shadow-sm",
+        "transition-colors hover:border-brand-500/30 hover:bg-brand-100 hover:text-brand-500",
+        "focus-visible:ring-2 focus-visible:ring-brand-500/35",
         className
       )}
       onClick={(event) => {

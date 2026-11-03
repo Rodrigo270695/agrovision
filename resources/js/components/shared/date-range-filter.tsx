@@ -133,7 +133,7 @@ function MonthGrid({
 
     return (
         <div className="w-[15.5rem]">
-            <p className="mb-2 text-center text-sm font-semibold text-[#1a2b4c] capitalize">
+            <p className="mb-2 text-center text-sm font-semibold text-brand-700 capitalize">
                 {monthTitle(month)}
             </p>
             <div className="grid grid-cols-7 gap-y-0.5 text-center">
@@ -166,9 +166,9 @@ function MonthGrid({
                                 className={cn(
                                     'flex size-8 cursor-pointer items-center justify-center rounded-full text-sm',
                                     !inMonth && 'text-[#c5d0dc]',
-                                    inMonth && !endpoint && 'text-[#1a2b4c] hover:bg-[#eef3f8]',
-                                    endpoint && 'bg-[#1a2b4c] font-semibold text-white',
-                                    isSameDay(day, today) && !endpoint && 'ring-1 ring-[#1a2b4c]/40',
+                                    inMonth && !endpoint && 'text-brand-700 hover:bg-muted',
+                                    endpoint && 'bg-brand-700 font-semibold text-white',
+                                    isSameDay(day, today) && !endpoint && 'ring-1 ring-brand-700/40',
                                 )}
                             >
                                 {format(day, 'd')}
@@ -218,18 +218,18 @@ function RangePanel({
                     <button
                         type="button"
                         onClick={() => onViewMonth(addMonths(viewMonth, -1))}
-                        className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-[#1a2b4c] hover:bg-[#eef3f8]"
+                        className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-brand-700 hover:bg-muted"
                         aria-label="Mes anterior"
                     >
                         <ChevronLeft className="size-4" />
                     </button>
-                    <p className="truncate rounded-lg border border-[#d7e3f0] bg-[#f8fafc] px-3 py-1.5 text-xs font-medium text-[#1a2b4c] tabular-nums">
+                    <p className="truncate rounded-lg border border-brand-200 bg-background px-3 py-1.5 text-xs font-medium text-brand-700 tabular-nums">
                         {summary}
                     </p>
                     <button
                         type="button"
                         onClick={() => onViewMonth(addMonths(viewMonth, 1))}
-                        className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-[#1a2b4c] hover:bg-[#eef3f8]"
+                        className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-brand-700 hover:bg-muted"
                         aria-label="Mes siguiente"
                     >
                         <ChevronRight className="size-4" />
@@ -241,15 +241,15 @@ function RangePanel({
                         <MonthGrid month={addMonths(viewMonth, 1)} from={draftFrom} to={draftTo} onPick={onPick} />
                     )}
                 </div>
-                <div className="mt-3 flex items-center justify-end gap-2 border-t border-[#e2eaf3] pt-3">
-                    <Button type="button" variant="outline" onClick={onClear} className="h-8 cursor-pointer border-[#c5d5e6] text-[#1a2b4c]">
+                <div className="mt-3 flex items-center justify-end gap-2 border-t border-brand-200 pt-3">
+                    <Button type="button" variant="outline" onClick={onClear} className="h-8 cursor-pointer border-brand-300 text-brand-700">
                         Limpiar
                     </Button>
                     <Button
                         type="button"
                         disabled={!draftFrom || !draftTo}
                         onClick={onApply}
-                        className="h-8 cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                        className="h-8 cursor-pointer bg-brand-700 text-white hover:bg-brand-700"
                     >
                         Aplicar
                     </Button>
@@ -257,7 +257,7 @@ function RangePanel({
             </div>
             <div
                 className={cn(
-                    'border-[#e2eaf3] bg-[#f7f9fc] p-2',
+                    'border-brand-200 bg-[#f7f9fc] p-2',
                     compact
                         ? 'grid max-h-40 grid-cols-2 gap-1 overflow-y-auto border-t'
                         : 'flex w-40 shrink-0 flex-col gap-1 overflow-y-auto border-l',
@@ -274,8 +274,8 @@ function RangePanel({
                             className={cn(
                                 'cursor-pointer rounded-lg px-2.5 py-1.5 text-left text-sm',
                                 active
-                                    ? 'bg-[#1a2b4c] font-semibold text-white'
-                                    : 'bg-white text-[#1a2b4c] hover:bg-[#e8eef5]',
+                                    ? 'bg-brand-700 font-semibold text-white'
+                                    : 'bg-white text-brand-700 hover:bg-[#e8eef5]',
                             )}
                         >
                             {preset.label}
@@ -418,7 +418,7 @@ export function DateRangeFilter({
             variant="outline"
             disabled={disabled}
             className={cn(
-                'h-10 max-w-full min-w-40 cursor-pointer justify-start gap-2 rounded-lg border-[#1a2b4c] bg-[#1a2b4c] px-3 font-medium text-white shadow-sm hover:bg-[#122038] hover:text-white',
+                'h-10 max-w-full min-w-40 cursor-pointer justify-start gap-2 rounded-lg border-brand-700 bg-brand-700 px-3 font-medium text-white shadow-sm hover:bg-brand-700 hover:text-white',
                 triggerClassName,
             )}
             aria-label="Filtrar por rango de fechas"
@@ -452,14 +452,14 @@ export function DateRangeFilter({
                 {trigger}
                 {open
                     ? createPortal(
-                          <div className="fixed inset-0 z-[200] flex items-end justify-center bg-[#0b1729]/45 p-3 sm:items-center">
+                          <div className="fixed inset-0 z-[200] flex items-end justify-center bg-brand-950/45 p-3 sm:items-center">
                               <button
                                   type="button"
                                   aria-label="Cerrar filtro de fechas"
                                   className="absolute inset-0 cursor-default"
                                   onClick={() => setOpen(false)}
                               />
-                              <div className="relative z-10 max-h-[min(36rem,calc(100dvh-1.5rem))] w-full max-w-md overflow-auto rounded-2xl border border-[#d7e3f0] shadow-xl">
+                              <div className="relative z-10 max-h-[min(36rem,calc(100dvh-1.5rem))] w-full max-w-md overflow-auto rounded-2xl border border-brand-200 shadow-xl">
                                   {panel}
                               </div>
                           </div>,
@@ -489,7 +489,7 @@ export function DateRangeFilter({
                 side="bottom"
                 sideOffset={8}
                 collisionPadding={16}
-                className="w-auto max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border-[#d7e3f0] p-0 shadow-xl"
+                className="w-auto max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border-brand-200 p-0 shadow-xl"
             >
                 {panel}
             </PopoverContent>

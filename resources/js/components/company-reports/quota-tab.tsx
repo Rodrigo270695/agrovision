@@ -39,11 +39,11 @@ export function QuotaTab({ rows, baseUrl, goalPercent }: Props) {
 
     return (
         <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
-            <div className="flex items-center justify-center rounded-2xl border border-[#d7e3f0] bg-white p-4">
+            <div className="flex items-center justify-center rounded-2xl border border-brand-200 bg-white p-4">
                 <Ring percent={goalPercent} label="Inspectores en la meta del periodo" />
             </div>
-            <div className="rounded-2xl border border-[#d7e3f0] bg-white p-4">
-                <h3 className="mb-3 text-sm font-semibold text-[#1a2b4c]">
+            <div className="rounded-2xl border border-brand-200 bg-white p-4">
+                <h3 className="mb-3 text-sm font-semibold text-brand-700">
                     Inspecciones del periodo frente a la cuota
                 </h3>
                 <BarChart
@@ -60,9 +60,9 @@ export function QuotaTab({ rows, baseUrl, goalPercent }: Props) {
                     }))}
                 />
             </div>
-            <div className="overflow-x-auto rounded-2xl border border-[#d7e3f0] bg-white lg:col-span-2">
+            <div className="overflow-x-auto rounded-2xl border border-brand-200 bg-white lg:col-span-2">
                 <table className="w-full min-w-[720px] text-sm">
-                    <thead className="bg-[#f7fafc] text-left text-xs tracking-wide text-[#5a7390] uppercase">
+                    <thead className="bg-[#f7fafc] text-left text-xs tracking-wide text-muted-foreground uppercase">
                         <tr>
                             <th className="px-4 py-3">Inspector</th>
                             <th className="px-4 py-3">Cuota por día</th>
@@ -76,19 +76,19 @@ export function QuotaTab({ rows, baseUrl, goalPercent }: Props) {
                             <tr>
                                 <td
                                     colSpan={5}
-                                    className="px-4 py-6 text-[#5a7390]"
+                                    className="px-4 py-6 text-muted-foreground"
                                 >
                                     No hay inspectores en esta empresa.
                                 </td>
                             </tr>
                         ) : (
                             draft.map((row, index) => (
-                                <tr key={row.user_id} className="border-t border-[#e2eaf3]">
+                                <tr key={row.user_id} className="border-t border-brand-200">
                                     <td className="px-4 py-3">
-                                        <p className="font-medium text-[#1a2b4c]">
+                                        <p className="font-medium text-brand-700">
                                             {row.name}
                                         </p>
-                                        <p className="text-xs text-[#5a7390]">
+                                        <p className="text-xs text-muted-foreground">
                                             {row.email}
                                         </p>
                                     </td>
@@ -132,12 +132,12 @@ export function QuotaTab({ rows, baseUrl, goalPercent }: Props) {
                         )}
                     </tbody>
                 </table>
-                <div className="flex justify-end border-t border-[#e2eaf3] px-4 py-3">
+                <div className="flex justify-end border-t border-brand-200 px-4 py-3">
                     <Button
                         type="button"
                         disabled={saving || draft.length === 0}
                         onClick={save}
-                        className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                        className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700"
                     >
                         Guardar cuotas
                     </Button>

@@ -17,19 +17,19 @@ export function DashboardAlertsList({ alerts = [] }: Props) {
     const items = Array.isArray(alerts) ? alerts : [];
 
     return (
-        <div className="rounded-2xl border border-[#d7e3f0] bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-brand-200 bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-end justify-between gap-2">
                 <div>
-                    <h3 className="text-sm font-semibold text-[#1a2b4c]">
+                    <h3 className="text-sm font-semibold text-brand-700">
                         Alertas documentales
                     </h3>
-                    <p className="text-xs text-[#6b8ead]">
+                    <p className="text-xs text-muted-foreground">
                         Vencidos o por vencer en ≤20 días (sin DNI)
                     </p>
                 </div>
                 <Link
                     href="/unidades"
-                    className="text-xs font-medium text-[#2e5a9e] hover:underline"
+                    className="text-xs font-medium text-brand-500 hover:underline"
                 >
                     Ir a unidades
                 </Link>

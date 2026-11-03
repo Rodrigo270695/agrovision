@@ -72,18 +72,18 @@ export default function CompanyReportsPage({
                     <div>
                         <Link
                             href={backHref}
-                            className="mb-2 inline-flex items-center gap-1.5 text-sm font-medium text-[#2e5a9e] hover:text-[#1a2b4c]"
+                            className="mb-2 inline-flex items-center gap-1.5 text-sm font-medium text-brand-500 hover:text-brand-700"
                         >
                             <ArrowLeft className="size-4" />
                             {backLabel}
                         </Link>
-                        <p className="text-xs font-semibold tracking-wide text-[#6b8ead] uppercase">
+                        <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                             {company.name}
                         </p>
-                        <h1 className="font-display text-2xl font-semibold text-[#1a2b4c]">
+                        <h1 className="font-display text-2xl font-semibold text-brand-700">
                             Reportes de la empresa
                         </h1>
-                        <p className="mt-1 text-sm text-[#5a7390]">
+                        <p className="mt-1 text-sm text-muted-foreground">
                             {filters.label}. Solo el dueño de la empresa ve estos
                             reportes. La hora es la de Perú.
                         </p>
@@ -121,8 +121,8 @@ export default function CompanyReportsPage({
                             className={cn(
                                 'cursor-pointer rounded-full px-3 py-1.5 text-sm',
                                 tab === item.id
-                                    ? 'bg-[#1a2b4c] text-white'
-                                    : 'bg-white text-[#1a2b4c] ring-1 ring-[#d7e3f0]',
+                                    ? 'bg-brand-700 text-white'
+                                    : 'bg-white text-brand-700 ring-1 ring-brand-200',
                             )}
                         >
                             {item.label}

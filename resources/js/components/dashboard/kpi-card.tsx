@@ -21,7 +21,7 @@ import type { DashboardKpi } from '@/components/dashboard/types';
 import { cn } from '@/lib/utils';
 
 const toneStyles: Record<string, string> = {
-    blue: 'from-[#e8f1fa] to-white text-[#1a2b4c] border-[#cfe0f0]',
+    blue: 'from-brand-100 to-white text-brand-700 border-[#cfe0f0]',
     teal: 'from-[#e8f5f1] to-white text-[#1a4a3c] border-[#c5e0d6]',
     indigo: 'from-[#eceef8] to-white text-[#2f3a6d] border-[#d0d5ec]',
     green: 'from-[#eaf6ee] to-white text-[#1f5a38] border-[#c8e2d2]',
@@ -114,7 +114,7 @@ type GridProps = {
 export function DashboardKpiGrid({ items }: GridProps) {
     if (items.length === 0) {
         return (
-            <div className="rounded-2xl border border-dashed border-[#cfe0f0] bg-white/70 px-4 py-8 text-center text-sm text-[#6b8ead]">
+            <div className="rounded-2xl border border-dashed border-[#cfe0f0] bg-white/70 px-4 py-8 text-center text-sm text-muted-foreground">
                 Sin KPI para mostrar. Verifica permisos y datos operativos.
             </div>
         );

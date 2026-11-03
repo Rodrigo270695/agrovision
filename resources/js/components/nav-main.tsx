@@ -22,10 +22,10 @@ import { cn } from '@/lib/utils';
 import type { NavItem } from '@/types';
 
 const itemClass =
-    'h-9 cursor-pointer rounded-lg px-2 text-[13px] font-medium text-[#3d5166] transition-colors hover:bg-[#e8f1fa] hover:text-[#0f1f3a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e4d8c]/35 data-[active=true]:bg-[#0f1f3a] data-[active=true]:text-white data-[active=true]:shadow-sm data-[active=true]:hover:bg-[#122038] data-[active=true]:hover:text-white';
+    'h-9 cursor-pointer rounded-lg px-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-brand-100 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/35 data-[active=true]:bg-brand-800 data-[active=true]:text-white data-[active=true]:shadow-sm data-[active=true]:hover:bg-brand-900 data-[active=true]:hover:text-white';
 
 const subItemClass =
-    'h-8 cursor-pointer rounded-md px-2 text-[13px] text-[#3d5166] transition-colors hover:bg-[#e8f1fa] hover:text-[#0f1f3a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e4d8c]/35 data-[active=true]:bg-[#e8f1fa] data-[active=true]:font-semibold data-[active=true]:text-[#0f1f3a] data-[active=true]:shadow-[inset_3px_0_0_0_#1e4d8c]';
+    'h-8 cursor-pointer rounded-md px-2 text-[13px] text-muted-foreground transition-colors hover:bg-brand-100 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/35 data-[active=true]:bg-brand-100 data-[active=true]:font-semibold data-[active=true]:text-brand-800 data-[active=true]:shadow-[inset_3px_0_0_0_var(--brand-500)]';
 
 function itemIsActive(
     item: NavItem,
@@ -55,8 +55,8 @@ function NavIcon({
                 'flex shrink-0 items-center justify-center rounded-md transition-colors',
                 size === 'sm' ? 'size-6' : 'size-7',
                 active
-                    ? 'bg-[#1e4d8c] text-white'
-                    : 'bg-[#e8f1fa] text-[#1e4d8c]',
+                    ? 'bg-brand-500 text-white'
+                    : 'bg-brand-100 text-brand-500',
             )}
             aria-hidden
         >
@@ -111,12 +111,10 @@ function NavCollapsibleItem({
                         aria-expanded={open}
                         className={cn(
                             itemClass,
-                            'data-[active=true]:bg-transparent data-[active=true]:text-[#0f1f3a] data-[active=true]:shadow-none',
-                            open &&
-                                !sectionActive &&
-                                'bg-slate-50 text-[#0f1f3a]',
+                            'data-[active=true]:bg-transparent data-[active=true]:text-brand-800 data-[active=true]:shadow-none',
+                            open && !sectionActive && 'bg-slate-50 text-brand-800',
                             sectionActive &&
-                                'bg-[#eef4fb] font-semibold text-[#0f1f3a]',
+                                'bg-brand-100 font-semibold text-brand-800',
                         )}
                     >
                         {item.icon ? (
@@ -128,15 +126,15 @@ function NavCollapsibleItem({
                         <NavLabel>{item.title}</NavLabel>
                         <ChevronRight
                             className={cn(
-                                'ml-auto size-3.5 shrink-0 text-[#6b8ead] transition-transform duration-200 motion-reduce:transition-none',
-                                open && 'rotate-90 text-[#1e4d8c]',
+                                'ml-auto size-3.5 shrink-0 text-brand-300 transition-transform duration-200 motion-reduce:transition-none',
+                                open && 'rotate-90 text-brand-500',
                             )}
                             aria-hidden
                         />
                     </SidebarMenuButton>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="nav-collapsible-content overflow-hidden">
-                    <SidebarMenuSub className="mx-0 mb-1 ml-3.5 border-l border-[#cfe0f0] px-0 py-1">
+                    <SidebarMenuSub className="mx-0 mb-1 ml-3.5 border-l border-brand-200 px-0 py-1">
                         {children.map((child) => {
                             const childActive = Boolean(
                                 child.href && isCurrentUrl(child.href),
@@ -212,7 +210,7 @@ export function NavMain({
 
     return (
         <SidebarGroup className="px-2 py-1">
-            <SidebarGroupLabel className="mb-1 px-2 text-[10px] font-semibold tracking-[0.16em] text-[#1e4d8c] uppercase">
+            <SidebarGroupLabel className="mb-1 px-2 text-[10px] font-semibold tracking-[0.16em] text-brand-500 uppercase">
                 {groupLabel}
             </SidebarGroupLabel>
             <SidebarMenu className="gap-1">

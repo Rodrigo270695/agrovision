@@ -44,19 +44,19 @@ export function ConsolidatedTab({
     return (
         <div className="grid gap-4">
             <div className="grid gap-4 sm:grid-cols-3">
-                <div className="flex items-center justify-center rounded-2xl border border-[#d7e3f0] bg-white p-4">
+                <div className="flex items-center justify-center rounded-2xl border border-brand-200 bg-white p-4">
                     <Ring
                         percent={summary.today_goal_percent}
                         label="Inspectores en la meta del periodo"
                     />
                 </div>
-                <div className="flex items-center justify-center rounded-2xl border border-[#d7e3f0] bg-white p-4">
+                <div className="flex items-center justify-center rounded-2xl border border-brand-200 bg-white p-4">
                     <Ring
                         percent={summary.attendance_percent}
                         label="Asistencia a capacitaciones"
                     />
                 </div>
-                <div className="flex items-center justify-center rounded-2xl border border-[#d7e3f0] bg-white p-4">
+                <div className="flex items-center justify-center rounded-2xl border border-brand-200 bg-white p-4">
                     <Ring
                         percent={summary.signed_percent}
                         label="Firma y huella sobre citados"
@@ -77,18 +77,18 @@ export function ConsolidatedTab({
                 ].map(([label, value]) => (
                     <div
                         key={label}
-                        className="rounded-2xl border border-[#d7e3f0] bg-white px-4 py-3"
+                        className="rounded-2xl border border-brand-200 bg-white px-4 py-3"
                     >
-                        <p className="text-xs text-[#5a7390]">{label}</p>
-                        <p className="mt-1 text-xl font-semibold text-[#1a2b4c]">
+                        <p className="text-xs text-muted-foreground">{label}</p>
+                        <p className="mt-1 text-xl font-semibold text-brand-700">
                             {value}
                         </p>
                     </div>
                 ))}
             </div>
-            <div className="flex flex-col gap-3 rounded-2xl border border-[#d7e3f0] bg-white p-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex flex-col gap-3 rounded-2xl border border-brand-200 bg-white p-4 sm:flex-row sm:items-end sm:justify-between">
                 <form onSubmit={send} className="flex flex-1 flex-col gap-2 sm:max-w-md">
-                    <label className="text-xs font-medium text-[#1a2b4c]" htmlFor="report-email">
+                    <label className="text-xs font-medium text-brand-700" htmlFor="report-email">
                         Enviar el consolidado por correo
                     </label>
                     <div className="flex gap-2">
@@ -103,7 +103,7 @@ export function ConsolidatedTab({
                         <Button
                             type="submit"
                             disabled={form.processing}
-                            className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                            className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700"
                         >
                             Enviar
                         </Button>
@@ -116,7 +116,7 @@ export function ConsolidatedTab({
                     type="button"
                     variant="outline"
                     asChild
-                    className="cursor-pointer border-[#c5d5e6]"
+                    className="cursor-pointer border-brand-300"
                 >
                     <a href={pdfHref}>Descargar PDF</a>
                 </Button>

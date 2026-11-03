@@ -794,7 +794,7 @@ export function FingerprintCameraCapture({
 
     return (
         <div className={cn('space-y-2', className)}>
-            <div className="relative mx-auto aspect-4/5 w-full max-w-48 overflow-hidden rounded-xl border border-dashed border-[#c5d5e6] bg-[#0f172a]">
+            <div className="relative mx-auto aspect-4/5 w-full max-w-48 overflow-hidden rounded-xl border border-dashed border-brand-300 bg-[#0f172a]">
                     <video
                         ref={videoRef}
                         muted
@@ -832,7 +832,7 @@ export function FingerprintCameraCapture({
             {error ? (
                 <p className="text-center text-[11px] text-red-600">{error}</p>
             ) : (
-                <p className="text-center text-[11px] text-[#6b8ead]">
+                <p className="text-center text-[11px] text-muted-foreground">
                     {active
                         ? torchOn
                             ? 'Flash encendido. Llena el círculo con la yema: se recorta solo esa zona.'
@@ -850,7 +850,7 @@ export function FingerprintCameraCapture({
                         size="sm"
                         disabled={disabled || starting}
                         onClick={() => startCamera(false)}
-                        className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c]"
+                        className="cursor-pointer bg-brand-500 text-white hover:bg-brand-700"
                     >
                         <Camera className="size-3.5" />
                         {preview ? 'Volver a tomar' : 'Abrir cámara'}
@@ -873,7 +873,7 @@ export function FingerprintCameraCapture({
                             variant="outline"
                             disabled={disabled}
                             onClick={() => startCamera(!facingUser)}
-                            className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                            className="cursor-pointer border-brand-300 text-brand-700"
                         >
                             <SwitchCamera className="size-3.5" />
                             Cambiar
@@ -884,7 +884,7 @@ export function FingerprintCameraCapture({
                             variant="outline"
                             disabled={disabled}
                             onClick={stopStream}
-                            className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                            className="cursor-pointer border-brand-300 text-brand-700"
                         >
                             Cancelar cámara
                         </Button>
@@ -898,7 +898,7 @@ export function FingerprintCameraCapture({
                         variant="outline"
                         disabled={disabled}
                         onClick={clear}
-                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                        className="cursor-pointer border-brand-300 text-brand-700"
                     >
                         <RefreshCw className="size-3.5" />
                         Limpiar

@@ -30,14 +30,14 @@ export function UserMenuContent({ user }: Props) {
             <Link
                 className={cn(
                     'relative flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none',
-                    'text-[#2e5a9e] hover:bg-[#e8f1fa] hover:text-[#1a2b4c]',
+                    'text-brand-500 hover:bg-brand-100 hover:text-brand-700',
                     '[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
                 )}
                 href={edit()}
                 prefetch
                 onClick={cleanup}
             >
-                <Settings className="mr-2 text-[#2e5a9e]" />
+                <Settings className="mr-2 text-brand-500" />
                 Configuración
             </Link>
             <div className="bg-border -mx-1 my-1 h-px" />

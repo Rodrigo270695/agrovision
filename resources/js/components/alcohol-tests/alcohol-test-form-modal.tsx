@@ -236,7 +236,7 @@ export function AlcoholTestFormModal({
                         variant="outline"
                         disabled={form.processing || compressing}
                         onClick={onClose}
-                        className="cursor-pointer border-[#c5d5e6]"
+                        className="cursor-pointer border-brand-300"
                     >
                         Cancelar
                     </Button>
@@ -244,7 +244,7 @@ export function AlcoholTestFormModal({
                         type="submit"
                         form="alcohol-test-form"
                         disabled={form.processing || compressing}
-                        className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                        className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700"
                     >
                         {form.processing ? <Spinner /> : null}
                         Guardar test
@@ -260,7 +260,7 @@ export function AlcoholTestFormModal({
                 <div className="grid gap-1.5">
                     <Label
                         htmlFor="alcohol-test-unit"
-                        className="text-xs text-[#1a2b4c]"
+                        className="text-xs text-brand-700"
                     >
                         Unidad <span className="text-red-500">*</span>
                     </Label>
@@ -278,7 +278,7 @@ export function AlcoholTestFormModal({
 
                 <div className="grid gap-1.5 sm:grid-cols-2 sm:gap-3">
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">
+                        <Label className="text-xs text-brand-700">
                             Conductor <span className="text-red-500">*</span>
                         </Label>
                         <Input
@@ -290,18 +290,18 @@ export function AlcoholTestFormModal({
                                     e.target.value.toUpperCase(),
                                 );
                             }}
-                            className="h-9 border-[#c5d5e6]"
+                            className="h-9 border-brand-300"
                         />
                         <InputError message={form.errors.driver_name} />
                     </div>
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">DNI</Label>
+                        <Label className="text-xs text-brand-700">DNI</Label>
                         <Input
                             value={form.data.driver_dni}
                             onChange={(e) =>
                                 form.setData('driver_dni', e.target.value)
                             }
-                            className="h-9 border-[#c5d5e6]"
+                            className="h-9 border-brand-300"
                         />
                         <InputError message={form.errors.driver_dni} />
                     </div>
@@ -309,7 +309,7 @@ export function AlcoholTestFormModal({
 
                 <div className="grid gap-1.5 sm:grid-cols-2 sm:gap-3">
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">Placa</Label>
+                        <Label className="text-xs text-brand-700">Placa</Label>
                         <Input
                             value={form.data.plate_number}
                             onChange={(e) =>
@@ -318,12 +318,12 @@ export function AlcoholTestFormModal({
                                     e.target.value.toUpperCase(),
                                 )
                             }
-                            className="h-9 border-[#c5d5e6]"
+                            className="h-9 border-brand-300"
                         />
                         <InputError message={form.errors.plate_number} />
                     </div>
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">
+                        <Label className="text-xs text-brand-700">
                             Nivel alcohol %{' '}
                             <span className="text-red-500">*</span>
                         </Label>
@@ -337,7 +337,7 @@ export function AlcoholTestFormModal({
                                 form.clearErrors('alcohol_level');
                                 form.setData('alcohol_level', e.target.value);
                             }}
-                            className="h-9 border-[#c5d5e6]"
+                            className="h-9 border-brand-300"
                         />
                         <InputError message={form.errors.alcohol_level} />
                     </div>
@@ -355,7 +355,7 @@ export function AlcoholTestFormModal({
                 )}
 
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">
+                    <Label className="text-xs text-brand-700">
                         Foto evidencia del alcohómetro{' '}
                         <span className="text-red-500">*</span>
                     </Label>
@@ -373,7 +373,7 @@ export function AlcoholTestFormModal({
                         }}
                     />
                     {form.data.evidence_photo_data_url ? (
-                        <div className="relative overflow-hidden rounded-xl border border-[#d7e3f0]">
+                        <div className="relative overflow-hidden rounded-xl border border-brand-200">
                             <img
                                 src={form.data.evidence_photo_data_url}
                                 alt="Evidencia"
@@ -399,7 +399,7 @@ export function AlcoholTestFormModal({
                                 type="button"
                                 variant="outline"
                                 disabled={form.processing || compressing}
-                                className="cursor-pointer border-[#c5d5e6]"
+                                className="cursor-pointer border-brand-300"
                                 onClick={() => fileRef.current?.click()}
                             >
                                 {compressing ? (
@@ -413,7 +413,7 @@ export function AlcoholTestFormModal({
                                 type="button"
                                 variant="outline"
                                 disabled={form.processing || compressing}
-                                className="cursor-pointer border-[#c5d5e6]"
+                                className="cursor-pointer border-brand-300"
                                 onClick={() => {
                                     if (fileRef.current) {
                                         fileRef.current.removeAttribute(
@@ -441,12 +441,12 @@ export function AlcoholTestFormModal({
                 </div>
 
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">Notas</Label>
+                    <Label className="text-xs text-brand-700">Notas</Label>
                     <Textarea
                         value={form.data.notes}
                         onChange={(e) => form.setData('notes', e.target.value)}
                         rows={2}
-                        className="border-[#c5d5e6]"
+                        className="border-brand-300"
                     />
                 </div>
             </form>

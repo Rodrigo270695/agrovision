@@ -14,7 +14,7 @@ const items = [
         key: 'roles',
         label: 'Roles',
         icon: Shield,
-        className: 'bg-[#e8f1fa] text-[#2e5a9e]',
+        className: 'bg-brand-100 text-brand-500',
     },
     {
         key: 'permission_types',

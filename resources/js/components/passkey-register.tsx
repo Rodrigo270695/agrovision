@@ -58,7 +58,7 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
 
     if (!isSupported) {
         return (
-            <div className="text-sm text-[#5a7390]">
+            <div className="text-sm text-muted-foreground">
                 Las passkeys no son compatibles con este navegador.
             </div>
         );
@@ -69,7 +69,7 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
             <Button
                 variant="outline"
                 onClick={() => setShowForm(true)}
-                className="cursor-pointer border-[#2e5a9e] text-[#2e5a9e] hover:bg-[#e8f1fa] hover:text-[#1a2b4c]"
+                className="cursor-pointer border-brand-500 text-brand-500 hover:bg-brand-100 hover:text-brand-700"
             >
                 Agregar passkey
             </Button>
@@ -79,7 +79,7 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
     return (
         <form
             onSubmit={handleSubmit}
-            className="space-y-4 rounded-lg border border-[#c5d5e6] bg-[#f4f8fc] p-4"
+            className="space-y-4 rounded-lg border border-brand-300 bg-[#f4f8fc] p-4"
         >
             <div className="grid gap-2">
                 <Label htmlFor="passkey-name">Nombre de la passkey</Label>
@@ -89,10 +89,10 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Ej.: MacBook Pro, iPhone"
-                    className="mt-1 block w-full border-[#c5d5e6]"
+                    className="mt-1 block w-full border-brand-300"
                     autoFocus
                 />
-                <p className="text-xs text-[#5a7390]">
+                <p className="text-xs text-muted-foreground">
                     Un nombre te ayuda a identificar esta passkey después.
                 </p>
             </div>
@@ -103,7 +103,7 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
                 <Button
                     type="submit"
                     disabled={isLoading || !name.trim()}
-                    className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c]"
+                    className="cursor-pointer bg-brand-500 text-white hover:bg-brand-700"
                 >
                     {isLoading ? 'Registrando...' : 'Registrar passkey'}
                 </Button>

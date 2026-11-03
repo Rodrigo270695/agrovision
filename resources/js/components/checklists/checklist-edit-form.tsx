@@ -366,7 +366,7 @@ function YesNoToggle({
         <div
             role="group"
             aria-label="Resultado del ítem"
-            className="inline-flex h-9 shrink-0 rounded-lg border border-[#d5e1ee] bg-[#f4f7fb] p-0.5 sm:h-8"
+            className="inline-flex h-9 shrink-0 rounded-lg border border-[#d5e1ee] bg-brand-50 p-0.5 sm:h-8"
         >
             {(['yes', 'no'] as const).map((option) => {
                 const active = value === option;
@@ -389,7 +389,7 @@ function YesNoToggle({
                                 ? 'bg-emerald-600 text-white shadow-sm'
                                 : active && option === 'no'
                                   ? 'bg-red-600 text-white shadow-sm'
-                                  : 'text-[#5a7390]',
+                                  : 'text-muted-foreground',
                         )}
                     >
                         {option === 'yes' ? 'SÍ' : 'NO'}
@@ -418,7 +418,7 @@ function StepPill({
                 done
                     ? 'bg-[#e8f7ef] text-[#15803d]'
                     : active
-                      ? 'bg-[#e8f1fa] text-[#2e5a9e]'
+                      ? 'bg-brand-100 text-brand-500'
                       : 'bg-[#eef1f5] text-[#64748b]',
             )}
         >
@@ -1177,26 +1177,26 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
             onSubmit={handleSubmit}
             className="mx-auto w-full max-w-5xl space-y-3 pb-24 sm:space-y-4 sm:pb-6"
         >
-            <div className="rounded-2xl border border-[#d7e3f0] bg-white p-3 shadow-sm sm:p-5">
+            <div className="rounded-2xl border border-brand-200 bg-white p-3 shadow-sm sm:p-5">
                 <Link
                     href="/inspecciones"
                     onClick={(event) => {
                         event.preventDefault();
                         requestLeave();
                     }}
-                    className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-[#2e5a9e] hover:underline"
+                    className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-brand-500 hover:underline"
                 >
                     <ArrowLeft className="size-3.5" />
                     Volver
                 </Link>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                        <h1 className="font-display border-b-2 border-[#4a90e2] pb-1 text-xl font-semibold text-[#1a2b4c] sm:text-2xl">
+                        <h1 className="font-display border-b-2 border-brand-400 pb-1 text-xl font-semibold text-brand-700 sm:text-2xl">
                             Inspección {checklist.template.type.toUpperCase()}
                         </h1>
-                        <p className="mt-2 text-sm text-[#5a7390]">
+                        <p className="mt-2 text-sm text-muted-foreground">
                             Placa{' '}
-                            <strong className="text-[#1a2b4c]">
+                            <strong className="text-brand-700">
                                 {checklist.plate_number}
                             </strong>{' '}
                             · {checklist.period?.name ?? 'Periodo'}
@@ -1301,7 +1301,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                         <Button
                             type="button"
                             asChild
-                            className="h-10 cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                            className="h-10 cursor-pointer bg-brand-700 text-white hover:bg-brand-700"
                         >
                             <a
                                 href={`/inspecciones/${checklist.id}/pdf`}
@@ -1377,11 +1377,11 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                         </Button>
                     </div>
                 ) : !secondUnlocked ? (
-                    <div className="mt-3 rounded-xl border border-[#d7e3f0] bg-[#f8fafc] px-3 py-2 text-xs text-[#5a7390]">
+                    <div className="mt-3 rounded-xl border border-brand-200 bg-background px-3 py-2 text-xs text-muted-foreground">
                         Empieza por la <strong>1ra inspección</strong>. Cuando
                         todos los ítems estén en SÍ (y con vencimiento donde
                         aplique), apruébala para habilitar la 2da.
-                        <span className="mt-1 block font-medium text-[#1a2b4c]">
+                        <span className="mt-1 block font-medium text-brand-700">
                             Progreso 1ra: {firstStats.marked}/{firstStats.total}{' '}
                             · {firstStats.yes} SÍ · {firstStats.no} NO
                             {firstStats.missingExpiry
@@ -1392,15 +1392,15 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                 ) : null}
             </div>
 
-            <div className="rounded-2xl border border-[#d7e3f0] bg-white p-3 shadow-sm sm:p-5">
-                <h2 className="mb-3 text-sm font-semibold text-[#1a2b4c]">
+            <div className="rounded-2xl border border-brand-200 bg-white p-3 shadow-sm sm:p-5">
+                <h2 className="mb-3 text-sm font-semibold text-brand-700">
                     Datos generales
                 </h2>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <Field label="Placa" value={checklist.plate_number} disabled />
                     {driversForDate.length > 0 ? (
                         <div className="grid gap-1.5">
-                            <Label className="text-xs text-[#1a2b4c]">
+                            <Label className="text-xs text-brand-700">
                                 Conductor
                             </Label>
                             <select
@@ -1409,7 +1409,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                 onChange={(event) =>
                                     setDriverName(event.target.value)
                                 }
-                                className="h-10 rounded-md border border-[#c5d5e6] bg-white px-3 text-sm text-[#1a2b4c] disabled:bg-[#f8fafc]"
+                                className="h-10 rounded-md border border-brand-300 bg-white px-3 text-sm text-brand-700 disabled:bg-background"
                             >
                                 <option value="">Selecciona conductor</option>
                                 {driversForDate.map((name) => (
@@ -1419,7 +1419,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                 ))}
                             </select>
                             {driversForDate.length > 1 ? (
-                                <p className="text-[11px] text-[#6b8ead]">
+                                <p className="text-[11px] text-muted-foreground">
                                     Conductores de esta placa en la fecha de la
                                     1ra inspección.
                                 </p>
@@ -1487,7 +1487,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                         />
                     ) : null}
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">
+                        <Label className="text-xs text-brand-700">
                             Resultado 1ra
                         </Label>
                         <ResultBadge
@@ -1498,7 +1498,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                     </div>
                     {secondUnlocked ? (
                         <div className="grid gap-1.5">
-                            <Label className="text-xs text-[#1a2b4c]">
+                            <Label className="text-xs text-brand-700">
                                 Resultado 2da
                             </Label>
                             <ResultBadge
@@ -1511,16 +1511,16 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                 </div>
             </div>
 
-            <div className="rounded-2xl border border-[#d7e3f0] bg-white p-3 shadow-sm sm:p-5">
+            <div className="rounded-2xl border border-brand-200 bg-white p-3 shadow-sm sm:p-5">
                 <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                        <h2 className="text-sm font-semibold text-[#1a2b4c]">
+                        <h2 className="text-sm font-semibold text-brand-700">
                             Exigencias —{' '}
                             {activePass === 'first'
                                 ? '1ra inspección'
                                 : '2da inspección'}
                         </h2>
-                        <p className="text-xs text-[#5a7390]">
+                        <p className="text-xs text-muted-foreground">
                             {activePass === 'first'
                                 ? 'Marca SÍ o NO. La fecha de caducidad solo aparece si marcas SÍ.'
                                 : '1ra bloqueada. Marca ahora la segunda inspección.'}
@@ -1544,7 +1544,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                 / {livePareto.catalog.toFixed(2)}%
                             </span>
                         </span>
-                        <p className="max-w-xs text-right text-[11px] text-[#6b8ead]">
+                        <p className="max-w-xs text-right text-[11px] text-muted-foreground">
                             &lt; 85% desaprobado · 85%–99% o algún NO: aprobado
                             c/ obs. · 100% todos SÍ: aprobado
                         </p>
@@ -1564,7 +1564,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                     </div>
                 ) : null}
 
-                <div className="overflow-hidden rounded-xl border border-[#d7e3f0] bg-white">
+                <div className="overflow-hidden rounded-xl border border-brand-200 bg-white">
                     <div className="divide-y divide-[#e6eef6]">
                     {arrangedItems.ordered.map(({ item, index }) => {
                         const childCount = arrangedItems.childCount.get(item.id) ?? 0;
@@ -1611,20 +1611,20 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                 key={item.id}
                                 className={cn(
                                     'px-3 py-3 sm:px-4',
-                                    isChild && 'bg-[#f8fafc] pl-8 sm:pl-11',
+                                    isChild && 'bg-background pl-8 sm:pl-11',
                                     value === 'yes' && 'bg-emerald-50/40',
                                     value === 'no' && 'bg-red-50/30',
                                 )}
                             >
                                 <div className="flex items-start gap-2">
-                                    <span className="mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-[#1a2b4c] text-[11px] font-semibold text-white">
+                                    <span className="mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-brand-700 text-[11px] font-semibold text-white">
                                         {item.item_number}
                                     </span>
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-start justify-between gap-2">
                                             <p
                                                 className={cn(
-                                                    'pt-0.5 text-[13px] leading-snug text-[#1a2b4c]',
+                                                    'pt-0.5 text-[13px] leading-snug text-brand-700',
                                                     isChild && 'text-[#3d5674]',
                                                 )}
                                             >
@@ -1662,13 +1662,13 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                     >
                                                         <ChevronDown
                                                             className={cn(
-                                                                'size-3.5 shrink-0 text-[#2e5a9e]',
+                                                                'size-3.5 shrink-0 text-brand-500',
                                                                 !expanded &&
                                                                     '-rotate-90',
                                                             )}
                                                         />
                                                         {item.label}
-                                                        <span className="text-[10px] font-medium text-[#6b8ead]">
+                                                        <span className="text-[10px] font-medium text-muted-foreground">
                                                             {childCount}
                                                         </span>
                                                     </button>
@@ -1699,7 +1699,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                             ? 'bg-emerald-100 text-emerald-800'
                                                             : value === 'no'
                                                               ? 'bg-red-100 text-red-700 line-through'
-                                                              : 'bg-[#eef3f8] text-[#6b8ead]',
+                                                              : 'bg-muted text-muted-foreground',
                                                     )}
                                                 >
                                                     {Number(item.weight).toFixed(2)}%
@@ -1720,14 +1720,14 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                     }
                                                     aria-label={`Vencimiento de ${item.label}`}
                                                     className={cn(
-                                                        'h-8 min-w-0 flex-1 border-[#c5d5e6] bg-white text-xs disabled:bg-[#f8fafc]',
+                                                        'h-8 min-w-0 flex-1 border-brand-300 bg-white text-xs disabled:bg-background',
                                                         observationMissing &&
                                                             !sealed &&
                                                             'border-amber-400',
                                                     )}
                                                 />
                                                 ) : (
-                                                    <span className="text-[11px] text-[#6b8ead]">
+                                                    <span className="text-[11px] text-muted-foreground">
                                                         Fecha solo si marcas SÍ
                                                     </span>
                                                 )
@@ -1746,7 +1746,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                         )
                                                     }
                                                     placeholder="Observación"
-                                                    className="h-8 min-w-0 flex-1 border-[#c5d5e6] bg-white text-xs disabled:bg-[#f8fafc]"
+                                                    className="h-8 min-w-0 flex-1 border-brand-300 bg-white text-xs disabled:bg-background"
                                                 />
                                             )}
                                         </div>
@@ -1757,7 +1757,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                         href={evidencePhoto.url}
                                                         target="_blank"
                                                         rel="noreferrer"
-                                                        className="block shrink-0 overflow-hidden rounded-md border border-[#d7e3f0]"
+                                                        className="block shrink-0 overflow-hidden rounded-md border border-brand-200"
                                                     >
                                                         <img
                                                             src={
@@ -1768,12 +1768,12 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                         />
                                                     </a>
                                                 ) : (
-                                                    <span className="text-[10px] text-[#6b8ead]">
+                                                    <span className="text-[10px] text-muted-foreground">
                                                         Sin foto
                                                     </span>
                                                 )}
                                                 {!photoLocked ? (
-                                                    <label className="relative inline-flex h-8 cursor-pointer items-center gap-1 rounded-md border border-[#c5d5e6] bg-white px-2 text-[11px] text-[#1a2b4c]">
+                                                    <label className="relative inline-flex h-8 cursor-pointer items-center gap-1 rounded-md border border-brand-300 bg-white px-2 text-[11px] text-brand-700">
                                                         <input
                                                             type="file"
                                                             accept="image/*"
@@ -1843,12 +1843,12 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                 </div>
             </div>
 
-            <div className="rounded-2xl border border-[#d7e3f0] bg-white p-3 shadow-sm sm:p-5">
-                <h2 className="mb-2 text-sm font-semibold text-[#1a2b4c]">
+            <div className="rounded-2xl border border-brand-200 bg-white p-3 shadow-sm sm:p-5">
+                <h2 className="mb-2 text-sm font-semibold text-brand-700">
                     Observaciones adicionales
                 </h2>
                 {checklist.template.notes_hint ? (
-                    <p className="mb-2 text-xs text-[#5a7390]">
+                    <p className="mb-2 text-xs text-muted-foreground">
                         {checklist.template.notes_hint}
                     </p>
                 ) : null}
@@ -1857,7 +1857,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                     disabled={sealed}
                     onChange={(event) => setObservations(event.target.value)}
                     rows={3}
-                    className="border-[#c5d5e6] text-sm disabled:bg-[#f8fafc]"
+                    className="border-brand-300 text-sm disabled:bg-background"
                 />
             </div>
 
@@ -1870,11 +1870,11 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                 readonlySecond={sealed || !secondUnlocked}
             />
 
-            <div className="rounded-2xl border border-[#d7e3f0] bg-white p-3 shadow-sm sm:p-5">
-                <h2 className="mb-1 text-sm font-semibold text-[#1a2b4c]">
+            <div className="rounded-2xl border border-brand-200 bg-white p-3 shadow-sm sm:p-5">
+                <h2 className="mb-1 text-sm font-semibold text-brand-700">
                     Firmas
                 </h2>
-                <p className="mb-3 text-xs text-[#5a7390]">
+                <p className="mb-3 text-xs text-muted-foreground">
                     La 1ra y la 2da firman por separado. Cada una lleva la
                     firma del conductor y el V°B° SST.
                 </p>
@@ -1894,7 +1894,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
 
                     return (
                         <div key={pass} className="mt-4">
-                            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#1a2b4c]">
+                            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-brand-700">
                                 {pass === 'first'
                                     ? 'Firmas de la 1ra'
                                     : 'Firmas de la 2da'}
@@ -1918,9 +1918,9 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                     return (
                                         <div
                                             key={`${signature.inspection_pass}-${signature.slot}`}
-                                            className="rounded-xl border border-[#e2eaf3] bg-[#f8fafc] p-3"
+                                            className="rounded-xl border border-brand-200 bg-background p-3"
                                         >
-                                            <Label className="text-xs font-semibold text-[#1a2b4c]">
+                                            <Label className="text-xs font-semibold text-brand-700">
                                                 {signature.label}
                                             </Label>
                                             <Input
@@ -1942,7 +1942,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                     );
                                                 }}
                                                 placeholder="Nombre completo"
-                                                className="mt-2 h-10 border-[#c5d5e6] bg-white"
+                                                className="mt-2 h-10 border-brand-300 bg-white"
                                             />
                                             {signature.slot === 'driver' &&
                                             signature.saved_signature_url &&
@@ -1958,7 +1958,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                             'signature',
                                                         )
                                                     }
-                                                    className="mt-2 cursor-pointer text-xs font-semibold text-[#2e5a9e] underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                                                    className="mt-2 cursor-pointer text-xs font-semibold text-brand-500 underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
                                                 >
                                                     Usar firma guardada
                                                 </button>
@@ -1997,13 +1997,13 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                 />
                                             </div>
                                             {signature.signed_at ? (
-                                                <p className="mt-1 text-[11px] text-[#6b8ead]">
+                                                <p className="mt-1 text-[11px] text-muted-foreground">
                                                     Firmado:{' '}
                                                     {signature.signed_at}
                                                 </p>
                                             ) : null}
                                             {signature.slot === 'driver' ? (
-                                                <div className="mt-3 border-t border-[#e2eaf3] pt-3">
+                                                <div className="mt-3 border-t border-brand-200 pt-3">
                                                     {!state?.captureFingerprint &&
                                                     !state?.existing_fingerprint_url &&
                                                     !state?.fingerprint_data_url ? (
@@ -2030,7 +2030,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                                         ),
                                                                 )
                                                             }
-                                                            className="h-9 cursor-pointer gap-1.5 border-[#c5d5e6] text-[#1a2b4c]"
+                                                            className="h-9 cursor-pointer gap-1.5 border-brand-300 text-brand-700"
                                                         >
                                                             <Fingerprint className="size-3.5" />
                                                             ¿Guardar huella
@@ -2039,7 +2039,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                     ) : (
                                                         <div className="space-y-2">
                                                             <div className="flex items-center justify-between gap-2">
-                                                                <p className="text-xs font-medium text-[#1a2b4c]">
+                                                                <p className="text-xs font-medium text-brand-700">
                                                                     Huella
                                                                     (opcional)
                                                                 </p>
@@ -2075,7 +2075,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                                                 ),
                                                                         )
                                                                     }
-                                                                    className="cursor-pointer text-[11px] font-medium text-[#6b8ead] underline-offset-2 hover:underline"
+                                                                    className="cursor-pointer text-[11px] font-medium text-muted-foreground underline-offset-2 hover:underline"
                                                                 >
                                                                     No guardar
                                                                     huella
@@ -2096,7 +2096,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                                             'fingerprint',
                                                                         )
                                                                     }
-                                                                    className="cursor-pointer text-xs font-semibold text-[#2e5a9e] underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                                                                    className="cursor-pointer text-xs font-semibold text-brand-500 underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
                                                                 >
                                                                     Usar huella
                                                                     guardada
@@ -2160,9 +2160,9 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
             </div>
 
             {!sealed ? (
-                <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#d7e3f0] bg-white/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+                <div className="fixed inset-x-0 bottom-0 z-40 border-t border-brand-200 bg-white/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
                     <div className="mx-auto flex max-w-5xl flex-col gap-2">
-                        <p className="text-center text-[11px] text-[#5a7390] sm:text-right">
+                        <p className="text-center text-[11px] text-muted-foreground sm:text-right">
                             {waitingCoordinator
                                 ? 'Cierra la 1ra para habilitar la 2da de esta misma fecha.'
                                   : !firstLocked && !livePareto.passes
@@ -2193,7 +2193,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                 variant="outline"
                                 disabled={processing}
                                 onClick={() => save({ status: 'draft' })}
-                                className="h-11 cursor-pointer border-[#c5d5e6] text-[#1a2b4c] sm:h-10"
+                                className="h-11 cursor-pointer border-brand-300 text-brand-700 sm:h-10"
                             >
                                 {processing ? <Spinner /> : null}
                                 {grantedPass ? 'Guardar cambios' : 'Guardar borrador'}
@@ -2259,7 +2259,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                             seal: true,
                                         })
                                     }
-                                    className="h-11 cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038] disabled:opacity-50 sm:h-10"
+                                    className="h-11 cursor-pointer bg-brand-700 text-white hover:bg-brand-700 disabled:opacity-50 sm:h-10"
                                 >
                                     <ShieldCheck className="size-4" />
                                     Sellar inspección
@@ -2304,13 +2304,13 @@ function Field({
 }) {
     return (
         <div className="grid gap-1.5">
-            <Label className="text-xs text-[#1a2b4c]">{label}</Label>
+            <Label className="text-xs text-brand-700">{label}</Label>
             <Input
                 type={type}
                 value={value}
                 disabled={disabled}
                 onChange={(event) => onChange?.(event.target.value)}
-                className="h-10 border-[#c5d5e6] disabled:bg-[#f8fafc]"
+                className="h-10 border-brand-300 disabled:bg-background"
             />
         </div>
     );
@@ -2333,7 +2333,7 @@ function ResultBadge({
               ? 'border-amber-200 bg-amber-50 text-amber-800'
               : grade === 'rejected'
                 ? 'border-red-200 bg-red-50 text-red-700'
-                : 'border-[#c5d5e6] bg-[#f8fafc] text-[#5a7390]';
+                : 'border-brand-300 bg-background text-muted-foreground';
 
     return (
         <div

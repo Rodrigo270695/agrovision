@@ -298,19 +298,19 @@ export function UnitDocumentsModal({
                     type="button"
                     variant="outline"
                     onClick={handleClose}
-                    className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c] hover:bg-white"
+                    className="cursor-pointer border-brand-300 text-brand-700 hover:bg-white"
                 >
                     Cerrar
                 </Button>
             }
         >
             <div className="space-y-5">
-                <div className="rounded-xl border border-[#d7e3f0] bg-white p-3">
+                <div className="rounded-xl border border-brand-200 bg-white p-3">
                     <div className="mb-2 flex items-center justify-between gap-2">
-                        <p className="text-xs font-semibold text-[#1a2b4c]">
+                        <p className="text-xs font-semibold text-brand-700">
                             Avance de documentos
                         </p>
-                        <span className="text-[11px] text-[#6b8ead]">
+                        <span className="text-[11px] text-muted-foreground">
                             {progress.done} de {progress.total} obligatorios
                         </span>
                     </div>
@@ -320,9 +320,9 @@ export function UnitDocumentsModal({
                         showLabel
                     />
 
-                    <div className="mt-3 overflow-hidden rounded-lg border border-[#e2eaf3]">
+                    <div className="mt-3 overflow-hidden rounded-lg border border-brand-200">
                         <table className="min-w-full text-left text-xs">
-                            <thead className="bg-[#f1f5f9] text-[#5a7390]">
+                            <thead className="bg-[#f1f5f9] text-muted-foreground">
                                 <tr>
                                     <th className="px-2.5 py-2 font-semibold">
                                         Documento
@@ -355,7 +355,7 @@ export function UnitDocumentsModal({
                                                     'bg-[#faf5f5]',
                                             )}
                                         >
-                                            <td className="px-2.5 py-2 font-medium text-[#1a2b4c]">
+                                            <td className="px-2.5 py-2 font-medium text-brand-700">
                                                 {item.label}
                                             </td>
                                             <td className="px-2.5 py-2">
@@ -378,7 +378,7 @@ export function UnitDocumentsModal({
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="px-2.5 py-2 text-right text-[#5a7390]">
+                                            <td className="px-2.5 py-2 text-right text-muted-foreground">
                                                 {latest ? (
                                                     <div className="flex items-center justify-end gap-1">
                                                         <span className="max-w-[8rem] truncate">
@@ -386,7 +386,7 @@ export function UnitDocumentsModal({
                                                         </span>
                                                         <a
                                                             href={`/unidades/${unit?.id}/documentos/${latest.id}/descargar`}
-                                                            className="inline-flex size-7 items-center justify-center rounded-md text-[#2e5a9e] hover:bg-[#e8f1fa]"
+                                                            className="inline-flex size-7 items-center justify-center rounded-md text-brand-500 hover:bg-brand-100"
                                                             title="Descargar"
                                                         >
                                                             <Download className="size-3.5" />
@@ -430,9 +430,9 @@ export function UnitDocumentsModal({
                 {canManage ? (
                     <form
                         onSubmit={handleUpload}
-                        className="space-y-3 rounded-xl border border-[#d7e3f0] bg-[#f8fafc] p-3"
+                        className="space-y-3 rounded-xl border border-brand-200 bg-background p-3"
                     >
-                        <p className="text-xs font-semibold text-[#1a2b4c]">
+                        <p className="text-xs font-semibold text-brand-700">
                             Subir documento
                         </p>
 
@@ -440,7 +440,7 @@ export function UnitDocumentsModal({
                             <div className="grid gap-1.5">
                                 <Label
                                     htmlFor="unit-doc-type"
-                                    className="text-xs text-[#1a2b4c]"
+                                    className="text-xs text-brand-700"
                                 >
                                     Tipo <span className="text-red-500">*</span>
                                 </Label>
@@ -454,7 +454,7 @@ export function UnitDocumentsModal({
                                             setExpiresAt('');
                                         }
                                     }}
-                                    className="flex h-9 w-full cursor-pointer rounded-md border border-[#c5d5e6] bg-white px-3 text-sm text-[#1a2b4c] shadow-none outline-none focus-visible:border-[#2e5a9e] focus-visible:ring-[3px] focus-visible:ring-[#4a90e2]/35"
+                                    className="flex h-9 w-full cursor-pointer rounded-md border border-brand-300 bg-white px-3 text-sm text-brand-700 shadow-none outline-none focus-visible:border-brand-500 focus-visible:ring-[3px] focus-visible:ring-brand-400/35"
                                 >
                                     {documentTypes.map((option) => (
                                         <option
@@ -476,7 +476,7 @@ export function UnitDocumentsModal({
                                 <div className="grid gap-1.5">
                                     <Label
                                         htmlFor="unit-doc-expires"
-                                        className="text-xs text-[#1a2b4c]"
+                                        className="text-xs text-brand-700"
                                     >
                                         Fecha de vencimiento{' '}
                                         <span className="text-red-500">*</span>
@@ -489,15 +489,15 @@ export function UnitDocumentsModal({
                                         onChange={(event) =>
                                             setExpiresAt(event.target.value)
                                         }
-                                        className="h-9 border-[#c5d5e6] bg-white text-sm"
+                                        className="h-9 border-brand-300 bg-white text-sm"
                                     />
                                 </div>
                             ) : (
                                 <div className="grid gap-1.5">
-                                    <Label className="text-xs text-[#1a2b4c]">
+                                    <Label className="text-xs text-brand-700">
                                         Vencimiento
                                     </Label>
-                                    <p className="flex h-9 items-center text-xs text-[#6b8ead]">
+                                    <p className="flex h-9 items-center text-xs text-muted-foreground">
                                         El DNI no requiere fecha de
                                         vencimiento.
                                     </p>
@@ -509,7 +509,7 @@ export function UnitDocumentsModal({
                             <div className="grid gap-1.5">
                                 <Label
                                     htmlFor="unit-doc-title"
-                                    className="text-xs text-[#1a2b4c]"
+                                    className="text-xs text-brand-700"
                                 >
                                     Título
                                 </Label>
@@ -520,7 +520,7 @@ export function UnitDocumentsModal({
                                         setTitle(event.target.value)
                                     }
                                     placeholder="Ej. Certificado municipal"
-                                    className="h-9 border-[#c5d5e6] bg-white text-sm"
+                                    className="h-9 border-brand-300 bg-white text-sm"
                                 />
                             </div>
                         ) : null}
@@ -528,7 +528,7 @@ export function UnitDocumentsModal({
                         <div className="grid gap-1.5">
                             <Label
                                 htmlFor="unit-doc-file"
-                                className="text-xs text-[#1a2b4c]"
+                                className="text-xs text-brand-700"
                             >
                                 Archivo (foto o PDF){' '}
                                 <span className="text-red-500">*</span>
@@ -542,9 +542,9 @@ export function UnitDocumentsModal({
                                     setError(null);
                                     setFile(event.target.files?.[0] ?? null);
                                 }}
-                                className="h-9 cursor-pointer border-[#c5d5e6] bg-white text-sm file:mr-3 file:border-0 file:bg-transparent file:text-xs file:font-medium file:text-[#2e5a9e]"
+                                className="h-9 cursor-pointer border-brand-300 bg-white text-sm file:mr-3 file:border-0 file:bg-transparent file:text-xs file:font-medium file:text-brand-500"
                             />
-                            <p className="text-[11px] text-[#6b8ead]">
+                            <p className="text-[11px] text-muted-foreground">
                                 JPG, PNG, WEBP o PDF · máximo 10 MB
                             </p>
                             <InputError message={error ?? undefined} />
@@ -553,7 +553,7 @@ export function UnitDocumentsModal({
                         <Button
                             type="submit"
                             disabled={uploading || !file}
-                            className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038] disabled:opacity-50"
+                            className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700 disabled:opacity-50"
                         >
                             {uploading ? <Spinner /> : <Upload className="size-4" />}
                             Subir documento
@@ -563,7 +563,7 @@ export function UnitDocumentsModal({
 
                 {documents.some((doc) => doc.type === 'other') ? (
                     <div className="space-y-2">
-                        <p className="text-xs font-semibold text-[#1a2b4c]">
+                        <p className="text-xs font-semibold text-brand-700">
                             Otros documentos
                         </p>
                         <ul className="space-y-2">
@@ -572,14 +572,14 @@ export function UnitDocumentsModal({
                                 .map((document) => (
                                     <li
                                         key={document.id}
-                                        className="flex items-start gap-2 rounded-xl border border-[#e2eaf3] bg-white p-2.5"
+                                        className="flex items-start gap-2 rounded-xl border border-brand-200 bg-white p-2.5"
                                     >
                                         <div
                                             className={cn(
                                                 'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg',
                                                 isPdf(document)
                                                     ? 'bg-red-50 text-red-600'
-                                                    : 'bg-[#e8f1fa] text-[#2e5a9e]',
+                                                    : 'bg-brand-100 text-brand-500',
                                             )}
                                         >
                                             {isPdf(document) ? (
@@ -589,11 +589,11 @@ export function UnitDocumentsModal({
                                             )}
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <p className="truncate text-sm font-medium text-[#1a2b4c]">
+                                            <p className="truncate text-sm font-medium text-brand-700">
                                                 {document.title ||
                                                     document.original_name}
                                             </p>
-                                            <p className="text-[11px] text-[#6b8ead]">
+                                            <p className="text-[11px] text-muted-foreground">
                                                 {formatBytes(document.size)} ·{' '}
                                                 {formatDate(document.created_at)}
                                             </p>
@@ -604,7 +604,7 @@ export function UnitDocumentsModal({
                                                 variant="ghost"
                                                 size="icon"
                                                 asChild
-                                                className="size-8 cursor-pointer text-[#2e5a9e] hover:bg-[#e8f1fa]"
+                                                className="size-8 cursor-pointer text-brand-500 hover:bg-brand-100"
                                             >
                                                 <a
                                                     href={`/unidades/${unit?.id}/documentos/${document.id}/descargar`}

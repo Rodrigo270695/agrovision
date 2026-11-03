@@ -17,10 +17,10 @@ export default function AppLogo() {
                 />
             </div>
             <div className="ml-1.5 grid min-w-0 flex-1 text-left">
-                <span className="truncate text-[13px] leading-tight font-semibold tracking-tight text-[#1a2b4c] dark:text-sidebar-foreground">
+                <span className="truncate text-[13px] leading-tight font-semibold tracking-tight text-brand-700 dark:text-sidebar-foreground">
                     {name}
                 </span>
-                <span className="truncate text-[10px] leading-tight font-medium text-[#2e5a9e]">
+                <span className="truncate text-[10px] leading-tight font-medium text-brand-500">
                     {central ? 'Soporte' : 'Operación SST'}
                 </span>
             </div>

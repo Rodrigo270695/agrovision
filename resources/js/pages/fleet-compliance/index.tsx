@@ -104,8 +104,8 @@ export default function FleetComplianceReportPage() {
                                         className={cn(
                                             'inline-flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-2 text-xs font-semibold shadow-sm transition',
                                             active
-                                                ? 'border-[#1a2b4c] bg-[#1a2b4c] text-white'
-                                                : 'border-[#c5d5e6] bg-white text-[#1a2b4c] hover:bg-[#f8fafc]',
+                                                ? 'border-brand-700 bg-brand-700 text-white'
+                                                : 'border-brand-300 bg-white text-brand-700 hover:bg-background',
                                         )}
                                     >
                                         <Icon className="size-4" />
@@ -117,7 +117,7 @@ export default function FleetComplianceReportPage() {
                     }
                 >
                     <div>
-                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                        <p className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                             Rango de fechas
                         </p>
                         <DateRangeFilter
@@ -135,14 +135,14 @@ export default function FleetComplianceReportPage() {
                             }
                         />
                     </div>
-                    <p className="max-w-xl text-xs text-[#5a7390]">
+                    <p className="max-w-xl text-xs text-muted-foreground">
                         Solo se listan semanas con unidades en el rango (carga
                         de archivo o periodo en fechas).
                     </p>
                 </PlatformToolbar>
 
                 <PlatformContentPanel className="p-4 sm:p-6">
-                    <p className="mb-3 text-xs font-semibold tracking-wide text-[#6b8ead] uppercase">
+                    <p className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                         Resumen del rango seleccionado — {title}
                     </p>
                     <SstSummaryStrip summary={summary} />
@@ -150,10 +150,10 @@ export default function FleetComplianceReportPage() {
 
                 <div className="grid w-full min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]">
                     <PlatformContentPanel className="min-w-0 p-4 sm:p-6">
-                        <h2 className="text-sm font-semibold text-[#1a2b4c]">
+                        <h2 className="text-sm font-semibold text-brand-700">
                             % OK por semana
                         </h2>
-                        <p className="mt-0.5 text-xs text-[#6b8ead]">
+                        <p className="mt-0.5 text-xs text-muted-foreground">
                             Barras verdes: cumplimiento en la carga de esa
                             semana ({title})
                         </p>
@@ -164,7 +164,7 @@ export default function FleetComplianceReportPage() {
 
                     <PlatformContentPanel className="min-w-0 p-4 sm:p-6">
                         <SstDetailDonut title={title} summary={summary} />
-                        <p className="mt-4 text-center text-[10px] text-[#6b8ead]">
+                        <p className="mt-4 text-center text-[10px] text-muted-foreground">
                             Fuente: {source_label}
                         </p>
                     </PlatformContentPanel>

@@ -148,7 +148,7 @@ export function SstBoardItemPicker({ template, items, onChange }: Props) {
 
     return (
         <div className="w-full sm:w-auto">
-            <p className="mb-1 text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+            <p className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                 Ítems a mostrar
             </p>
             <Popover open={open} onOpenChange={setOpen}>
@@ -157,8 +157,8 @@ export function SstBoardItemPicker({ template, items, onChange }: Props) {
                         type="button"
                         variant="outline"
                         className={cn(
-                            'h-10 w-full cursor-pointer justify-start gap-2 border-[#c5d5e6] bg-white px-3 text-xs font-medium text-[#1a2b4c] sm:min-w-[14rem]',
-                            isFiltered && 'border-[#1a2b4c]/40 bg-[#f4f8fc]',
+                            'h-10 w-full cursor-pointer justify-start gap-2 border-brand-300 bg-white px-3 text-xs font-medium text-brand-700 sm:min-w-[14rem]',
+                            isFiltered && 'border-brand-700/40 bg-[#f4f8fc]',
                         )}
                     >
                         <LayoutGrid className="size-4 shrink-0 opacity-70" />
@@ -171,19 +171,19 @@ export function SstBoardItemPicker({ template, items, onChange }: Props) {
                 </PopoverTrigger>
                 <PopoverContent
                     align="start"
-                    className="w-[min(100vw-2rem,22rem)] border-[#d7e3f0] p-0"
+                    className="w-[min(100vw-2rem,22rem)] border-brand-200 p-0"
                 >
                     <div className="border-b border-[#e8eef5] p-3">
-                        <p className="text-[11px] font-semibold tracking-wide text-[#6b8ead] uppercase">
+                        <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                             Personalizar tablero
                         </p>
-                        <p className="mt-0.5 text-[11px] text-[#5a7390]">
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">
                             La selección se guarda por plantilla (
                             {template.toUpperCase()}).
                         </p>
                         <div className="relative mt-2">
                             <Search
-                                className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-[#6b8ead]"
+                                className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
                                 aria-hidden
                             />
                             <Input
@@ -220,7 +220,7 @@ export function SstBoardItemPicker({ template, items, onChange }: Props) {
                     </div>
                     <ul className="max-h-64 overflow-y-auto p-2">
                         {filtered.length === 0 ? (
-                            <li className="px-2 py-4 text-center text-xs text-[#5a7390]">
+                            <li className="px-2 py-4 text-center text-xs text-muted-foreground">
                                 Sin coincidencias.
                             </li>
                         ) : (
@@ -242,7 +242,7 @@ export function SstBoardItemPicker({ template, items, onChange }: Props) {
                                                 }
                                                 className="mt-0.5"
                                             />
-                                            <span className="text-xs leading-snug text-[#1a2b4c]">
+                                            <span className="text-xs leading-snug text-brand-700">
                                                 {item.label}
                                             </span>
                                         </label>

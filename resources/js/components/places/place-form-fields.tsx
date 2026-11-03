@@ -36,7 +36,7 @@ export function PlaceFormFields({
     return (
         <div className="space-y-4">
             <div className="grid gap-2">
-                <Label htmlFor={`${idPrefix}-name`} className="text-[#1a2b4c]">
+                <Label htmlFor={`${idPrefix}-name`} className="text-brand-700">
                     Nombre <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -46,13 +46,13 @@ export function PlaceFormFields({
                     onChange={(event) => onChange('name', event.target.value)}
                     placeholder={namePlaceholder}
                     autoFocus
-                    className="h-11 border-[#c5d5e6] bg-white focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35"
+                    className="h-11 border-brand-300 bg-white focus-visible:border-brand-500 focus-visible:ring-brand-400/35"
                 />
                 <InputError message={errors.name} />
             </div>
 
             <div className="grid gap-2">
-                <Label htmlFor={`${idPrefix}-description`} className="text-[#1a2b4c]">
+                <Label htmlFor={`${idPrefix}-description`} className="text-brand-700">
                     Descripción
                 </Label>
                 <Textarea
@@ -64,21 +64,21 @@ export function PlaceFormFields({
                     }
                     placeholder={descriptionPlaceholder}
                     rows={3}
-                    className="border-[#c5d5e6] bg-white"
+                    className="border-brand-300 bg-white"
                 />
                 <InputError message={errors.description} />
             </div>
 
             <div className="grid gap-2">
-                <Label className="text-[#1a2b4c]">Estado</Label>
+                <Label className="text-brand-700">Estado</Label>
                 <Select
                     value={values.status || 'active'}
                     onValueChange={(value) => onChange('status', value)}
                 >
-                    <SelectTrigger className="h-11 w-full cursor-pointer border-[#c5d5e6] bg-white text-[#1a2b4c]">
+                    <SelectTrigger className="h-11 w-full cursor-pointer border-brand-300 bg-white text-brand-700">
                         <SelectValue placeholder="Selecciona estado" />
                     </SelectTrigger>
-                    <SelectContent className="border-[#d7e3f0] bg-white">
+                    <SelectContent className="border-brand-200 bg-white">
                         <SelectItem value="active" className="cursor-pointer">
                             Activo
                         </SelectItem>

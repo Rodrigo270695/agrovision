@@ -26,7 +26,7 @@ export function TableSearchFilter({
 
     return (
         <div className={cn('relative w-full max-w-sm', className)}>
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#6b8ead]" />
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
                 type="text"
                 inputMode="search"
@@ -42,7 +42,7 @@ export function TableSearchFilter({
                     }
                 }}
                 placeholder={placeholder}
-                className="h-10 border-[#c5d5e6] bg-white pl-9 text-sm text-[#1a2b4c] placeholder:text-[#94a3b8] focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35"
+                className="h-10 border-brand-300 bg-white pl-9 text-sm text-brand-700 placeholder:text-[#94a3b8] focus-visible:border-brand-500 focus-visible:ring-brand-400/35"
                 aria-label={placeholder}
             />
         </div>

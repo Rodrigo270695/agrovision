@@ -170,8 +170,8 @@ export function VerificationPhotoCapture({
         <div className="space-y-3">
             <div
                 className={cn(
-                    'overflow-hidden rounded-xl border border-dashed border-[#c5d5e6] bg-[#0f172a]',
-                    displayUrl ? 'bg-[#f8fafc]' : '',
+                    'overflow-hidden rounded-xl border border-dashed border-brand-300 bg-[#0f172a]',
+                    displayUrl ? 'bg-background' : '',
                 )}
             >
                 {cameraOpen ? (
@@ -204,7 +204,7 @@ export function VerificationPhotoCapture({
                             type="button"
                             disabled={disabled || saving}
                             onClick={captureFromCamera}
-                            className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c]"
+                            className="cursor-pointer bg-brand-500 text-white hover:bg-brand-700"
                         >
                             <Camera className="size-4" />
                             Capturar
@@ -214,7 +214,7 @@ export function VerificationPhotoCapture({
                             variant="outline"
                             disabled={disabled || saving}
                             onClick={stopCamera}
-                            className="cursor-pointer border-[#c5d5e6]"
+                            className="cursor-pointer border-brand-300"
                         >
                             Cancelar cámara
                         </Button>
@@ -226,7 +226,7 @@ export function VerificationPhotoCapture({
                             variant="outline"
                             disabled={disabled || saving || startingCamera}
                             onClick={() => void startCamera()}
-                            className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                            className="cursor-pointer border-brand-300 text-brand-700"
                         >
                             {startingCamera ? (
                                 <Spinner />
@@ -240,7 +240,7 @@ export function VerificationPhotoCapture({
                             variant="outline"
                             disabled={disabled || saving}
                             onClick={() => fileRef.current?.click()}
-                            className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                            className="cursor-pointer border-brand-300 text-brand-700"
                         >
                             <ImagePlus className="size-4" />
                             Subir foto
@@ -289,7 +289,7 @@ export function VerificationPhotoCapture({
                         variant="ghost"
                         disabled={disabled || saving}
                         onClick={() => setPreview(null)}
-                        className="cursor-pointer text-[#5a7390]"
+                        className="cursor-pointer text-muted-foreground"
                     >
                         Descartar cambio
                     </Button>

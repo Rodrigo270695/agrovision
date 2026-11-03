@@ -59,7 +59,7 @@ export function PushNotificationPrompt() {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="relative size-9 shrink-0 cursor-pointer text-[#5a7390] hover:bg-[#e8f1fa] hover:text-[#1a2b4c]"
+                            className="relative size-9 shrink-0 cursor-pointer text-muted-foreground hover:bg-brand-100 hover:text-brand-700"
                             aria-label={tooltipLabel}
                         >
                             <Icon
@@ -70,7 +70,7 @@ export function PushNotificationPrompt() {
                                 )}
                             />
                             {needsAttention ? (
-                                <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-[#2e5a9e] ring-2 ring-white" />
+                                <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-brand-500 ring-2 ring-white" />
                             ) : null}
                         </Button>
                     </DropdownMenuTrigger>
@@ -84,10 +84,10 @@ export function PushNotificationPrompt() {
                 {subscribed ? (
                     <div className="space-y-3">
                         <div className="space-y-1">
-                            <p className="text-sm font-medium text-[#1a2b4c]">
+                            <p className="text-sm font-medium text-brand-700">
                                 Notificaciones activas
                             </p>
-                            <p className="text-xs text-[#5a7390]">
+                            <p className="text-xs text-muted-foreground">
                                 Recibirás avisos de consolidados y avances de
                                 inspección.
                             </p>
@@ -110,13 +110,13 @@ export function PushNotificationPrompt() {
                 ) : (
                     <div className="space-y-3">
                         <div className="space-y-1">
-                            <p className="text-sm font-medium text-[#1a2b4c]">
+                            <p className="text-sm font-medium text-brand-700">
                                 Activar notificaciones
                             </p>
                             <p
                                 className={cn(
                                     'text-xs',
-                                    error ? 'text-red-600' : 'text-[#5a7390]',
+                                    error ? 'text-red-600' : 'text-muted-foreground',
                                 )}
                             >
                                 {permission === 'denied'
@@ -130,7 +130,7 @@ export function PushNotificationPrompt() {
                         <Button
                             type="button"
                             size="sm"
-                            className="h-8 w-full cursor-pointer bg-[#2e5a9e] text-xs text-white hover:bg-[#1a2b4c]"
+                            className="h-8 w-full cursor-pointer bg-brand-500 text-xs text-white hover:bg-brand-700"
                             onClick={() => void enable()}
                             disabled={loading || permission === 'denied'}
                         >

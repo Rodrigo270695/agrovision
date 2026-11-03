@@ -161,7 +161,7 @@ export function SendInspectionBatchModal({ open, onClose }: Props) {
                         type="button"
                         variant="outline"
                         onClick={onClose}
-                        className="cursor-pointer border-[#c5d5e6]"
+                        className="cursor-pointer border-brand-300"
                     >
                         Cancelar
                     </Button>
@@ -169,7 +169,7 @@ export function SendInspectionBatchModal({ open, onClose }: Props) {
                         type="button"
                         disabled={readyTotal === 0 || sending || loading}
                         onClick={send}
-                        className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                        className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700"
                     >
                         {sending ? <Spinner /> : null}
                         Enviar paquete
@@ -179,11 +179,11 @@ export function SendInspectionBatchModal({ open, onClose }: Props) {
         >
             <div className="grid gap-3">
                 <div className="grid gap-1.5">
-                    <p className="text-xs font-semibold text-[#1a2b4c]">
+                    <p className="text-xs font-semibold text-brand-700">
                         Fechas que faltan por enviar
                     </p>
                     {missing.length === 0 ? (
-                        <p className="rounded-lg bg-[#f8fafc] px-3 py-2 text-xs text-[#5a7390]">
+                        <p className="rounded-lg bg-background px-3 py-2 text-xs text-muted-foreground">
                             No hay fechas pendientes. Los días con la 1ra
                             cerrada ya tienen paquete enviado.
                         </p>
@@ -196,8 +196,8 @@ export function SendInspectionBatchModal({ open, onClose }: Props) {
                                     onClick={() => setDate(day.date)}
                                     className={
                                         date === day.date
-                                            ? 'cursor-pointer rounded-lg bg-[#1a2b4c] px-2 py-1 text-[11px] font-semibold text-white'
-                                            : 'cursor-pointer rounded-lg border border-[#c5d5e6] bg-white px-2 py-1 text-[11px] font-medium text-[#1a2b4c]'
+                                            ? 'cursor-pointer rounded-lg bg-brand-700 px-2 py-1 text-[11px] font-semibold text-white'
+                                            : 'cursor-pointer rounded-lg border border-brand-300 bg-white px-2 py-1 text-[11px] font-medium text-brand-700'
                                     }
                                 >
                                     {day.date.split('-').reverse().join('/')} ·{' '}
@@ -208,26 +208,26 @@ export function SendInspectionBatchModal({ open, onClose }: Props) {
                     )}
                 </div>
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">
+                    <Label className="text-xs text-brand-700">
                         Fecha de la 1ra inspección
                     </Label>
                     <Input
                         type="date"
                         value={date}
                         onChange={(event) => setDate(event.target.value)}
-                        className="h-9 border-[#c5d5e6]"
+                        className="h-9 border-brand-300"
                     />
                 </div>
 
                 {loading ? (
-                    <p className="text-xs text-[#5a7390]">Revisando el día…</p>
+                    <p className="text-xs text-muted-foreground">Revisando el día…</p>
                 ) : null}
                 {error ? <p className="text-xs text-red-600">{error}</p> : null}
 
                 {preview && !loading ? (
-                    <div className="space-y-2 text-xs text-[#1a2b4c]">
+                    <div className="space-y-2 text-xs text-brand-700">
                         {preview.groups.length === 0 ? (
-                            <p className="rounded-lg bg-[#f8fafc] px-3 py-2 text-[#5a7390]">
+                            <p className="rounded-lg bg-background px-3 py-2 text-muted-foreground">
                                 No hay inspecciones con la 1ra cerrada para
                                 enviar.
                             </p>
@@ -235,7 +235,7 @@ export function SendInspectionBatchModal({ open, onClose }: Props) {
                             preview.groups.map((group) => (
                                 <div
                                     key={group.coordinator_id}
-                                    className="flex items-center justify-between rounded-lg border border-[#d7e3f0] bg-[#f8fafc] px-3 py-2"
+                                    className="flex items-center justify-between rounded-lg border border-brand-200 bg-background px-3 py-2"
                                 >
                                     <span className="font-medium">
                                         {group.coordinator_name}
@@ -257,7 +257,7 @@ export function SendInspectionBatchModal({ open, onClose }: Props) {
                             </p>
                         ) : null}
                         {preview.already_signed > 0 ? (
-                            <p className="text-[#5a7390]">
+                            <p className="text-muted-foreground">
                                 {preview.already_signed} ya están en un paquete
                                 enviado.
                             </p>

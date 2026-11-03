@@ -36,28 +36,28 @@ export function SstSummaryStrip({ summary }: { summary: SstDetailSummary }) {
                         {cells.map((cell) => (
                             <th
                                 key={cell.key}
-                                className="border border-[#d7e3f0] px-4 py-2 text-xs font-bold tracking-wide uppercase"
+                                className="border border-brand-200 px-4 py-2 text-xs font-bold tracking-wide uppercase"
                                 style={{ backgroundColor: cell.bg, color: cell.color }}
                             >
                                 {cell.label}
                             </th>
                         ))}
-                        <th className="border border-[#d7e3f0] bg-[#f8fafc] px-4 py-2 text-xs font-bold tracking-wide text-[#1a2b4c] uppercase">
+                        <th className="border border-brand-200 bg-background px-4 py-2 text-xs font-bold tracking-wide text-brand-700 uppercase">
                             Total general
                         </th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr className="font-bold text-[#1a2b4c]">
+                    <tr className="font-bold text-brand-700">
                         {cells.map((cell) => (
                             <td
                                 key={cell.key}
-                                className="border border-[#d7e3f0] px-4 py-3 tabular-nums"
+                                className="border border-brand-200 px-4 py-3 tabular-nums"
                             >
                                 {cell.value}
                             </td>
                         ))}
-                        <td className="border border-[#d7e3f0] bg-[#f8fafc] px-4 py-3 tabular-nums">
+                        <td className="border border-brand-200 bg-background px-4 py-3 tabular-nums">
                             {summary.total}
                         </td>
                     </tr>
@@ -78,7 +78,7 @@ export function SstWeeklyVerticalBars({
 
     if (withData.length === 0) {
         return (
-            <p className="py-16 text-center text-sm text-[#6b8ead]">
+            <p className="py-16 text-center text-sm text-muted-foreground">
                 Sin datos para graficar en el rango.
             </p>
         );
@@ -117,7 +117,7 @@ export function SstWeeklyVerticalBars({
                                 key={`${bar.year}-${bar.week}`}
                                 className="flex w-11 shrink-0 flex-col items-center sm:w-12"
                             >
-                                <span className="mb-1 text-[11px] font-bold tabular-nums text-[#1a2b4c]">
+                                <span className="mb-1 text-[11px] font-bold tabular-nums text-brand-700">
                                     {bar.percent_ok}%
                                 </span>
                                 <div
@@ -130,7 +130,7 @@ export function SstWeeklyVerticalBars({
                                         title={`${bar.label}: ${bar.percent_ok}% OK (${bar.total} unidades)`}
                                     />
                                 </div>
-                                <span className="mt-2 text-center text-[10px] font-semibold leading-tight text-[#5a7390]">
+                                <span className="mt-2 text-center text-[10px] font-semibold leading-tight text-muted-foreground">
                                     {bar.label}
                                 </span>
                             </div>
@@ -180,7 +180,7 @@ export function SstDetailDonut({
 
     return (
         <div className="flex h-full flex-col">
-            <h3 className="text-center text-sm font-bold text-[#1a2b4c] uppercase">
+            <h3 className="text-center text-sm font-bold text-brand-700 uppercase">
                 {title}
             </h3>
             <div className="flex flex-1 flex-col items-center justify-center gap-4 py-4">
@@ -209,12 +209,12 @@ export function SstDetailDonut({
                         ))}
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-3xl font-bold text-[#1a2b4c]">
+                        <span className="text-3xl font-bold text-brand-700">
                             {summary.percent}%
                         </span>
                     </div>
                 </div>
-                <ul className="w-full space-y-1 text-xs text-[#5a7390]">
+                <ul className="w-full space-y-1 text-xs text-muted-foreground">
                     {segments.map((segment) => (
                         <li
                             key={segment.label}
@@ -227,7 +227,7 @@ export function SstDetailDonut({
                                 />
                                 {segment.label}
                             </span>
-                            <span className="font-semibold tabular-nums text-[#1a2b4c]">
+                            <span className="font-semibold tabular-nums text-brand-700">
                                 {segment.value}
                             </span>
                         </li>

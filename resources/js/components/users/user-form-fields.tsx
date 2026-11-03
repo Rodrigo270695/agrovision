@@ -49,7 +49,7 @@ type Props = {
 };
 
 const inputClassName =
-    'h-11 border-[#c5d5e6] bg-white focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35';
+    'h-11 border-brand-300 bg-white focus-visible:border-brand-500 focus-visible:ring-brand-400/35';
 
 function getXsrfToken(): string {
     const match = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/);
@@ -162,7 +162,7 @@ export function UserFormFields({
     return (
         <div className="space-y-4">
             <div className="grid gap-2">
-                <Label htmlFor="user-document_type" className="text-[#1a2b4c]">
+                <Label htmlFor="user-document_type" className="text-brand-700">
                     Tipo de documento <span className="text-red-500">*</span>
                 </Label>
                 <Select
@@ -179,7 +179,7 @@ export function UserFormFields({
                     >
                         <SelectValue placeholder="Selecciona tipo" />
                     </SelectTrigger>
-                    <SelectContent className="border-[#d7e3f0] bg-white">
+                    <SelectContent className="border-brand-200 bg-white">
                         <SelectItem value="dni" className="cursor-pointer">
                             DNI
                         </SelectItem>
@@ -195,7 +195,7 @@ export function UserFormFields({
             </div>
 
             <div className="grid gap-2">
-                <Label htmlFor="user-document_number" className="text-[#1a2b4c]">
+                <Label htmlFor="user-document_number" className="text-brand-700">
                     Número de documento <span className="text-red-500">*</span>
                 </Label>
                 <div className="flex gap-1.5">
@@ -216,7 +216,7 @@ export function UserFormFields({
                             className={`${inputClassName} ${isDni ? 'pr-12' : ''}`}
                         />
                         {isDni ? (
-                            <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[11px] font-medium text-[#6b8ead]">
+                            <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[11px] font-medium text-muted-foreground">
                                 {documentDigits.length}/8
                             </span>
                         ) : null}
@@ -227,7 +227,7 @@ export function UserFormFields({
                             variant="outline"
                             disabled={dniLoading || documentDigits.length !== 8}
                             onClick={() => void lookupDni()}
-                            className="h-11 shrink-0 cursor-pointer border-[#c5d5e6] px-3 text-[#2e5a9e] hover:bg-[#e8f1fa] disabled:opacity-50"
+                            className="h-11 shrink-0 cursor-pointer border-brand-300 px-3 text-brand-500 hover:bg-brand-100 disabled:opacity-50"
                             aria-label="Buscar DNI"
                             title="Buscar DNI"
                         >
@@ -248,14 +248,14 @@ export function UserFormFields({
                     message={errors.document_number ?? dniError ?? undefined}
                 />
                 {isDni ? (
-                    <p className="text-xs text-[#6b8ead]">
+                    <p className="text-xs text-muted-foreground">
                         Busca el DNI para completar automáticamente el nombre.
                     </p>
                 ) : null}
             </div>
 
             <div className="grid gap-2">
-                <Label htmlFor="user-name" className="text-[#1a2b4c]">
+                <Label htmlFor="user-name" className="text-brand-700">
                     Nombre <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -270,7 +270,7 @@ export function UserFormFields({
             </div>
 
             <div className="grid gap-2">
-                <Label htmlFor="user-phone" className="text-[#1a2b4c]">
+                <Label htmlFor="user-phone" className="text-brand-700">
                     Celular <span className="text-red-500">*</span>
                 </Label>
                 <div className="relative">
@@ -291,18 +291,18 @@ export function UserFormFields({
                         maxLength={9}
                         className={`${inputClassName} pr-12`}
                     />
-                    <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[11px] font-medium text-[#6b8ead]">
+                    <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[11px] font-medium text-muted-foreground">
                         {phoneDigits.length}/9
                     </span>
                 </div>
                 <InputError message={errors.phone} />
-                <p className="text-xs text-[#6b8ead]">
+                <p className="text-xs text-muted-foreground">
                     Celular peruano: 9 dígitos, siempre empieza con 9.
                 </p>
             </div>
 
             <div className="grid gap-2">
-                <Label htmlFor="user-email" className="text-[#1a2b4c]">
+                <Label htmlFor="user-email" className="text-brand-700">
                     Correo <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -318,7 +318,7 @@ export function UserFormFields({
             </div>
 
             <div className="grid gap-2">
-                <Label className="text-[#1a2b4c]">
+                <Label className="text-brand-700">
                     {multiplePlaces ? 'Lugares' : 'Lugar'}{' '}
                     {requiresPlace ? (
                         <span className="text-red-500">*</span>
@@ -357,7 +357,7 @@ export function UserFormFields({
                             : errors.place_id
                     }
                 />
-                <p className="text-xs text-[#6b8ead]">
+                <p className="text-xs text-muted-foreground">
                     {multiplePlaces
                         ? 'Puede tener varios lugares.'
                         : 'Obligatorio para coordinadores e inspectores.'}
@@ -365,7 +365,7 @@ export function UserFormFields({
             </div>
 
             <div className="grid gap-2">
-                <Label htmlFor="user-password" className="text-[#1a2b4c]">
+                <Label htmlFor="user-password" className="text-brand-700">
                     Contraseña{' '}
                     {isEditing ? null : (
                         <span className="text-red-500">*</span>
@@ -388,7 +388,7 @@ export function UserFormFields({
                 />
                 <InputError message={errors.password} />
                 {isEditing ? (
-                    <p className="text-xs text-[#6b8ead]">
+                    <p className="text-xs text-muted-foreground">
                         Si no deseas cambiar la contraseña, deja estos campos
                         vacíos.
                     </p>
@@ -398,7 +398,7 @@ export function UserFormFields({
             <div className="grid gap-2">
                 <Label
                     htmlFor="user-password-confirmation"
-                    className="text-[#1a2b4c]"
+                    className="text-brand-700"
                 >
                     Confirmar contraseña{' '}
                     {isEditing ? null : (

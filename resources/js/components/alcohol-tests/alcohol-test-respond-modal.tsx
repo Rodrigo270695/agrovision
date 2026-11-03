@@ -123,7 +123,7 @@ export function AlcoholTestRespondModal({
                         variant="outline"
                         disabled={form.processing}
                         onClick={onClose}
-                        className="cursor-pointer border-[#c5d5e6]"
+                        className="cursor-pointer border-brand-300"
                     >
                         Cancelar
                     </Button>
@@ -131,7 +131,7 @@ export function AlcoholTestRespondModal({
                         type="submit"
                         form="alcohol-respond-form"
                         disabled={form.processing}
-                        className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                        className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700"
                     >
                         {form.processing ? <Spinner /> : null}
                         Firmar acta
@@ -145,7 +145,7 @@ export function AlcoholTestRespondModal({
                 className="grid gap-3"
             >
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">
+                    <Label className="text-xs text-brand-700">
                         Quien firma <span className="text-red-500">*</span>
                     </Label>
                     <Input
@@ -157,7 +157,7 @@ export function AlcoholTestRespondModal({
                                 e.target.value,
                             );
                         }}
-                        className="h-9 border-[#c5d5e6]"
+                        className="h-9 border-brand-300"
                     />
                     <InputError
                         message={form.errors.coordinator_signer_name}
@@ -165,7 +165,7 @@ export function AlcoholTestRespondModal({
                 </div>
 
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">
+                    <Label className="text-xs text-brand-700">
                         Medidas / plan de acción{' '}
                         <span className="text-red-500">*</span>
                     </Label>
@@ -179,7 +179,7 @@ export function AlcoholTestRespondModal({
                             );
                         }}
                         rows={4}
-                        className="border-[#c5d5e6]"
+                        className="border-brand-300"
                         placeholder="No se permite el ingreso. Conductor retirado..."
                     />
                     <InputError
@@ -188,7 +188,7 @@ export function AlcoholTestRespondModal({
                 </div>
 
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">
+                    <Label className="text-xs text-brand-700">
                         Firma <span className="text-red-500">*</span>
                     </Label>
                     <SignaturePad

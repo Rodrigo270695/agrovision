@@ -89,11 +89,11 @@ type Props = {
 };
 
 const inputClass =
-    'h-9 border-[#c5d5e6] bg-white text-sm focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35';
+    'h-9 border-brand-300 bg-white text-sm focus-visible:border-brand-500 focus-visible:ring-brand-400/35';
 
 function SectionTitle({ children }: { children: string }) {
     return (
-        <p className="border-b border-[#e2eaf3] pb-1 text-xs font-semibold tracking-wide text-[#1a2b4c] uppercase">
+        <p className="border-b border-brand-200 pb-1 text-xs font-semibold tracking-wide text-brand-700 uppercase">
             {children}
         </p>
     );
@@ -131,12 +131,12 @@ export function InductionFormFields({
             <div className="space-y-3">
                 <SectionTitle>Tipo y temario</SectionTitle>
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">
+                    <Label className="text-xs text-brand-700">
                         Tipo <span className="text-red-500">*</span>
                     </Label>
                     {typeLocked && selectedType ? (
-                        <div className="rounded-lg border border-[#c5d5e6] bg-[#f7fafc] px-3 py-2">
-                            <p className="text-sm font-medium text-[#1a2b4c]">
+                        <div className="rounded-lg border border-brand-300 bg-[#f7fafc] px-3 py-2">
+                            <p className="text-sm font-medium text-brand-700">
                                 {selectedType.label}
                             </p>
                             <p className="text-xs text-[#5a6f8c]">{activityLabel}</p>
@@ -168,12 +168,12 @@ export function InductionFormFields({
                     <InputError message={errors.induction_type} />
                 </div>
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">Temario</Label>
+                    <Label className="text-xs text-brand-700">Temario</Label>
                     <Textarea
                         value={values.temario}
                         onChange={(e) => onChange('temario', e.target.value)}
                         placeholder="Detalle de los puntos a tratar"
-                        className="min-h-20 border-[#c5d5e6] bg-white text-sm"
+                        className="min-h-20 border-brand-300 bg-white text-sm"
                     />
                     <InputError message={errors.temario} />
                 </div>
@@ -183,16 +183,16 @@ export function InductionFormFields({
                 <SectionTitle>Clasificación</SectionTitle>
                 <div className="grid gap-3 sm:grid-cols-2">
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">
+                        <Label className="text-xs text-brand-700">
                             Actividad
                         </Label>
-                        <div className="flex h-9 items-center rounded-md border border-[#c5d5e6] bg-[#f7fafc] px-3 text-sm text-[#1a2b4c]">
+                        <div className="flex h-9 items-center rounded-md border border-brand-300 bg-[#f7fafc] px-3 text-sm text-brand-700">
                             {activityLabel || '—'}
                         </div>
                         <InputError message={errors.activity} />
                     </div>
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">
+                        <Label className="text-xs text-brand-700">
                             Modalidad <span className="text-red-500">*</span>
                         </Label>
                         <Select
@@ -214,7 +214,7 @@ export function InductionFormFields({
                         <InputError message={errors.modality} />
                     </div>
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">
+                        <Label className="text-xs text-brand-700">
                             Escuela <span className="text-red-500">*</span>
                         </Label>
                         <Select
@@ -242,33 +242,33 @@ export function InductionFormFields({
                             onCheckedChange={(checked) =>
                                 onChange('corrective_action', checked === true)
                             }
-                            className="border-[#c5d5e6] data-[state=checked]:border-[#2e5a9e] data-[state=checked]:bg-[#2e5a9e] data-[state=checked]:text-white"
+                            className="border-brand-300 data-[state=checked]:border-brand-500 data-[state=checked]:bg-brand-500 data-[state=checked]:text-white"
                         />
-                        <Label htmlFor="corrective_action" className="cursor-pointer text-xs text-[#1a2b4c]">
+                        <Label htmlFor="corrective_action" className="cursor-pointer text-xs text-brand-700">
                             Acción correctiva
                         </Label>
                     </div>
                 </div>
 
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">
+                    <Label className="text-xs text-brand-700">
                         Categorías <span className="text-red-500">*</span>
                     </Label>
-                    <div className="grid gap-2 rounded-xl border border-[#e2eaf3] bg-[#f8fafc] p-3 sm:grid-cols-2">
+                    <div className="grid gap-2 rounded-xl border border-brand-200 bg-background p-3 sm:grid-cols-2">
                         {formOptions.categories.map((opt) => {
                             const checked = values.categories.includes(opt.value);
 
                             return (
                                 <label
                                     key={opt.value}
-                                    className="flex cursor-pointer items-start gap-2 text-xs text-[#1a2b4c]"
+                                    className="flex cursor-pointer items-start gap-2 text-xs text-brand-700"
                                 >
                                     <Checkbox
                                         checked={checked}
                                         onCheckedChange={(state) =>
                                             toggleCategory(opt.value, state === true)
                                         }
-                                        className="mt-0.5 border-[#c5d5e6] data-[state=checked]:border-[#2e5a9e] data-[state=checked]:bg-[#2e5a9e] data-[state=checked]:text-white"
+                                        className="mt-0.5 border-brand-300 data-[state=checked]:border-brand-500 data-[state=checked]:bg-brand-500 data-[state=checked]:text-white"
                                     />
                                     <span>{opt.label}</span>
                                 </label>
@@ -291,7 +291,7 @@ export function InductionFormFields({
                 <SectionTitle>Fecha, hora y ubicación</SectionTitle>
                 <div className="grid gap-3 sm:grid-cols-2">
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">
+                        <Label className="text-xs text-brand-700">
                             Fecha <span className="text-red-500">*</span>
                         </Label>
                         <Input
@@ -303,7 +303,7 @@ export function InductionFormFields({
                         <InputError message={errors.session_date} />
                     </div>
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">
+                        <Label className="text-xs text-brand-700">
                             Periodo <span className="text-red-500">*</span>
                         </Label>
                         <Select
@@ -322,7 +322,7 @@ export function InductionFormFields({
                             <SelectContent className="bg-white">
                                 <SelectItem
                                     value="__none"
-                                    className="cursor-pointer text-[#6b8ead]"
+                                    className="cursor-pointer text-muted-foreground"
                                 >
                                     Selecciona un periodo
                                 </SelectItem>
@@ -336,7 +336,7 @@ export function InductionFormFields({
                         <InputError message={errors.period_id} />
                     </div>
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">
+                        <Label className="text-xs text-brand-700">
                             Hora inicio <span className="text-red-500">*</span>
                         </Label>
                         <Input
@@ -348,7 +348,7 @@ export function InductionFormFields({
                         <InputError message={errors.start_time} />
                     </div>
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">
+                        <Label className="text-xs text-brand-700">
                             Hora término <span className="text-red-500">*</span>
                         </Label>
                         <Input
@@ -360,7 +360,7 @@ export function InductionFormFields({
                         <InputError message={errors.end_time} />
                     </div>
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">Tiempo estimado (min)</Label>
+                        <Label className="text-xs text-brand-700">Tiempo estimado (min)</Label>
                         <Input
                             type="number"
                             min={1}
@@ -371,7 +371,7 @@ export function InductionFormFields({
                         />
                     </div>
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">Sede</Label>
+                        <Label className="text-xs text-brand-700">Sede</Label>
                         <SearchableCombobox
                             value={values.site_id || null}
                             options={sites.map((site) => ({
@@ -390,12 +390,12 @@ export function InductionFormFields({
                             menuMinWidth={320}
                         />
                         {savedSede ? (
-                            <p className="text-xs text-[#6b8ead]">Texto guardado: {savedSede}</p>
+                            <p className="text-xs text-muted-foreground">Texto guardado: {savedSede}</p>
                         ) : null}
                         <InputError message={errors.site_id} />
                     </div>
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">Departamento</Label>
+                        <Label className="text-xs text-brand-700">Departamento</Label>
                         <Input
                             value={values.department}
                             onChange={(e) => onChange('department', e.target.value)}
@@ -403,7 +403,7 @@ export function InductionFormFields({
                         />
                     </div>
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">Área</Label>
+                        <Label className="text-xs text-brand-700">Área</Label>
                         <Input
                             value={values.area}
                             onChange={(e) => onChange('area', e.target.value)}
@@ -411,7 +411,7 @@ export function InductionFormFields({
                         />
                     </div>
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">Sección</Label>
+                        <Label className="text-xs text-brand-700">Sección</Label>
                         <Input
                             value={values.section}
                             onChange={(e) => onChange('section', e.target.value)}
@@ -419,7 +419,7 @@ export function InductionFormFields({
                         />
                     </div>
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">Lugar</Label>
+                        <Label className="text-xs text-brand-700">Lugar</Label>
                         <SearchableCombobox
                             value={values.place_id || null}
                             options={places.map((place) => ({
@@ -437,12 +437,12 @@ export function InductionFormFields({
                             menuMinWidth={320}
                         />
                         {savedPlace ? (
-                            <p className="text-xs text-[#6b8ead]">Texto guardado: {savedPlace}</p>
+                            <p className="text-xs text-muted-foreground">Texto guardado: {savedPlace}</p>
                         ) : null}
                         <InputError message={errors.place_id} />
                     </div>
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">Grupo objetivo</Label>
+                        <Label className="text-xs text-brand-700">Grupo objetivo</Label>
                         <Input
                             value={values.target_group}
                             onChange={(e) => onChange('target_group', e.target.value)}
@@ -450,7 +450,7 @@ export function InductionFormFields({
                         />
                     </div>
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">Cultivo</Label>
+                        <Label className="text-xs text-brand-700">Cultivo</Label>
                         <Input
                             value={values.crop}
                             onChange={(e) => onChange('crop', e.target.value)}
@@ -458,7 +458,7 @@ export function InductionFormFields({
                         />
                     </div>
                     <div className="grid gap-1.5 sm:col-span-2">
-                        <Label className="text-xs text-[#1a2b4c]">Unidad</Label>
+                        <Label className="text-xs text-brand-700">Unidad</Label>
                         <Input
                             value={values.org_unit}
                             onChange={(e) => onChange('org_unit', e.target.value)}
@@ -473,7 +473,7 @@ export function InductionFormFields({
                 <SectionTitle>Expositor</SectionTitle>
                 <div className="grid gap-3 sm:grid-cols-2">
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">Nombre del expositor</Label>
+                        <Label className="text-xs text-brand-700">Nombre del expositor</Label>
                         <Input
                             value={values.speaker_name}
                             onChange={(e) => onChange('speaker_name', e.target.value)}
@@ -481,7 +481,7 @@ export function InductionFormFields({
                         />
                     </div>
                     <div className="grid gap-1.5">
-                        <Label className="text-xs text-[#1a2b4c]">Institución de procedencia</Label>
+                        <Label className="text-xs text-brand-700">Institución de procedencia</Label>
                         <Input
                             value={values.speaker_institution}
                             onChange={(e) =>
@@ -496,7 +496,7 @@ export function InductionFormFields({
 
             {!isEditing ? (
                 <div className="grid gap-1.5">
-                    <Label className="text-xs text-[#1a2b4c]">Estado inicial</Label>
+                    <Label className="text-xs text-brand-700">Estado inicial</Label>
                     <Select
                         modal={false}
                         value={values.status || 'scheduled'}

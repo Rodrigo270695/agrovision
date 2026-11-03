@@ -17,17 +17,17 @@ export function InductionsTab({
     return (
         <div className="grid gap-4">
             <div className="grid gap-4 lg:grid-cols-[220px_220px_1fr]">
-                <div className="flex items-center justify-center rounded-2xl border border-[#d7e3f0] bg-white p-4">
+                <div className="flex items-center justify-center rounded-2xl border border-brand-200 bg-white p-4">
                     <Ring percent={attendancePercent} label="Llegaron de los citados" />
                 </div>
-                <div className="flex items-center justify-center rounded-2xl border border-[#d7e3f0] bg-white p-4">
+                <div className="flex items-center justify-center rounded-2xl border border-brand-200 bg-white p-4">
                     <Ring
                         percent={signedPercent}
                         label="Firmaron y pusieron huella"
                     />
                 </div>
-                <div className="rounded-2xl border border-[#d7e3f0] bg-white p-4">
-                    <h3 className="mb-3 text-sm font-semibold text-[#1a2b4c]">
+                <div className="rounded-2xl border border-brand-200 bg-white p-4">
+                    <h3 className="mb-3 text-sm font-semibold text-brand-700">
                         Citados por capacitación
                     </h3>
                     <BarChart
@@ -40,9 +40,9 @@ export function InductionsTab({
                     />
                 </div>
             </div>
-            <div className="overflow-x-auto rounded-2xl border border-[#d7e3f0] bg-white">
+            <div className="overflow-x-auto rounded-2xl border border-brand-200 bg-white">
                 <table className="w-full min-w-[860px] text-sm">
-                    <thead className="bg-[#f7fafc] text-left text-xs tracking-wide text-[#5a7390] uppercase">
+                    <thead className="bg-[#f7fafc] text-left text-xs tracking-wide text-muted-foreground uppercase">
                         <tr>
                             <th className="px-4 py-3">Capacitación</th>
                             <th className="px-4 py-3">Responsable</th>
@@ -56,18 +56,18 @@ export function InductionsTab({
                     <tbody>
                         {rows.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="px-4 py-6 text-[#5a7390]">
+                                <td colSpan={7} className="px-4 py-6 text-muted-foreground">
                                     No hay capacitaciones en este periodo.
                                 </td>
                             </tr>
                         ) : (
                             rows.map((row) => (
-                                <tr key={row.id} className="border-t border-[#e2eaf3]">
+                                <tr key={row.id} className="border-t border-brand-200">
                                     <td className="px-4 py-3">
-                                        <p className="font-medium text-[#1a2b4c]">
+                                        <p className="font-medium text-brand-700">
                                             {row.title}
                                         </p>
-                                        <p className="text-xs text-[#5a7390]">
+                                        <p className="text-xs text-muted-foreground">
                                             {row.when} · {row.status}
                                         </p>
                                     </td>

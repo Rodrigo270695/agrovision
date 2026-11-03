@@ -28,7 +28,7 @@ type Props = {
 };
 
 const checkClassName =
-    'size-3.5 shrink-0 border-[#9bb4ce] data-[state=checked]:border-[#2e5a9e] data-[state=checked]:bg-[#2e5a9e] data-[state=checked]:text-white';
+    'size-3.5 shrink-0 border-[#9bb4ce] data-[state=checked]:border-brand-500 data-[state=checked]:bg-brand-500 data-[state=checked]:text-white';
 
 export function UserRolesModal({
     open,
@@ -161,7 +161,7 @@ export function UserRolesModal({
                         variant="outline"
                         onClick={handleClose}
                         disabled={form.processing}
-                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c] hover:bg-white"
+                        className="cursor-pointer border-brand-300 text-brand-700 hover:bg-white"
                     >
                         Cancelar
                     </Button>
@@ -169,7 +169,7 @@ export function UserRolesModal({
                         type="submit"
                         form="user-roles-form"
                         disabled={form.processing || !user}
-                        className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {form.processing ? <Spinner /> : null}
                         Guardar roles
@@ -182,14 +182,14 @@ export function UserRolesModal({
                 onSubmit={handleSubmit}
                 className="flex flex-col"
             >
-                <div className="sticky top-0 z-10 border-b border-[#e2eaf3] bg-white px-4 py-2 sm:px-5">
+                <div className="sticky top-0 z-10 border-b border-brand-200 bg-white px-4 py-2 sm:px-5">
                     <div className="relative">
-                        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-[#6b8ead]" />
+                        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
                         <Input
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Buscar rol..."
-                            className="h-8 border-[#c5d5e6] bg-[#f8fafc] pl-8 text-xs focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/30"
+                            className="h-8 border-brand-300 bg-background pl-8 text-xs focus-visible:border-brand-500 focus-visible:ring-brand-400/30"
                         />
                     </div>
                 </div>
@@ -197,7 +197,7 @@ export function UserRolesModal({
                 <div className="space-y-1 px-4 py-2.5 sm:px-5">
                     {needsPlace ? (
                         <div className="mb-2 grid gap-1.5">
-                            <Label className="text-xs text-[#1a2b4c]">
+                            <Label className="text-xs text-brand-700">
                                 Lugares <span className="text-red-500">*</span>
                             </Label>
                             <PlaceMultiPicker
@@ -208,7 +208,7 @@ export function UserRolesModal({
                                 }
                                 disabled={form.processing}
                             />
-                            <p className="text-[11px] text-[#6b8ead]">
+                            <p className="text-[11px] text-muted-foreground">
                                 {form.data.place_ids.length}{' '}
                                 {form.data.place_ids.length === 1
                                     ? 'lugar seleccionado'
@@ -223,7 +223,7 @@ export function UserRolesModal({
                         </div>
                     ) : null}
                     {filteredRoles.length === 0 ? (
-                        <p className="py-6 text-center text-xs text-[#6b8ead]">
+                        <p className="py-6 text-center text-xs text-muted-foreground">
                             No se encontraron roles.
                         </p>
                     ) : (
@@ -236,9 +236,9 @@ export function UserRolesModal({
                                 <label
                                     key={role.id}
                                     className={cn(
-                                        'flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs text-[#1a2b4c] transition-colors hover:bg-[#f8fafc]',
+                                        'flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs text-brand-700 transition-colors hover:bg-background',
                                         checked &&
-                                            'bg-[#e8f1fa]/70 ring-1 ring-[#c5d5e6]',
+                                            'bg-brand-100/70 ring-1 ring-brand-300',
                                     )}
                                 >
                                     <Checkbox

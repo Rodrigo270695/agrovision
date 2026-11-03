@@ -25,10 +25,10 @@ export function InductionsStats({ stats }: Props) {
             {items.map((item) => (
                 <span
                     key={item.label}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-[#d7e3f0] bg-[#f8fafc] px-2.5 py-1 text-xs text-[#5a7390]"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-background px-2.5 py-1 text-xs text-muted-foreground"
                 >
-                    <span className="font-medium text-[#1a2b4c]">{item.label}</span>
-                    <span className="font-semibold text-[#2e5a9e]">{item.value}</span>
+                    <span className="font-medium text-brand-700">{item.label}</span>
+                    <span className="font-semibold text-brand-500">{item.value}</span>
                 </span>
             ))}
         </div>

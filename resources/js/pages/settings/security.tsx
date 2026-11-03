@@ -67,7 +67,7 @@ export default function Security(props: Props) {
                                     id="current_password"
                                     ref={currentPasswordInput}
                                     name="current_password"
-                                    className="mt-1 block w-full border-[#c5d5e6]"
+                                    className="mt-1 block w-full border-brand-300"
                                     autoComplete="current-password"
                                     placeholder="Contraseña actual"
                                 />
@@ -84,7 +84,7 @@ export default function Security(props: Props) {
                                     id="password"
                                     ref={passwordInput}
                                     name="password"
-                                    className="mt-1 block w-full border-[#c5d5e6]"
+                                    className="mt-1 block w-full border-brand-300"
                                     autoComplete="new-password"
                                     placeholder="Nueva contraseña"
                                     passwordrules={props.passwordRules}
@@ -101,7 +101,7 @@ export default function Security(props: Props) {
                                 <PasswordInput
                                     id="password_confirmation"
                                     name="password_confirmation"
-                                    className="mt-1 block w-full border-[#c5d5e6]"
+                                    className="mt-1 block w-full border-brand-300"
                                     autoComplete="new-password"
                                     placeholder="Confirmar contraseña"
                                     passwordrules={props.passwordRules}
@@ -116,7 +116,7 @@ export default function Security(props: Props) {
                                 <Button
                                     disabled={processing}
                                     data-test="update-password-button"
-                                    className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c]"
+                                    className="cursor-pointer bg-brand-500 text-white hover:bg-brand-700"
                                 >
                                     Guardar
                                 </Button>

@@ -45,12 +45,12 @@ export function AppSidebarHeader({
                 : breadcrumbs;
 
     return (
-        <header className="z-20 flex h-14 shrink-0 items-center gap-2 border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 sm:px-4 md:px-4">
+        <header className="z-20 flex h-14 shrink-0 items-center gap-2 border-b border-brand-200/80 bg-card/95 px-4 backdrop-blur transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 sm:px-4 md:px-4">
             <div className="flex min-w-0 flex-1 items-center gap-3">
                 <SidebarTrigger />
                 <span
                     aria-hidden
-                    className="hidden h-5 w-px bg-slate-200 sm:block"
+                    className="hidden h-5 w-px bg-brand-200 sm:block"
                 />
                 <Breadcrumbs breadcrumbs={resolvedBreadcrumbs} />
             </div>

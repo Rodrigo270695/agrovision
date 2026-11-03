@@ -66,8 +66,8 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                                     className={cn(
                                         'w-full cursor-pointer justify-start rounded-lg',
                                         active
-                                            ? 'bg-[#e8f1fa] font-semibold text-[#1a2b4c] hover:bg-[#dce9f6] hover:text-[#1a2b4c]'
-                                            : 'text-[#5a7390] hover:bg-[#f4f8fc] hover:text-[#1a2b4c]',
+                                            ? 'bg-brand-100 font-semibold text-brand-700 hover:bg-[#dce9f6] hover:text-brand-700'
+                                            : 'text-muted-foreground hover:bg-[#f4f8fc] hover:text-brand-700',
                                     )}
                                 >
                                     <Link href={item.href}>{item.title}</Link>

@@ -40,7 +40,7 @@ type Props = {
 const lockedModules = new Set(['dashboard', 'users', 'roles']);
 
 const inputClassName =
-    'h-11 border-[#c5d5e6] bg-white focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35';
+    'h-11 border-brand-300 bg-white focus-visible:border-brand-500 focus-visible:ring-brand-400/35';
 
 function defaultModules(catalog: Record<string, string>): Record<string, boolean> {
     return Object.fromEntries(Object.keys(catalog).map((key) => [key, true]));
@@ -146,14 +146,14 @@ export function TenantFormModal({ open, tenant = null, modules, onClose }: Props
                         type="button"
                         variant="outline"
                         onClick={handleClose}
-                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c] hover:bg-white"
+                        className="cursor-pointer border-brand-300 text-brand-700 hover:bg-white"
                     >
                         Cancelar
                     </Button>
                     <Button
                         type="submit"
                         disabled={!canSubmit}
-                        className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {form.processing ? <Spinner /> : null}
                         {isEditing ? 'Guardar cambios' : 'Crear empresa'}
@@ -174,7 +174,7 @@ export function TenantFormModal({ open, tenant = null, modules, onClose }: Props
                         className={inputClassName}
                     />
                     {isEditing ? (
-                        <p className="text-xs text-[#6b8ead]">
+                        <p className="text-xs text-muted-foreground">
                             La dirección queda en{' '}
                             {(form.data.id.trim() || 'subdominio') +
                                 '.' +
@@ -248,7 +248,7 @@ export function TenantFormModal({ open, tenant = null, modules, onClose }: Props
                 )}
 
                 <div className="grid gap-2">
-                    <p className="text-sm font-medium text-[#1a2b4c]">Módulos</p>
+                    <p className="text-sm font-medium text-brand-700">Módulos</p>
                     <div className="grid grid-cols-2 gap-2">
                         {Object.entries(modules).map(([key, label]) => {
                             const locked = lockedModules.has(key);
@@ -256,7 +256,7 @@ export function TenantFormModal({ open, tenant = null, modules, onClose }: Props
                             return (
                                 <label
                                     key={key}
-                                    className="flex items-center gap-2 text-sm text-[#1a2b4c]"
+                                    className="flex items-center gap-2 text-sm text-brand-700"
                                 >
                                     <Checkbox
                                         checked={form.data.modules[key] ?? true}

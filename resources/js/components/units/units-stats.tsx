@@ -15,7 +15,7 @@ const items = [
         key: 'units',
         label: 'Unidades',
         icon: Bus,
-        className: 'bg-[#e8f1fa] text-[#2e5a9e]',
+        className: 'bg-brand-100 text-brand-500',
     },
     {
         key: 'providers',

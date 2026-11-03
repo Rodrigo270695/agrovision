@@ -23,7 +23,7 @@ type Props = {
 };
 
 const inputClass =
-    'h-10 border-[#c5d5e6] bg-white text-[#1a2b4c] focus-visible:border-[#2e5a9e] focus-visible:ring-[#4a90e2]/35';
+    'h-10 border-brand-300 bg-white text-brand-700 focus-visible:border-brand-500 focus-visible:ring-brand-400/35';
 
 function dateValue(value?: string | null): string {
     if (!value) {
@@ -91,7 +91,7 @@ export function InductionFormatsModal({ open, formats, onClose }: Props) {
                         type="button"
                         variant="outline"
                         onClick={onClose}
-                        className="cursor-pointer border-[#c5d5e6] text-[#1a2b4c]"
+                        className="cursor-pointer border-brand-300 text-brand-700"
                     >
                         Cancelar
                     </Button>
@@ -99,7 +99,7 @@ export function InductionFormatsModal({ open, formats, onClose }: Props) {
                         type="submit"
                         form="induction-formats-form"
                         disabled={form.processing}
-                        className="cursor-pointer bg-[#1a2b4c] text-white hover:bg-[#122038]"
+                        className="cursor-pointer bg-brand-700 text-white hover:bg-brand-700"
                     >
                         {form.processing ? <Spinner /> : null}
                         Guardar
@@ -112,8 +112,8 @@ export function InductionFormatsModal({ open, formats, onClose }: Props) {
                 onSubmit={handleSubmit}
                 className="space-y-4"
             >
-                <section className="space-y-3 rounded-xl border border-[#d7e3f0] p-3">
-                    <h3 className="text-sm font-semibold text-[#1a2b4c]">
+                <section className="space-y-3 rounded-xl border border-brand-200 p-3">
+                    <h3 className="text-sm font-semibold text-brand-700">
                         Registro
                     </h3>
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -134,7 +134,7 @@ export function InductionFormatsModal({ open, formats, onClose }: Props) {
                             }
                         />
                         <div className="grid gap-1.5 sm:col-span-2">
-                            <Label className="text-xs text-[#1a2b4c]">
+                            <Label className="text-xs text-brand-700">
                                 Fecha
                             </Label>
                             <Input
@@ -152,8 +152,8 @@ export function InductionFormatsModal({ open, formats, onClose }: Props) {
                     </div>
                 </section>
 
-                <section className="space-y-3 rounded-xl border border-[#d7e3f0] p-3">
-                    <h3 className="text-sm font-semibold text-[#1a2b4c]">
+                <section className="space-y-3 rounded-xl border border-brand-200 p-3">
+                    <h3 className="text-sm font-semibold text-brand-700">
                         RISST
                     </h3>
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -176,8 +176,8 @@ export function InductionFormatsModal({ open, formats, onClose }: Props) {
                     </div>
                 </section>
 
-                <section className="space-y-3 rounded-xl border border-[#d7e3f0] p-3">
-                    <h3 className="text-sm font-semibold text-[#1a2b4c]">
+                <section className="space-y-3 rounded-xl border border-brand-200 p-3">
+                    <h3 className="text-sm font-semibold text-brand-700">
                         RITRAN
                     </h3>
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -217,7 +217,7 @@ function Field({
 }) {
     return (
         <div className="grid gap-1.5">
-            <Label className="text-xs text-[#1a2b4c]">
+            <Label className="text-xs text-brand-700">
                 {label} <span className="text-red-500">*</span>
             </Label>
             <Input

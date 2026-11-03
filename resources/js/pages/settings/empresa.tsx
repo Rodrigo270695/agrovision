@@ -53,7 +53,7 @@ export default function Empresa({ branding }: { branding: Branding }) {
                                     required
                                     defaultValue={branding.name}
                                     placeholder="Macga"
-                                    className="mt-1 block w-full border-[#c5d5e6]"
+                                    className="mt-1 block w-full border-brand-300"
                                 />
                                 <InputError
                                     className="mt-2"
@@ -68,9 +68,9 @@ export default function Empresa({ branding }: { branding: Branding }) {
                                     name="legal_name"
                                     defaultValue={branding.legal_name ?? ''}
                                     placeholder="Macga S.A.C."
-                                    className="mt-1 block w-full border-[#c5d5e6]"
+                                    className="mt-1 block w-full border-brand-300"
                                 />
-                                <p className="text-xs text-[#6b8ead]">
+                                <p className="text-xs text-muted-foreground">
                                     Opcional. Úsala si el nombre legal es
                                     distinto al comercial.
                                 </p>
@@ -82,7 +82,7 @@ export default function Empresa({ branding }: { branding: Branding }) {
 
                             <div className="grid gap-3">
                                 <Label htmlFor="logo">Logo</Label>
-                                <div className="flex items-center gap-4 rounded-2xl border border-[#d7e3f0] bg-[#f7fafc] p-4">
+                                <div className="flex items-center gap-4 rounded-2xl border border-brand-200 bg-[#f7fafc] p-4">
                                     <TenantBrandMark
                                         name={branding.name}
                                         logo={preview}
@@ -95,7 +95,7 @@ export default function Empresa({ branding }: { branding: Branding }) {
                                             name="logo"
                                             type="file"
                                             accept="image/png,image/jpeg,image/webp"
-                                            className="block w-full cursor-pointer border-[#c5d5e6] text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#1a2b4c] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white"
+                                            className="block w-full cursor-pointer border-brand-300 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-brand-700 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white"
                                             onChange={(event) => {
                                                 const file =
                                                     event.target.files?.[0];
@@ -110,7 +110,7 @@ export default function Empresa({ branding }: { branding: Branding }) {
                                                 setPreview(url);
                                             }}
                                         />
-                                        <p className="text-xs text-[#6b8ead]">
+                                        <p className="text-xs text-muted-foreground">
                                             PNG, JPG o WEBP. Máximo 2 MB.
                                         </p>
                                     </div>
@@ -125,7 +125,7 @@ export default function Empresa({ branding }: { branding: Branding }) {
                                 <Button
                                     disabled={processing}
                                     data-test="update-branding-button"
-                                    className="cursor-pointer bg-[#2e5a9e] text-white hover:bg-[#1a2b4c]"
+                                    className="cursor-pointer bg-brand-500 text-white hover:bg-brand-700"
                                 >
                                     Guardar
                                 </Button>
