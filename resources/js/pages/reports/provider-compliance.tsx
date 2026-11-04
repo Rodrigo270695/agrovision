@@ -96,10 +96,10 @@ export default function ProviderComplianceReportPage() {
                 />
 
                 <PlatformToolbar>
-                    <label className="text-xs font-semibold text-brand-700">
+                    <label className="min-w-0 flex-1 text-xs font-semibold text-brand-700 sm:flex-none">
                         Plantilla
                         <select
-                            className="mt-1 block rounded-lg border border-brand-300 bg-white px-3 py-2 text-xs font-medium text-brand-700"
+                            className="mt-1 block w-full rounded-lg border border-brand-300 bg-white px-3 py-2 text-xs font-medium text-brand-700 sm:w-auto"
                             value={filters.template}
                             onChange={(event) =>
                                 visit({
@@ -115,7 +115,7 @@ export default function ProviderComplianceReportPage() {
                             ))}
                         </select>
                     </label>
-                    <div>
+                    <div className="min-w-0 w-full sm:w-auto">
                         <p className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                             Rango de fechas
                         </p>

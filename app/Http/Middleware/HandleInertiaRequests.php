@@ -130,7 +130,8 @@ class HandleInertiaRequests extends Middleware
                     ->where('status', InspectionEditRequest::PENDING)
                     ->with([
                         'requester:id,name',
-                        'checklist:id,plate_number,driver_name',
+                        'checklist:id,plate_number,driver_name,created_by',
+                        'checklist.creator:id,name',
                     ])
                     ->latest('id')
                     ->limit(12)
@@ -146,6 +147,8 @@ class HandleInertiaRequests extends Middleware
                         'plate_number' => $request->checklist?->plate_number,
                         'driver_name' => $request->checklist?->driver_name,
                         'requester_name' => $request->requester?->name,
+                        'inspector_name' => $request->checklist?->creator?->name
+                            ?? $request->requester?->name,
                     ])->values(),
                 ];
             },

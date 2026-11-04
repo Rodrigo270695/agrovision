@@ -105,7 +105,7 @@ export function DashboardPage({ data }: { data: DashboardProps }) {
     const inductions = charts?.inductions ?? [];
 
     return (
-        <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-5 overflow-x-hidden p-4 sm:p-6">
             <header className="flex flex-col gap-3 border-b border-border/60 pb-4 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
                     <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
@@ -120,11 +120,13 @@ export function DashboardPage({ data }: { data: DashboardProps }) {
                     </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
                     {activePeriod ? (
-                        <div className="inline-flex h-9 items-center gap-2 rounded-lg border border-brand-200 bg-white px-3 text-xs text-brand-700">
-                            <CalendarRange className="size-3.5 text-brand-500" />
-                            Periodo <strong>{activePeriod.name}</strong>
+                        <div className="inline-flex h-9 max-w-full items-center gap-2 rounded-lg border border-brand-200 bg-white px-3 text-xs text-brand-700">
+                            <CalendarRange className="size-3.5 shrink-0 text-brand-500" />
+                            <span className="truncate">
+                                Periodo <strong>{activePeriod.name}</strong>
+                            </span>
                         </div>
                     ) : (
                         <div className="inline-flex h-9 items-center rounded-lg border border-[#e6dcc0] bg-[#fbf7ee] px-3 text-xs text-[#8a6d3b]">
@@ -141,16 +143,16 @@ export function DashboardPage({ data }: { data: DashboardProps }) {
                 </div>
             </header>
 
-            <section className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-brand-200 bg-brand-200 sm:grid-cols-3 xl:grid-cols-6">
+            <section className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-brand-200 bg-brand-200 sm:grid-cols-3 2xl:grid-cols-6">
                 {strip.map((kpi) => {
                     const Icon = kpiIcons[kpi.key] ?? Bus;
                     const body = (
-                        <div className="flex h-full items-center gap-3 bg-white px-3.5 py-3">
+                        <div className="flex h-full min-w-0 items-center gap-2.5 bg-white px-3 py-3 sm:gap-3 sm:px-3.5">
                             <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
                                 <Icon className="size-3.5" strokeWidth={2.25} />
                             </span>
                             <div className="min-w-0">
-                                <p className="text-lg leading-none font-semibold text-brand-700">
+                                <p className="truncate text-base leading-none font-semibold text-brand-700 sm:text-lg">
                                     {kpi.value}
                                 </p>
                                 <p className="mt-1 truncate text-[11px] text-muted-foreground">
@@ -161,7 +163,11 @@ export function DashboardPage({ data }: { data: DashboardProps }) {
                     );
 
                     if (!kpi.href) {
-                        return <div key={kpi.key}>{body}</div>;
+                        return (
+                            <div key={kpi.key} className="min-w-0">
+                                {body}
+                            </div>
+                        );
                     }
 
                     return (
@@ -169,7 +175,7 @@ export function DashboardPage({ data }: { data: DashboardProps }) {
                             key={kpi.key}
                             href={kpi.href}
                             className={cn(
-                                'block cursor-pointer transition-colors hover:bg-[#f4f8fc]',
+                                'block min-w-0 cursor-pointer transition-colors hover:bg-[#f4f8fc]',
                             )}
                         >
                             {body}
@@ -178,7 +184,7 @@ export function DashboardPage({ data }: { data: DashboardProps }) {
                 })}
             </section>
 
-            <section className="grid gap-4 xl:grid-cols-3">
+            <section className="grid min-w-0 gap-4 2xl:grid-cols-3">
                 <DashboardDonutChart
                     title="Vencimientos"
                     subtitle="Documentos de la flota"
@@ -188,15 +194,16 @@ export function DashboardPage({ data }: { data: DashboardProps }) {
                     title="Unidades por mes"
                     subtitle="Últimos 6 meses"
                     data={unitsTrend}
-                    className="xl:col-span-2"
+                    className="min-w-0 2xl:col-span-2"
                 />
             </section>
 
-            <section className="grid gap-4 xl:grid-cols-2">
+            <section className="grid min-w-0 gap-4 2xl:grid-cols-2">
                 <DashboardBarChart
                     title="Inspecciones"
                     subtitle="Estado operativo de checklists"
                     data={inspections}
+                    className="min-w-0"
                 />
                 <DashboardDonutChart
                     title="Inducciones SST"

@@ -30,12 +30,12 @@ export function DashboardBarChart({
     return (
         <div
             className={cn(
-                'rounded-2xl border border-brand-200 bg-white p-4 shadow-sm',
+                'min-w-0 overflow-hidden rounded-2xl border border-brand-200 bg-white p-4 shadow-sm',
                 className,
             )}
         >
-            <div className="mb-4 flex items-start justify-between gap-3">
-                <div>
+            <div className="mb-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
                     <h3 className="text-sm font-semibold text-brand-700">
                         {title}
                     </h3>
@@ -79,15 +79,15 @@ export function DashboardBarChart({
                         );
 
                         return (
-                            <div key={item.label} className="space-y-1">
-                                <div className="flex items-center justify-between gap-2 text-xs">
+                            <div key={item.label} className="min-w-0 space-y-1">
+                                <div className="flex min-w-0 items-center justify-between gap-2 text-xs">
                                     <span
-                                        className="truncate font-medium text-muted-foreground"
+                                        className="min-w-0 truncate font-medium text-muted-foreground"
                                         title={item.label}
                                     >
                                         {item.label}
                                     </span>
-                                    <span className="shrink-0 font-semibold text-brand-700">
+                                    <span className="shrink-0 font-semibold tabular-nums text-brand-700">
                                         {dual
                                             ? `${item.value} / ${item.secondary ?? 0}`
                                             : item.value}

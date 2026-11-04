@@ -17,6 +17,7 @@ type ApprovalItem = {
     plate_number?: string | null;
     driver_name?: string | null;
     requester_name?: string | null;
+    inspector_name?: string | null;
 };
 
 type ApprovalProps = {
@@ -40,7 +41,10 @@ function ApprovalList({
     return (
         <ul className="mt-3 max-h-80 space-y-2 overflow-y-auto">
             {items.map((item) => {
-                const inspector = item.requester_name?.trim() || 'Inspector';
+                const requester =
+                    item.requester_name?.trim() ||
+                    item.inspector_name?.trim() ||
+                    'Inspector';
 
                 return (
                     <li
@@ -51,10 +55,16 @@ function ApprovalList({
                             {item.plate_number || 'Sin placa'} · {item.pass}{' '}
                             inspección
                         </p>
-                        <p className="mt-1 text-[11px] leading-snug text-brand-700">
-                            <span className="font-semibold">{inspector}</span>
-                            {' '}
-                            (inspector) solicita autorización para editar
+                        <p className="mt-1.5 text-[11px] leading-snug text-brand-700">
+                            <span className="text-muted-foreground">
+                                Inspector solicitante:{' '}
+                            </span>
+                            <span className="font-semibold text-brand-800">
+                                {requester}
+                            </span>
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                            Pide autorización para editar esta inspección.
                         </p>
                         {item.driver_name ? (
                             <p className="mt-0.5 text-[11px] text-muted-foreground">

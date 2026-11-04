@@ -116,7 +116,7 @@ export default function FleetComplianceReportPage() {
                         </div>
                     }
                 >
-                    <div>
+                    <div className="min-w-0 w-full sm:w-auto">
                         <p className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                             Rango de fechas
                         </p>
@@ -135,7 +135,7 @@ export default function FleetComplianceReportPage() {
                             }
                         />
                     </div>
-                    <p className="max-w-xl text-xs text-muted-foreground">
+                    <p className="w-full text-xs text-muted-foreground sm:max-w-sm">
                         Solo se listan semanas con unidades en el rango (carga
                         de archivo o periodo en fechas).
                     </p>

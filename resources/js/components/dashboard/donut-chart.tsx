@@ -41,19 +41,21 @@ export function DashboardDonutChart({
     return (
         <div
             className={cn(
-                'rounded-2xl border border-brand-200 bg-white p-4 shadow-sm',
+                'min-w-0 overflow-hidden rounded-2xl border border-brand-200 bg-white p-4 shadow-sm',
                 className,
             )}
         >
-            <div className="mb-4">
+            <div className="mb-4 min-w-0">
                 <h3 className="text-sm font-semibold text-brand-700">{title}</h3>
                 {subtitle ? (
-                    <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                        {subtitle}
+                    </p>
                 ) : null}
             </div>
 
-            <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-                <div className="relative size-40 shrink-0">
+            <div className="flex min-w-0 flex-col items-center gap-4">
+                <div className="relative size-36 shrink-0 sm:size-40">
                     <svg viewBox="0 0 140 140" className="size-full -rotate-90">
                         <circle
                             cx="70"
@@ -88,32 +90,39 @@ export function DashboardDonutChart({
                     </div>
                 </div>
 
-                <ul className="w-full space-y-2">
-                    {points.map((item) => (
-                        <li
-                            key={item.label}
-                            className="flex items-center justify-between gap-3 text-xs"
-                        >
-                            <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
-                                <span
-                                    className="size-2.5 shrink-0 rounded-full"
-                                    style={{
-                                        backgroundColor: item.color ?? '#1e4d8c',
-                                    }}
-                                />
-                                <span className="truncate">{item.label}</span>
-                            </span>
-                            <span className="font-semibold text-brand-700">
-                                {item.value}
-                                {total > 0 ? (
-                                    <span className="ml-1 font-normal text-muted-foreground">
-                                        ({Math.round((item.value / total) * 100)}
-                                        %)
+                <ul className="w-full min-w-0 space-y-2">
+                    {points.map((item) => {
+                        const percent =
+                            total > 0
+                                ? Math.round((item.value / total) * 100)
+                                : 0;
+
+                        return (
+                            <li
+                                key={item.label}
+                                className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 gap-y-0.5 text-xs"
+                            >
+                                <span className="flex min-w-0 items-start gap-2 text-muted-foreground">
+                                    <span
+                                        className="mt-1 size-2.5 shrink-0 rounded-full"
+                                        style={{
+                                            backgroundColor:
+                                                item.color ?? '#1e4d8c',
+                                        }}
+                                    />
+                                    <span className="min-w-0 break-words leading-snug">
+                                        {item.label}
                                     </span>
-                                ) : null}
-                            </span>
-                        </li>
-                    ))}
+                                </span>
+                                <span className="shrink-0 text-right font-semibold tabular-nums text-brand-700">
+                                    {item.value}
+                                    <span className="ml-1 font-normal text-muted-foreground">
+                                        ({percent}%)
+                                    </span>
+                                </span>
+                            </li>
+                        );
+                    })}
                 </ul>
             </div>
         </div>
