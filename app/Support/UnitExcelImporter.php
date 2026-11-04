@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\DriverBlacklistEntry;
 use App\Models\Period;
 use App\Models\Unit;
 use App\Models\UnitMovement;
@@ -207,9 +208,10 @@ final class UnitExcelImporter
             ['DNI CONDUCTOR', '1F6A5B', 16],
             ['CATEGORÍA', '1F6A5B', 16],
             ['COORDINADOR', '8A5A12', 28],
+            ['ESTADO', '1A2B4C', 12],
         ];
 
-        $lastColumn = 'R';
+        $lastColumn = 'S';
         $headerRow = 3;
 
         $sheet->mergeCells("A1:{$lastColumn}1");
@@ -313,6 +315,10 @@ final class UnitExcelImporter
             $sheet->setCellValueExplicit("P{$rowNumber}", (string) ($unit->driver_dni ?? ''), DataType::TYPE_STRING);
             $sheet->setCellValue("Q{$rowNumber}", (string) ($unit->category ?? ''));
             $sheet->setCellValue("R{$rowNumber}", (string) ($unit->coordinatorUser?->name ?? ''));
+            $sheet->setCellValue(
+                "S{$rowNumber}",
+                ($unit->status ?? '') === 'active' ? 'Activo' : 'Inactivo',
+            );
 
             $fill = $written % 2 === 0 ? 'FFFFFF' : 'F4F7FB';
             $sheet->getStyle("A{$rowNumber}:{$lastColumn}{$rowNumber}")->applyFromArray([
@@ -495,6 +501,12 @@ final class UnitExcelImporter
                 ->get();
         $firstNewPlateRow = [];
         $identityOwners = [];
+        $blacklistedKeys = DriverBlacklistEntry::query()
+            ->whereNull('lifted_at')
+            ->whereNotNull('identity_key')
+            ->pluck('identity_key')
+            ->flip()
+            ->all();
 
         foreach ($pending as $excelRow => $data) {
             $rowMessages = [];
@@ -513,6 +525,19 @@ final class UnitExcelImporter
             $movement = $existingMovements->first(
                 fn (UnitMovement $movement) => $this->movementIdentity($movement) === $identity,
             );
+
+            $driverKey = DriverIdentity::key(
+                $data['driver_dni'] ?? null,
+                $data['driver_name'] ?? null,
+            );
+
+            if ($driverKey !== null && isset($blacklistedKeys[$driverKey])) {
+                $dniDigits = preg_replace('/\D+/', '', (string) ($data['driver_dni'] ?? '')) ?: null;
+                $driverLabel = $dniDigits
+                    ? "DNI {$dniDigits}"
+                    : trim((string) ($data['driver_name'] ?? 'Conductor'));
+                $rowMessages[] = "{$driverLabel} está en lista negra. No se puede importar.";
+            }
 
             if ($unitId === null && ! isset($firstNewPlateRow[$plate])) {
                 if (($data['provider'] ?? null) === null) {
