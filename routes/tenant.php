@@ -295,6 +295,10 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:checklists.view')
             ->name('sst-board.item-detail');
 
+        Route::get('tablero-sst/detalle/{item}/excel', [SstBoardController::class, 'itemDetailExcel'])
+            ->middleware('permission:checklists.view')
+            ->name('sst-board.item-detail.excel');
+
         Route::get('reporte-sst/excel', [SecurityReportController::class, 'excel'])
             ->middleware('permission:checklists.view')
             ->name('checklists.security-report.excel');

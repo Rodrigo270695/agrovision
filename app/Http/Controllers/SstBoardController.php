@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SstBoardController extends Controller
 {
@@ -121,6 +122,45 @@ class SstBoardController extends Controller
                 'week_label' => $context['range']['label'],
             ],
         ]);
+    }
+
+    public function itemDetailExcel(Request $request, string $item): StreamedResponse
+    {
+        $context = $this->filterContext($request);
+        $itemNumber = trim($item);
+
+        if ($itemNumber === '') {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'status' => ['required', Rule::in(['ok', 'falta', 'baja', 'pendiente'])],
+        ]);
+
+        $status = $validated['status'];
+        $labels = [
+            'ok' => 'OK',
+            'falta' => 'Falta',
+            'baja' => 'Baja',
+            'pendiente' => 'Pendiente',
+        ];
+
+        $report = $this->itemDetailReport->build(
+            $context['template'],
+            $itemNumber,
+            $context['range'],
+            $context['coordinator_id'],
+            $context['vehicle_types'],
+            $context['inspector_id'],
+            $context['inspection'],
+        );
+
+        return $this->itemDetailReport->downloadUnitsExcel(
+            $report['units_by_status'][$status] ?? [],
+            $report['item']['label'],
+            $labels[$status],
+            $context['range']['label'],
+        );
     }
 
     /**

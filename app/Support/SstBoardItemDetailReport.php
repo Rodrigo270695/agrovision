@@ -10,6 +10,11 @@ use App\Models\UnitChecklist;
 use App\Models\UnitChecklistAnswer;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class SstBoardItemDetailReport
 {
@@ -19,6 +24,12 @@ final class SstBoardItemDetailReport
      * @return array{
      *     item: array{key: string, label: string},
      *     summary: array{ok: int, falta: int, baja: int, pendiente: int, total: int, percent: int},
+     *     units_by_status: array{
+     *         ok: list<array<string, mixed>>,
+     *         falta: list<array<string, mixed>>,
+     *         baja: list<array<string, mixed>>,
+     *         pendiente: list<array<string, mixed>>
+     *     },
      *     bars: list<array{
      *         label: string,
      *         week: int,
@@ -70,7 +81,8 @@ final class SstBoardItemDetailReport
             $activeParentIds,
         );
 
-        $summary = $this->summaryForRange($range, $periodData);
+        $grouped = $this->unitsGroupedForRange($range, $periodData);
+        $summary = $this->summaryFromGrouped($grouped);
         $bars = $this->weeklyBars($range, $periods, $periodData);
 
         $templateLabel = ChecklistTemplate::query()->where('type', $templateType)->first()?->displayLabel()
@@ -82,6 +94,12 @@ final class SstBoardItemDetailReport
                 'label' => trim((string) $item->label),
             ],
             'summary' => $summary,
+            'units_by_status' => [
+                'ok' => $grouped['ok'],
+                'falta' => $grouped['falta'],
+                'baja' => $grouped['baja'],
+                'pendiente' => $grouped['pendiente'],
+            ],
             'bars' => $bars,
             'source_label' => sprintf(
                 'Base de datos de %s actualizada · %s',
@@ -89,6 +107,147 @@ final class SstBoardItemDetailReport
                 $range['label'],
             ),
         ];
+    }
+
+    /**
+     * @param  'ok'|'falta'|'baja'|'pendiente'  $status
+     * @return list<array<string, mixed>>
+     */
+    public function unitsForStatus(
+        string $templateType,
+        string $itemNumber,
+        array $range,
+        ?int $coordinatorId,
+        Collection $vehicleTypes,
+        ?int $inspectorId,
+        string $inspection,
+        string $status,
+    ): array {
+        $report = $this->build(
+            $templateType,
+            $itemNumber,
+            $range,
+            $coordinatorId,
+            $vehicleTypes,
+            $inspectorId,
+            $inspection,
+        );
+
+        return $report['units_by_status'][$status] ?? [];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $units
+     */
+    public function downloadUnitsExcel(
+        array $units,
+        string $itemLabel,
+        string $statusLabel,
+        string $rangeLabel,
+    ): StreamedResponse {
+        $spreadsheet = new Spreadsheet;
+        $spreadsheet->getProperties()
+            ->setCreator('Agrovision')
+            ->setTitle("Tablero SST — {$itemLabel} — {$statusLabel}");
+
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle(mb_substr($statusLabel, 0, 31));
+
+        $headers = [
+            'Estado ítem',
+            'Placa',
+            'Correlativo',
+            'Conductor',
+            'DNI',
+            'Proveedor',
+            'T. vehículo',
+            'Sede',
+            'Garita',
+            'Estado unidad',
+            'Coordinador',
+            'Periodo',
+            'Fecha actividad',
+        ];
+
+        $sheet->mergeCells('A1:M1');
+        $sheet->setCellValue('A1', "{$itemLabel} · {$statusLabel} · {$rangeLabel}");
+        $sheet->getStyle('A1')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '1A2B4C'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_LEFT,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+        $sheet->getRowDimension(1)->setRowHeight(24);
+
+        foreach ($headers as $index => $header) {
+            $column = $index + 1;
+            $sheet->setCellValue([$column, 2], $header);
+            $sheet->getStyle([$column, 2])->applyFromArray([
+                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => '2E5A9E'],
+                ],
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                    'vertical' => Alignment::VERTICAL_CENTER,
+                ],
+            ]);
+            $sheet->getColumnDimensionByColumn($column)->setWidth(
+                match ($index) {
+                    0 => 14,
+                    1 => 12,
+                    2 => 14,
+                    3 => 28,
+                    4 => 12,
+                    5 => 36,
+                    6 => 14,
+                    7 => 16,
+                    8 => 14,
+                    9 => 14,
+                    10 => 22,
+                    11 => 18,
+                    default => 14,
+                },
+            );
+        }
+
+        foreach ($units as $index => $unit) {
+            $row = $index + 3;
+            $sheet->fromArray([
+                $statusLabel,
+                $unit['plate_number'] ?? '',
+                $unit['correlative'] ?? '',
+                $unit['driver_name'] ?? '',
+                $unit['driver_dni'] ?? '',
+                $unit['provider'] ?? '',
+                $unit['vehicle_type'] ?? '',
+                $unit['sede'] ?? '',
+                $unit['garita'] ?? '',
+                $unit['unit_status'] ?? '',
+                $unit['coordinator'] ?? '',
+                $unit['period_name'] ?? '',
+                isset($unit['activity_date']) && $unit['activity_date']
+                    ? CarbonImmutable::parse($unit['activity_date'])->format('d/m/Y')
+                    : '',
+            ], null, "A{$row}");
+        }
+
+        $slug = str($statusLabel)->slug('')->toString() ?: 'estado';
+        $filename = 'tablero-sst-'.str($itemLabel)->slug()->toString()."-{$slug}-".now()->format('Ymd_His').'.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet): void {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+            $spreadsheet->disconnectWorksheets();
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 
     /**
@@ -121,8 +280,22 @@ final class SstBoardItemDetailReport
                     $vehicleTypes->isNotEmpty(),
                     fn ($query) => $query->whereIn('vehicle_type', $vehicleTypes->all()),
                 )
+                ->with(['coordinatorUser:id,name', 'period:id,name,date'])
                 ->orderBy('id')
-                ->get(['id', 'period_id', 'plate_number', 'status']);
+                ->get([
+                    'id',
+                    'period_id',
+                    'correlative',
+                    'plate_number',
+                    'driver_name',
+                    'driver_dni',
+                    'provider',
+                    'vehicle_type',
+                    'sede',
+                    'garita',
+                    'status',
+                    'coordinator_id',
+                ]);
 
             $units = $this->uniqueUnits($units);
 
@@ -163,13 +336,18 @@ final class SstBoardItemDetailReport
     }
 
     /**
-     * Resumen alineado al rango: placas con planilla o inspección en las fechas filtradas.
+     * Unidades del rango agrupadas por estado del ítem (placa única, última actividad).
      *
      * @param  array{from: string|null, to: string|null, label: string}  $range
      * @param  list<array{period: Period, units: Collection<int, Unit>, checklists: Collection<int|string, UnitChecklist>, rows: list<array{unit: Unit, status: string}>}>  $periodData
-     * @return array{ok: int, falta: int, baja: int, pendiente: int, total: int, percent: int}
+     * @return array{
+     *     ok: list<array<string, mixed>>,
+     *     falta: list<array<string, mixed>>,
+     *     baja: list<array<string, mixed>>,
+     *     pendiente: list<array<string, mixed>>
+     * }
      */
-    private function summaryForRange(array $range, array $periodData): array
+    private function unitsGroupedForRange(array $range, array $periodData): array
     {
         $from = $range['from'] !== null
             ? CarbonImmutable::parse($range['from'])->startOfDay()
@@ -207,28 +385,81 @@ final class SstBoardItemDetailReport
                     $byPlate[$key] = [
                         'stamp' => $stamp,
                         'status' => $row['status'],
+                        'unit' => $this->serializeUnit($row['unit'], $row['status'], $latest),
                     ];
                 }
             }
         }
 
-        $counts = [
-            'ok' => 0,
-            'falta' => 0,
-            'baja' => 0,
-            'pendiente' => 0,
+        $grouped = [
+            'ok' => [],
+            'falta' => [],
+            'baja' => [],
+            'pendiente' => [],
         ];
 
         foreach ($byPlate as $entry) {
-            $counts[$entry['status']]++;
+            $grouped[$entry['status']][] = $entry['unit'];
         }
 
+        foreach ($grouped as $status => $rows) {
+            usort($grouped[$status], function (array $a, array $b): int {
+                return strcmp(
+                    (string) ($a['plate_number'] ?? ''),
+                    (string) ($b['plate_number'] ?? ''),
+                );
+            });
+        }
+
+        return $grouped;
+    }
+
+    /**
+     * @param  array{
+     *     ok: list<array<string, mixed>>,
+     *     falta: list<array<string, mixed>>,
+     *     baja: list<array<string, mixed>>,
+     *     pendiente: list<array<string, mixed>>
+     * }  $grouped
+     * @return array{ok: int, falta: int, baja: int, pendiente: int, total: int, percent: int}
+     */
+    private function summaryFromGrouped(array $grouped): array
+    {
+        $counts = [
+            'ok' => count($grouped['ok']),
+            'falta' => count($grouped['falta']),
+            'baja' => count($grouped['baja']),
+            'pendiente' => count($grouped['pendiente']),
+        ];
         $total = array_sum($counts);
 
         return [
             ...$counts,
             'total' => $total,
             'percent' => $total > 0 ? (int) round(($counts['ok'] / $total) * 100) : 0,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeUnit(Unit $unit, string $itemStatus, ?CarbonImmutable $activityDate): array
+    {
+        return [
+            'id' => $unit->id,
+            'correlative' => $unit->correlative,
+            'plate_number' => $unit->plate_number,
+            'driver_name' => $unit->driver_name,
+            'driver_dni' => $unit->driver_dni,
+            'provider' => $unit->provider,
+            'vehicle_type' => $unit->vehicle_type,
+            'sede' => $unit->sede,
+            'garita' => $unit->garita,
+            'unit_status' => ($unit->status ?? 'active') === 'active' ? 'Activo' : 'Inactivo',
+            'item_status' => $itemStatus,
+            'coordinator' => $unit->coordinatorUser?->name,
+            'period_name' => $unit->period?->name,
+            'activity_date' => $activityDate?->format('Y-m-d'),
         ];
     }
 

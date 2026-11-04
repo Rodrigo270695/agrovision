@@ -20,8 +20,22 @@ export type SstDetailSummary = {
     percent: number;
 };
 
-export function SstSummaryStrip({ summary }: { summary: SstDetailSummary }) {
-    const cells = [
+export type SstSummaryStatusKey = 'pendiente' | 'baja' | 'ok' | 'falta';
+
+export function SstSummaryStrip({
+    summary,
+    onSelect,
+}: {
+    summary: SstDetailSummary;
+    onSelect?: (status: SstSummaryStatusKey) => void;
+}) {
+    const cells: Array<{
+        key: SstSummaryStatusKey;
+        label: string;
+        value: number;
+        bg: string;
+        color: string;
+    }> = [
         { key: 'pendiente', label: 'Pendiente', value: summary.pendiente, bg: '#fef3c7', color: '#a16207' },
         { key: 'baja', label: 'Baja', value: summary.baja, bg: '#e2e8f0', color: '#475569' },
         { key: 'ok', label: 'OK', value: summary.ok, bg: '#dcfce7', color: '#166534' },
@@ -52,9 +66,18 @@ export function SstSummaryStrip({ summary }: { summary: SstDetailSummary }) {
                         {cells.map((cell) => (
                             <td
                                 key={cell.key}
-                                className="border border-brand-200 px-4 py-3 tabular-nums"
+                                className="border border-brand-200 px-2 py-2 tabular-nums"
                             >
-                                {cell.value}
+                                <button
+                                    type="button"
+                                    onClick={() => onSelect?.(cell.key)}
+                                    className="w-full cursor-pointer rounded-lg px-2 py-2 transition hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+                                    title={`Ver unidades ${cell.label.toLowerCase()}`}
+                                >
+                                    <span className="underline decoration-dotted underline-offset-4">
+                                        {cell.value}
+                                    </span>
+                                </button>
                             </td>
                         ))}
                         <td className="border border-brand-200 bg-background px-4 py-3 tabular-nums">
@@ -63,6 +86,12 @@ export function SstSummaryStrip({ summary }: { summary: SstDetailSummary }) {
                     </tr>
                 </tbody>
             </table>
+            {onSelect ? (
+                <p className="mt-2 text-center text-[11px] text-muted-foreground">
+                    Haz clic en Pendiente, Baja, OK o Falta para ver las unidades y
+                    descargar Excel.
+                </p>
+            ) : null}
         </div>
     );
 }
@@ -145,15 +174,22 @@ export function SstWeeklyVerticalBars({
 export function SstDetailDonut({
     title,
     summary,
+    onSelect,
 }: {
     title: string;
     summary: SstDetailSummary;
+    onSelect?: (status: SstSummaryStatusKey) => void;
 }) {
-    const segments = [
-        { label: 'OK', value: summary.ok, color: OK },
-        { label: 'Pendiente', value: summary.pendiente, color: PENDIENTE },
-        { label: 'Baja', value: summary.baja, color: BAJA },
-        { label: 'Falta', value: summary.falta, color: FALTA },
+    const segments: Array<{
+        key: SstSummaryStatusKey;
+        label: string;
+        value: number;
+        color: string;
+    }> = [
+        { key: 'ok', label: 'OK', value: summary.ok, color: OK },
+        { key: 'pendiente', label: 'Pendiente', value: summary.pendiente, color: PENDIENTE },
+        { key: 'baja', label: 'Baja', value: summary.baja, color: BAJA },
+        { key: 'falta', label: 'Falta', value: summary.falta, color: FALTA },
     ].filter((row) => row.value > 0);
 
     const total = summary.total;
@@ -216,20 +252,24 @@ export function SstDetailDonut({
                 </div>
                 <ul className="w-full space-y-1 text-xs text-muted-foreground">
                     {segments.map((segment) => (
-                        <li
-                            key={segment.label}
-                            className="flex items-center justify-between gap-2"
-                        >
-                            <span className="inline-flex items-center gap-2">
-                                <span
-                                    className="size-2.5 shrink-0 rounded-sm"
-                                    style={{ backgroundColor: segment.color }}
-                                />
-                                {segment.label}
-                            </span>
-                            <span className="font-semibold tabular-nums text-brand-700">
-                                {segment.value}
-                            </span>
+                        <li key={segment.label}>
+                            <button
+                                type="button"
+                                onClick={() => onSelect?.(segment.key)}
+                                className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-1.5 py-1 text-left transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+                                title={`Ver unidades ${segment.label.toLowerCase()}`}
+                            >
+                                <span className="inline-flex items-center gap-2">
+                                    <span
+                                        className="size-2.5 shrink-0 rounded-sm"
+                                        style={{ backgroundColor: segment.color }}
+                                    />
+                                    {segment.label}
+                                </span>
+                                <span className="font-semibold tabular-nums text-brand-700 underline decoration-dotted underline-offset-2">
+                                    {segment.value}
+                                </span>
+                            </button>
                         </li>
                     ))}
                 </ul>
