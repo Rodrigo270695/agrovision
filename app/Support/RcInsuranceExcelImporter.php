@@ -5,9 +5,11 @@ namespace App\Support;
 use App\Models\Period;
 use App\Models\RcInsurance;
 use App\Models\RcInsuranceMovement;
+use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -217,14 +219,15 @@ final class RcInsuranceExcelImporter
         $sheet->setTitle($history ? 'Historial RC' : 'Seguro RC');
 
         $headers = $history
-            ? array_merge(['Fecha carga'], self::HEADERS)
-            : self::HEADERS;
+            ? array_merge(['Fecha carga', 'Días desde carga'], self::HEADERS)
+            : array_merge(self::HEADERS, ['Última carga', 'Días desde carga']);
 
         foreach ($headers as $index => $header) {
             $sheet->setCellValue([$index + 1, 1], $header);
         }
 
-        $sheet->getStyle('A1:J1')->applyFromArray([
+        $lastHeaderCol = Coordinate::stringFromColumnIndex(count($headers));
+        $sheet->getStyle("A1:{$lastHeaderCol}1")->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
@@ -239,10 +242,14 @@ final class RcInsuranceExcelImporter
         foreach ($rows as $row) {
             $col = 1;
             if ($history && $row instanceof RcInsuranceMovement) {
-                $sheet->setCellValue([$col++, $rowNumber], $this->excelDate($row->service_date));
+                $this->writeDateCell($sheet, $col++, $rowNumber, $row->service_date);
+                $sheet->setCellValue([$col++, $rowNumber], $this->daysSince($row->service_date));
                 $this->writeDataRow($sheet, $rowNumber, $col, $row, $sequence++);
             } elseif (! $history && $row instanceof RcInsurance) {
                 $this->writeDataRow($sheet, $rowNumber, $col, $row, $sequence++);
+                $col += 10;
+                $this->writeDateCell($sheet, $col++, $rowNumber, $row->service_date);
+                $sheet->setCellValue([$col, $rowNumber], $this->daysSince($row->service_date));
             }
 
             $rowNumber++;
@@ -296,6 +303,36 @@ final class RcInsuranceExcelImporter
 
             $sheet->setCellValue($coordinate, $value);
         }
+    }
+
+    private function writeDateCell(
+        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        int $col,
+        int $rowNumber,
+        mixed $value,
+    ): void {
+        $date = $this->excelDate($value);
+
+        if ($date instanceof \DateTimeInterface) {
+            $sheet->setCellValue([$col, $rowNumber], ExcelDate::PHPToExcel($date));
+            $sheet->getStyle([$col, $rowNumber])->getNumberFormat()->setFormatCode('DD/MM/YYYY');
+
+            return;
+        }
+
+        $sheet->setCellValue([$col, $rowNumber], null);
+    }
+
+    private function daysSince(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $day = Carbon::parse($value)->timezone(config('app.timezone'))->startOfDay();
+        $today = now()->timezone(config('app.timezone'))->startOfDay();
+
+        return max(0, (int) $day->diffInDays($today, false));
     }
 
     private function excelDate(mixed $value): mixed

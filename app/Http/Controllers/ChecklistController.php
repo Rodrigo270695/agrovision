@@ -249,6 +249,7 @@ class ChecklistController extends Controller
                 'completed' => (clone $statsQuery)->where('status', 'completed')->count(),
                 'page' => $checklists->currentPage().'/'.max($checklists->lastPage(), 1),
                 'on_screen' => $checklists->count(),
+                ...$this->daysSinceLastInspectionMeta($statsQuery),
             ],
             'inspectors' => SystemRoles::inspectors()
                 ->map(fn ($user) => [
@@ -1953,6 +1954,30 @@ class ChecklistController extends Controller
         if ($to) {
             $query->whereDate('first_inspected_on', '<=', $to);
         }
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder<\App\Models\UnitChecklist>  $statsQuery
+     * @return array{last_inspection_on: string|null, days_since_last_inspection: int|null}
+     */
+    private function daysSinceLastInspectionMeta(mixed $statsQuery): array
+    {
+        $lastOn = (clone $statsQuery)->max('first_inspected_on');
+
+        if ($lastOn === null || $lastOn === '') {
+            return [
+                'last_inspection_on' => null,
+                'days_since_last_inspection' => null,
+            ];
+        }
+
+        $day = Carbon::parse($lastOn)->timezone(config('app.timezone'))->startOfDay();
+        $today = now()->timezone(config('app.timezone'))->startOfDay();
+
+        return [
+            'last_inspection_on' => $day->toDateString(),
+            'days_since_last_inspection' => max(0, (int) $day->diffInDays($today, false)),
+        ];
     }
 
     private function pinChecklistRedirect(Request $request, UnitChecklist $checklist): void

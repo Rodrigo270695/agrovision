@@ -10,6 +10,7 @@ use App\Models\RcInsuranceMovement;
 use App\Support\GpsExcelImporter;
 use App\Support\PermissionCatalog;
 use App\Support\RcInsuranceExcelImporter;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -136,6 +137,7 @@ class FleetDataController extends Controller
         $statsQuery = RcInsurance::query()
             ->when($filters['period_id'], fn (Builder $q, int $id) => $q->where('period_id', $id));
 
+        $lastUploadOn = (clone $statsQuery)->max('service_date');
         $stats = [
             'records' => (clone $statsQuery)->count(),
             'active' => (clone $statsQuery)->where('status', 'active')->count(),
@@ -144,6 +146,7 @@ class FleetDataController extends Controller
                 ->when($filters['period_id'], fn (Builder $q, int $id) => $q->where('period_id', $id))
                 ->count(),
             'on_screen' => 0,
+            ...$this->daysSinceUploadMeta($lastUploadOn),
         ];
 
         if ($showingHistory) {
@@ -201,6 +204,7 @@ class FleetDataController extends Controller
         $statsQuery = GpsRecord::query()
             ->when($filters['period_id'], fn (Builder $q, int $id) => $q->where('period_id', $id));
 
+        $lastUploadOn = (clone $statsQuery)->max('service_date');
         $stats = [
             'records' => (clone $statsQuery)->count(),
             'active' => (clone $statsQuery)->where('status', 'active')->count(),
@@ -209,6 +213,7 @@ class FleetDataController extends Controller
                 ->when($filters['period_id'], fn (Builder $q, int $id) => $q->where('period_id', $id))
                 ->count(),
             'on_screen' => 0,
+            ...$this->daysSinceUploadMeta($lastUploadOn),
         ];
 
         if ($showingHistory) {
@@ -358,5 +363,28 @@ class FleetDataController extends Controller
         if ($filters['date_from'] && $filters['date_to']) {
             $query->whereBetween($column, [$filters['date_from'], $filters['date_to']]);
         }
+    }
+
+    /**
+     * @return array{last_upload_on: string|null, days_since_last_upload: int|null}
+     */
+    private function daysSinceUploadMeta(mixed $lastUploadOn): array
+    {
+        if ($lastUploadOn === null || $lastUploadOn === '') {
+            return [
+                'last_upload_on' => null,
+                'days_since_last_upload' => null,
+            ];
+        }
+
+        $day = Carbon::parse($lastUploadOn)
+            ->timezone(config('app.timezone'))
+            ->startOfDay();
+        $today = now()->timezone(config('app.timezone'))->startOfDay();
+
+        return [
+            'last_upload_on' => $day->toDateString(),
+            'days_since_last_upload' => max(0, (int) $day->diffInDays($today, false)),
+        ];
     }
 }

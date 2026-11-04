@@ -1,4 +1,5 @@
 import { Ban, ClipboardCheck, Clock, FileDown, FilePenLine, Pencil, Trash2 } from 'lucide-react';
+import { formatDaysSince } from '@/lib/document-expiry';
 import { router } from '@inertiajs/react';
 import { useCallback, useMemo, useState } from 'react';
 import {
@@ -491,12 +492,18 @@ export function ChecklistsTable({
                 sortable: true,
                 cell: (item) => {
                     const time = formatInspectionTime(item.first_inspected_time);
+                    const baseDate = item.first_inspected_on ?? item.created_at;
 
                     return (
-                        <span className="text-xs text-muted-foreground tabular-nums">
-                            {formatDate(item.first_inspected_on ?? item.created_at)}
-                            {time ? ` · ${time}` : ''}
-                        </span>
+                        <div className="text-xs tabular-nums">
+                            <p className="text-muted-foreground">
+                                {formatDate(baseDate)}
+                                {time ? ` · ${time}` : ''}
+                            </p>
+                            <p className="font-semibold text-brand-700">
+                                {formatDaysSince(baseDate)}
+                            </p>
+                        </div>
                     );
                 },
             },

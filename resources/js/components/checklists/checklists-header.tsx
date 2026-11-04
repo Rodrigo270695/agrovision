@@ -40,6 +40,19 @@ export function ChecklistsHeader({
                         value: stats.on_screen,
                         tone: 'sky',
                     },
+                    {
+                        label: 'Desde última insp.',
+                        value:
+                            stats.days_since_last_inspection === null ||
+                            stats.days_since_last_inspection === undefined
+                                ? '—'
+                                : stats.days_since_last_inspection === 0
+                                  ? 'Hoy'
+                                  : stats.days_since_last_inspection === 1
+                                    ? '1 día'
+                                    : `${stats.days_since_last_inspection} días`,
+                        tone: 'amber',
+                    },
                 ]}
             />
 

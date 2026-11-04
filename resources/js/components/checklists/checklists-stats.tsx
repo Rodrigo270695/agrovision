@@ -7,6 +7,8 @@ export type ChecklistsStatsData = {
     completed: number;
     page: string;
     on_screen: number;
+    last_inspection_on?: string | null;
+    days_since_last_inspection?: number | null;
 };
 
 const items = [

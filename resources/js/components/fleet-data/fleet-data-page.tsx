@@ -33,6 +33,8 @@ export type FleetStats = {
     inactive: number;
     movements: number;
     on_screen: number;
+    last_upload_on?: string | null;
+    days_since_last_upload?: number | null;
 };
 
 export type FleetPagination<T> = {
@@ -224,6 +226,19 @@ export function FleetDataPage() {
                         label: 'Historial',
                         value: stats.movements,
                         tone: 'sky',
+                    },
+                    {
+                        label: 'Desde última carga',
+                        value:
+                            stats.days_since_last_upload === null ||
+                            stats.days_since_last_upload === undefined
+                                ? '—'
+                                : stats.days_since_last_upload === 0
+                                  ? 'Hoy'
+                                  : stats.days_since_last_upload === 1
+                                    ? '1 día'
+                                    : `${stats.days_since_last_upload} días`,
+                        tone: 'amber',
                     },
                 ]}
             />

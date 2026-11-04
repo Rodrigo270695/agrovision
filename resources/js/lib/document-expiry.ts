@@ -46,6 +46,35 @@ function daysBetween(from: Date, to: Date): number {
     return Math.round(ms / (1000 * 60 * 60 * 24));
 }
 
+/** Días transcurridos desde una fecha (YYYY-MM-DD o ISO) hasta hoy. */
+export function daysSinceDate(value?: string | null): number | null {
+    if (!value) {
+        return null;
+    }
+
+    const date = parseDateOnly(value);
+
+    if (!date) {
+        return null;
+    }
+
+    return Math.max(0, daysBetween(date, todayLocal()));
+}
+
+export function formatDaysSince(value?: string | null): string {
+    const days = daysSinceDate(value);
+
+    if (days === null) {
+        return '—';
+    }
+
+    if (days === 0) {
+        return 'Hoy';
+    }
+
+    return days === 1 ? '1 día' : `${days} días`;
+}
+
 /**
  * Alertas de vencimiento:
  * - Sin fecha o DNI → sin alerta

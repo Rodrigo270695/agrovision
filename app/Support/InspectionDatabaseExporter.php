@@ -39,6 +39,7 @@ final class InspectionDatabaseExporter
         ['header' => 'FECHA DE INGRESO', 'type' => 'entry_date'],
         ['header' => 'ESTADO UNIDAD', 'type' => 'status'],
         ['header' => 'FECHA DE INSPECCION', 'type' => 'inspected_on'],
+        ['header' => 'DÍAS DESDE INSPECCIÓN', 'type' => 'days_since_inspection'],
         ['header' => 'SEDE', 'type' => 'sede'],
         ['header' => 'TARJETA DE PROPIEDAD', 'type' => 'mark', 'needles' => ['tarjeta de propiedad']],
         ['header' => 'NUMERO DE LICENCIA', 'type' => 'license_number'],
@@ -478,6 +479,11 @@ final class InspectionDatabaseExporter
             'entry_date' => $unit?->service_date,
             'status' => ($unit?->status ?? '') === 'active' ? 'Activo' : 'Inactivo',
             'inspected_on' => $pass === 'second' ? $checklist->second_inspected_on : $checklist->first_inspected_on,
+            'days_since_inspection' => $this->daysSince(
+                $pass === 'second'
+                    ? ($checklist->second_inspected_on ?? $checklist->first_inspected_on)
+                    : ($checklist->first_inspected_on ?? $checklist->created_at),
+            ),
             'sede' => $this->sede($checklist),
             'license_number' => $checklist->license_number,
             'brand' => $checklist->vehicle_info,
@@ -631,6 +637,18 @@ final class InspectionDatabaseExporter
             : "{$label} VENCIÓ HACE {$days} DÍAS";
 
         return ['date' => $target, 'days' => $days, 'text' => $text];
+    }
+
+    private function daysSince(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $day = Carbon::parse($value)->timezone(config('app.timezone'))->startOfDay();
+        $today = now()->timezone(config('app.timezone'))->startOfDay();
+
+        return max(0, (int) $day->diffInDays($today, false));
     }
 
     private function sede(UnitChecklist $checklist): ?string

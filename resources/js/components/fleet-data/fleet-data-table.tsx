@@ -22,6 +22,7 @@ import {
     type RcRecordRow,
     visitFleetData,
 } from '@/components/fleet-data/fleet-data-page';
+import { formatDaysSince } from '@/lib/document-expiry';
 import { asPaginated } from '@/lib/paginated';
 
 type Props = {
@@ -119,9 +120,14 @@ export function FleetDataTable({
                 key: 'service_date',
                 header: 'Última carga',
                 cell: (row) => (
-                    <span className="text-xs text-muted-foreground">
-                        {formatDate(row.service_date)}
-                    </span>
+                    <div className="text-xs tabular-nums">
+                        <p className="text-muted-foreground">
+                            {formatDate(row.service_date)}
+                        </p>
+                        <p className="font-semibold text-brand-700">
+                            {formatDaysSince(row.service_date)}
+                        </p>
+                    </div>
                 ),
             },
         ],
@@ -134,9 +140,12 @@ export function FleetDataTable({
                 key: 'service_date',
                 header: 'Fecha carga',
                 cell: (row) => (
-                    <span className="text-xs font-medium">
-                        {formatDate(row.service_date)}
-                    </span>
+                    <div className="text-xs tabular-nums">
+                        <p className="font-medium">{formatDate(row.service_date)}</p>
+                        <p className="text-muted-foreground">
+                            {formatDaysSince(row.service_date)}
+                        </p>
+                    </div>
                 ),
             },
             {
@@ -204,7 +213,16 @@ export function FleetDataTable({
             {
                 key: 'service_date',
                 header: 'Última carga',
-                cell: (row) => formatDate(row.service_date),
+                cell: (row) => (
+                    <div className="text-xs tabular-nums">
+                        <p className="text-muted-foreground">
+                            {formatDate(row.service_date)}
+                        </p>
+                        <p className="font-semibold text-brand-700">
+                            {formatDaysSince(row.service_date)}
+                        </p>
+                    </div>
+                ),
             },
         ],
         [],
@@ -215,7 +233,14 @@ export function FleetDataTable({
             {
                 key: 'service_date',
                 header: 'Fecha carga',
-                cell: (row) => formatDate(row.service_date),
+                cell: (row) => (
+                    <div className="text-xs tabular-nums">
+                        <p className="font-medium">{formatDate(row.service_date)}</p>
+                        <p className="text-muted-foreground">
+                            {formatDaysSince(row.service_date)}
+                        </p>
+                    </div>
+                ),
             },
             {
                 key: 'plate_number',
