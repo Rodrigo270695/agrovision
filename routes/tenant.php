@@ -5,6 +5,7 @@ use App\Http\Controllers\CertificateTemplateController;
 use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\ConsolidationController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DriverBlacklistController;
 use App\Http\Controllers\DriverBoardController;
 use App\Http\Controllers\DriverInductionReportController;
 use App\Http\Controllers\FleetComplianceReportController;
@@ -469,6 +470,18 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
         Route::post('consolidados/{checklist}/responder', [ConsolidationController::class, 'respond'])
             ->middleware('permission:consolidations.respond')
             ->name('consolidations.respond');
+
+        Route::get('lista-negra-conductores', [DriverBlacklistController::class, 'index'])
+            ->middleware('permission:driver_blacklists.view')
+            ->name('driver-blacklists.index');
+
+        Route::post('lista-negra-conductores', [DriverBlacklistController::class, 'store'])
+            ->middleware('permission:driver_blacklists.create')
+            ->name('driver-blacklists.store');
+
+        Route::post('lista-negra-conductores/{entry}/levantar', [DriverBlacklistController::class, 'lift'])
+            ->middleware('permission:driver_blacklists.update')
+            ->name('driver-blacklists.lift');
 
         Route::get('alcoholimetro', [AlcoholTestController::class, 'index'])
             ->middleware('permission:alcoholtests.view')

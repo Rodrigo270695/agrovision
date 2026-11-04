@@ -52,6 +52,9 @@ class PermissionSeeder extends Seeder
                 'pareto.update',
                 'alcoholtests.view',
                 'alcoholtests.respond',
+                'driver_blacklists.view',
+                'driver_blacklists.create',
+                'driver_blacklists.update',
             ], true))
             ->all();
         $coordinador->syncPermissions($coordinadorPermissions);
@@ -71,6 +74,8 @@ class PermissionSeeder extends Seeder
                 'alcoholtests.create',
                 'inductions.duplicate',
                 'inductions.quick_complete',
+                'driver_blacklists.view',
+                'driver_blacklists.create',
             ], true))
             ->all();
         $inspector->syncPermissions($inspectorPermissions);

@@ -86,7 +86,7 @@ class ChecklistController extends Controller
             ->with([
                 'template:id,type,code,name',
                 'period:id,name,date,status',
-                'unit:id,correlative,plate_number,period_id,coordinator_id,sede,garita',
+                'unit:id,correlative,plate_number,driver_name,driver_dni,period_id,coordinator_id,sede,garita',
                 'answers:id,unit_checklist_id,checklist_item_id,first_value,second_value',
                 'answers.item:id,weight',
             ])
@@ -134,6 +134,7 @@ class ChecklistController extends Controller
                 $place = InspectionPlace::labels(null, null, $checklist->unit);
                 $checklist->setAttribute('sede', $place['sede']);
                 $checklist->setAttribute('lugar', $place['lugar']);
+                $checklist->setAttribute('driver_dni', $checklist->unit?->driver_dni);
 
                 $hasAnswers = $checklist->answers->isNotEmpty();
                 $first = ParetoPassThreshold::snapshot($checklist->answers, 'first_value');

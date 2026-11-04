@@ -1,12 +1,17 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, FileDown, Lock, Plus, Send, Trash2 } from 'lucide-react';
+import { ArrowLeft, Ban, FileDown, Lock, Plus, Send, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { AlcoholPackageDeleteModal } from '@/components/alcohol-tests/alcohol-package-delete-modal';
 import { AlcoholTestFormModal } from '@/components/alcohol-tests/alcohol-test-form-modal';
 import { AlcoholTestRespondModal } from '@/components/alcohol-tests/alcohol-test-respond-modal';
 import type { UnitOption } from '@/components/alcohol-tests/alcohol-tests-table';
+import {
+    DriverBlacklistModal,
+    type DriverBlacklistDraft,
+} from '@/components/drivers/driver-blacklist-modal';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import { useCan } from '@/hooks/use-can';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 
@@ -98,9 +103,12 @@ export default function AlcoholPackageShowPage() {
         canClosePackage,
         canDeletePackage,
     } = usePage().props as unknown as PageProps;
+    const { can } = useCan();
     const [testOpen, setTestOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [responding, setResponding] = useState<TestItem | null>(null);
+    const [blacklistDraft, setBlacklistDraft] =
+        useState<DriverBlacklistDraft | null>(null);
     const [sending, setSending] = useState(false);
     const [closing, setClosing] = useState(false);
     const coordinatorView = Boolean(isCoordinatorView);
@@ -443,6 +451,34 @@ export default function AlcoholPackageShowPage() {
                                                             PDF
                                                         </a>
                                                     </Button>
+                                                    {can(
+                                                        'driver_blacklists.create',
+                                                    ) ? (
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                setBlacklistDraft(
+                                                                    {
+                                                                        driver_name:
+                                                                            item.driver_name,
+                                                                        driver_dni:
+                                                                            item.driver_dni,
+                                                                        plate_number:
+                                                                            item.plate_number,
+                                                                        source: 'alcohol_test',
+                                                                        alcohol_test_id:
+                                                                            item.id,
+                                                                    },
+                                                                )
+                                                            }
+                                                            className="cursor-pointer border-red-200 text-red-700 hover:bg-red-50"
+                                                        >
+                                                            <Ban className="size-3.5" />
+                                                            Lista negra
+                                                        </Button>
+                                                    ) : null}
                                                     {item.can_respond ? (
                                                         <Button
                                                             type="button"
@@ -521,6 +557,29 @@ export default function AlcoholPackageShowPage() {
                                                 PDF
                                             </a>
                                         </Button>
+                                        {can('driver_blacklists.create') ? (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() =>
+                                                    setBlacklistDraft({
+                                                        driver_name:
+                                                            item.driver_name,
+                                                        driver_dni:
+                                                            item.driver_dni,
+                                                        plate_number:
+                                                            item.plate_number,
+                                                        source: 'alcohol_test',
+                                                        alcohol_test_id:
+                                                            item.id,
+                                                    })
+                                                }
+                                                className="cursor-pointer border-red-200 text-red-700"
+                                            >
+                                                Lista negra
+                                            </Button>
+                                        ) : null}
                                         {item.can_respond ? (
                                             <Button
                                                 type="button"
@@ -540,6 +599,12 @@ export default function AlcoholPackageShowPage() {
                     </div>
                 </div>
             </div>
+
+            <DriverBlacklistModal
+                open={blacklistDraft !== null}
+                draft={blacklistDraft}
+                onClose={() => setBlacklistDraft(null)}
+            />
 
             <AlcoholTestRespondModal
                 open={Boolean(responding)}

@@ -1,6 +1,10 @@
-import { ClipboardCheck, Clock, FileDown, FilePenLine, Pencil, Trash2 } from 'lucide-react';
+import { Ban, ClipboardCheck, Clock, FileDown, FilePenLine, Pencil, Trash2 } from 'lucide-react';
 import { router } from '@inertiajs/react';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import {
+    DriverBlacklistModal,
+    type DriverBlacklistDraft,
+} from '@/components/drivers/driver-blacklist-modal';
 import { DateRangeFilter } from '@/components/shared/date-range-filter';
 import { toast } from 'sonner';
 import { isBrowserOnline } from '@/lib/offline/ids';
@@ -35,6 +39,7 @@ export type ChecklistItemRow = {
     sede?: string | null;
     lugar?: string | null;
     driver_name?: string | null;
+    driver_dni?: string | null;
     provider?: string | null;
     status: 'draft' | 'completed';
     sealed_at?: string | null;
@@ -176,7 +181,7 @@ function ResultLegend() {
             <span className="inline-flex items-center gap-1.5">
                 <span className="size-2 rounded-full bg-emerald-600" />
                 Aprobado (100%, todos SÍ)
-            </span>
+        </span>
         </div>
     );
 }
@@ -316,6 +321,8 @@ export function ChecklistsTable({
     onPreviewPdf,
 }: Props) {
     const { can, isSuperAdmin } = useCan();
+    const [blacklistDraft, setBlacklistDraft] =
+        useState<DriverBlacklistDraft | null>(null);
 
     const visit = useCallback(
         (params: Partial<ChecklistsFilters> & { page?: number; batch_id?: number | null }) => {
@@ -546,6 +553,26 @@ export function ChecklistsTable({
                                         isSuperAdmin,
                                         onEdit,
                                     ),
+                                    can('driver_blacklists.create') &&
+                                    item.driver_name &&
+                                    typeof item.id === 'number'
+                                        ? {
+                                              key: 'blacklist',
+                                              label: 'Lista negra',
+                                              icon: Ban,
+                                              separatorBefore: true,
+                                              onSelect: () =>
+                                                  setBlacklistDraft({
+                                                      driver_name:
+                                                          item.driver_name || '',
+                                                      driver_dni: item.driver_dni,
+                                                      plate_number:
+                                                          item.plate_number,
+                                                      source: 'checklist',
+                                                      unit_checklist_id: item.id,
+                                                  }),
+                                          }
+                                        : null,
                                     can('checklists.delete') && !sealed
                                         ? {
                                               key: 'delete',
@@ -579,6 +606,7 @@ export function ChecklistsTable({
     );
 
     return (
+        <>
         <DataTable
             columns={columns}
             data={checklists.data}
@@ -715,5 +743,11 @@ export function ChecklistsTable({
                 />
             }
         />
+        <DriverBlacklistModal
+            open={blacklistDraft !== null}
+            draft={blacklistDraft}
+            onClose={() => setBlacklistDraft(null)}
+        />
+        </>
     );
 }

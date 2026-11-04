@@ -1,6 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
+    Ban,
     Check,
     Copy,
     Download,
@@ -13,6 +14,10 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { SignaturePad } from '@/components/checklists/signature-pad';
+import {
+    DriverBlacklistModal,
+    type DriverBlacklistDraft,
+} from '@/components/drivers/driver-blacklist-modal';
 import { FingerprintCameraCapture } from '@/components/inductions/fingerprint-camera-capture';
 import { InductionFormModal } from '@/components/inductions/induction-form-modal';
 import type {
@@ -235,6 +240,8 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
         null,
     );
     const [savingSignature, setSavingSignature] = useState(false);
+    const [blacklistDraft, setBlacklistDraft] =
+        useState<DriverBlacklistDraft | null>(null);
 
     useEffect(() => {
         if (snapshot || !induction?.id) {
@@ -1172,6 +1179,34 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                                     </Button>
                                                 </>
                                             ) : null}
+                                            {can('driver_blacklists.create') ? (
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() =>
+                                                        setBlacklistDraft({
+                                                            driver_name:
+                                                                attendee.driver_name,
+                                                            driver_dni:
+                                                                attendee.driver_dni,
+                                                            plate_number:
+                                                                attendee.plate_number,
+                                                            source: 'induction',
+                                                            unit_id:
+                                                                attendee.unit_id,
+                                                            induction_attendee_id:
+                                                                attendee.id > 0
+                                                                    ? attendee.id
+                                                                    : null,
+                                                        })
+                                                    }
+                                                    className="size-8 cursor-pointer text-red-600 hover:bg-red-50 hover:text-red-800"
+                                                    title="Lista negra"
+                                                >
+                                                    <Ban className="size-3.5" />
+                                                </Button>
+                                            ) : null}
                                             {canUpdate && !locked ? (
                                                     <Button
                                                         type="button"
@@ -1403,6 +1438,12 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                     }
                 }
                 onClose={() => setCopyOpen(false)}
+            />
+
+            <DriverBlacklistModal
+                open={blacklistDraft !== null}
+                draft={blacklistDraft}
+                onClose={() => setBlacklistDraft(null)}
             />
         </div>
     );
