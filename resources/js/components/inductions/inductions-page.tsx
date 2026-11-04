@@ -328,7 +328,6 @@ export function InductionsPage() {
                 open={copyTarget !== null}
                 copying
                 induction={copyTarget}
-                lockedType={catalogType.slug}
                 periodOptions={periodOptions ?? []}
                 formOptions={
                     formOptions ?? {

@@ -1248,6 +1248,7 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                 periodOptions={periodOptions ?? []}
                 formOptions={
                     formOptions ?? {
+                        types: [],
                         activities: [],
                         modalities: [],
                         schools: [],

@@ -345,6 +345,17 @@ class InductionController extends Controller
                 'acta_number' => str_pad((string) $replica->id, 6, '0', STR_PAD_LEFT),
             ]);
 
+            $speakerSignature = DriverBiometrics::copyFile(
+                $induction->speaker_signature_path,
+                "inductions/{$replica->id}/speaker",
+            );
+            $replica->update([
+                'speaker_signature_path' => $speakerSignature,
+                'speaker_signed_at' => $speakerSignature
+                    ? $induction->speaker_signed_at
+                    : null,
+            ]);
+
             foreach ($induction->attendees as $attendee) {
                 $row = $attendee->replicate([
                     'signature_path',
@@ -371,14 +382,14 @@ class InductionController extends Controller
                 $row->save();
             }
 
-            return $replica;
+            return $replica->fresh();
         });
 
         return redirect()
             ->route('inductions.show', $copy)
             ->with('toast', [
                 'type' => 'success',
-                'message' => 'Inducción copiada con los conductores. Los reglamentos quedaron vacíos.',
+                'message' => 'Sesión copiada con participantes y firmas. Ajusta tipo o temario si hace falta.',
             ]);
     }
 

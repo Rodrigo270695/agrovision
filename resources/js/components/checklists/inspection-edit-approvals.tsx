@@ -39,53 +39,62 @@ function ApprovalList({
 
     return (
         <ul className="mt-3 max-h-80 space-y-2 overflow-y-auto">
-            {items.map((item) => (
-                <li
-                    key={item.id}
-                    className="rounded-lg border border-brand-200 px-2.5 py-2"
-                >
-                    <p className="text-xs font-semibold text-brand-700">
-                        {item.plate_number || 'Sin placa'} · {item.pass}{' '}
-                        inspección
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        {item.requester_name || 'Inspector'}
-                        {item.driver_name ? ` · ${item.driver_name}` : ''} pide
-                        autorización
-                    </p>
-                    <div className="mt-2 flex gap-2">
-                        <Button
-                            type="button"
-                            size="sm"
-                            className="h-7 flex-1 cursor-pointer bg-emerald-700 text-xs text-white hover:bg-emerald-800"
-                            onClick={() =>
-                                router.post(
-                                    `/inspecciones/solicitudes/${item.id}/aprobar`,
-                                    {},
-                                    { preserveScroll: true },
-                                )
-                            }
-                        >
-                            Aprobar
-                        </Button>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="h-7 flex-1 cursor-pointer border-red-200 text-xs text-red-700"
-                            onClick={() =>
-                                router.post(
-                                    `/inspecciones/solicitudes/${item.id}/rechazar`,
-                                    {},
-                                    { preserveScroll: true },
-                                )
-                            }
-                        >
-                            Rechazar
-                        </Button>
-                    </div>
-                </li>
-            ))}
+            {items.map((item) => {
+                const inspector = item.requester_name?.trim() || 'Inspector';
+
+                return (
+                    <li
+                        key={item.id}
+                        className="rounded-xl border border-brand-200 bg-brand-50/40 px-3 py-2.5"
+                    >
+                        <p className="text-xs font-semibold text-brand-800">
+                            {item.plate_number || 'Sin placa'} · {item.pass}{' '}
+                            inspección
+                        </p>
+                        <p className="mt-1 text-[11px] leading-snug text-brand-700">
+                            <span className="font-semibold">{inspector}</span>
+                            {' '}
+                            (inspector) solicita autorización para editar
+                        </p>
+                        {item.driver_name ? (
+                            <p className="mt-0.5 text-[11px] text-muted-foreground">
+                                Conductor: {item.driver_name}
+                            </p>
+                        ) : null}
+                        <div className="mt-2.5 flex gap-2">
+                            <Button
+                                type="button"
+                                size="sm"
+                                className="h-8 flex-1 cursor-pointer bg-emerald-700 text-xs text-white hover:bg-emerald-800"
+                                onClick={() =>
+                                    router.post(
+                                        `/inspecciones/solicitudes/${item.id}/aprobar`,
+                                        {},
+                                        { preserveScroll: true },
+                                    )
+                                }
+                            >
+                                Aprobar
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-8 flex-1 cursor-pointer border-red-200 text-xs text-red-700 hover:bg-red-50"
+                                onClick={() =>
+                                    router.post(
+                                        `/inspecciones/solicitudes/${item.id}/rechazar`,
+                                        {},
+                                        { preserveScroll: true },
+                                    )
+                                }
+                            >
+                                Rechazar
+                            </Button>
+                        </div>
+                    </li>
+                );
+            })}
         </ul>
     );
 }

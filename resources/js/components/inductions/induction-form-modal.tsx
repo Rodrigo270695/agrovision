@@ -319,7 +319,7 @@ export function InductionFormModal({
                 completing
                     ? `Solo los conductores que no tienen «${gap?.title ?? ''}». Completa fecha, lugar, periodo y expositor.`
                     : copying
-                      ? 'Mismos datos de la inducción. Se copian los conductores con firma y huella. Los reglamentos quedan vacíos: luego solo inicias y cierras.'
+                      ? 'Se copian los participantes con firma, huella y la firma del inspector. Cambia tipo, temario y el resto como una sesión nueva. Los reglamentos quedan vacíos.'
                       : 'Elige el tipo del catálogo, la fecha y el lugar. El nombre ya no se escribe a mano.'
             }
             className="max-h-[min(92vh,56rem)] sm:max-w-3xl"
@@ -418,7 +418,7 @@ export function InductionFormModal({
                     periodOptions={periodOptions}
                     formOptions={formOptions}
                     isEditing={isEditing || copying}
-                    typeLocked={Boolean(lockedType) || completing || copying || isEditing}
+                    typeLocked={Boolean(lockedType) || completing || isEditing}
                 />
                 {isEditing || copying || completing ? null : (
                     <div className="mt-5 grid gap-1.5">
