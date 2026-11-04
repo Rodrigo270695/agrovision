@@ -427,7 +427,12 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:checklists.update')
             ->name('checklists.edit');
 
-        Route::put('inspecciones/{checklist}', [ChecklistController::class, 'update'])
+        // Alias: algunos clientes / redirecciones llegan con PUT a /editar.
+        Route::match(['put', 'patch'], 'inspecciones/{checklist}/editar', [ChecklistController::class, 'update'])
+            ->middleware('permission:checklists.update')
+            ->name('checklists.update.edit-alias');
+
+        Route::match(['put', 'patch'], 'inspecciones/{checklist}', [ChecklistController::class, 'update'])
             ->middleware('permission:checklists.update')
             ->name('checklists.update');
 

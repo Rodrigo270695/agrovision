@@ -152,11 +152,16 @@ async function syncUpdate(item: OutboxItem): Promise<void> {
     const response = await fetchWithRetry(`/inspecciones/${checklistId}`, {
         method: 'PUT',
         credentials: 'same-origin',
+        redirect: 'manual',
         headers: jsonHeaders(),
         body: JSON.stringify(item.payload),
     });
 
-    if (!response.ok) {
+    const redirectedOk =
+        response.type === 'opaqueredirect' ||
+        (response.status >= 300 && response.status < 400);
+
+    if (!response.ok && !redirectedOk) {
         throw new Error('No se pudieron guardar las respuestas.');
     }
 }

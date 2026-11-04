@@ -740,24 +740,28 @@ class ChecklistController extends Controller
         ]);
     }
 
-    public function update(UpdateUnitChecklistRequest $request, UnitChecklist $checklist): RedirectResponse
+    public function update(UpdateUnitChecklistRequest $request, UnitChecklist $checklist): RedirectResponse|JsonResponse
     {
         $checklist->loadMissing(['period', 'unit', 'signatures', 'template.signatureRoles']);
         $this->ensureCanAccessChecklist($checklist);
         $this->pinChecklistRedirect($request, $checklist);
 
         if ($checklist->period?->status !== 'active') {
-            return back()->with('toast', [
-                'type' => 'error',
-                'message' => 'No se puede editar un checklist de un periodo inactivo.',
-            ]);
+            return $this->checklistToast(
+                $request,
+                $checklist,
+                'error',
+                'No se puede editar un checklist de un periodo inactivo.',
+            );
         }
 
         if ($checklist->isSealed()) {
-            return back()->with('toast', [
-                'type' => 'error',
-                'message' => 'Esta inspección ya está sellada y no se puede editar.',
-            ]);
+            return $this->checklistToast(
+                $request,
+                $checklist,
+                'error',
+                'Esta inspección ya está sellada y no se puede editar.',
+            );
         }
 
         $data = $request->validated();
@@ -970,24 +974,28 @@ class ChecklistController extends Controller
                 }
             });
         } catch (\RuntimeException $exception) {
-            return back()->with('toast', [
-                'type' => 'error',
-                'message' => $exception->getMessage(),
-            ]);
+            return $this->checklistToast(
+                $request,
+                $checklist,
+                'error',
+                $exception->getMessage(),
+            );
         }
 
         if ($grant) {
             $grant->update(['consumed_at' => now()]);
         }
 
-        return back()->with('toast', [
-            'type' => 'success',
-            'message' => $shouldSeal
+        return $this->checklistToast(
+            $request,
+            $checklist,
+            'success',
+            $shouldSeal
                 ? 'Inspección sellada correctamente. Ya no se puede editar.'
                 : ($grant
                     ? 'Cambios guardados. Para volver a editar esa inspección hay que pedir otra autorización.'
                     : 'Checklist guardado correctamente.'),
-        ]);
+        );
     }
 
     public function storePhoto(Request $request, UnitChecklist $checklist): JsonResponse|RedirectResponse

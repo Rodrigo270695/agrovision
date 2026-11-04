@@ -1172,6 +1172,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                         {
                             method: 'PUT',
                             credentials: 'same-origin',
+                            redirect: 'manual',
                             headers: {
                                 Accept: 'application/json',
                                 'Content-Type': 'application/json',
@@ -1183,7 +1184,12 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                         { tries: 2, timeoutMs: 35_000 },
                     );
 
-                    if (!response.ok) {
+                    // 0 / opaqueredirect: el servidor respondió con redirect HTML (éxito).
+                    const redirectedOk =
+                        response.type === 'opaqueredirect' ||
+                        (response.status >= 300 && response.status < 400);
+
+                    if (!response.ok && !redirectedOk) {
                         if (response.status >= 500 || response.status === 0) {
                             await queueUpdate(checklist.id, payload);
                             toast.success(
@@ -1205,7 +1211,15 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                         return;
                     }
 
-                    toast.success('Inspección guardada.');
+                    const successPayload = redirectedOk
+                        ? null
+                        : ((await response.json().catch(() => null)) as {
+                              message?: string;
+                          } | null);
+
+                    toast.success(
+                        successPayload?.message || 'Inspección guardada.',
+                    );
                     router.reload({
                         preserveScroll: true,
                         preserveState: true,
