@@ -4,6 +4,10 @@ import { getCsrfToken } from '@/lib/csrf';
 import { offlineDb, type QueuedMutation } from '@/lib/offline/db';
 import { maxSyncAttempts, offlineErrorMessage } from '@/lib/offline/errors';
 import { newOutboxId } from '@/lib/offline/ids';
+import {
+    fetchWithNetworkRetry,
+    isNetworkFailure,
+} from '@/lib/offline/network';
 import { refreshPendingCount } from '@/lib/offline/store';
 
 export const MUTATIONS_EVENT = 'agrovision:mutations';
@@ -157,6 +161,7 @@ export async function flushMutations(): Promise<void> {
     }
 
     const items = await db.mutations.orderBy('createdAt').toArray();
+    let synced = 0;
 
     for (const item of items) {
         const formData = isFormDataMutation(item.body);
@@ -195,54 +200,78 @@ export async function flushMutations(): Promise<void> {
         let response: Response;
 
         try {
-            response = await fetch(item.url, {
-                method,
-                credentials: 'same-origin',
-                headers: {
-                    Accept: 'application/json',
-                    ...(formData ? {} : { 'Content-Type': 'application/json' }),
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-XSRF-TOKEN': getCsrfToken(),
+            response = await fetchWithNetworkRetry(
+                item.url,
+                {
+                    method,
+                    credentials: 'same-origin',
+                    headers: {
+                        Accept: 'application/json',
+                        ...(formData
+                            ? {}
+                            : { 'Content-Type': 'application/json' }),
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-XSRF-TOKEN': getCsrfToken(),
+                    },
+                    body: payload,
                 },
-                body: payload,
-            });
+                {
+                    tries: 3,
+                    timeoutMs: 45_000,
+                    csrfToken: getCsrfToken,
+                },
+            );
         } catch (error) {
-            const attempts = item.attempts + 1;
             const message = offlineErrorMessage(error);
 
+            // Señal va y viene: no borrar ni quemar intentos.
+            if (isNetworkFailure(error)) {
+                await db.mutations.update(item.id, { lastError: message });
+                break;
+            }
+
+            const attempts = item.attempts + 1;
+            await db.mutations.update(item.id, {
+                attempts,
+                lastError: message,
+            });
+
             if (attempts >= maxSyncAttempts()) {
-                await db.mutations.delete(item.id);
                 continue;
             }
+
+            break;
+        }
+
+        if (!response.ok && response.status !== 302) {
+            const attempts = item.attempts + 1;
+            const message =
+                response.status >= 500
+                    ? 'El servidor no respondió. Se reintentará.'
+                    : 'No se pudo enviar este cambio.';
 
             await db.mutations.update(item.id, {
                 attempts,
                 lastError: message,
             });
-            throw new Error(message);
-        }
 
-        if (!response.ok && response.status !== 302) {
-            const attempts = item.attempts + 1;
-
-            if (attempts >= maxSyncAttempts()) {
-                await db.mutations.delete(item.id);
-                continue;
+            if (response.status >= 500 || response.status === 0) {
+                break;
             }
 
-            await db.mutations.update(item.id, {
-                attempts,
-                lastError: 'No se pudo enviar este cambio.',
-            });
-            throw new Error('No se pudo enviar un cambio pendiente.');
+            continue;
         }
 
         await db.mutations.delete(item.id);
+        synced += 1;
     }
 
-    if (items.length > 0) {
+    if (synced > 0 || items.length > 0) {
         await refreshPendingCount();
         notify();
+    }
+
+    if (synced > 0) {
         router.reload({ preserveScroll: true, preserveState: false });
     }
 }

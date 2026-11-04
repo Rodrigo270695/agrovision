@@ -139,6 +139,89 @@ class InductionController extends Controller
             ]);
     }
 
+    public function updateType(Request $request, string $type): RedirectResponse
+    {
+        $row = InductionType::query()->where('slug', $type)->firstOrFail();
+
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'activity' => ['required', 'string', Rule::in(array_keys(InductionFormOptions::activities()))],
+            'short' => ['nullable', 'string', 'max:80'],
+            'merge' => ['sometimes', 'boolean'],
+        ], [
+            'title.required' => 'El nombre del tipo es obligatorio.',
+            'activity.required' => 'Selecciona la actividad.',
+        ]);
+
+        $title = trim($validated['title']);
+        $normalized = InductionTypeCatalog::normalize($title);
+        $short = trim((string) ($validated['short'] ?? ''));
+        $activity = $validated['activity'];
+
+        $duplicate = InductionType::query()
+            ->where('id', '!=', $row->id)
+            ->get(['id', 'slug', 'title', 'activity', 'short'])
+            ->first(
+                fn (InductionType $candidate) => InductionTypeCatalog::normalize($candidate->title) === $normalized
+            );
+
+        if ($duplicate) {
+            if (! $request->boolean('merge')) {
+                return back()->with('toast', [
+                    'type' => 'error',
+                    'message' => "Ya existe el tipo «{$duplicate->title}». Confirma si quieres unir los paquetes.",
+                ]);
+            }
+
+            $moved = 0;
+
+            DB::transaction(function () use ($row, $duplicate, $title, $activity, $short, &$moved) {
+                $duplicate->update([
+                    'title' => $title,
+                    'activity' => $activity,
+                    'short' => $short !== '' ? $short : InductionType::makeShort($title),
+                ]);
+
+                $moved = Induction::query()
+                    ->whereIn('induction_type', [$row->slug, $duplicate->slug])
+                    ->update([
+                        'induction_type' => $duplicate->slug,
+                        'title' => $title,
+                        'activity' => $activity,
+                    ]);
+
+                $row->delete();
+            });
+
+            return redirect()
+                ->route('inductions.index')
+                ->with('toast', [
+                    'type' => 'success',
+                    'message' => "Tipos unidos en «{$title}». Se movieron {$moved} paquete(s).",
+                ]);
+        }
+
+        $row->update([
+            'title' => $title,
+            'activity' => $activity,
+            'short' => $short !== '' ? $short : InductionType::makeShort($title),
+        ]);
+
+        Induction::query()
+            ->where('induction_type', $row->slug)
+            ->update([
+                'title' => $title,
+                'activity' => $activity,
+            ]);
+
+        return redirect()
+            ->route('inductions.index')
+            ->with('toast', [
+                'type' => 'success',
+                'message' => "Tipo renombrado a «{$title}».",
+            ]);
+    }
+
     public function destroyType(string $type): RedirectResponse
     {
         $row = InductionType::query()->where('slug', $type)->firstOrFail();

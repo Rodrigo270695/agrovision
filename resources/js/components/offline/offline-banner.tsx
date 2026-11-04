@@ -46,12 +46,12 @@ export function OfflineBanner() {
                 )}
                 <p className="min-w-0 flex-1 truncate text-xs">
                     {!online
-                        ? 'Sin conexión. Ves lo ya guardado. Las inspecciones se editan aquí; las inducciones abiertas se pueden consultar.'
+                        ? 'Sin conexión. Inspecciones e inducciones (firmas, asistencia, fotos) se guardan aquí y se envían al volver la señal.'
                         : syncing
                           ? `Sincronizando ${pending} cambio${pending === 1 ? '' : 's'}…`
                           : lastError
                             ? offlineErrorMessage(lastError)
-                            : `${pending} cambio${pending === 1 ? '' : 's'} pendiente${pending === 1 ? '' : 's'} de enviar.`}
+                            : `${pending} cambio${pending === 1 ? '' : 's'} pendiente${pending === 1 ? '' : 's'} de enviar (útil si la señal va y viene).`}
                 </p>
                 {online && (pending > 0 || lastError) ? (
                     <div className="flex shrink-0 gap-1">

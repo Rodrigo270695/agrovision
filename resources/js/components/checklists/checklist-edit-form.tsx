@@ -28,6 +28,10 @@ import { getCsrfToken } from '@/lib/csrf';
 import { isBrowserOnline, isLocalChecklistId, newLocalPhotoId } from '@/lib/offline/ids';
 import { enqueueMutation } from '@/lib/offline/mutations';
 import {
+    fetchWithNetworkRetry,
+    isNetworkFailure,
+} from '@/lib/offline/network';
+import {
     applyUpdateToChecklist,
     deleteLocalDraft,
     listPendingPhotos,
@@ -37,6 +41,7 @@ import {
     queueUpdate,
     saveEditSnapshot,
 } from '@/lib/offline/store';
+import { flushOutbox } from '@/lib/offline/sync';
 import { cn } from '@/lib/utils';
 import {
     PARETO_PASS_THRESHOLD,
@@ -903,22 +908,94 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
             formData.append('checklist_item_id', String(itemId));
             formData.append('photo', prepared);
 
-            const response = await fetch(`/inspecciones/${checklist.id}/fotos`, {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: {
-                    Accept: 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-XSRF-TOKEN': getCsrfToken(),
-                },
-                body: formData,
-            });
+            const queueLocalEvidence = async () => {
+                const pending = await listPendingPhotos(checklist.id);
+
+                for (const photo of pending) {
+                    if (
+                        photo.checklistItemId === itemId &&
+                        photo.inspectionPass === activePass
+                    ) {
+                        await queueDeletePhoto(checklist.id, photo.id);
+                    }
+                }
+
+                const localId = newLocalPhotoId();
+                await queuePhoto({
+                    id: localId,
+                    checklistId: String(checklist.id),
+                    inspectionPass: activePass,
+                    checklistItemId: itemId,
+                    blob: prepared,
+                    capturedAt: new Date().toISOString(),
+                    latitude: null,
+                    longitude: null,
+                    accuracy: null,
+                });
+                setEvidencePhotos((prev) => [
+                    ...prev.filter(
+                        (photo) =>
+                            !(
+                                photo.checklist_item_id === itemId &&
+                                photo.inspection_pass === activePass
+                            ),
+                    ),
+                    {
+                        id: localId,
+                        checklist_item_id: itemId,
+                        inspection_pass: activePass,
+                        url: URL.createObjectURL(prepared),
+                        captured_at: null,
+                        latitude: null,
+                        longitude: null,
+                        accuracy: null,
+                    },
+                ]);
+                toast.success(
+                    'Señal inestable. Foto guardada en el dispositivo; se enviará al reconectar.',
+                );
+                void flushOutbox();
+            };
+
+            let response: Response;
+
+            try {
+                response = await fetchWithNetworkRetry(
+                    `/inspecciones/${checklist.id}/fotos`,
+                    {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-XSRF-TOKEN': getCsrfToken(),
+                        },
+                        body: formData,
+                    },
+                    { tries: 2, timeoutMs: 45_000 },
+                );
+            } catch (error) {
+                if (isNetworkFailure(error)) {
+                    await queueLocalEvidence();
+
+                    return;
+                }
+
+                throw error;
+            }
+
             const data = (await response.json().catch(() => null)) as {
                 message?: string;
                 photo?: ChecklistPhoto;
             } | null;
 
             if (!response.ok || !data?.photo) {
+                if (response.status >= 500 || response.status === 0) {
+                    await queueLocalEvidence();
+
+                    return;
+                }
+
                 toast.error(data?.message || 'No se pudo subir la foto.');
 
                 return;
@@ -1072,31 +1149,82 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
         }
 
         const payload = buildPayload(extra);
+        const localSnapshot = applyUpdateToChecklist(checklist, payload);
 
-        if (!isBrowserOnline() || isLocalChecklistId(checklist.id)) {
-            setProcessing(true);
-            void (async () => {
-                try {
+        setProcessing(true);
+        void (async () => {
+            try {
+                // Siempre deja copia local primero: si se cae la red a mitad, no se pierde.
+                await saveEditSnapshot(localSnapshot);
+
+                if (!isBrowserOnline() || isLocalChecklistId(checklist.id)) {
                     await queueUpdate(checklist.id, payload);
-                    await saveEditSnapshot(applyUpdateToChecklist(checklist, payload));
                     toast.success(
                         'Guardado en el dispositivo. Se enviará al reconectar.',
                     );
-                } catch {
-                    toast.error('No se pudo guardar en el dispositivo.');
-                } finally {
-                    setProcessing(false);
+
+                    return;
                 }
-            })();
 
-            return;
-        }
+                try {
+                    const response = await fetchWithNetworkRetry(
+                        `/inspecciones/${checklist.id}`,
+                        {
+                            method: 'PUT',
+                            credentials: 'same-origin',
+                            headers: {
+                                Accept: 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-XSRF-TOKEN': getCsrfToken(),
+                            },
+                            body: JSON.stringify(payload),
+                        },
+                        { tries: 2, timeoutMs: 35_000 },
+                    );
 
-        setProcessing(true);
-        router.put(`/inspecciones/${checklist.id}`, payload, {
-            preserveScroll: true,
-            onFinish: () => setProcessing(false),
-        });
+                    if (!response.ok) {
+                        if (response.status >= 500 || response.status === 0) {
+                            await queueUpdate(checklist.id, payload);
+                            toast.success(
+                                'Señal inestable. Quedó en el dispositivo y se enviará al reconectar.',
+                            );
+                            void flushOutbox();
+
+                            return;
+                        }
+
+                        const data = (await response.json().catch(() => null)) as {
+                            message?: string;
+                        } | null;
+                        toast.error(
+                            data?.message ||
+                                'No se pudo guardar. Revisa los datos e intenta de nuevo.',
+                        );
+
+                        return;
+                    }
+
+                    toast.success('Inspección guardada.');
+                    router.reload({
+                        preserveScroll: true,
+                        preserveState: true,
+                    });
+                } catch (error) {
+                    await queueUpdate(checklist.id, payload);
+                    toast.success(
+                        isNetworkFailure(error)
+                            ? 'Señal inestable. Quedó en el dispositivo y se enviará al reconectar.'
+                            : 'Guardado en el dispositivo. Se enviará al reconectar.',
+                    );
+                    void flushOutbox();
+                }
+            } catch {
+                toast.error('No se pudo guardar en el dispositivo.');
+            } finally {
+                setProcessing(false);
+            }
+        })();
     };
 
     const leaveWithoutSaving = () => {

@@ -4,6 +4,7 @@ import {
     GraduationCap,
     LoaderCircle,
     Package,
+    Pencil,
     Trash2,
 } from 'lucide-react';
 import { router } from '@inertiajs/react';
@@ -28,6 +29,7 @@ export type InductionCatalogItem = {
 
 type Props = {
     catalog: InductionCatalogItem[];
+    onEditType?: (item: InductionCatalogItem) => void;
     onDeleteType?: (item: InductionCatalogItem) => void;
 };
 
@@ -75,7 +77,11 @@ function openPackages(item: InductionCatalogItem) {
     router.visit(`/inducciones/tipos/${item.slug}`);
 }
 
-export function InductionCatalog({ catalog, onDeleteType }: Props) {
+export function InductionCatalog({
+    catalog,
+    onEditType,
+    onDeleteType,
+}: Props) {
     const columns: DataTableColumn<InductionCatalogItem>[] = [
         {
             key: 'title',
@@ -152,6 +158,14 @@ export function InductionCatalog({ catalog, onDeleteType }: Props) {
                                 icon: Package,
                                 onSelect: () => openPackages(item),
                             },
+                            onEditType
+                                ? {
+                                      key: 'edit',
+                                      label: 'Editar nombre',
+                                      icon: Pencil,
+                                      onSelect: () => onEditType(item),
+                                  }
+                                : null,
                             onDeleteType
                                 ? {
                                       key: 'delete',

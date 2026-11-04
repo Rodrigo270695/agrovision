@@ -38,6 +38,7 @@ import { useCan } from '@/hooks/use-can';
 import { isBrowserOnline } from '@/lib/offline/ids';
 import { openInductionPdf } from '@/lib/open-induction-pdf';
 import { saveInductionSnapshot } from '@/lib/offline/store';
+import { visitOrQueue } from '@/lib/offline/visit-or-queue';
 import { cn } from '@/lib/utils';
 
 type Attendee = {
@@ -164,6 +165,11 @@ type Props = {
 
 export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
     const pageProps = usePage().props as unknown as InductionShowProps;
+    const [draft, setDraft] = useState<InductionShowProps | null>(
+        snapshot ?? null,
+    );
+    const offlineSession = snapshot !== null || !isBrowserOnline();
+    const base = draft ?? snapshot ?? pageProps;
     const {
         induction,
         availableUnits,
@@ -172,20 +178,23 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
         formOptions,
         periodOptions,
         unitFilters,
-    } = snapshot ?? pageProps;
-    const viewOnly = snapshot !== null;
+    } = base;
 
-    const blockOffline = () => {
-        if (!viewOnly && isBrowserOnline()) {
-            return false;
-        }
-
-        toast.info(
-            'Sin conexión. Puedes ver la inducción. Los cambios esperan a internet.',
-        );
-
-        return true;
+    const persistDraft = (next: InductionShowProps) => {
+        setDraft(next);
+        void saveInductionSnapshot(next.induction.id, next);
     };
+
+    const patchInduction = (
+        updater: (current: InductionDetail) => InductionDetail,
+    ) => {
+        const next = {
+            ...base,
+            induction: updater(base.induction),
+        };
+        persistDraft(next);
+    };
+
     const { can } = useCan();
     const canUpdate = can('inductions.update');
     const canCopy =
@@ -228,10 +237,11 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
     const [savingSignature, setSavingSignature] = useState(false);
 
     useEffect(() => {
-        if (viewOnly || !induction?.id) {
+        if (snapshot || !induction?.id) {
             return;
         }
 
+        // Sesión online: cachea copia para campo sin señal.
         void saveInductionSnapshot(induction.id, {
             induction,
             availableUnits,
@@ -247,10 +257,16 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
         formOptions,
         induction,
         periodOptions,
+        snapshot,
         statusOptions,
         unitFilters,
-        viewOnly,
     ]);
+
+    useEffect(() => {
+        if (!snapshot) {
+            setDraft(null);
+        }
+    }, [pageProps.induction?.id, pageProps.induction?.status, snapshot]);
 
     const signedCount = useMemo(
         () => induction.attendees.filter((item) => item.is_signed).length,
@@ -276,7 +292,11 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
     }, [induction.attendees, signedCount]);
 
     const visitUnits = (params: { unit_search?: string }) => {
-        if (blockOffline()) {
+        if (!isBrowserOnline()) {
+            toast.info(
+                'Sin señal: la búsqueda de unidades espera a reconectar.',
+            );
+
             return;
         }
 
@@ -305,16 +325,44 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
     };
 
     const pull = () => {
-        if (blockOffline() || !canUpdate || locked || selected.length === 0 || pulling) {
+        if (!canUpdate || locked || selected.length === 0 || pulling) {
             return;
         }
 
+        const units = availableUnits.filter((unit) => selected.includes(unit.id));
         setPulling(true);
-        router.post(
+        visitOrQueue(
+            'post',
             `/inducciones/${induction.id}/asistentes`,
             { unit_ids: selected },
             {
                 preserveScroll: true,
+                onQueued: () => {
+                    patchInduction((current) => {
+                        const existing = new Set(
+                            current.attendees.map((row) => row.unit_id ?? row.id),
+                        );
+                        const added = units
+                            .filter((unit) => !existing.has(unit.id))
+                            .map((unit) => ({
+                                id: -unit.id,
+                                unit_id: unit.id,
+                                driver_name: unit.driver_name || 'Conductor',
+                                driver_dni: unit.driver_dni,
+                                plate_number: unit.plate_number,
+                                correlative: unit.correlative,
+                                status: 'registered',
+                                is_signed: false,
+                                has_fingerprint: false,
+                            }));
+
+                        return {
+                            ...current,
+                            attendees: [...current.attendees, ...added],
+                        };
+                    });
+                    setSelected([]);
+                },
                 onSuccess: () => setSelected([]),
                 onFinish: () => setPulling(false),
             },
@@ -322,16 +370,25 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
     };
 
     const setAttendeeStatus = (attendee: Attendee, status: string) => {
-        if (blockOffline() || !canUpdate || locked || !canManageAttendance) {
+        if (!canUpdate || locked || !canManageAttendance) {
             return;
         }
 
         setBusyId(attendee.id);
-        router.patch(
+        visitOrQueue(
+            'patch',
             `/inducciones/${induction.id}/asistentes/${attendee.id}`,
             { status },
             {
                 preserveScroll: true,
+                onQueued: () => {
+                    patchInduction((current) => ({
+                        ...current,
+                        attendees: current.attendees.map((row) =>
+                            row.id === attendee.id ? { ...row, status } : row,
+                        ),
+                    }));
+                },
                 onFinish: () => setBusyId(null),
             },
         );
@@ -339,7 +396,6 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
 
     const markAllAttended = () => {
         if (
-            blockOffline() ||
             !canUpdate ||
             locked ||
             !canManageAttendance ||
@@ -350,45 +406,77 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
         }
 
         setBulkBusy(true);
-        router.patch(
+        visitOrQueue(
+            'patch',
             `/inducciones/${induction.id}/asistentes-estado`,
             { status: 'attended' },
             {
                 preserveScroll: true,
+                onQueued: () => {
+                    patchInduction((current) => ({
+                        ...current,
+                        attendees: current.attendees.map((row) => ({
+                            ...row,
+                            status: 'attended',
+                        })),
+                    }));
+                },
                 onFinish: () => setBulkBusy(false),
             },
         );
     };
 
     const removeAttendee = (attendee: Attendee) => {
-        if (blockOffline() || !canUpdate || locked) {
+        if (!canUpdate || locked) {
             return;
         }
 
         setBusyId(attendee.id);
-        router.delete(
+        visitOrQueue(
+            'delete',
             `/inducciones/${induction.id}/asistentes/${attendee.id}`,
+            {},
             {
                 preserveScroll: true,
+                onQueued: () => {
+                    patchInduction((current) => ({
+                        ...current,
+                        attendees: current.attendees.filter(
+                            (row) => row.id !== attendee.id,
+                        ),
+                    }));
+                },
                 onFinish: () => setBusyId(null),
             },
         );
     };
 
     const patchInductionStatus = (status: string) => {
-        if (blockOffline() || !canUpdate) {
+        if (!canUpdate) {
             return;
         }
 
-        router.patch(
+        visitOrQueue(
+            'patch',
             `/inducciones/${induction.id}/estado`,
             { status },
-            { preserveScroll: true },
+            {
+                preserveScroll: true,
+                onQueued: () => {
+                    patchInduction((current) => ({
+                        ...current,
+                        status,
+                        can_manage_attendance: status === 'in_progress',
+                        can_finalize: status === 'in_progress',
+                        can_start: status === 'scheduled',
+                    }));
+                },
+            },
         );
     };
 
     const saveVerificationPhoto = (dataUrl: string) => {
-        if (blockOffline() || !canUpdate || savingVerificationPhoto || locked || !induction.id) {
+        if (!canUpdate || savingVerificationPhoto || locked || !induction.id) {
             return;
         }
 
@@ -405,12 +493,20 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                     `verificacion-${induction.id}.jpg`,
                 );
 
-                router.post(
+                visitOrQueue(
+                    'post',
                     `/inducciones/${induction.id}/foto-verificacion`,
                     formData,
                     {
                         forceFormData: true,
                         preserveScroll: true,
+                        onQueued: () => {
+                            patchInduction((current) => ({
+                                ...current,
+                                has_verification_photo: true,
+                                verification_photo_url: dataUrl,
+                            }));
+                        },
                         onError: () => {
                             setSavingVerificationPhoto(false);
                         },
@@ -419,24 +515,37 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                 );
             } catch {
                 setSavingVerificationPhoto(false);
+                toast.error('No se pudo preparar la foto.');
             }
         })();
     };
 
     const removeVerificationPhoto = () => {
-        if (blockOffline() || !canUpdate || savingVerificationPhoto || locked) {
+        if (!canUpdate || savingVerificationPhoto || locked) {
             return;
         }
 
         setSavingVerificationPhoto(true);
-        router.delete(`/inducciones/${induction.id}/foto-verificacion`, {
-            preserveScroll: true,
-            onFinish: () => setSavingVerificationPhoto(false),
-        });
+        visitOrQueue(
+            'delete',
+            `/inducciones/${induction.id}/foto-verificacion`,
+            {},
+            {
+                preserveScroll: true,
+                onQueued: () => {
+                    patchInduction((current) => ({
+                        ...current,
+                        has_verification_photo: false,
+                        verification_photo_url: null,
+                    }));
+                },
+                onFinish: () => setSavingVerificationPhoto(false),
+            },
+        );
     };
 
     const openSign = (attendee: Attendee) => {
-        if (blockOffline() || !canManageAttendance) {
+        if (!canManageAttendance) {
             return;
         }
 
@@ -463,18 +572,27 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
         : reuseSaved || Boolean(signatureDataUrl && fingerprintDataUrl);
 
     const saveSignature = () => {
-        if (blockOffline() || !canSaveSign || savingSignature) {
+        if (!canSaveSign || savingSignature) {
             return;
         }
 
         setSavingSignature(true);
 
         if (signingSpeaker) {
-            router.post(
+            visitOrQueue(
+                'post',
                 `/inducciones/${induction.id}/firma-expositor`,
                 { signature_data_url: signatureDataUrl },
                 {
                     preserveScroll: true,
+                    onQueued: () => {
+                        patchInduction((current) => ({
+                            ...current,
+                            speaker_signed: true,
+                            speaker_signature_url: signatureDataUrl,
+                        }));
+                        closeSignModal();
+                    },
                     onSuccess: () => closeSignModal(),
                     onFinish: () => setSavingSignature(false),
                 },
@@ -488,8 +606,10 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
             return;
         }
 
-        router.post(
-            `/inducciones/${induction.id}/asistentes/${signing.id}/firma`,
+        const attendeeId = signing.id;
+        visitOrQueue(
+            'post',
+            `/inducciones/${induction.id}/asistentes/${attendeeId}/firma`,
             reuseSaved
                 ? { reuse: true }
                 : {
@@ -498,6 +618,29 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                   },
             {
                 preserveScroll: true,
+                onQueued: () => {
+                    patchInduction((current) => ({
+                        ...current,
+                        attendees: current.attendees.map((row) =>
+                            row.id === attendeeId
+                                ? {
+                                      ...row,
+                                      is_signed: true,
+                                      has_fingerprint: true,
+                                      signature_url:
+                                          signatureDataUrl ??
+                                          row.saved_signature_url ??
+                                          row.signature_url,
+                                      fingerprint_url:
+                                          fingerprintDataUrl ??
+                                          row.saved_fingerprint_url ??
+                                          row.fingerprint_url,
+                                  }
+                                : row,
+                        ),
+                    }));
+                    closeSignModal();
+                },
                 onSuccess: () => closeSignModal(),
                 onFinish: () => setSavingSignature(false),
             },
@@ -532,10 +675,11 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                 </Link>
                             </Button>
                         )}
-                        {viewOnly ? (
+                        {offlineSession ? (
                             <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                                Sin conexión. Estás viendo la última copia
-                                guardada en este teléfono.
+                                {isBrowserOnline()
+                                    ? 'Trabajando con copia local. Los cambios se envían al estabilizar la señal.'
+                                    : 'Sin conexión. Puedes firmar, marcar asistencia y guardar en este teléfono; se enviará al reconectar.'}
                             </p>
                         ) : null}
                         <div className="flex flex-wrap items-center gap-2">
@@ -547,9 +691,15 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                     type="button"
                                     variant="outline"
                                     onClick={() => {
-                                        if (!blockOffline()) {
-                                            setCopyOpen(true);
+                                        if (!isBrowserOnline()) {
+                                            toast.info(
+                                                'Copiar necesita conexión. La sesión sí se puede seguir editando offline.',
+                                            );
+
+                                            return;
                                         }
+
+                                        setCopyOpen(true);
                                     }}
                                     className="h-8 cursor-pointer border-brand-300 text-brand-700 hover:bg-brand-100"
                                 >
@@ -827,10 +977,6 @@ export function InductionShowPage({ snapshot = null, onBack }: Props = {}) {
                                         type="button"
                                         size="sm"
                                         onClick={() => {
-                                            if (blockOffline()) {
-                                                return;
-                                            }
-
                                             setSigning(null);
                                             setSigningSpeaker(true);
                                             setSignatureDataUrl(null);

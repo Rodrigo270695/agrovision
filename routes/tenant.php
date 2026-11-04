@@ -576,6 +576,10 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:inductions.create')
             ->name('inductions.types.store');
 
+        Route::put('inducciones/tipos/{type}', [InductionController::class, 'updateType'])
+            ->middleware('permission:inductions.update')
+            ->name('inductions.types.update');
+
         Route::delete('inducciones/tipos/{type}', [InductionController::class, 'destroyType'])
             ->middleware('permission:inductions.delete')
             ->name('inductions.types.destroy');

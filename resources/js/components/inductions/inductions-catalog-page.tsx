@@ -42,6 +42,9 @@ export function InductionsCatalogPage() {
     const { can } = useCan();
     const [formOpen, setFormOpen] = useState(false);
     const [typeFormOpen, setTypeFormOpen] = useState(false);
+    const [editingType, setEditingType] = useState<InductionCatalogItem | null>(
+        null,
+    );
     const [formatsOpen, setFormatsOpen] = useState(false);
 
     const deleteType = (item: InductionCatalogItem) => {
@@ -79,6 +82,7 @@ export function InductionsCatalogPage() {
                         return;
                     }
 
+                    setEditingType(null);
                     setTypeFormOpen(true);
                 }}
                 onFormats={() => setFormatsOpen(true)}
@@ -95,6 +99,14 @@ export function InductionsCatalogPage() {
             <PlatformContentPanel className="p-3 sm:p-4">
                 <InductionCatalog
                     catalog={catalog ?? []}
+                    onEditType={
+                        can('inductions.update')
+                            ? (item) => {
+                                  setEditingType(item);
+                                  setTypeFormOpen(true);
+                              }
+                            : undefined
+                    }
                     onDeleteType={
                         can('inductions.delete') ? deleteType : undefined
                     }
@@ -103,8 +115,13 @@ export function InductionsCatalogPage() {
 
             <InductionTypeFormModal
                 open={typeFormOpen}
+                editing={editingType}
+                catalog={catalog ?? []}
                 activityOptions={formOptions?.activities ?? []}
-                onClose={() => setTypeFormOpen(false)}
+                onClose={() => {
+                    setTypeFormOpen(false);
+                    setEditingType(null);
+                }}
             />
 
             {can('inductions.create') ? (

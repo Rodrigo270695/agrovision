@@ -7,11 +7,16 @@ import { Spinner } from '@/components/ui/spinner';
 import { getCsrfToken } from '@/lib/csrf';
 import { isBrowserOnline, isLocalChecklistId, newLocalPhotoId } from '@/lib/offline/ids';
 import {
+    fetchWithNetworkRetry,
+    isNetworkFailure,
+} from '@/lib/offline/network';
+import {
     listPendingPhotos,
     photoToView,
     queueDeletePhoto,
     queuePhoto,
 } from '@/lib/offline/store';
+import { flushOutbox } from '@/lib/offline/sync';
 import { cn } from '@/lib/utils';
 
 export type ChecklistPhoto = {
@@ -277,20 +282,34 @@ async function stampPhoto(file: File, geo: GeoMeta): Promise<File> {
 async function postPhoto(
     checklistId: number | string,
     formData: FormData,
-): Promise<string | null> {
-    const response = await fetch(`/inspecciones/${checklistId}/fotos`, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {
-            Accept: 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-XSRF-TOKEN': getCsrfToken(),
-        },
-        body: formData,
-    });
+): Promise<'ok' | 'network' | string> {
+    let response: Response;
+
+    try {
+        response = await fetchWithNetworkRetry(
+            `/inspecciones/${checklistId}/fotos`,
+            {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-XSRF-TOKEN': getCsrfToken(),
+                },
+                body: formData,
+            },
+            { tries: 2, timeoutMs: 45_000 },
+        );
+    } catch (error) {
+        if (isNetworkFailure(error)) {
+            return 'network';
+        }
+
+        return 'No se pudo subir la foto. Intenta de nuevo.';
+    }
 
     if (response.ok) {
-        return null;
+        return 'ok';
     }
 
     if (response.status === 419) {
@@ -311,6 +330,10 @@ async function postPhoto(
 
     if (response.status === 404) {
         return 'No se encontró la inspección para subir la foto. Recarga la página.';
+    }
+
+    if (response.status >= 500 || response.status === 0) {
+        return 'network';
     }
 
     return 'No se pudo subir la foto. Intenta de nuevo.';
@@ -431,7 +454,7 @@ function PhotoPassSection({
                 formData.append('accuracy', String(geo.accuracy));
             }
 
-            if (!isBrowserOnline() || isLocalChecklistId(checklistId)) {
+            const saveLocalPhoto = async (message: string) => {
                 const localId = newLocalPhotoId();
                 await queuePhoto({
                     id: localId,
@@ -455,19 +478,30 @@ function PhotoPassSection({
                         accuracy: geo.accuracy,
                     },
                 ]);
-                toast.success('Foto guardada en el dispositivo.');
+                toast.success(message);
+                void flushOutbox();
+            };
+
+            if (!isBrowserOnline() || isLocalChecklistId(checklistId)) {
+                await saveLocalPhoto(
+                    'Foto guardada en el dispositivo. Se enviará al reconectar.',
+                );
                 setUploading(false);
 
                 return;
             }
 
-            const uploadError = await postPhoto(checklistId, formData);
+            const uploadResult = await postPhoto(checklistId, formData);
 
-            if (uploadError) {
-                setError(uploadError);
-            } else {
+            if (uploadResult === 'ok') {
                 toast.success('Foto subida.');
                 router.reload({ preserveScroll: true });
+            } else if (uploadResult === 'network') {
+                await saveLocalPhoto(
+                    'Señal inestable. Foto guardada en el dispositivo; se enviará al reconectar.',
+                );
+            } else {
+                setError(uploadResult);
             }
         } catch (error) {
             setError(

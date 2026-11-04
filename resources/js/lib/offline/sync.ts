@@ -9,9 +9,10 @@ import { editSnapshotKey, offlineDb, type OutboxItem } from '@/lib/offline/db';
 import { isLocalChecklistId } from '@/lib/offline/ids';
 import { maxSyncAttempts, offlineErrorMessage } from '@/lib/offline/errors';
 import {
-    deleteLocalDraft,
-    refreshPendingCount,
-} from '@/lib/offline/store';
+    fetchWithNetworkRetry,
+    isNetworkFailure,
+} from '@/lib/offline/network';
+import { refreshPendingCount } from '@/lib/offline/store';
 import {
     setOfflineError,
     setOfflineSyncing,
@@ -46,35 +47,12 @@ async function fetchWithRetry(
     init: RequestInit,
     tries = 3,
 ): Promise<Response> {
-    let lastError: unknown;
-
-    for (let attempt = 0; attempt < tries; attempt++) {
-        try {
-            const headers = new Headers(init.headers);
-            headers.set('X-XSRF-TOKEN', getCsrfToken());
-
-            const response = await fetch(input, { ...init, headers });
-
-            if (response.status === 419 && attempt < tries - 1) {
-                await refreshCsrf();
-                continue;
-            }
-
-            return response;
-        } catch (error) {
-            lastError = error;
-
-            if (attempt < tries - 1) {
-                await new Promise((resolve) =>
-                    setTimeout(resolve, 400 * (attempt + 1)),
-                );
-            }
-        }
-    }
-
-    throw lastError instanceof Error
-        ? lastError
-        : new Error('Failed to fetch');
+    return fetchWithNetworkRetry(input, init, {
+        tries,
+        timeoutMs: 30_000,
+        onBeforeRetry: refreshCsrf,
+        csrfToken: getCsrfToken,
+    });
 }
 
 function parseChecklistIdFromUrl(url: string): number | null {
@@ -298,7 +276,13 @@ export async function flushOutbox(): Promise<void> {
     try {
         const items = await db.outbox.orderBy('createdAt').toArray();
 
+        const blockedChecklists = new Set<string>();
+
         for (const item of items) {
+            if (blockedChecklists.has(item.checklistId)) {
+                continue;
+            }
+
             try {
                 await processItem(item);
                 await db.outbox.delete(item.id);
@@ -306,22 +290,31 @@ export async function flushOutbox(): Promise<void> {
                 setOfflineError(null);
             } catch (error) {
                 const message = offlineErrorMessage(error);
+
+                // Señal va y viene: no quemar intentos ni borrar datos del celular.
+                if (isNetworkFailure(error)) {
+                    await db.outbox.update(item.id, {
+                        lastError: message,
+                    });
+                    setOfflineError(message);
+                    break;
+                }
+
                 const attempts = item.attempts + 1;
 
                 if (attempts >= maxSyncAttempts()) {
-                    await db.outbox.delete(item.id);
+                    // Nunca descartar fotos ni creates locales por errores duros sin
+                    // confirmación: se dejan en cola con el error visible.
+                    await db.outbox.update(item.id, {
+                        attempts,
+                        lastError: message,
+                    });
+                    setOfflineError(message);
 
-                    if (item.kind === 'create' && isLocalChecklistId(item.checklistId)) {
-                        await deleteLocalDraft(item.checklistId);
+                    if (item.kind === 'create') {
+                        blockedChecklists.add(item.checklistId);
                     }
 
-                    if (item.kind === 'photo' && item.payload.photoId) {
-                        await db.photos.delete(String(item.payload.photoId));
-                    }
-
-                    setOfflineError(
-                        'Un cambio no se pudo enviar y se quitó de este celular.',
-                    );
                     continue;
                 }
 
@@ -330,7 +323,15 @@ export async function flushOutbox(): Promise<void> {
                     lastError: message,
                 });
                 setOfflineError(message);
-                break;
+
+                // Create fallido bloquea update/fotos de esa inspección; el resto sigue.
+                if (item.kind === 'create') {
+                    blockedChecklists.add(item.checklistId);
+                    continue;
+                }
+
+                // Update/foto fallidos (validación, 500, etc.): seguir con otras.
+                continue;
             }
         }
         try {
