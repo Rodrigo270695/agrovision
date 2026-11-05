@@ -29,20 +29,34 @@ class ObservationRemediationController extends Controller
             'year' => ['nullable', 'integer', 'min:2020', 'max:2100'],
             'month' => ['nullable', 'integer', 'min:1', 'max:12'],
             'date' => ['nullable', 'date'],
+            'view' => ['nullable', Rule::in(['calendar', 'list'])],
+            'search' => ['nullable', 'string', 'max:120'],
         ]);
 
         $today = now()->timezone(config('app.timezone'));
         $year = (int) ($validated['year'] ?? $today->year);
         $month = (int) ($validated['month'] ?? $today->month);
         $selectedDate = $validated['date'] ?? null;
+        $view = $validated['view'] ?? 'calendar';
+        $search = trim((string) ($validated['search'] ?? '')) ?: null;
 
-        $payload = $calendar->month($year, $month);
-        $dayUnits = $selectedDate ? $calendar->dayUnits($selectedDate) : [];
+        $payload = $calendar->month($year, $month, $search);
+        $dayUnits = $selectedDate && $view === 'calendar'
+            ? $calendar->dayUnits($selectedDate, $search)
+            : [];
+        $listUnits = $view === 'list'
+            ? $calendar->actionableList($year, $month, $search)
+            : [];
 
         return Inertia::render('observation-remediations/index', [
             'calendar' => $payload,
             'selected_date' => $selectedDate,
             'day_units' => $dayUnits,
+            'list_units' => $listUnits,
+            'filters' => [
+                'view' => $view,
+                'search' => $search ?? '',
+            ],
             'can_submit' => Auth::user()?->can('observation_remediations.submit') ?? false,
             'can_verify' => Auth::user()?->can('observation_remediations.verify') ?? false,
         ]);

@@ -7,17 +7,25 @@ import {
     ChevronLeft,
     ChevronRight,
     ClipboardCheck,
+    Eye,
     ImagePlus,
+    List,
     MapPin,
+    Search,
     ShieldAlert,
     Sparkles,
     UserRound,
     X,
     XCircle,
 } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AppModal } from '@/components/shared/app-modal';
+import {
+    RowActionsMenu,
+    type RowActionItem,
+} from '@/components/shared/row-actions-menu';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 
@@ -50,10 +58,12 @@ type DayUnit = {
     percent: number;
     plate_number: string;
     driver_name?: string | null;
+    driver_dni?: string | null;
     sede?: string | null;
     garita?: string | null;
     inspector?: string | null;
     template?: string | null;
+    inspected_on?: string | null;
     remediation: {
         id: number | null;
         status: string;
@@ -82,6 +92,11 @@ type PageProps = {
     };
     selected_date: string | null;
     day_units: DayUnit[];
+    list_units?: DayUnit[];
+    filters?: {
+        view: 'calendar' | 'list';
+        search: string;
+    };
     can_submit: boolean;
     can_verify: boolean;
 };
@@ -107,14 +122,22 @@ function visit(params: {
     year: number;
     month: number;
     date?: string | null;
+    view?: 'calendar' | 'list';
+    search?: string | null;
 }) {
     const query: Record<string, string> = {
         year: String(params.year),
         month: String(params.month),
+        view: params.view ?? 'calendar',
     };
 
-    if (params.date) {
+    if (params.date && query.view === 'calendar') {
         query.date = params.date;
+    }
+
+    const search = params.search?.trim();
+    if (search) {
+        query.search = search;
     }
 
     router.get('/calendario-observaciones', query, {
@@ -198,10 +221,25 @@ function actionLabel(unit: DayUnit) {
 }
 
 export default function ObservationRemediationsPage() {
-    const { calendar, selected_date, day_units, can_submit, can_verify } =
-        usePage<PageProps>().props;
+    const {
+        calendar,
+        selected_date,
+        day_units,
+        list_units = [],
+        filters,
+        can_submit,
+        can_verify,
+    } = usePage<PageProps>().props;
+
+    const activeView = filters?.view === 'list' ? 'list' : 'calendar';
+    const activeSearch = filters?.search ?? '';
 
     const [detail, setDetail] = useState<DayUnit | null>(null);
+    const [searchDraft, setSearchDraft] = useState(activeSearch);
+
+    useEffect(() => {
+        setSearchDraft(activeSearch);
+    }, [activeSearch]);
 
     const todayIso = useMemo(() => {
         const now = new Date();
@@ -236,6 +274,32 @@ export default function ObservationRemediationsPage() {
         return { amber, red, green };
     }, [day_units]);
 
+    const listSummary = useMemo(() => {
+        const amber = list_units.filter((u) => u.tone === 'amber').length;
+        const red = list_units.filter((u) => u.tone === 'red').length;
+        return { amber, red, total: list_units.length };
+    }, [list_units]);
+
+    const baseVisit = (patch: {
+        year?: number;
+        month?: number;
+        date?: string | null;
+        view?: 'calendar' | 'list';
+        search?: string | null;
+    }) => {
+        visit({
+            year: patch.year ?? calendar.year,
+            month: patch.month ?? calendar.month,
+            date:
+                patch.date === undefined
+                    ? selected_date
+                    : patch.date,
+            view: patch.view ?? activeView,
+            search:
+                patch.search === undefined ? activeSearch : patch.search,
+        });
+    };
+
     const shiftMonth = (delta: number) => {
         let month = calendar.month + delta;
         let year = calendar.year;
@@ -246,16 +310,55 @@ export default function ObservationRemediationsPage() {
             month = 1;
             year += 1;
         }
-        visit({ year, month });
+        baseVisit({ year, month, date: null });
     };
 
     const goToday = () => {
         const now = new Date();
-        visit({
+        baseVisit({
             year: now.getFullYear(),
             month: now.getMonth() + 1,
             date: todayIso,
+            view: 'calendar',
         });
+    };
+
+    const applySearch = (value?: string) => {
+        baseVisit({ search: (value ?? searchDraft).trim() || null });
+    };
+
+    const unitActions = (unit: DayUnit): RowActionItem[] => {
+        const actions: RowActionItem[] = [];
+
+        if (unit.can_submit) {
+            actions.push({
+                key: 'lift',
+                label: 'Levantar observación',
+                icon: ClipboardCheck,
+                tone: 'warning',
+                onSelect: () => setDetail(unit),
+            });
+        }
+
+        if (unit.can_verify) {
+            actions.push({
+                key: 'verify',
+                label: 'Verificar levantamiento',
+                icon: CheckCircle2,
+                tone: 'success',
+                onSelect: () => setDetail(unit),
+            });
+        }
+
+        actions.push({
+            key: 'view',
+            label: actionLabel(unit),
+            icon: Eye,
+            onSelect: () => setDetail(unit),
+            separatorBefore: actions.length > 0,
+        });
+
+        return actions;
     };
 
     const years = useMemo(
@@ -336,80 +439,190 @@ export default function ObservationRemediationsPage() {
                         </div>
                     </header>
 
-                    {/* Toolbar */}
-                    <div className="flex flex-col gap-2 rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <NavIconButton
-                                label="Mes anterior"
-                                onClick={() => shiftMonth(-1)}
-                            >
-                                <ChevronLeft className="size-4" />
-                            </NavIconButton>
-                            <Button
-                                type="button"
-                                onClick={goToday}
-                                className="cursor-pointer rounded-xl bg-brand-500 px-4 text-white hover:bg-brand-600"
-                            >
-                                <CalendarDays className="mr-1.5 size-4" />
-                                Hoy
-                            </Button>
-                            <NavIconButton
-                                label="Mes siguiente"
-                                onClick={() => shiftMonth(1)}
-                            >
-                                <ChevronRight className="size-4" />
-                            </NavIconButton>
+                    {/* Tabs + search */}
+                    <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm backdrop-blur">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        baseVisit({ view: 'calendar' })
+                                    }
+                                    className={cn(
+                                        'inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition',
+                                        activeView === 'calendar'
+                                            ? 'bg-brand-500 text-white shadow-sm'
+                                            : 'text-slate-600 hover:bg-white',
+                                    )}
+                                >
+                                    <CalendarDays className="size-3.5" />
+                                    Calendario
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        baseVisit({
+                                            view: 'list',
+                                            date: null,
+                                        })
+                                    }
+                                    className={cn(
+                                        'inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition',
+                                        activeView === 'list'
+                                            ? 'bg-brand-500 text-white shadow-sm'
+                                            : 'text-slate-600 hover:bg-white',
+                                    )}
+                                >
+                                    <List className="size-3.5" />
+                                    Lista (obs. / desap.)
+                                </button>
+                            </div>
 
-                            <select
-                                aria-label="Mes"
-                                className="h-10 cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
-                                value={calendar.month}
-                                onChange={(e) =>
-                                    visit({
-                                        year: calendar.year,
-                                        month: Number(e.target.value),
-                                    })
-                                }
+                            <form
+                                className="flex min-w-0 flex-1 gap-2 sm:max-w-md sm:justify-end"
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    applySearch();
+                                }}
                             >
-                                {MONTHS.map((name, index) => (
-                                    <option key={name} value={index + 1}>
-                                        {name}
-                                    </option>
-                                ))}
-                            </select>
-                            <select
-                                aria-label="Año"
-                                className="h-10 cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
-                                value={calendar.year}
-                                onChange={(e) =>
-                                    visit({
-                                        year: Number(e.target.value),
-                                        month: calendar.month,
-                                    })
-                                }
-                            >
-                                {years.map((y) => (
-                                    <option key={y} value={y}>
-                                        {y}
-                                    </option>
-                                ))}
-                            </select>
+                                <div className="relative min-w-0 flex-1">
+                                    <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-slate-400" />
+                                    <Input
+                                        value={searchDraft}
+                                        onChange={(event) =>
+                                            setSearchDraft(event.target.value)
+                                        }
+                                        placeholder="Buscar placa, conductor o DNI…"
+                                        className="h-10 border-slate-200 bg-white pl-9 text-sm"
+                                    />
+                                </div>
+                                <Button
+                                    type="submit"
+                                    variant="outline"
+                                    className="h-10 cursor-pointer border-slate-200"
+                                >
+                                    Buscar
+                                </Button>
+                                {activeSearch ? (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        className="h-10 cursor-pointer text-slate-500"
+                                        onClick={() => {
+                                            setSearchDraft('');
+                                            applySearch('');
+                                        }}
+                                    >
+                                        <X className="size-4" />
+                                    </Button>
+                                ) : null}
+                            </form>
                         </div>
 
-                        <div className="flex flex-wrap gap-2 text-xs font-medium">
-                            <LegendDot color="bg-emerald-500" label="OK" />
-                            <LegendDot
-                                color="bg-amber-500"
-                                label="Con observaciones"
-                            />
-                            <LegendDot
-                                color="bg-rose-500"
-                                label="Desaprobadas"
-                            />
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <NavIconButton
+                                    label="Mes anterior"
+                                    onClick={() => shiftMonth(-1)}
+                                >
+                                    <ChevronLeft className="size-4" />
+                                </NavIconButton>
+                                <Button
+                                    type="button"
+                                    onClick={goToday}
+                                    className="cursor-pointer rounded-xl bg-brand-500 px-4 text-white hover:bg-brand-600"
+                                >
+                                    <CalendarDays className="mr-1.5 size-4" />
+                                    Hoy
+                                </Button>
+                                <NavIconButton
+                                    label="Mes siguiente"
+                                    onClick={() => shiftMonth(1)}
+                                >
+                                    <ChevronRight className="size-4" />
+                                </NavIconButton>
+
+                                <select
+                                    aria-label="Mes"
+                                    className="h-10 cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                                    value={calendar.month}
+                                    onChange={(e) =>
+                                        baseVisit({
+                                            month: Number(e.target.value),
+                                            date: null,
+                                        })
+                                    }
+                                >
+                                    {MONTHS.map((name, index) => (
+                                        <option key={name} value={index + 1}>
+                                            {name}
+                                        </option>
+                                    ))}
+                                </select>
+                                <select
+                                    aria-label="Año"
+                                    className="h-10 cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                                    value={calendar.year}
+                                    onChange={(e) =>
+                                        baseVisit({
+                                            year: Number(e.target.value),
+                                            date: null,
+                                        })
+                                    }
+                                >
+                                    {years.map((y) => (
+                                        <option key={y} value={y}>
+                                            {y}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 text-xs font-medium">
+                                {activeView === 'calendar' ? (
+                                    <>
+                                        <LegendDot
+                                            color="bg-emerald-500"
+                                            label="OK"
+                                        />
+                                        <LegendDot
+                                            color="bg-amber-500"
+                                            label="Con observaciones"
+                                        />
+                                        <LegendDot
+                                            color="bg-rose-500"
+                                            label="Desaprobadas"
+                                        />
+                                    </>
+                                ) : (
+                                    <>
+                                        <LegendDot
+                                            color="bg-amber-500"
+                                            label={`C/ obs. ${listSummary.amber}`}
+                                        />
+                                        <LegendDot
+                                            color="bg-rose-500"
+                                            label={`Desap. ${listSummary.red}`}
+                                        />
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </div>
 
+                    {activeView === 'list' ? (
+                        <ObservationListPanel
+                            units={list_units}
+                            monthLabel={`${MONTHS[calendar.month - 1]} ${calendar.year}`}
+                            search={activeSearch}
+                            onOpen={setDetail}
+                            actionsFor={unitActions}
+                        />
+                    ) : null}
+
                     {/* Calendar */}
+                    {activeView === 'calendar' ? (
+                        <>
                     <section className="rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-[0_14px_40px_-28px_rgba(15,31,58,0.4)] sm:p-4">
                         <div className="mb-3 grid grid-cols-7 gap-1.5 sm:gap-2">
                             {WEEKDAYS.map((d) => (
@@ -447,9 +660,7 @@ export default function ObservationRemediationsPage() {
                                             if (!slot.cell) {
                                                 return;
                                             }
-                                            visit({
-                                                year: calendar.year,
-                                                month: calendar.month,
+                                            baseVisit({
                                                 date: slot.cell.date,
                                             });
                                         }}
@@ -557,9 +768,8 @@ export default function ObservationRemediationsPage() {
                                     variant="outline"
                                     className="cursor-pointer rounded-xl"
                                     onClick={() =>
-                                        visit({
-                                            year: calendar.year,
-                                            month: calendar.month,
+                                        baseVisit({
+                                            date: null,
                                         })
                                     }
                                 >
@@ -638,6 +848,9 @@ export default function ObservationRemediationsPage() {
                                                             />
                                                             {unit.driver_name ||
                                                                 'Sin conductor'}
+                                                            {unit.driver_dni
+                                                                ? ` · DNI ${unit.driver_dni}`
+                                                                : ''}
                                                         </span>
                                                         {(unit.sede ||
                                                             unit.garita) && (
@@ -721,6 +934,8 @@ export default function ObservationRemediationsPage() {
                             unidades.
                         </div>
                     )}
+                        </>
+                    ) : null}
                 </div>
             </div>
 
@@ -747,6 +962,119 @@ export default function ObservationRemediationsPage() {
                 }
             `}</style>
         </>
+    );
+}
+
+function ObservationListPanel({
+    units,
+    monthLabel,
+    search,
+    onOpen,
+    actionsFor,
+}: {
+    units: DayUnit[];
+    monthLabel: string;
+    search: string;
+    onOpen: (unit: DayUnit) => void;
+    actionsFor: (unit: DayUnit) => RowActionItem[];
+}) {
+    return (
+        <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_14px_40px_-28px_rgba(15,31,58,0.4)]">
+            <div className="flex flex-wrap items-end justify-between gap-2 border-b border-slate-100 bg-[linear-gradient(135deg,#f8fbff,#ffffff_55%)] px-4 py-3 sm:px-5">
+                <div>
+                    <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                        Lista del mes
+                    </p>
+                    <h2 className="mt-0.5 font-display text-lg font-bold text-brand-800">
+                        {monthLabel}
+                    </h2>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                        Solo aprobados con observación y desaprobados
+                        {search ? ` · filtro “${search}”` : ''}.
+                    </p>
+                </div>
+                <p className="text-xs font-semibold tabular-nums text-brand-700">
+                    {units.length} registro{units.length === 1 ? '' : 's'}
+                </p>
+            </div>
+
+            {units.length === 0 ? (
+                <div className="px-4 py-12 text-center text-sm text-slate-500">
+                    No hay observaciones pendientes ni desaprobadas en este mes
+                    {search ? ' con ese filtro' : ''}.
+                </div>
+            ) : (
+                <div className="overflow-x-auto">
+                    <table className="w-full min-w-[40rem] border-collapse text-left text-sm">
+                        <thead className="bg-slate-50 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
+                            <tr>
+                                <th className="px-4 py-2.5">Fecha</th>
+                                <th className="px-4 py-2.5">Placa</th>
+                                <th className="px-4 py-2.5">Conductor</th>
+                                <th className="px-4 py-2.5">Estado</th>
+                                <th className="px-4 py-2.5">Levantamiento</th>
+                                <th className="px-4 py-2.5 text-right">
+                                    Acciones
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {units.map((unit) => (
+                                <tr
+                                    key={`${unit.checklist_id}-${unit.pass}`}
+                                    className="border-t border-slate-100 hover:bg-slate-50/80"
+                                >
+                                    <td className="px-4 py-3 text-xs text-slate-600 tabular-nums">
+                                        {unit.inspected_on
+                                            ? formatDateLabel(unit.inspected_on)
+                                            : '—'}
+                                        <p className="mt-0.5 text-[11px] text-slate-400">
+                                            {unit.pass_label}
+                                        </p>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <button
+                                            type="button"
+                                            className="cursor-pointer font-semibold text-brand-800 hover:underline"
+                                            onClick={() => onOpen(unit)}
+                                        >
+                                            {unit.plate_number}
+                                        </button>
+                                    </td>
+                                    <td className="px-4 py-3 text-xs text-slate-600">
+                                        <p className="font-medium text-slate-800">
+                                            {unit.driver_name || '—'}
+                                        </p>
+                                        <p className="text-slate-400">
+                                            {unit.driver_dni
+                                                ? `DNI ${unit.driver_dni}`
+                                                : 'Sin DNI'}
+                                        </p>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <StatusBadge
+                                            tone={unit.tone}
+                                            label={unit.grade_label}
+                                        />
+                                    </td>
+                                    <td className="px-4 py-3 text-xs text-slate-600">
+                                        {unit.remediation.status_label}
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
+                                        <div className="inline-flex justify-end">
+                                            <RowActionsMenu
+                                                label={`Acciones ${unit.plate_number}`}
+                                                items={actionsFor(unit)}
+                                            />
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </section>
     );
 }
 

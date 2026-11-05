@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\ObservationRemediation;
 use App\Models\UnitChecklist;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 
@@ -16,24 +17,27 @@ final class ObservationCalendar
      *     days: list<array{date: string, tone: string, amber: int, red: int, green: int, label: string|null}>
      * }
      */
-    public function month(int $year, int $month): array
+    public function month(int $year, int $month, ?string $search = null): array
     {
         $start = Carbon::create($year, $month, 1)->startOfDay();
         $end = $start->copy()->endOfMonth();
         $from = $start->toDateString();
         $to = $end->toDateString();
 
-        $checklists = ObservationRemediationSupport::scopedChecklists()
-            ->with([
-                'answers:id,unit_checklist_id,checklist_item_id,first_value,second_value,observations',
-                'answers.item:id,weight,label,item_number',
-                'observationRemediations',
-            ])
-            ->where(function ($q) use ($from, $to) {
-                $q->whereBetween('first_inspected_on', [$from, $to])
-                    ->orWhereBetween('second_inspected_on', [$from, $to]);
-            })
-            ->get();
+        $checklists = $this->applySearch(
+            ObservationRemediationSupport::scopedChecklists()
+                ->with([
+                    'answers:id,unit_checklist_id,checklist_item_id,first_value,second_value,observations',
+                    'answers.item:id,weight,label,item_number',
+                    'observationRemediations',
+                    'unit:id,driver_dni',
+                ])
+                ->where(function ($q) use ($from, $to) {
+                    $q->whereBetween('first_inspected_on', [$from, $to])
+                        ->orWhereBetween('second_inspected_on', [$from, $to]);
+                }),
+            $search,
+        )->get();
 
         /** @var array<string, list<string>> $byDate */
         $byDate = [];
@@ -114,24 +118,26 @@ final class ObservationCalendar
      *
      * @return list<array<string, mixed>>
      */
-    public function dayUnits(string $date): array
+    public function dayUnits(string $date, ?string $search = null): array
     {
-        $checklists = ObservationRemediationSupport::scopedChecklists()
-            ->with([
-                'unit:id,coordinator_id,sede,garita,plate_number,responsible_person',
-                'creator:id,name',
-                'template:id,type,code,name',
-                'answers:id,unit_checklist_id,checklist_item_id,first_value,second_value,observations',
-                'answers.item:id,weight,label,item_number',
-                'observationRemediations.photos',
-                'observationRemediations.events.user:id,name',
-            ])
-            ->where(function ($q) use ($date) {
-                $q->whereDate('first_inspected_on', $date)
-                    ->orWhereDate('second_inspected_on', $date);
-            })
-            ->orderBy('plate_number')
-            ->get();
+        $checklists = $this->applySearch(
+            ObservationRemediationSupport::scopedChecklists()
+                ->with([
+                    'unit:id,coordinator_id,sede,garita,plate_number,responsible_person,driver_dni,driver_name',
+                    'creator:id,name',
+                    'template:id,type,code,name',
+                    'answers:id,unit_checklist_id,checklist_item_id,first_value,second_value,observations',
+                    'answers.item:id,weight,label,item_number',
+                    'observationRemediations.photos',
+                    'observationRemediations.events.user:id,name',
+                ])
+                ->where(function ($q) use ($date) {
+                    $q->whereDate('first_inspected_on', $date)
+                        ->orWhereDate('second_inspected_on', $date);
+                })
+                ->orderBy('plate_number'),
+            $search,
+        )->get();
 
         $rows = [];
 
@@ -153,6 +159,98 @@ final class ObservationCalendar
         });
 
         return $rows;
+    }
+
+    /**
+     * Lista del mes: solo aprobados c/ obs. y desaprobados (para tab Lista).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function actionableList(int $year, int $month, ?string $search = null): array
+    {
+        $start = Carbon::create($year, $month, 1)->startOfDay();
+        $end = $start->copy()->endOfMonth();
+        $from = $start->toDateString();
+        $to = $end->toDateString();
+
+        $checklists = $this->applySearch(
+            ObservationRemediationSupport::scopedChecklists()
+                ->with([
+                    'unit:id,coordinator_id,sede,garita,plate_number,responsible_person,driver_dni,driver_name',
+                    'creator:id,name',
+                    'template:id,type,code,name',
+                    'answers:id,unit_checklist_id,checklist_item_id,first_value,second_value,observations',
+                    'answers.item:id,weight,label,item_number',
+                    'observationRemediations.photos',
+                    'observationRemediations.events.user:id,name',
+                ])
+                ->where(function ($q) use ($from, $to) {
+                    $q->whereBetween('first_inspected_on', [$from, $to])
+                        ->orWhereBetween('second_inspected_on', [$from, $to]);
+                })
+                ->orderBy('plate_number'),
+            $search,
+        )->get();
+
+        $rows = [];
+
+        foreach ($checklists as $checklist) {
+            foreach (ObservationRemediationSupport::actionablePasses($checklist) as $passInfo) {
+                $dateKey = Carbon::parse($passInfo['date'])->toDateString();
+
+                if ($dateKey < $from || $dateKey > $to) {
+                    continue;
+                }
+
+                $rows[] = [
+                    ...$this->serializeUnit($checklist, $passInfo),
+                    'inspected_on' => $dateKey,
+                ];
+            }
+        }
+
+        usort($rows, function (array $a, array $b) {
+            $order = ['red' => 0, 'amber' => 1, 'green' => 2];
+
+            return strcmp((string) ($b['inspected_on'] ?? ''), (string) ($a['inspected_on'] ?? ''))
+                ?: ($order[$a['tone']] ?? 9) <=> ($order[$b['tone']] ?? 9)
+                ?: strcmp((string) $a['plate_number'], (string) $b['plate_number']);
+        });
+
+        return $rows;
+    }
+
+    /**
+     * @param  Builder<UnitChecklist>  $query
+     * @return Builder<UnitChecklist>
+     */
+    private function applySearch(Builder $query, ?string $search): Builder
+    {
+        $term = trim((string) $search);
+
+        if ($term === '') {
+            return $query;
+        }
+
+        $like = '%'.$term.'%';
+
+        return $query->where(function (Builder $builder) use ($like, $term) {
+            $builder
+                ->where('plate_number', 'ilike', $like)
+                ->orWhere('driver_name', 'ilike', $like)
+                ->orWhereHas('unit', function (Builder $unit) use ($like, $term) {
+                    $unit
+                        ->where('driver_dni', 'ilike', $like)
+                        ->orWhere('driver_name', 'ilike', $like)
+                        ->orWhere('plate_number', 'ilike', $like);
+
+                    $digits = preg_replace('/\D+/', '', $term) ?: '';
+
+                    if ($digits !== '') {
+                        $unit->orWhere('driver_dni', 'ilike', '%'.$digits.'%');
+                    }
+                });
+        });
     }
 
     private static function dayLabel(int $green, int $amber, int $red): ?string
@@ -203,6 +301,7 @@ final class ObservationCalendar
             'percent' => $passInfo['percent'],
             'plate_number' => $checklist->plate_number,
             'driver_name' => $checklist->driver_name,
+            'driver_dni' => $checklist->unit?->driver_dni,
             'sede' => $checklist->unit?->sede,
             'garita' => $checklist->unit?->garita,
             'inspector' => $checklist->creator?->name,
