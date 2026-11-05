@@ -47,12 +47,16 @@ class ObservationRemediationController extends Controller
         $listUnits = $view === 'list'
             ? $calendar->actionableList($year, $month, $search)
             : [];
+        $searchUnits = $view === 'calendar' && $search
+            ? $calendar->searchMonthUnits($year, $month, $search)
+            : [];
 
         return Inertia::render('observation-remediations/index', [
             'calendar' => $payload,
             'selected_date' => $selectedDate,
             'day_units' => $dayUnits,
             'list_units' => $listUnits,
+            'search_units' => $searchUnits,
             'filters' => [
                 'view' => $view,
                 'search' => $search ?? '',

@@ -93,6 +93,7 @@ type PageProps = {
     selected_date: string | null;
     day_units: DayUnit[];
     list_units?: DayUnit[];
+    search_units?: DayUnit[];
     filters?: {
         view: 'calendar' | 'list';
         search: string;
@@ -226,6 +227,7 @@ export default function ObservationRemediationsPage() {
         selected_date,
         day_units,
         list_units = [],
+        search_units = [],
         filters,
         can_submit,
         can_verify,
@@ -240,6 +242,32 @@ export default function ObservationRemediationsPage() {
     useEffect(() => {
         setSearchDraft(activeSearch);
     }, [activeSearch]);
+
+    useEffect(() => {
+        const next = searchDraft.trim();
+        if (next === activeSearch) {
+            return;
+        }
+
+        const timer = window.setTimeout(() => {
+            visit({
+                year: calendar.year,
+                month: calendar.month,
+                date: selected_date,
+                view: activeView,
+                search: next || null,
+            });
+        }, 320);
+
+        return () => window.clearTimeout(timer);
+    }, [
+        searchDraft,
+        activeSearch,
+        calendar.year,
+        calendar.month,
+        selected_date,
+        activeView,
+    ]);
 
     const todayIso = useMemo(() => {
         const now = new Date();
@@ -613,8 +641,11 @@ export default function ObservationRemediationsPage() {
                     {activeView === 'list' ? (
                         <ObservationListPanel
                             units={list_units}
-                            monthLabel={`${MONTHS[calendar.month - 1]} ${calendar.year}`}
+                            eyebrow="Lista del mes"
+                            title={`${MONTHS[calendar.month - 1]} ${calendar.year}`}
+                            description="Solo aprobados con observación y desaprobados"
                             search={activeSearch}
+                            emptyLabel="No hay observaciones pendientes ni desaprobadas en este mes"
                             onOpen={setDetail}
                             actionsFor={unitActions}
                         />
@@ -739,8 +770,21 @@ export default function ObservationRemediationsPage() {
                         </div>
                     </section>
 
+                    {activeSearch ? (
+                        <ObservationListPanel
+                            units={search_units}
+                            eyebrow="Resultados de búsqueda"
+                            title={`${MONTHS[calendar.month - 1]} ${calendar.year}`}
+                            description="Todas las inspecciones que coinciden con placa, conductor o DNI"
+                            search={activeSearch}
+                            emptyLabel="No hay inspecciones en este mes para ese criterio"
+                            onOpen={setDetail}
+                            actionsFor={unitActions}
+                        />
+                    ) : null}
+
                     {/* Day panel */}
-                    {selected_date ? (
+                    {!activeSearch && selected_date ? (
                         <section
                             className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_18px_50px_-30px_rgba(15,31,58,0.4)] motion-safe:animate-[fadeInUp_380ms_ease-out]"
                             aria-live="polite"
@@ -928,12 +972,12 @@ export default function ObservationRemediationsPage() {
                                 </ul>
                             )}
                         </section>
-                    ) : (
+                    ) : !activeSearch ? (
                         <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 px-4 py-8 text-center text-sm text-slate-500">
                             Selecciona un día del calendario para ver las
                             unidades.
                         </div>
-                    )}
+                    ) : null}
                         </>
                     ) : null}
                 </div>
@@ -967,14 +1011,20 @@ export default function ObservationRemediationsPage() {
 
 function ObservationListPanel({
     units,
-    monthLabel,
+    eyebrow,
+    title,
+    description,
     search,
+    emptyLabel,
     onOpen,
     actionsFor,
 }: {
     units: DayUnit[];
-    monthLabel: string;
+    eyebrow: string;
+    title: string;
+    description: string;
     search: string;
+    emptyLabel: string;
     onOpen: (unit: DayUnit) => void;
     actionsFor: (unit: DayUnit) => RowActionItem[];
 }) {
@@ -983,13 +1033,13 @@ function ObservationListPanel({
             <div className="flex flex-wrap items-end justify-between gap-2 border-b border-slate-100 bg-[linear-gradient(135deg,#f8fbff,#ffffff_55%)] px-4 py-3 sm:px-5">
                 <div>
                     <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-                        Lista del mes
+                        {eyebrow}
                     </p>
                     <h2 className="mt-0.5 font-display text-lg font-bold text-brand-800">
-                        {monthLabel}
+                        {title}
                     </h2>
                     <p className="mt-0.5 text-xs text-slate-500">
-                        Solo aprobados con observación y desaprobados
+                        {description}
                         {search ? ` · filtro “${search}”` : ''}.
                     </p>
                 </div>
@@ -1000,7 +1050,7 @@ function ObservationListPanel({
 
             {units.length === 0 ? (
                 <div className="px-4 py-12 text-center text-sm text-slate-500">
-                    No hay observaciones pendientes ni desaprobadas en este mes
+                    {emptyLabel}
                     {search ? ' con ese filtro' : ''}.
                 </div>
             ) : (

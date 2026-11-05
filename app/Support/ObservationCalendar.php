@@ -168,6 +168,38 @@ final class ObservationCalendar
      */
     public function actionableList(int $year, int $month, ?string $search = null): array
     {
+        return $this->monthPassRows(
+            $year,
+            $month,
+            $search,
+            onlyActionable: true,
+        );
+    }
+
+    /**
+     * Resultados de búsqueda en calendario: todas las inspecciones del mes que coinciden.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function searchMonthUnits(int $year, int $month, string $search): array
+    {
+        return $this->monthPassRows(
+            $year,
+            $month,
+            $search,
+            onlyActionable: false,
+        );
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function monthPassRows(
+        int $year,
+        int $month,
+        ?string $search,
+        bool $onlyActionable,
+    ): array {
         $start = Carbon::create($year, $month, 1)->startOfDay();
         $end = $start->copy()->endOfMonth();
         $from = $start->toDateString();
@@ -195,7 +227,11 @@ final class ObservationCalendar
         $rows = [];
 
         foreach ($checklists as $checklist) {
-            foreach (ObservationRemediationSupport::actionablePasses($checklist) as $passInfo) {
+            $passes = $onlyActionable
+                ? ObservationRemediationSupport::actionablePasses($checklist)
+                : ObservationRemediationSupport::listedPasses($checklist);
+
+            foreach ($passes as $passInfo) {
                 $dateKey = Carbon::parse($passInfo['date'])->toDateString();
 
                 if ($dateKey < $from || $dateKey > $to) {
@@ -233,23 +269,39 @@ final class ObservationCalendar
         }
 
         $like = '%'.$term.'%';
+        $compact = preg_replace('/[\s\-_.]+/', '', $term) ?: $term;
+        $compactLike = '%'.$compact.'%';
+        $digits = preg_replace('/\D+/', '', $term) ?: '';
+        // Solo ampliar a DNI por dígitos si la búsqueda es numérica (evita que "a4f" → "%4%").
+        $dniLike = ($digits !== '' && ! preg_match('/\p{L}/u', $term))
+            ? '%'.$digits.'%'
+            : null;
 
-        return $query->where(function (Builder $builder) use ($like, $term) {
+        $plateCompactSql = "REPLACE(REPLACE(REPLACE(COALESCE(%s, ''), '-', ''), ' ', ''), '_', '') ILIKE ?";
+
+        return $query->where(function (Builder $builder) use ($like, $compactLike, $dniLike, $plateCompactSql) {
             $builder
                 ->where('plate_number', 'ilike', $like)
                 ->orWhere('driver_name', 'ilike', $like)
-                ->orWhereHas('unit', function (Builder $unit) use ($like, $term) {
-                    $unit
-                        ->where('driver_dni', 'ilike', $like)
-                        ->orWhere('driver_name', 'ilike', $like)
-                        ->orWhere('plate_number', 'ilike', $like);
+                ->orWhereRaw(sprintf($plateCompactSql, 'plate_number'), [$compactLike]);
 
-                    $digits = preg_replace('/\D+/', '', $term) ?: '';
-
-                    if ($digits !== '') {
-                        $unit->orWhere('driver_dni', 'ilike', '%'.$digits.'%');
-                    }
+            if ($dniLike !== null) {
+                $builder->orWhereHas('unit', function (Builder $unit) use ($dniLike) {
+                    $unit->where('driver_dni', 'ilike', $dniLike);
                 });
+            }
+
+            $builder->orWhereHas('unit', function (Builder $unit) use ($like, $compactLike, $dniLike, $plateCompactSql) {
+                $unit
+                    ->where('driver_name', 'ilike', $like)
+                    ->orWhere('driver_dni', 'ilike', $like)
+                    ->orWhere('plate_number', 'ilike', $like)
+                    ->orWhereRaw(sprintf($plateCompactSql, 'plate_number'), [$compactLike]);
+
+                if ($dniLike !== null) {
+                    $unit->orWhere('driver_dni', 'ilike', $dniLike);
+                }
+            });
         });
     }
 
