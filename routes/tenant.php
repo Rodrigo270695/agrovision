@@ -436,6 +436,10 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:checklists.update')
             ->name('checklists.update');
 
+        Route::post('inspecciones/{checklist}/traspasar', [ChecklistController::class, 'transfer'])
+            ->middleware('permission:checklists.transfer')
+            ->name('checklists.transfer');
+
         Route::post('inspecciones/{checklist}/solicitar-edicion', [ChecklistController::class, 'requestEdit'])
             ->middleware('permission:checklists.update')
             ->name('checklists.request-edit');

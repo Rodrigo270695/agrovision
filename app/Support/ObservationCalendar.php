@@ -68,7 +68,8 @@ final class ObservationCalendar
                     ->firstWhere('inspection_pass', $pass);
 
                 if ($grade === 'approved'
-                    || ($grade === 'approved_notes' && $remediation?->status === ObservationRemediation::VERIFIED)
+                    || (ObservationRemediationSupport::isRemediableGrade($grade)
+                        && $remediation?->status === ObservationRemediation::VERIFIED)
                 ) {
                     $byDate[$dateKey][] = 'approved';
 
@@ -375,9 +376,9 @@ final class ObservationCalendar
                 $passInfo['grade'],
                 $remediation,
             ),
-            'can_submit' => $passInfo['grade'] === 'approved_notes'
+            'can_submit' => ObservationRemediationSupport::isRemediableGrade($passInfo['grade'])
                 && in_array($status, [ObservationRemediation::OPEN, ObservationRemediation::REJECTED], true),
-            'can_verify' => $passInfo['grade'] === 'approved_notes'
+            'can_verify' => ObservationRemediationSupport::isRemediableGrade($passInfo['grade'])
                 && $status === ObservationRemediation::SUBMITTED
                 && $this->canVerify($checklist),
         ];
@@ -506,21 +507,19 @@ final class ObservationCalendar
 
     private function statusLabel(string $status, string $grade): string
     {
-        if ($grade === 'rejected') {
-            return 'Desaprobado';
-        }
-
         if ($grade === 'approved') {
             return $status === ObservationRemediation::VERIFIED
                 ? 'Aprobado (obs. levantada)'
                 : 'Aprobado';
         }
 
+        $prefix = $grade === 'rejected' ? 'Desaprobado · ' : '';
+
         return match ($status) {
-            ObservationRemediation::SUBMITTED => 'Pendiente de inspector',
-            ObservationRemediation::VERIFIED => 'Levantamiento verificado',
-            ObservationRemediation::REJECTED => 'Rechazado por inspector',
-            default => 'Pendiente de levantar',
+            ObservationRemediation::SUBMITTED => $prefix.'Pendiente de inspector',
+            ObservationRemediation::VERIFIED => $prefix.'Levantamiento verificado',
+            ObservationRemediation::REJECTED => $prefix.'Rechazado por inspector',
+            default => $prefix.'Pendiente de levantar',
         };
     }
 

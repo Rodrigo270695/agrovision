@@ -10,7 +10,10 @@ use App\Models\InspectionBatch;
 use App\Models\InspectionEditRequest;
 use App\Models\Period;
 use App\Models\Unit;
+use App\Models\ObservationRemediation;
 use App\Models\UnitChecklist;
+use App\Models\UnitChecklistTransfer;
+use App\Models\User;
 use App\Models\VehicleType;
 use App\Models\UnitChecklistAnswer;
 use App\Models\UnitChecklistPhoto;
@@ -82,10 +85,13 @@ class ChecklistController extends Controller
         $direction = $validated['direction'] ?? 'desc';
         $perPage = (int) ($validated['per_page'] ?? 10);
 
+        PermissionCatalog::syncToDatabase();
+
         $query = UnitChecklist::query()
             ->with([
                 'template:id,type,code,name',
                 'period:id,name,date,status',
+                'creator:id,name',
                 'unit:id,correlative,plate_number,driver_name,driver_dni,period_id,coordinator_id,sede,garita',
                 'answers:id,unit_checklist_id,checklist_item_id,first_value,second_value',
                 'answers.item:id,weight',
@@ -94,6 +100,10 @@ class ChecklistController extends Controller
 
         if (SystemRoles::currentIsScopedCoordinator()) {
             $query->whereHas('unit', fn ($q) => $q->where('coordinator_id', Auth::id()));
+        }
+
+        if (SystemRoles::currentIsScopedInspector()) {
+            $query->where('created_by', Auth::id());
         }
 
         if ($search !== '') {
@@ -113,7 +123,7 @@ class ChecklistController extends Controller
             $query->where('status', $status);
         }
 
-        if ($inspectorId) {
+        if ($inspectorId && ! SystemRoles::currentIsScopedInspector()) {
             $query->where('created_by', $inspectorId);
         }
 
@@ -160,6 +170,10 @@ class ChecklistController extends Controller
         if (SystemRoles::currentIsScopedCoordinator()) {
             $activeUnitsQuery->where('coordinator_id', Auth::id());
             $statsQuery->whereHas('unit', fn ($q) => $q->where('coordinator_id', Auth::id()));
+        }
+
+        if (SystemRoles::currentIsScopedInspector()) {
+            $statsQuery->where('created_by', Auth::id());
         }
 
         $this->applyInspectionDateRange($statsQuery, $dateFrom, $dateTo);
@@ -293,6 +307,10 @@ class ChecklistController extends Controller
             $query->whereHas('unit', fn ($q) => $q->where('coordinator_id', Auth::id()));
         }
 
+        if (SystemRoles::currentIsScopedInspector()) {
+            $query->where('created_by', Auth::id());
+        }
+
         if ($search !== '') {
             $query->where(function ($builder) use ($search) {
                 $builder
@@ -310,7 +328,7 @@ class ChecklistController extends Controller
             $query->where('status', $status);
         }
 
-        if ($inspectorId) {
+        if ($inspectorId && ! SystemRoles::currentIsScopedInspector()) {
             $query->where('created_by', $inspectorId);
         }
 
@@ -2010,6 +2028,74 @@ class ChecklistController extends Controller
         ]);
     }
 
+    public function transfer(Request $request, UnitChecklist $checklist): RedirectResponse
+    {
+        PermissionCatalog::syncToDatabase();
+
+        $checklist->loadMissing(['unit', 'creator:id,name']);
+        $this->ensureCanAccessChecklist($checklist);
+        $this->ensureCanTransferChecklist($checklist);
+
+        $validated = $request->validate([
+            'to_user_id' => ['required', 'integer', 'exists:users,id'],
+            'note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $toUser = User::query()->findOrFail((int) $validated['to_user_id']);
+
+        if (! $toUser->hasRole(SystemRoles::INSPECTOR)) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'El destino debe ser un inspector.',
+            ]);
+        }
+
+        $fromUserId = $checklist->created_by ? (int) $checklist->created_by : null;
+
+        if ($fromUserId === (int) $toUser->id) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'La inspección ya pertenece a ese inspector.',
+            ]);
+        }
+
+        $fromName = $checklist->creator?->name;
+        $actor = Auth::user();
+
+        DB::transaction(function () use ($checklist, $toUser, $fromUserId, $fromName, $validated, $actor): void {
+            $checklist->update([
+                'created_by' => $toUser->id,
+            ]);
+
+            ObservationRemediation::query()
+                ->where('unit_checklist_id', $checklist->id)
+                ->update([
+                    'inspector_id' => $toUser->id,
+                ]);
+
+            UnitChecklistTransfer::query()->create([
+                'unit_checklist_id' => $checklist->id,
+                'from_user_id' => $fromUserId,
+                'to_user_id' => $toUser->id,
+                'transferred_by' => $actor?->id,
+                'note' => filled($validated['note'] ?? null)
+                    ? trim((string) $validated['note'])
+                    : null,
+                'payload' => [
+                    'from_user_name' => $fromName,
+                    'to_user_name' => $toUser->name,
+                    'transferred_by_name' => $actor?->name,
+                    'plate_number' => $checklist->plate_number,
+                ],
+            ]);
+        });
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => "Inspección traspasada a {$toUser->name}.",
+        ]);
+    }
+
     public function requestEdit(Request $request, UnitChecklist $checklist): RedirectResponse
     {
         $checklist->loadMissing('unit');
@@ -2270,15 +2356,44 @@ class ChecklistController extends Controller
 
     private function ensureCanAccessChecklist(UnitChecklist $checklist): void
     {
-        if (! SystemRoles::currentIsScopedCoordinator()) {
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $coordinatorId = $checklist->unit?->coordinator_id
+                ?? Unit::query()->whereKey($checklist->unit_id)->value('coordinator_id');
+
+            if ((int) $coordinatorId !== (int) Auth::id()) {
+                abort(403, 'No tienes acceso a esta inspección.');
+            }
+
             return;
         }
 
-        $coordinatorId = $checklist->unit?->coordinator_id
-            ?? Unit::query()->whereKey($checklist->unit_id)->value('coordinator_id');
-
-        if ((int) $coordinatorId !== (int) Auth::id()) {
+        if (SystemRoles::currentIsScopedInspector()
+            && (int) $checklist->created_by !== (int) Auth::id()
+        ) {
             abort(403, 'No tienes acceso a esta inspección.');
         }
+    }
+
+    private function ensureCanTransferChecklist(UnitChecklist $checklist): void
+    {
+        $user = Auth::user();
+
+        if (! $user) {
+            abort(403, 'No puedes traspasar esta inspección.');
+        }
+
+        if ($user->hasRole(SystemRoles::SUPERADMIN) || (bool) ($user->is_support ?? false)) {
+            return;
+        }
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            return;
+        }
+
+        if ((int) $checklist->created_by === (int) $user->id) {
+            return;
+        }
+
+        abort(403, 'Solo el inspector dueño puede traspasar esta inspección.');
     }
 }

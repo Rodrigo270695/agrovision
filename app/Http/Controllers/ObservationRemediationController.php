@@ -89,10 +89,10 @@ class ObservationRemediationController extends Controller
         ]);
 
         $snap = ObservationRemediationSupport::passSnapshot($checklist, $pass);
-        if ($snap['grade'] !== 'approved_notes') {
+        if (! ObservationRemediationSupport::isRemediableGrade($snap['grade'])) {
             return back()->with('toast', [
                 'type' => 'error',
-                'message' => 'Solo se levantan inspecciones aprobadas con observaciones.',
+                'message' => 'Solo se levantan desaprobadas o aprobadas con observaciones.',
             ]);
         }
 
@@ -245,10 +245,10 @@ class ObservationRemediationController extends Controller
         }
 
         $snap = ObservationRemediationSupport::passSnapshot($checklist, $pass);
-        if ($snap['grade'] !== 'approved_notes') {
+        if (! ObservationRemediationSupport::isRemediableGrade($snap['grade'])) {
             return back()->with('toast', [
                 'type' => 'error',
-                'message' => 'Esta inspección ya no está en estado con observaciones.',
+                'message' => 'Esta inspección ya no está pendiente de levantamiento.',
             ]);
         }
 

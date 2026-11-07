@@ -50,6 +50,7 @@ final class PermissionCatalog
             'checklists.update' => ['label' => 'Editar checklists', 'module' => 'Checklists'],
             'checklists.delete' => ['label' => 'Eliminar checklists', 'module' => 'Checklists'],
             'checklists.authorize_edit' => ['label' => 'Autorizar edición de inspecciones', 'module' => 'Checklists'],
+            'checklists.transfer' => ['label' => 'Traspasar inspecciones a otro inspector', 'module' => 'Checklists'],
 
             'observation_remediations.view' => ['label' => 'Ver calendario de observaciones', 'module' => 'Observaciones'],
             'observation_remediations.submit' => ['label' => 'Enviar levantamiento de observaciones', 'module' => 'Observaciones'],
@@ -141,6 +142,11 @@ final class PermissionCatalog
 
             if (! $existed && $name === 'driver_blacklists.update') {
                 self::giveIfRoleExists(SystemRoles::COORDINADOR, $name);
+            }
+
+            if (! $existed && $name === 'checklists.transfer') {
+                self::giveIfRoleExists(SystemRoles::COORDINADOR, $name);
+                self::giveIfRoleExists(SystemRoles::INSPECTOR, $name);
             }
         }
 

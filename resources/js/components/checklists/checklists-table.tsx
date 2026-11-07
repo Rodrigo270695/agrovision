@@ -1,11 +1,13 @@
-import { Ban, ClipboardCheck, Clock, FileDown, FilePenLine, Pencil, Trash2 } from 'lucide-react';
+import { ArrowRightLeft, Ban, ClipboardCheck, Clock, FileDown, FilePenLine, Pencil, Trash2 } from 'lucide-react';
 import { formatDaysSince } from '@/lib/document-expiry';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { useCallback, useMemo, useState } from 'react';
 import {
     DriverBlacklistModal,
     type DriverBlacklistDraft,
 } from '@/components/drivers/driver-blacklist-modal';
+import { ChecklistTransferModal } from '@/components/checklists/checklist-transfer-modal';
+import type { Auth } from '@/types';
 import { DateRangeFilter } from '@/components/shared/date-range-filter';
 import { toast } from 'sonner';
 import { isBrowserOnline } from '@/lib/offline/ids';
@@ -37,6 +39,8 @@ export type ChecklistItemRow = {
     id: number | string;
     pending_sync?: boolean;
     plate_number: string;
+    created_by?: number | null;
+    creator?: { id: number; name: string } | null;
     sede?: string | null;
     lugar?: string | null;
     driver_name?: string | null;
@@ -321,9 +325,18 @@ export function ChecklistsTable({
     onDelete,
     onPreviewPdf,
 }: Props) {
-    const { can, isSuperAdmin } = useCan();
+    const { can, isSuperAdmin, roles } = useCan();
+    const { auth } = usePage().props as { auth: Auth };
+    const currentUserId = auth.user?.id;
+    const isSupport = Boolean(auth.is_support);
+    const isCoordinator = roles.some(
+        (role) => role.toLowerCase() === 'coordinador',
+    );
     const [blacklistDraft, setBlacklistDraft] =
         useState<DriverBlacklistDraft | null>(null);
+    const [transferring, setTransferring] = useState<ChecklistItemRow | null>(
+        null,
+    );
 
     const visit = useCallback(
         (params: Partial<ChecklistsFilters> & { page?: number; batch_id?: number | null }) => {
@@ -538,6 +551,17 @@ export function ChecklistsTable({
                         (item.first_result === 'approved' ||
                             item.first_result === 'rejected') &&
                         can('checklists.view');
+                    const hasOtherInspector = inspectors.some(
+                        (inspector) => inspector.id !== item.created_by,
+                    );
+                    const canTransfer =
+                        can('checklists.transfer') &&
+                        typeof item.id === 'number' &&
+                        hasOtherInspector &&
+                        (isSuperAdmin ||
+                            isSupport ||
+                            isCoordinator ||
+                            item.created_by === currentUserId);
 
                     return (
                         <div className="flex justify-end">
@@ -560,6 +584,16 @@ export function ChecklistsTable({
                                         isSuperAdmin,
                                         onEdit,
                                     ),
+                                    canTransfer
+                                        ? {
+                                              key: 'transfer',
+                                              label: 'Traspasar inspector',
+                                              icon: ArrowRightLeft,
+                                              separatorBefore: true,
+                                              onSelect: () =>
+                                                  setTransferring(item),
+                                          }
+                                        : null,
                                     can('driver_blacklists.create') &&
                                     item.driver_name &&
                                     typeof item.id === 'number'
@@ -567,7 +601,7 @@ export function ChecklistsTable({
                                               key: 'blacklist',
                                               label: 'Lista negra',
                                               icon: Ban,
-                                              separatorBefore: true,
+                                              separatorBefore: !canTransfer,
                                               onSelect: () =>
                                                   setBlacklistDraft({
                                                       driver_name:
@@ -600,7 +634,17 @@ export function ChecklistsTable({
                 },
             },
         ],
-        [can, isSuperAdmin, onDelete, onEdit, onPreviewPdf],
+        [
+            can,
+            currentUserId,
+            inspectors,
+            isCoordinator,
+            isSuperAdmin,
+            isSupport,
+            onDelete,
+            onEdit,
+            onPreviewPdf,
+        ],
     );
 
     const hasFilters = Boolean(
@@ -754,6 +798,12 @@ export function ChecklistsTable({
             open={blacklistDraft !== null}
             draft={blacklistDraft}
             onClose={() => setBlacklistDraft(null)}
+        />
+        <ChecklistTransferModal
+            open={transferring !== null}
+            checklist={transferring}
+            inspectors={inspectors}
+            onClose={() => setTransferring(null)}
         />
         </>
     );

@@ -153,6 +153,11 @@ class UnitChecklist extends Model
         return $this->hasMany(ObservationRemediation::class);
     }
 
+    public function transfers(): HasMany
+    {
+        return $this->hasMany(UnitChecklistTransfer::class)->orderByDesc('id');
+    }
+
     public function isCompleted(): bool
     {
         return $this->status === 'completed';

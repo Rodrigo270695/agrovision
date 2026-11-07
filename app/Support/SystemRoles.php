@@ -112,6 +112,32 @@ final class SystemRoles
     }
 
     /**
+     * Inspector sin superadmin/soporte: solo ve sus propias inspecciones.
+     */
+    public static function currentIsScopedInspector(): bool
+    {
+        if (! tenancy()->initialized) {
+            return false;
+        }
+
+        $user = Auth::user();
+
+        if (! $user) {
+            return false;
+        }
+
+        if ((bool) ($user->is_support ?? false)) {
+            return false;
+        }
+
+        if ($user->hasRole(self::SUPERADMIN)) {
+            return false;
+        }
+
+        return $user->hasRole(self::INSPECTOR);
+    }
+
+    /**
      * Vista de cierre rápido de faltantes: inspector, superadmin o modo soporte.
      */
     public static function currentCanQuickCompleteInductions(): bool

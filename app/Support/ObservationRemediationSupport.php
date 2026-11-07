@@ -79,6 +79,11 @@ final class ObservationRemediationSupport
         return ParetoPassThreshold::grade($percent, $hasNo);
     }
 
+    public static function isRemediableGrade(string $grade): bool
+    {
+        return in_array($grade, ['rejected', 'approved_notes'], true);
+    }
+
     /**
      * @return list<array{pass: string, date: string, grade: string, percent: float, has_no: bool}>
      */
@@ -86,7 +91,7 @@ final class ObservationRemediationSupport
     {
         return array_values(array_filter(
             self::listedPasses($checklist),
-            fn (array $row) => in_array($row['grade'], ['rejected', 'approved_notes'], true),
+            fn (array $row) => self::isRemediableGrade($row['grade']),
         ));
     }
 
@@ -115,7 +120,7 @@ final class ObservationRemediationSupport
 
             $grade = $snap['grade'];
 
-            if ($grade === 'approved_notes'
+            if (self::isRemediableGrade($grade)
                 && $remediation?->status === ObservationRemediation::VERIFIED
             ) {
                 $grade = 'approved';

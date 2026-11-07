@@ -2,6 +2,7 @@ import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { toast } from 'sonner';
 import {
     AlertTriangle,
+    Camera,
     CalendarDays,
     CheckCircle2,
     ChevronLeft,
@@ -14,6 +15,7 @@ import {
     Search,
     ShieldAlert,
     Sparkles,
+    Trash2,
     UserRound,
     X,
     XCircle,
@@ -209,14 +211,14 @@ function actionLabel(unit: DayUnit) {
     if (unit.tone === 'green') {
         return 'Ver';
     }
-    if (unit.tone === 'red') {
-        return 'Ver detalle';
-    }
     if (unit.can_verify) {
         return 'Verificar';
     }
     if (unit.can_submit) {
         return 'Levantar';
+    }
+    if (unit.tone === 'red') {
+        return 'Ver detalle';
     }
     return 'Ver paquete';
 }
@@ -935,18 +937,24 @@ export default function ObservationRemediationsPage() {
                                                     type="button"
                                                     className={cn(
                                                         'cursor-pointer shrink-0 rounded-xl',
-                                                        unit.tone === 'red'
-                                                            ? 'border-rose-200 bg-white text-rose-700 hover:bg-rose-50'
-                                                            : unit.tone ===
-                                                                'green'
-                                                              ? 'border-emerald-200 bg-white text-emerald-800 hover:bg-emerald-50'
-                                                              : unit.can_verify
-                                                                ? 'bg-brand-500 text-white hover:bg-brand-600'
-                                                                : 'bg-amber-500 text-white hover:bg-amber-600',
+                                                        unit.can_verify
+                                                            ? 'bg-brand-500 text-white hover:bg-brand-600'
+                                                            : unit.can_submit
+                                                              ? 'bg-amber-500 text-white hover:bg-amber-600'
+                                                              : unit.tone ===
+                                                                  'red'
+                                                                ? 'border-rose-200 bg-white text-rose-700 hover:bg-rose-50'
+                                                                : unit.tone ===
+                                                                    'green'
+                                                                  ? 'border-emerald-200 bg-white text-emerald-800 hover:bg-emerald-50'
+                                                                  : 'bg-amber-500 text-white hover:bg-amber-600',
                                                     )}
                                                     variant={
-                                                        unit.tone === 'red' ||
-                                                        unit.tone === 'green'
+                                                        !unit.can_submit &&
+                                                        !unit.can_verify &&
+                                                        (unit.tone === 'red' ||
+                                                            unit.tone ===
+                                                                'green')
                                                             ? 'outline'
                                                             : 'default'
                                                     }
@@ -954,8 +962,7 @@ export default function ObservationRemediationsPage() {
                                                         setDetail(unit)
                                                     }
                                                 >
-                                                    {unit.tone === 'amber' &&
-                                                    unit.can_submit ? (
+                                                    {unit.can_submit ? (
                                                         <ClipboardCheck className="mr-1.5 size-4" />
                                                     ) : null}
                                                     {unit.can_verify ? (
@@ -1310,6 +1317,99 @@ function toneBar(tone: DayCell['tone']) {
     }
 }
 
+function ItemEvidencePicker({
+    file,
+    onPick,
+}: {
+    file: File | null;
+    onPick: (file: File | null) => void;
+}) {
+    const previewUrl = useMemo(
+        () => (file ? URL.createObjectURL(file) : null),
+        [file],
+    );
+
+    useEffect(() => {
+        return () => {
+            if (previewUrl) {
+                URL.revokeObjectURL(previewUrl);
+            }
+        };
+    }, [previewUrl]);
+
+    const assignFile = (next: File | null) => {
+        if (next && !next.type.startsWith('image/')) {
+            toast.error('Selecciona una imagen (JPG, PNG o WEBP).');
+            return;
+        }
+        onPick(next);
+    };
+
+    if (file && previewUrl) {
+        return (
+            <div className="mt-2 overflow-hidden rounded-lg border border-rose-200 bg-white">
+                <div className="relative">
+                    <img
+                        src={previewUrl}
+                        alt={file.name}
+                        className="max-h-36 w-full object-contain bg-slate-50"
+                    />
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="absolute top-2 right-2 h-8 cursor-pointer border-white/80 bg-white/95 px-2 text-xs"
+                        onClick={() => onPick(null)}
+                    >
+                        <Trash2 className="size-3.5" />
+                        Quitar
+                    </Button>
+                </div>
+                <p className="truncate px-2.5 py-1.5 text-[11px] text-slate-500">
+                    {file.name}
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="mt-2 space-y-1.5">
+            <p className="text-[11px] font-medium text-slate-500">
+                Foto de este ítem (opcional)
+            </p>
+            <div className="flex gap-2">
+                <label className="relative inline-flex h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-rose-300 bg-white px-2 text-xs font-medium text-rose-700 transition hover:bg-rose-50/60">
+                    <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="absolute inset-0 cursor-pointer opacity-0"
+                        onChange={(event) => {
+                            assignFile(event.target.files?.[0] ?? null);
+                            event.target.value = '';
+                        }}
+                    />
+                    <Camera className="size-3.5" />
+                    Cámara
+                </label>
+                <label className="relative inline-flex h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-rose-300 bg-white px-2 text-xs font-medium text-rose-700 transition hover:bg-rose-50/60">
+                    <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/*"
+                        className="absolute inset-0 cursor-pointer opacity-0"
+                        onChange={(event) => {
+                            assignFile(event.target.files?.[0] ?? null);
+                            event.target.value = '';
+                        }}
+                    />
+                    <ImagePlus className="size-3.5" />
+                    Galería
+                </label>
+            </div>
+        </div>
+    );
+}
+
 function RemediationDetailModal({
     unit,
     canSubmit,
@@ -1532,9 +1632,10 @@ function RemediationDetailModal({
                     <div className="flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-900">
                         <ShieldAlert className="mt-0.5 size-4 shrink-0" />
                         <p>
-                            Desaprobada: aquí solo consultas el detalle. El
-                            levantamiento con evidencia aplica a aprobadas con
-                            observaciones.
+                            Desaprobada: el levantamiento es el mismo que en
+                            aprobadas con observaciones. Sube evidencia de los
+                            ítems en NO, envía al inspector y, al verificar, la
+                            inspección pasa a Aprobado.
                         </p>
                     </div>
                 ) : null}
@@ -1699,32 +1800,18 @@ function RemediationDetailModal({
                                                 ) : null}
 
                                                 {showSubmit ? (
-                                                    <label className="mt-2 flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-rose-300 bg-white px-2.5 py-2 text-xs text-slate-700 transition hover:bg-rose-50/50">
-                                                        <ImagePlus className="size-3.5 text-rose-600" />
-                                                        <span className="truncate">
-                                                            {pendingFile
-                                                                ? pendingFile.name
-                                                                : 'Foto de este ítem (opcional)'}
-                                                        </span>
-                                                        <input
-                                                            type="file"
-                                                            accept="image/jpeg,image/png,image/webp"
-                                                            className="hidden"
-                                                            onChange={(e) => {
-                                                                const file =
-                                                                    e.target
-                                                                        .files?.[0] ??
-                                                                    null;
-                                                                setItemPhotos(
-                                                                    (prev) => ({
-                                                                        ...prev,
-                                                                        [item.id]:
-                                                                            file,
-                                                                    }),
-                                                                );
-                                                            }}
-                                                        />
-                                                    </label>
+                                                    <ItemEvidencePicker
+                                                        file={pendingFile}
+                                                        onPick={(file) =>
+                                                            setItemPhotos(
+                                                                (prev) => ({
+                                                                    ...prev,
+                                                                    [item.id]:
+                                                                        file,
+                                                                }),
+                                                            )
+                                                        }
+                                                    />
                                                 ) : null}
 
                                                 {showVerify ? (
@@ -1762,9 +1849,9 @@ function RemediationDetailModal({
                     )}
                     {showSubmit ? (
                         <p className="mt-2 text-xs text-slate-500">
-                            Sube evidencia por cada ítem en NO (opcional) y
-                            envía el paquete. El inspector confirma el 100 %
-                            SÍ.
+                            Por cada ítem en NO puedes tomar foto con la cámara
+                            o subirla desde la galería (opcional) y enviar el
+                            paquete. El inspector confirma el 100 % SÍ.
                         </p>
                     ) : null}
                     {showVerify ? (
