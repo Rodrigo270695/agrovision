@@ -370,9 +370,5 @@ class ObservationRemediationController extends Controller
         if (! $user->can('observation_remediations.verify')) {
             abort(403, 'No tienes permiso para verificar levantamientos.');
         }
-
-        if ((int) $checklist->created_by !== (int) $user->id) {
-            abort(403, 'Solo el inspector que realizó la inspección puede verificar.');
-        }
     }
 }

@@ -29,16 +29,10 @@ final class ObservationRemediationSupport
         $query = UnitChecklist::query()
             ->whereHas('period', fn ($q) => $q->where('status', 'active'));
 
-        $user = Auth::user();
-
+        // Coordinadores siguen viendo solo sus unidades.
+        // Inspectores ven todas las inspecciones / levantamientos.
         if (SystemRoles::currentIsScopedCoordinator()) {
             $query->whereHas('unit', fn ($q) => $q->where('coordinator_id', Auth::id()));
-        } elseif (
-            $user
-            && $user->hasRole(SystemRoles::INSPECTOR)
-            && ! $user->hasRole(SystemRoles::SUPERADMIN)
-        ) {
-            $query->where('created_by', $user->id);
         }
 
         return $query;

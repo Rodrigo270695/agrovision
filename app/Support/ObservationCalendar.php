@@ -530,13 +530,6 @@ final class ObservationCalendar
             return false;
         }
 
-        if ($user->can('observation_remediations.verify')
-            && (int) $checklist->created_by === (int) $user->id
-        ) {
-            return true;
-        }
-
-        return $user->hasRole(SystemRoles::SUPERADMIN)
-            && $user->can('observation_remediations.verify');
+        return $user->can('observation_remediations.verify');
     }
 }

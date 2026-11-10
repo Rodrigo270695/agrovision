@@ -100,24 +100,21 @@ class PushNotificationService
         UnitChecklist $checklist,
         string $pass,
     ): void {
-        $inspectorId = $checklist->created_by;
-        if (! $inspectorId) {
-            return;
-        }
+        $recipients = SystemRoles::inspectors();
 
-        $inspector = User::query()->find($inspectorId);
-        if (! $inspector) {
+        if ($recipients->isEmpty()) {
             return;
         }
 
         $passLabel = $pass === 'second' ? '2da' : '1ra';
-        $date = now()->timezone(config('app.timezone'))->toDateString();
+        $now = now()->timezone(config('app.timezone'));
+        $date = $now->toDateString();
 
-        $this->sendToUsers(collect([$inspector]), [
+        $this->sendToUsers($recipients, [
             'title' => 'Levantamiento de observaciones',
             'body' => "Placa {$checklist->plate_number} ({$passLabel}): el coordinador envió evidencia. Revisa y verifica.",
-            'url' => "/calendario-observaciones?date={$date}&year="
-                .now()->year.'&month='.now()->month,
+            'url' => '/calendario-observaciones?view=list'
+                ."&date={$date}&year={$now->year}&month={$now->month}",
             'tag' => "observation-remediation-{$checklist->id}-{$pass}",
         ]);
     }

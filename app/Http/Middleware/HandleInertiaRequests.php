@@ -221,12 +221,8 @@ class HandleInertiaRequests extends Middleware
             ])
             ->where(function ($builder) use ($user, $canVerify, $canSubmit, $isSuper) {
                 if ($canVerify || $isSuper) {
-                    $builder->orWhere(function ($q) use ($user, $isSuper) {
-                        $q->where('status', ObservationRemediation::SUBMITTED);
-                        if (! $isSuper) {
-                            $q->where('inspector_id', $user->id);
-                        }
-                    });
+                    // Todos los inspectores ven levantamientos pendientes de verificar.
+                    $builder->orWhere('status', ObservationRemediation::SUBMITTED);
                 }
 
                 if ($canSubmit || $isSuper) {

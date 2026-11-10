@@ -102,10 +102,6 @@ class ChecklistController extends Controller
             $query->whereHas('unit', fn ($q) => $q->where('coordinator_id', Auth::id()));
         }
 
-        if (SystemRoles::currentIsScopedInspector()) {
-            $query->where('created_by', Auth::id());
-        }
-
         if ($search !== '') {
             $query->where(function ($builder) use ($search) {
                 $builder
@@ -123,7 +119,7 @@ class ChecklistController extends Controller
             $query->where('status', $status);
         }
 
-        if ($inspectorId && ! SystemRoles::currentIsScopedInspector()) {
+        if ($inspectorId) {
             $query->where('created_by', $inspectorId);
         }
 
@@ -170,10 +166,6 @@ class ChecklistController extends Controller
         if (SystemRoles::currentIsScopedCoordinator()) {
             $activeUnitsQuery->where('coordinator_id', Auth::id());
             $statsQuery->whereHas('unit', fn ($q) => $q->where('coordinator_id', Auth::id()));
-        }
-
-        if (SystemRoles::currentIsScopedInspector()) {
-            $statsQuery->where('created_by', Auth::id());
         }
 
         $this->applyInspectionDateRange($statsQuery, $dateFrom, $dateTo);
@@ -307,10 +299,6 @@ class ChecklistController extends Controller
             $query->whereHas('unit', fn ($q) => $q->where('coordinator_id', Auth::id()));
         }
 
-        if (SystemRoles::currentIsScopedInspector()) {
-            $query->where('created_by', Auth::id());
-        }
-
         if ($search !== '') {
             $query->where(function ($builder) use ($search) {
                 $builder
@@ -328,7 +316,7 @@ class ChecklistController extends Controller
             $query->where('status', $status);
         }
 
-        if ($inspectorId && ! SystemRoles::currentIsScopedInspector()) {
+        if ($inspectorId) {
             $query->where('created_by', $inspectorId);
         }
 
@@ -2356,20 +2344,14 @@ class ChecklistController extends Controller
 
     private function ensureCanAccessChecklist(UnitChecklist $checklist): void
     {
-        if (SystemRoles::currentIsScopedCoordinator()) {
-            $coordinatorId = $checklist->unit?->coordinator_id
-                ?? Unit::query()->whereKey($checklist->unit_id)->value('coordinator_id');
-
-            if ((int) $coordinatorId !== (int) Auth::id()) {
-                abort(403, 'No tienes acceso a esta inspección.');
-            }
-
+        if (! SystemRoles::currentIsScopedCoordinator()) {
             return;
         }
 
-        if (SystemRoles::currentIsScopedInspector()
-            && (int) $checklist->created_by !== (int) Auth::id()
-        ) {
+        $coordinatorId = $checklist->unit?->coordinator_id
+            ?? Unit::query()->whereKey($checklist->unit_id)->value('coordinator_id');
+
+        if ((int) $coordinatorId !== (int) Auth::id()) {
             abort(403, 'No tienes acceso a esta inspección.');
         }
     }
