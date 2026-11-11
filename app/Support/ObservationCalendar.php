@@ -17,26 +17,29 @@ final class ObservationCalendar
      *     days: list<array{date: string, tone: string, amber: int, red: int, green: int, label: string|null}>
      * }
      */
-    public function month(int $year, int $month, ?string $search = null): array
+    /**
+     * @param  array{search?: ?string, sede?: ?string, provider?: ?string}  $filters
+     */
+    public function month(int $year, int $month, array $filters = []): array
     {
         $start = Carbon::create($year, $month, 1)->startOfDay();
         $end = $start->copy()->endOfMonth();
         $from = $start->toDateString();
         $to = $end->toDateString();
 
-        $checklists = $this->applySearch(
+        $checklists = $this->applyFilters(
             ObservationRemediationSupport::scopedChecklists()
                 ->with([
                     'answers:id,unit_checklist_id,checklist_item_id,first_value,second_value,observations',
                     'answers.item:id,weight,label,item_number',
                     'observationRemediations',
-                    'unit:id,driver_dni',
+                    'unit:id,driver_dni,sede,provider',
                 ])
                 ->where(function ($q) use ($from, $to) {
                     $q->whereBetween('first_inspected_on', [$from, $to])
                         ->orWhereBetween('second_inspected_on', [$from, $to]);
                 }),
-            $search,
+            $filters,
         )->get();
 
         /** @var array<string, list<string>> $byDate */
@@ -119,12 +122,15 @@ final class ObservationCalendar
      *
      * @return list<array<string, mixed>>
      */
-    public function dayUnits(string $date, ?string $search = null): array
+    /**
+     * @param  array{search?: ?string, sede?: ?string, provider?: ?string}  $filters
+     */
+    public function dayUnits(string $date, array $filters = []): array
     {
-        $checklists = $this->applySearch(
+        $checklists = $this->applyFilters(
             ObservationRemediationSupport::scopedChecklists()
                 ->with([
-                    'unit:id,coordinator_id,sede,garita,plate_number,responsible_person,driver_dni,driver_name',
+                    'unit:id,coordinator_id,sede,garita,plate_number,responsible_person,driver_dni,driver_name,provider',
                     'creator:id,name',
                     'template:id,type,code,name',
                     'answers:id,unit_checklist_id,checklist_item_id,first_value,second_value,observations',
@@ -137,7 +143,7 @@ final class ObservationCalendar
                         ->orWhereDate('second_inspected_on', $date);
                 })
                 ->orderBy('plate_number'),
-            $search,
+            $filters,
         )->get();
 
         $rows = [];
@@ -167,12 +173,15 @@ final class ObservationCalendar
      *
      * @return list<array<string, mixed>>
      */
-    public function actionableList(int $year, int $month, ?string $search = null): array
+    /**
+     * @param  array{search?: ?string, sede?: ?string, provider?: ?string}  $filters
+     */
+    public function actionableList(int $year, int $month, array $filters = []): array
     {
         return $this->monthPassRows(
             $year,
             $month,
-            $search,
+            $filters,
             onlyActionable: true,
         );
     }
@@ -180,25 +189,27 @@ final class ObservationCalendar
     /**
      * Resultados de búsqueda en calendario: todas las inspecciones del mes que coinciden.
      *
+     * @param  array{search?: ?string, sede?: ?string, provider?: ?string}  $filters
      * @return list<array<string, mixed>>
      */
-    public function searchMonthUnits(int $year, int $month, string $search): array
+    public function searchMonthUnits(int $year, int $month, array $filters = []): array
     {
         return $this->monthPassRows(
             $year,
             $month,
-            $search,
+            $filters,
             onlyActionable: false,
         );
     }
 
     /**
+     * @param  array{search?: ?string, sede?: ?string, provider?: ?string}  $filters
      * @return list<array<string, mixed>>
      */
     private function monthPassRows(
         int $year,
         int $month,
-        ?string $search,
+        array $filters,
         bool $onlyActionable,
     ): array {
         $start = Carbon::create($year, $month, 1)->startOfDay();
@@ -206,10 +217,10 @@ final class ObservationCalendar
         $from = $start->toDateString();
         $to = $end->toDateString();
 
-        $checklists = $this->applySearch(
+        $checklists = $this->applyFilters(
             ObservationRemediationSupport::scopedChecklists()
                 ->with([
-                    'unit:id,coordinator_id,sede,garita,plate_number,responsible_person,driver_dni,driver_name',
+                    'unit:id,coordinator_id,sede,garita,plate_number,responsible_person,driver_dni,driver_name,provider',
                     'creator:id,name',
                     'template:id,type,code,name',
                     'answers:id,unit_checklist_id,checklist_item_id,first_value,second_value,observations',
@@ -222,7 +233,7 @@ final class ObservationCalendar
                         ->orWhereBetween('second_inspected_on', [$from, $to]);
                 })
                 ->orderBy('plate_number'),
-            $search,
+            $filters,
         )->get();
 
         $rows = [];
@@ -259,22 +270,41 @@ final class ObservationCalendar
 
     /**
      * @param  Builder<UnitChecklist>  $query
+     * @param  array{search?: ?string, sede?: ?string, provider?: ?string}  $filters
      * @return Builder<UnitChecklist>
      */
-    private function applySearch(Builder $query, ?string $search): Builder
+    private function applyFilters(Builder $query, array $filters = []): Builder
     {
-        $term = trim((string) $search);
+        $search = trim((string) ($filters['search'] ?? '')) ?: null;
+        $sede = trim((string) ($filters['sede'] ?? '')) ?: null;
+        $provider = trim((string) ($filters['provider'] ?? '')) ?: null;
 
-        if ($term === '') {
+        if ($sede !== null) {
+            $query->whereHas('unit', function (Builder $unit) use ($sede) {
+                $unit->where('sede', $sede);
+            });
+        }
+
+        if ($provider !== null) {
+            $query->where(function (Builder $builder) use ($provider) {
+                $builder
+                    ->where('provider', $provider)
+                    ->orWhereHas('unit', function (Builder $unit) use ($provider) {
+                        $unit->where('provider', $provider);
+                    });
+            });
+        }
+
+        if ($search === null) {
             return $query;
         }
 
-        $like = '%'.$term.'%';
-        $compact = preg_replace('/[\s\-_.]+/', '', $term) ?: $term;
+        $like = '%'.$search.'%';
+        $compact = preg_replace('/[\s\-_.]+/', '', $search) ?: $search;
         $compactLike = '%'.$compact.'%';
-        $digits = preg_replace('/\D+/', '', $term) ?: '';
+        $digits = preg_replace('/\D+/', '', $search) ?: '';
         // Solo ampliar a DNI por dígitos si la búsqueda es numérica (evita que "a4f" → "%4%").
-        $dniLike = ($digits !== '' && ! preg_match('/\p{L}/u', $term))
+        $dniLike = ($digits !== '' && ! preg_match('/\p{L}/u', $search))
             ? '%'.$digits.'%'
             : null;
 

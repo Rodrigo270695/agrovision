@@ -96,9 +96,15 @@ type PageProps = {
     day_units: DayUnit[];
     list_units?: DayUnit[];
     search_units?: DayUnit[];
+    filter_options?: {
+        sedes?: string[];
+        providers?: string[];
+    };
     filters?: {
         view: 'calendar' | 'list';
         search: string;
+        sede?: string;
+        provider?: string;
     };
     can_submit: boolean;
     can_verify: boolean;
@@ -127,6 +133,8 @@ function visit(params: {
     date?: string | null;
     view?: 'calendar' | 'list';
     search?: string | null;
+    sede?: string | null;
+    provider?: string | null;
 }) {
     const query: Record<string, string> = {
         year: String(params.year),
@@ -141,6 +149,16 @@ function visit(params: {
     const search = params.search?.trim();
     if (search) {
         query.search = search;
+    }
+
+    const sede = params.sede?.trim();
+    if (sede) {
+        query.sede = sede;
+    }
+
+    const provider = params.provider?.trim();
+    if (provider) {
+        query.provider = provider;
     }
 
     router.get('/calendario-observaciones', query, {
@@ -230,6 +248,7 @@ export default function ObservationRemediationsPage() {
         day_units,
         list_units = [],
         search_units = [],
+        filter_options,
         filters,
         can_submit,
         can_verify,
@@ -237,6 +256,20 @@ export default function ObservationRemediationsPage() {
 
     const activeView = filters?.view === 'list' ? 'list' : 'calendar';
     const activeSearch = filters?.search ?? '';
+    const activeSede = filters?.sede ?? '';
+    const activeProvider = filters?.provider ?? '';
+    const sedeOptions = filter_options?.sedes ?? [];
+    const providerOptions = filter_options?.providers ?? [];
+    const hasActiveFilters = Boolean(
+        activeSearch || activeSede || activeProvider,
+    );
+    const filterSummary = [
+        activeSearch ? `“${activeSearch}”` : null,
+        activeSede ? `sede ${activeSede}` : null,
+        activeProvider ? `proveedor ${activeProvider}` : null,
+    ]
+        .filter(Boolean)
+        .join(' · ');
 
     const [detail, setDetail] = useState<DayUnit | null>(null);
     const [searchDraft, setSearchDraft] = useState(activeSearch);
@@ -258,6 +291,8 @@ export default function ObservationRemediationsPage() {
                 date: selected_date,
                 view: activeView,
                 search: next || null,
+                sede: activeSede || null,
+                provider: activeProvider || null,
             });
         }, 320);
 
@@ -265,6 +300,8 @@ export default function ObservationRemediationsPage() {
     }, [
         searchDraft,
         activeSearch,
+        activeSede,
+        activeProvider,
         calendar.year,
         calendar.month,
         selected_date,
@@ -316,6 +353,8 @@ export default function ObservationRemediationsPage() {
         date?: string | null;
         view?: 'calendar' | 'list';
         search?: string | null;
+        sede?: string | null;
+        provider?: string | null;
     }) => {
         visit({
             year: patch.year ?? calendar.year,
@@ -327,6 +366,11 @@ export default function ObservationRemediationsPage() {
             view: patch.view ?? activeView,
             search:
                 patch.search === undefined ? activeSearch : patch.search,
+            sede: patch.sede === undefined ? activeSede : patch.sede,
+            provider:
+                patch.provider === undefined
+                    ? activeProvider
+                    : patch.provider,
         });
     };
 
@@ -509,43 +553,95 @@ export default function ObservationRemediationsPage() {
                             </div>
 
                             <form
-                                className="flex min-w-0 flex-1 gap-2 sm:max-w-md sm:justify-end"
+                                className="flex min-w-0 flex-1 flex-col gap-2 sm:max-w-3xl sm:items-end"
                                 onSubmit={(event) => {
                                     event.preventDefault();
                                     applySearch();
                                 }}
                             >
-                                <div className="relative min-w-0 flex-1">
-                                    <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-slate-400" />
-                                    <Input
-                                        value={searchDraft}
+                                <div className="flex w-full min-w-0 flex-wrap gap-2 sm:justify-end">
+                                    <select
+                                        aria-label="Filtrar por sede"
+                                        className="h-10 min-w-[8.5rem] cursor-pointer rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                                        value={activeSede}
                                         onChange={(event) =>
-                                            setSearchDraft(event.target.value)
+                                            baseVisit({
+                                                sede:
+                                                    event.target.value || null,
+                                                date: null,
+                                            })
                                         }
-                                        placeholder="Buscar placa, conductor o DNI…"
-                                        className="h-10 border-slate-200 bg-white pl-9 text-sm"
-                                    />
-                                </div>
-                                <Button
-                                    type="submit"
-                                    variant="outline"
-                                    className="h-10 cursor-pointer border-slate-200"
-                                >
-                                    Buscar
-                                </Button>
-                                {activeSearch ? (
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        className="h-10 cursor-pointer text-slate-500"
-                                        onClick={() => {
-                                            setSearchDraft('');
-                                            applySearch('');
-                                        }}
                                     >
-                                        <X className="size-4" />
+                                        <option value="">Todas las sedes</option>
+                                        {sedeOptions.map((sede) => (
+                                            <option key={sede} value={sede}>
+                                                {sede}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <select
+                                        aria-label="Filtrar por proveedor"
+                                        className="h-10 min-w-[10rem] max-w-[14rem] cursor-pointer rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                                        value={activeProvider}
+                                        onChange={(event) =>
+                                            baseVisit({
+                                                provider:
+                                                    event.target.value || null,
+                                                date: null,
+                                            })
+                                        }
+                                    >
+                                        <option value="">
+                                            Todos los proveedores
+                                        </option>
+                                        {providerOptions.map((provider) => (
+                                            <option
+                                                key={provider}
+                                                value={provider}
+                                            >
+                                                {provider}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <div className="relative min-w-[12rem] flex-1 sm:max-w-xs">
+                                        <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-slate-400" />
+                                        <Input
+                                            value={searchDraft}
+                                            onChange={(event) =>
+                                                setSearchDraft(
+                                                    event.target.value,
+                                                )
+                                            }
+                                            placeholder="Buscar placa, conductor o DNI…"
+                                            className="h-10 border-slate-200 bg-white pl-9 text-sm"
+                                        />
+                                    </div>
+                                    <Button
+                                        type="submit"
+                                        variant="outline"
+                                        className="h-10 cursor-pointer border-slate-200"
+                                    >
+                                        Buscar
                                     </Button>
-                                ) : null}
+                                    {hasActiveFilters ? (
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            className="h-10 cursor-pointer text-slate-500"
+                                            onClick={() => {
+                                                setSearchDraft('');
+                                                baseVisit({
+                                                    search: null,
+                                                    sede: null,
+                                                    provider: null,
+                                                    date: null,
+                                                });
+                                            }}
+                                        >
+                                            <X className="size-4" />
+                                        </Button>
+                                    ) : null}
+                                </div>
                             </form>
                         </div>
 
@@ -646,7 +742,7 @@ export default function ObservationRemediationsPage() {
                             eyebrow="Lista del mes"
                             title={`${MONTHS[calendar.month - 1]} ${calendar.year}`}
                             description="Solo aprobados con observación y desaprobados"
-                            search={activeSearch}
+                            search={filterSummary}
                             emptyLabel="No hay observaciones pendientes ni desaprobadas en este mes"
                             onOpen={setDetail}
                             actionsFor={unitActions}
@@ -772,13 +868,13 @@ export default function ObservationRemediationsPage() {
                         </div>
                     </section>
 
-                    {activeSearch ? (
+                    {hasActiveFilters ? (
                         <ObservationListPanel
                             units={search_units}
-                            eyebrow="Resultados de búsqueda"
+                            eyebrow="Resultados filtrados"
                             title={`${MONTHS[calendar.month - 1]} ${calendar.year}`}
-                            description="Todas las inspecciones que coinciden con placa, conductor o DNI"
-                            search={activeSearch}
+                            description="Inspecciones filtradas por placa, conductor, DNI, sede o proveedor"
+                            search={filterSummary}
                             emptyLabel="No hay inspecciones en este mes para ese criterio"
                             onOpen={setDetail}
                             actionsFor={unitActions}
@@ -786,7 +882,7 @@ export default function ObservationRemediationsPage() {
                     ) : null}
 
                     {/* Day panel */}
-                    {!activeSearch && selected_date ? (
+                    {!hasActiveFilters && selected_date ? (
                         <section
                             className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_18px_50px_-30px_rgba(15,31,58,0.4)] motion-safe:animate-[fadeInUp_380ms_ease-out]"
                             aria-live="polite"
@@ -979,7 +1075,7 @@ export default function ObservationRemediationsPage() {
                                 </ul>
                             )}
                         </section>
-                    ) : !activeSearch ? (
+                    ) : !hasActiveFilters ? (
                         <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 px-4 py-8 text-center text-sm text-slate-500">
                             Selecciona un día del calendario para ver las
                             unidades.

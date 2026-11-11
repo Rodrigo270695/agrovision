@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ObservationRemediation;
 use App\Models\ObservationRemediationPhoto;
+use App\Models\Unit;
 use App\Models\UnitChecklist;
 use App\Services\PushNotificationService;
 use App\Support\ObservationCalendar;
@@ -31,6 +32,8 @@ class ObservationRemediationController extends Controller
             'date' => ['nullable', 'date'],
             'view' => ['nullable', Rule::in(['calendar', 'list'])],
             'search' => ['nullable', 'string', 'max:120'],
+            'sede' => ['nullable', 'string', 'max:120'],
+            'provider' => ['nullable', 'string', 'max:255'],
         ]);
 
         $today = now()->timezone(config('app.timezone'));
@@ -39,16 +42,24 @@ class ObservationRemediationController extends Controller
         $selectedDate = $validated['date'] ?? null;
         $view = $validated['view'] ?? 'calendar';
         $search = trim((string) ($validated['search'] ?? '')) ?: null;
+        $sede = trim((string) ($validated['sede'] ?? '')) ?: null;
+        $provider = trim((string) ($validated['provider'] ?? '')) ?: null;
+        $filters = [
+            'search' => $search,
+            'sede' => $sede,
+            'provider' => $provider,
+        ];
 
-        $payload = $calendar->month($year, $month, $search);
+        $payload = $calendar->month($year, $month, $filters);
         $dayUnits = $selectedDate && $view === 'calendar'
-            ? $calendar->dayUnits($selectedDate, $search)
+            ? $calendar->dayUnits($selectedDate, $filters)
             : [];
         $listUnits = $view === 'list'
-            ? $calendar->actionableList($year, $month, $search)
+            ? $calendar->actionableList($year, $month, $filters)
             : [];
-        $searchUnits = $view === 'calendar' && $search
-            ? $calendar->searchMonthUnits($year, $month, $search)
+        $hasTextOrFacetFilter = $search || $sede || $provider;
+        $searchUnits = $view === 'calendar' && $hasTextOrFacetFilter
+            ? $calendar->searchMonthUnits($year, $month, $filters)
             : [];
 
         return Inertia::render('observation-remediations/index', [
@@ -57,13 +68,54 @@ class ObservationRemediationController extends Controller
             'day_units' => $dayUnits,
             'list_units' => $listUnits,
             'search_units' => $searchUnits,
+            'filter_options' => $this->observationFilterOptions(),
             'filters' => [
                 'view' => $view,
                 'search' => $search ?? '',
+                'sede' => $sede ?? '',
+                'provider' => $provider ?? '',
             ],
             'can_submit' => Auth::user()?->can('observation_remediations.submit') ?? false,
             'can_verify' => Auth::user()?->can('observation_remediations.verify') ?? false,
         ]);
+    }
+
+    /**
+     * @return array{sedes: list<string>, providers: list<string>}
+     */
+    private function observationFilterOptions(): array
+    {
+        $units = Unit::query()
+            ->whereHas('period', fn ($q) => $q->where('status', 'active'));
+
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $units->where('coordinator_id', Auth::id());
+        }
+
+        $sedes = (clone $units)
+            ->whereNotNull('sede')
+            ->where('sede', '!=', '')
+            ->distinct()
+            ->orderBy('sede')
+            ->pluck('sede')
+            ->map(fn ($value) => (string) $value)
+            ->values()
+            ->all();
+
+        $providers = (clone $units)
+            ->whereNotNull('provider')
+            ->where('provider', '!=', '')
+            ->distinct()
+            ->orderBy('provider')
+            ->pluck('provider')
+            ->map(fn ($value) => (string) $value)
+            ->values()
+            ->all();
+
+        return [
+            'sedes' => $sedes,
+            'providers' => $providers,
+        ];
     }
 
     public function submit(

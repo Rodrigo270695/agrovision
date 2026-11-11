@@ -770,7 +770,9 @@ final class UnitExcelImporter
         foreach ($latestByUnit as $unitId => $data) {
             $previous = Unit::query()->whereKey($unitId)->value('status') ?: 'active';
             $snapshot = $this->presentAttributes($data);
-            unset($snapshot['correlative'], $snapshot['coordinator_id']);
+            // Conserva correlativo; proveedor/conductor/DNI/coordinador sí se
+            // reemplazan según el consolidado de la carga masiva.
+            unset($snapshot['correlative']);
             $snapshot['status'] = 'active';
 
             if (isset($data['service_date'])) {
