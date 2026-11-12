@@ -10,6 +10,7 @@ use App\Services\ParetoChecklistSync;
 use App\Services\PushNotificationService;
 use App\Support\InspectionDatabaseExporter;
 use App\Support\PdfLogo;
+use App\Support\PermissionCatalog;
 use App\Support\SignatureImage;
 use App\Support\SystemRoles;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -31,6 +32,8 @@ class InspectionBatchController extends Controller
 {
     public function index(Request $request): Response
     {
+        PermissionCatalog::syncToDatabase();
+
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:255'],
             'status' => ['nullable', Rule::in(['sent', 'signed', 'all'])],
@@ -283,6 +286,7 @@ class InspectionBatchController extends Controller
 
     public function show(InspectionBatch $batch): Response
     {
+        PermissionCatalog::syncToDatabase();
         $this->ensureCanAccess($batch);
         $batch->load('coordinator:id,name');
 
@@ -310,6 +314,7 @@ class InspectionBatchController extends Controller
 
     public function sign(Request $request, InspectionBatch $batch): RedirectResponse
     {
+        PermissionCatalog::syncToDatabase();
         $this->ensureCanAccess($batch);
 
         if (! $this->canSign($batch)) {
@@ -317,7 +322,7 @@ class InspectionBatchController extends Controller
                 'type' => 'error',
                 'message' => $batch->isSigned()
                     ? 'Este paquete ya tiene la firma masiva del coordinador.'
-                    : 'Solo el coordinador del paquete puede firmarlo.',
+                    : 'Solo el coordinador dueño del paquete puede firmarlo.',
             ]);
         }
 
@@ -522,14 +527,17 @@ class InspectionBatchController extends Controller
             return false;
         }
 
-        if (! $user->can('consolidations.respond')) {
-            return false;
-        }
-
         if ($user->hasRole(SystemRoles::SUPERADMIN)) {
             return true;
         }
 
-        return (int) $batch->coordinator_id === (int) $user->id;
+        // Solo el coordinador dueño del paquete.
+        if ((int) $batch->coordinator_id !== (int) $user->id) {
+            return false;
+        }
+
+        // Rol coordinador o permiso explícito de responder/firmar.
+        return $user->hasRole(SystemRoles::COORDINADOR)
+            || $user->can('consolidations.respond');
     }
 }

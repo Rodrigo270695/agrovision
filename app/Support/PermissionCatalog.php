@@ -150,6 +150,10 @@ final class PermissionCatalog
             }
         }
 
+        // Firma de paquetes / consolidados: todos los coordinadores deben poder firmar.
+        self::giveIfRoleExists(SystemRoles::COORDINADOR, 'consolidations.view');
+        self::giveIfRoleExists(SystemRoles::COORDINADOR, 'consolidations.respond');
+
         self::grantAllToSuperadmin();
     }
 
