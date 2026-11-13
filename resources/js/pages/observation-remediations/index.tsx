@@ -269,7 +269,14 @@ export default function ObservationRemediationsPage() {
     const activeProvider = filters?.provider ?? '';
     const activeResponsible = filters?.responsible ?? '';
     const sedeOptions = filter_options?.sedes ?? [];
-    const providerOptions = filter_options?.providers ?? [];
+    const providerOptions = useMemo(
+        () =>
+            (filter_options?.providers ?? []).map((name) => ({
+                value: name,
+                label: name,
+            })),
+        [filter_options?.providers],
+    );
     const responsibleOptions = useMemo(
         () =>
             (filter_options?.responsibles ?? []).map((name) => ({
@@ -605,31 +612,27 @@ export default function ObservationRemediationsPage() {
                                             </option>
                                         ))}
                                     </select>
-                                    <select
-                                        aria-label="Filtrar por proveedor"
-                                        className="h-10 min-w-[10rem] max-w-[14rem] cursor-pointer rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
-                                        value={activeProvider}
-                                        onChange={(event) =>
-                                            baseVisit({
-                                                provider:
-                                                    event.target.value || null,
-                                                date: null,
-                                            })
-                                        }
-                                    >
-                                        <option value="">
-                                            Todos los proveedores
-                                        </option>
-                                        {providerOptions.map((provider) => (
-                                            <option
-                                                key={provider}
-                                                value={provider}
-                                            >
-                                                {provider}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <div className="w-full min-w-[12rem] sm:w-[15rem] sm:max-w-[16rem]">
+                                    <div className="w-full min-w-[12rem] sm:w-[15rem] sm:max-w-[18rem]">
+                                        <SearchableCombobox
+                                            value={activeProvider || null}
+                                            options={providerOptions}
+                                            onChange={(value) =>
+                                                baseVisit({
+                                                    provider: value,
+                                                    date: null,
+                                                })
+                                            }
+                                            placeholder="Todos los proveedores"
+                                            emptyMessage="Sin proveedores"
+                                            allowClear
+                                            compact
+                                            fitMenuContent
+                                            wrapLabels
+                                            menuMinWidth={280}
+                                            className="h-10 rounded-xl border-slate-200 bg-white"
+                                        />
+                                    </div>
+                                    <div className="w-full min-w-[12rem] sm:w-[15rem] sm:max-w-[18rem]">
                                         <SearchableCombobox
                                             value={activeResponsible || null}
                                             options={responsibleOptions}
@@ -643,6 +646,9 @@ export default function ObservationRemediationsPage() {
                                             emptyMessage="Sin responsables"
                                             allowClear
                                             compact
+                                            fitMenuContent
+                                            wrapLabels
+                                            menuMinWidth={280}
                                             className="h-10 rounded-xl border-slate-200 bg-white"
                                         />
                                     </div>

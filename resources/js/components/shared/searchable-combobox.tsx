@@ -29,6 +29,9 @@ type Props = {
     allowClear?: boolean;
     className?: string;
     menuMinWidth?: number;
+    /** Si true, el menú se ensancha para mostrar etiquetas completas (sin cortar). */
+    fitMenuContent?: boolean;
+    wrapLabels?: boolean;
     id?: string;
     compact?: boolean;
     onCreate?: (name: string) => void;
@@ -61,6 +64,8 @@ export function SearchableCombobox({
     allowClear = true,
     className,
     menuMinWidth,
+    fitMenuContent = false,
+    wrapLabels = false,
     id,
     compact = false,
     onCreate,
@@ -159,11 +164,29 @@ export function SearchableCombobox({
             const contentHeight = list.scrollHeight;
             const height = Math.min(contentHeight, limit);
 
-            const width = Math.max(rect.width, menuMinWidth ?? 0);
+            const preferred = Math.max(rect.width, menuMinWidth ?? 0);
+            const maxWidth = Math.min(window.innerWidth - 16, fitMenuContent ? 420 : preferred);
+
+            if (fitMenuContent) {
+                list.style.width = 'max-content';
+                list.style.minWidth = `${preferred}px`;
+                list.style.maxWidth = `${maxWidth}px`;
+            } else {
+                list.style.minWidth = '';
+                list.style.maxWidth = '';
+                list.style.width = `${Math.min(preferred, maxWidth)}px`;
+            }
+
+            const width = Math.min(
+                Math.max(list.getBoundingClientRect().width || preferred, preferred),
+                maxWidth,
+            );
             const maxLeft = Math.max(8, window.innerWidth - width - 8);
 
             list.style.left = `${Math.min(rect.left, maxLeft)}px`;
-            list.style.width = `${width}px`;
+            if (!fitMenuContent) {
+                list.style.width = `${width}px`;
+            }
             list.style.height = `${height}px`;
             list.style.maxHeight = `${height}px`;
             list.style.overflowY = contentHeight > height + 1 ? 'auto' : 'hidden';
@@ -260,7 +283,7 @@ export function SearchableCombobox({
             window.removeEventListener('resize', updatePanel);
             window.removeEventListener('scroll', onWindowScroll, true);
         };
-    }, [open, menuMinWidth, itemCount, renameValue]);
+        }, [open, menuMinWidth, fitMenuContent, itemCount, renameValue]);
 
     useEffect(() => {
         if (!open || !listRef.current) {
@@ -542,11 +565,26 @@ export function SearchableCombobox({
                                             )}
                                         />
                                         <span className="min-w-0 flex-1">
-                                            <span className="block truncate font-medium leading-tight">
+                                            <span
+                                                className={cn(
+                                                    'block font-medium leading-tight',
+                                                    wrapLabels || fitMenuContent
+                                                        ? 'whitespace-normal break-words'
+                                                        : 'truncate',
+                                                )}
+                                            >
                                                 {option.label}
                                             </span>
                                             {option.description ? (
-                                                <span className="mt-0.5 block truncate text-xs leading-tight text-muted-foreground">
+                                                <span
+                                                    className={cn(
+                                                        'mt-0.5 block text-xs leading-tight text-muted-foreground',
+                                                        wrapLabels ||
+                                                            fitMenuContent
+                                                            ? 'whitespace-normal break-words'
+                                                            : 'truncate',
+                                                    )}
+                                                >
                                                     {option.description}
                                                 </span>
                                             ) : null}
