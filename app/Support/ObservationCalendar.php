@@ -18,7 +18,7 @@ final class ObservationCalendar
      * }
      */
     /**
-     * @param  array{search?: ?string, sede?: ?string, provider?: ?string}  $filters
+     * @param  array{search?: ?string, sede?: ?string, provider?: ?string, responsible?: ?string}  $filters
      */
     public function month(int $year, int $month, array $filters = []): array
     {
@@ -33,7 +33,7 @@ final class ObservationCalendar
                     'answers:id,unit_checklist_id,checklist_item_id,first_value,second_value,observations',
                     'answers.item:id,weight,label,item_number',
                     'observationRemediations',
-                    'unit:id,driver_dni,sede,provider',
+                    'unit:id,driver_dni,sede,provider,responsible_person',
                 ])
                 ->where(function ($q) use ($from, $to) {
                     $q->whereBetween('first_inspected_on', [$from, $to])
@@ -123,7 +123,7 @@ final class ObservationCalendar
      * @return list<array<string, mixed>>
      */
     /**
-     * @param  array{search?: ?string, sede?: ?string, provider?: ?string}  $filters
+     * @param  array{search?: ?string, sede?: ?string, provider?: ?string, responsible?: ?string}  $filters
      */
     public function dayUnits(string $date, array $filters = []): array
     {
@@ -174,7 +174,7 @@ final class ObservationCalendar
      * @return list<array<string, mixed>>
      */
     /**
-     * @param  array{search?: ?string, sede?: ?string, provider?: ?string}  $filters
+     * @param  array{search?: ?string, sede?: ?string, provider?: ?string, responsible?: ?string}  $filters
      */
     public function actionableList(int $year, int $month, array $filters = []): array
     {
@@ -189,7 +189,7 @@ final class ObservationCalendar
     /**
      * Resultados de búsqueda en calendario: todas las inspecciones del mes que coinciden.
      *
-     * @param  array{search?: ?string, sede?: ?string, provider?: ?string}  $filters
+     * @param  array{search?: ?string, sede?: ?string, provider?: ?string, responsible?: ?string}  $filters
      * @return list<array<string, mixed>>
      */
     public function searchMonthUnits(int $year, int $month, array $filters = []): array
@@ -203,7 +203,7 @@ final class ObservationCalendar
     }
 
     /**
-     * @param  array{search?: ?string, sede?: ?string, provider?: ?string}  $filters
+     * @param  array{search?: ?string, sede?: ?string, provider?: ?string, responsible?: ?string}  $filters
      * @return list<array<string, mixed>>
      */
     private function monthPassRows(
@@ -270,7 +270,7 @@ final class ObservationCalendar
 
     /**
      * @param  Builder<UnitChecklist>  $query
-     * @param  array{search?: ?string, sede?: ?string, provider?: ?string}  $filters
+     * @param  array{search?: ?string, sede?: ?string, provider?: ?string, responsible?: ?string}  $filters
      * @return Builder<UnitChecklist>
      */
     private function applyFilters(Builder $query, array $filters = []): Builder
@@ -278,6 +278,7 @@ final class ObservationCalendar
         $search = trim((string) ($filters['search'] ?? '')) ?: null;
         $sede = trim((string) ($filters['sede'] ?? '')) ?: null;
         $provider = trim((string) ($filters['provider'] ?? '')) ?: null;
+        $responsible = trim((string) ($filters['responsible'] ?? '')) ?: null;
 
         if ($sede !== null) {
             $query->whereHas('unit', function (Builder $unit) use ($sede) {
@@ -292,6 +293,12 @@ final class ObservationCalendar
                     ->orWhereHas('unit', function (Builder $unit) use ($provider) {
                         $unit->where('provider', $provider);
                     });
+            });
+        }
+
+        if ($responsible !== null) {
+            $query->whereHas('unit', function (Builder $unit) use ($responsible) {
+                $unit->where('responsible_person', $responsible);
             });
         }
 

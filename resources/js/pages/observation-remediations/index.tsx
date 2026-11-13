@@ -26,6 +26,7 @@ import {
     RowActionsMenu,
     type RowActionItem,
 } from '@/components/shared/row-actions-menu';
+import { SearchableCombobox } from '@/components/shared/searchable-combobox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -99,12 +100,14 @@ type PageProps = {
     filter_options?: {
         sedes?: string[];
         providers?: string[];
+        responsibles?: string[];
     };
     filters?: {
         view: 'calendar' | 'list';
         search: string;
         sede?: string;
         provider?: string;
+        responsible?: string;
     };
     can_submit: boolean;
     can_verify: boolean;
@@ -135,6 +138,7 @@ function visit(params: {
     search?: string | null;
     sede?: string | null;
     provider?: string | null;
+    responsible?: string | null;
 }) {
     const query: Record<string, string> = {
         year: String(params.year),
@@ -159,6 +163,11 @@ function visit(params: {
     const provider = params.provider?.trim();
     if (provider) {
         query.provider = provider;
+    }
+
+    const responsible = params.responsible?.trim();
+    if (responsible) {
+        query.responsible = responsible;
     }
 
     router.get('/calendario-observaciones', query, {
@@ -258,15 +267,25 @@ export default function ObservationRemediationsPage() {
     const activeSearch = filters?.search ?? '';
     const activeSede = filters?.sede ?? '';
     const activeProvider = filters?.provider ?? '';
+    const activeResponsible = filters?.responsible ?? '';
     const sedeOptions = filter_options?.sedes ?? [];
     const providerOptions = filter_options?.providers ?? [];
+    const responsibleOptions = useMemo(
+        () =>
+            (filter_options?.responsibles ?? []).map((name) => ({
+                value: name,
+                label: name,
+            })),
+        [filter_options?.responsibles],
+    );
     const hasActiveFilters = Boolean(
-        activeSearch || activeSede || activeProvider,
+        activeSearch || activeSede || activeProvider || activeResponsible,
     );
     const filterSummary = [
         activeSearch ? `“${activeSearch}”` : null,
         activeSede ? `sede ${activeSede}` : null,
         activeProvider ? `proveedor ${activeProvider}` : null,
+        activeResponsible ? `responsable ${activeResponsible}` : null,
     ]
         .filter(Boolean)
         .join(' · ');
@@ -293,6 +312,7 @@ export default function ObservationRemediationsPage() {
                 search: next || null,
                 sede: activeSede || null,
                 provider: activeProvider || null,
+                responsible: activeResponsible || null,
             });
         }, 320);
 
@@ -302,6 +322,7 @@ export default function ObservationRemediationsPage() {
         activeSearch,
         activeSede,
         activeProvider,
+        activeResponsible,
         calendar.year,
         calendar.month,
         selected_date,
@@ -355,6 +376,7 @@ export default function ObservationRemediationsPage() {
         search?: string | null;
         sede?: string | null;
         provider?: string | null;
+        responsible?: string | null;
     }) => {
         visit({
             year: patch.year ?? calendar.year,
@@ -371,6 +393,10 @@ export default function ObservationRemediationsPage() {
                 patch.provider === undefined
                     ? activeProvider
                     : patch.provider,
+            responsible:
+                patch.responsible === undefined
+                    ? activeResponsible
+                    : patch.responsible,
         });
     };
 
@@ -603,6 +629,23 @@ export default function ObservationRemediationsPage() {
                                             </option>
                                         ))}
                                     </select>
+                                    <div className="w-full min-w-[12rem] sm:w-[15rem] sm:max-w-[16rem]">
+                                        <SearchableCombobox
+                                            value={activeResponsible || null}
+                                            options={responsibleOptions}
+                                            onChange={(value) =>
+                                                baseVisit({
+                                                    responsible: value,
+                                                    date: null,
+                                                })
+                                            }
+                                            placeholder="Todos los responsables"
+                                            emptyMessage="Sin responsables"
+                                            allowClear
+                                            compact
+                                            className="h-10 rounded-xl border-slate-200 bg-white"
+                                        />
+                                    </div>
                                     <div className="relative min-w-[12rem] flex-1 sm:max-w-xs">
                                         <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-slate-400" />
                                         <Input
@@ -634,6 +677,7 @@ export default function ObservationRemediationsPage() {
                                                     search: null,
                                                     sede: null,
                                                     provider: null,
+                                                    responsible: null,
                                                     date: null,
                                                 });
                                             }}
@@ -873,7 +917,7 @@ export default function ObservationRemediationsPage() {
                             units={search_units}
                             eyebrow="Resultados filtrados"
                             title={`${MONTHS[calendar.month - 1]} ${calendar.year}`}
-                            description="Inspecciones filtradas por placa, conductor, DNI, sede o proveedor"
+                            description="Inspecciones filtradas por placa, conductor, DNI, sede, proveedor o responsable"
                             search={filterSummary}
                             emptyLabel="No hay inspecciones en este mes para ese criterio"
                             onOpen={setDetail}

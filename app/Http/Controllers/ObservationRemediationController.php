@@ -34,6 +34,7 @@ class ObservationRemediationController extends Controller
             'search' => ['nullable', 'string', 'max:120'],
             'sede' => ['nullable', 'string', 'max:120'],
             'provider' => ['nullable', 'string', 'max:255'],
+            'responsible' => ['nullable', 'string', 'max:255'],
         ]);
 
         $today = now()->timezone(config('app.timezone'));
@@ -44,10 +45,12 @@ class ObservationRemediationController extends Controller
         $search = trim((string) ($validated['search'] ?? '')) ?: null;
         $sede = trim((string) ($validated['sede'] ?? '')) ?: null;
         $provider = trim((string) ($validated['provider'] ?? '')) ?: null;
+        $responsible = trim((string) ($validated['responsible'] ?? '')) ?: null;
         $filters = [
             'search' => $search,
             'sede' => $sede,
             'provider' => $provider,
+            'responsible' => $responsible,
         ];
 
         $payload = $calendar->month($year, $month, $filters);
@@ -57,7 +60,7 @@ class ObservationRemediationController extends Controller
         $listUnits = $view === 'list'
             ? $calendar->actionableList($year, $month, $filters)
             : [];
-        $hasTextOrFacetFilter = $search || $sede || $provider;
+        $hasTextOrFacetFilter = $search || $sede || $provider || $responsible;
         $searchUnits = $view === 'calendar' && $hasTextOrFacetFilter
             ? $calendar->searchMonthUnits($year, $month, $filters)
             : [];
@@ -74,6 +77,7 @@ class ObservationRemediationController extends Controller
                 'search' => $search ?? '',
                 'sede' => $sede ?? '',
                 'provider' => $provider ?? '',
+                'responsible' => $responsible ?? '',
             ],
             'can_submit' => Auth::user()?->can('observation_remediations.submit') ?? false,
             'can_verify' => Auth::user()?->can('observation_remediations.verify') ?? false,
@@ -81,7 +85,7 @@ class ObservationRemediationController extends Controller
     }
 
     /**
-     * @return array{sedes: list<string>, providers: list<string>}
+     * @return array{sedes: list<string>, providers: list<string>, responsibles: list<string>}
      */
     private function observationFilterOptions(): array
     {
@@ -112,9 +116,20 @@ class ObservationRemediationController extends Controller
             ->values()
             ->all();
 
+        $responsibles = (clone $units)
+            ->whereNotNull('responsible_person')
+            ->where('responsible_person', '!=', '')
+            ->distinct()
+            ->orderBy('responsible_person')
+            ->pluck('responsible_person')
+            ->map(fn ($value) => (string) $value)
+            ->values()
+            ->all();
+
         return [
             'sedes' => $sedes,
             'providers' => $providers,
+            'responsibles' => $responsibles,
         ];
     }
 
