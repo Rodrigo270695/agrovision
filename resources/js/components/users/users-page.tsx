@@ -134,6 +134,7 @@ export function UsersPage() {
                 <UsersTable
                     users={mergedUsers}
                     filters={filters}
+                    roleOptions={roleOptions ?? []}
                     onEdit={openEdit}
                     onDelete={openDelete}
                     onAssignRoles={openRoles}

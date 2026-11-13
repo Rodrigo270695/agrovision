@@ -22,15 +22,31 @@ class UserController extends Controller
     {
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:255'],
+            'role' => ['nullable', 'string', 'max:100'],
             'sort' => ['nullable', Rule::in(['name', 'email', 'roles_count', 'created_at'])],
             'direction' => ['nullable', Rule::in(['asc', 'desc'])],
             'per_page' => ['nullable', Rule::in([5, 10, 25, 50])],
         ]);
 
         $search = trim((string) ($validated['search'] ?? ''));
+        $role = trim((string) ($validated['role'] ?? ''));
         $sort = $validated['sort'] ?? 'name';
         $direction = $validated['direction'] ?? 'asc';
         $perPage = (int) ($validated['per_page'] ?? 10);
+
+        $roleOptions = Role::query()
+            ->where('guard_name', 'web')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $knownRoles = $roleOptions
+            ->pluck('name')
+            ->map(fn ($name) => mb_strtolower((string) $name))
+            ->all();
+
+        if ($role !== '' && $role !== 'none' && ! in_array(mb_strtolower($role), $knownRoles, true)) {
+            $role = '';
+        }
 
         $usersQuery = User::query()
             ->withoutSupport()
@@ -55,6 +71,12 @@ class UserController extends Controller
             });
         }
 
+        if ($role === 'none') {
+            $usersQuery->whereDoesntHave('roles');
+        } elseif ($role !== '') {
+            $usersQuery->role($role);
+        }
+
         $usersQuery->orderBy($sort, $direction);
 
         $users = $usersQuery
@@ -70,14 +92,12 @@ class UserController extends Controller
             'users' => $users,
             'filters' => [
                 'search' => $search,
+                'role' => $role,
                 'sort' => $sort,
                 'direction' => $direction,
                 'per_page' => $perPage,
             ],
-            'roleOptions' => Role::query()
-                ->where('guard_name', 'web')
-                ->orderBy('name')
-                ->get(['id', 'name']),
+            'roleOptions' => $roleOptions,
             'placeOptions' => Place::query()
                 ->with('site:id,name')
                 ->where('status', 'active')

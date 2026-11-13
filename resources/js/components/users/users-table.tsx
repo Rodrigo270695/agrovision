@@ -6,11 +6,14 @@ import {
     DataTable,
     DataToolbar,
     EmptyState,
+    FilterChips,
     StatBadge,
     type DataTableColumn,
+    type FilterChip,
     type SortState,
 } from '@/components/data-page';
 import { RowActionsMenu } from '@/components/shared/row-actions-menu';
+import type { RoleOption } from '@/components/users/user-roles-modal';
 import { useCan } from '@/hooks/use-can';
 import { isBrowserOnline } from '@/lib/offline/ids';
 import { asPaginated } from '@/lib/paginated';
@@ -58,6 +61,7 @@ export type UsersPagination = {
 
 export type UsersFilters = {
     search: string;
+    role?: string | null;
     sort: 'name' | 'email' | 'roles_count' | 'created_at';
     direction: 'asc' | 'desc';
     per_page: number;
@@ -66,10 +70,13 @@ export type UsersFilters = {
 type Props = {
     users: UsersPagination;
     filters: UsersFilters;
+    roleOptions?: RoleOption[];
     onEdit: (user: UserItem) => void;
     onDelete: (user: UserItem) => void;
     onAssignRoles: (user: UserItem) => void;
 };
+
+type RoleFilter = 'all' | 'none' | string;
 
 type SortKey = UsersFilters['sort'];
 
@@ -149,12 +156,14 @@ function UserActions({
 export function UsersTable({
     users,
     filters,
+    roleOptions = [],
     onEdit,
     onDelete,
     onAssignRoles,
 }: Props) {
     const { auth } = usePage().props as { auth: Auth };
     const currentUserId = auth.user?.id;
+    const activeRole = (filters.role?.trim() || 'all') as RoleFilter;
 
     const visit = useCallback(
         (params: Partial<UsersFilters> & { page?: number }) => {
@@ -166,10 +175,16 @@ export function UsersTable({
                 return;
             }
 
+            const nextRole = Object.prototype.hasOwnProperty.call(params, 'role')
+                ? params.role
+                : filters.role;
+
             router.get(
                 '/usuarios',
                 {
                     search: params.search ?? filters.search,
+                    role:
+                        nextRole && nextRole !== 'all' ? nextRole : undefined,
                     sort: params.sort ?? filters.sort,
                     direction: params.direction ?? filters.direction,
                     per_page: params.per_page ?? filters.per_page,
@@ -183,6 +198,26 @@ export function UsersTable({
             );
         },
         [filters],
+    );
+
+    const roleFilterOptions = useMemo<readonly FilterChip<RoleFilter>[]>(
+        () => [
+            {
+                value: 'all',
+                label: 'Todos los roles',
+                tone: 'default',
+            },
+            {
+                value: 'none',
+                label: 'Sin roles',
+                tone: 'warning',
+            },
+            ...roleOptions.map((role) => ({
+                value: role.name,
+                label: role.name,
+            })),
+        ],
+        [roleOptions],
     );
 
     const sort: SortState | null = filters.sort
@@ -339,7 +374,20 @@ export function UsersTable({
                     search={filters.search}
                     onSearchChange={(search) => visit({ search, page: 1 })}
                     placeholder="Buscar por nombre, correo, documento o celular..."
-                />
+                >
+                    <FilterChips
+                        ariaLabel="Filtrar por rol"
+                        value={activeRole}
+                        onChange={(value) =>
+                            visit({
+                                role: value === 'all' ? null : value,
+                                page: 1,
+                            })
+                        }
+                        options={roleFilterOptions}
+                        className="min-w-44"
+                    />
+                </DataToolbar>
             }
             footer={
                 <DataPagination
@@ -347,6 +395,10 @@ export function UsersTable({
                     onPerPageChange={(per_page) => visit({ per_page, page: 1 })}
                     preservedQuery={{
                         search: filters.search || undefined,
+                        role:
+                            filters.role && filters.role !== 'all'
+                                ? filters.role
+                                : undefined,
                         per_page: filters.per_page,
                         sort: filters.sort,
                         direction: filters.direction,
@@ -357,13 +409,15 @@ export function UsersTable({
                 <EmptyState
                     icon={Users}
                     title={
-                        filters.search
+                        filters.search ||
+                        (filters.role && filters.role !== 'all')
                             ? 'Sin resultados'
                             : 'Aún no hay usuarios'
                     }
                     description={
-                        filters.search
-                            ? 'Prueba con otro término o limpia la búsqueda.'
+                        filters.search ||
+                        (filters.role && filters.role !== 'all')
+                            ? 'Prueba con otro filtro o limpia la búsqueda.'
                             : 'Crea el primer usuario para asignarle roles.'
                     }
                 />
