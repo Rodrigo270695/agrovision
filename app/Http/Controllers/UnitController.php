@@ -92,6 +92,7 @@ class UnitController extends Controller
             : null;
 
         $activePage = $movements ?? $units;
+        $imports = $showingFiles ? $this->importFiles($filters) : [];
 
         return Inertia::render('units/index', [
             'units' => $units ?? [
@@ -104,7 +105,7 @@ class UnitController extends Controller
                 'to' => null,
             ],
             'movements' => $movements,
-            'imports' => $showingFiles ? $this->importFiles($filters) : [],
+            'imports' => $imports,
             'filters' => [
                 'search' => $filters['search'],
                 'period_id' => $filters['period_id'],
@@ -158,8 +159,10 @@ class UnitController extends Controller
                 'units' => (clone $baseQuery)->count(),
                 'movements' => $this->filteredMovementsQuery($filters)->count(),
                 'providers' => (clone $baseQuery)->distinct()->count('provider'),
-                'page' => $activePage->currentPage().'/'.max($activePage->lastPage(), 1),
-                'on_screen' => $activePage->count(),
+                'page' => $activePage
+                    ? $activePage->currentPage().'/'.max($activePage->lastPage(), 1)
+                    : '1/1',
+                'on_screen' => $activePage ? $activePage->count() : count($imports),
                 'without_plate' => (clone $baseQuery)
                     ->where(function ($query) {
                         $query->whereNull('plate_number')
@@ -441,39 +444,53 @@ class UnitController extends Controller
             return [];
         }
 
-        return UnitImport::query()
-            ->with(['period:id,name', 'user:id,name'])
-            ->withCount('movements')
-            ->when($filters['period_id'], fn (Builder $query, int $periodId) => $query->where('period_id', $periodId))
-            ->when($filters['search'] !== '', function (Builder $query) use ($filters): void {
-                $term = '%'.$filters['search'].'%';
-                $query->where(function (Builder $inner) use ($term): void {
-                    $inner->where('original_name', 'ilike', $term)
-                        ->orWhereHas('user', fn (Builder $user) => $user->where('name', 'ilike', $term))
-                        ->orWhereHas('period', fn (Builder $period) => $period->where('name', 'ilike', $term));
-                });
-            })
-            ->orderByDesc('imported_on')
-            ->orderByDesc('id')
-            ->limit(100)
-            ->get()
-            ->map(fn (UnitImport $import): array => [
-                'id' => $import->id,
-                'imported_on' => $import->imported_on?->toDateString(),
-                'created_at' => $import->created_at?->toIso8601String(),
-                'original_name' => $import->original_name,
-                'rows' => (int) $import->movements_count,
-                'period' => $import->period
-                    ? ['id' => $import->period->id, 'name' => $import->period->name]
-                    : null,
-                'user' => $import->user
-                    ? ['id' => $import->user->id, 'name' => $import->user->name]
-                    : null,
-                'download_url' => is_string($import->file_path) && $import->file_path !== ''
-                    ? route('units.import-file', $import)
-                    : null,
-            ])
-            ->all();
+        $query = UnitImport::query()
+            ->with(['period:id,name', 'user:id,name']);
+
+        if (Schema::hasTable('unit_movements') && Schema::hasColumn('unit_movements', 'import_id')) {
+            $query->withCount('movements');
+        }
+
+        try {
+            return $query
+                ->when($filters['period_id'], fn (Builder $query, int $periodId) => $query->where('period_id', $periodId))
+                ->when($filters['search'] !== '', function (Builder $query) use ($filters): void {
+                    $term = '%'.$filters['search'].'%';
+                    $query->where(function (Builder $inner) use ($term): void {
+                        if (Schema::hasColumn('unit_imports', 'original_name')) {
+                            $inner->where('original_name', 'ilike', $term);
+                        }
+
+                        $inner->orWhereHas('user', fn (Builder $user) => $user->where('name', 'ilike', $term))
+                            ->orWhereHas('period', fn (Builder $period) => $period->where('name', 'ilike', $term));
+                    });
+                })
+                ->orderByDesc('imported_on')
+                ->orderByDesc('id')
+                ->limit(100)
+                ->get()
+                ->map(fn (UnitImport $import): array => [
+                    'id' => $import->id,
+                    'imported_on' => $import->imported_on?->toDateString(),
+                    'created_at' => $import->created_at?->toIso8601String(),
+                    'original_name' => $import->original_name,
+                    'rows' => (int) ($import->movements_count ?? 0),
+                    'period' => $import->period
+                        ? ['id' => $import->period->id, 'name' => $import->period->name]
+                        : null,
+                    'user' => $import->user
+                        ? ['id' => $import->user->id, 'name' => $import->user->name]
+                        : null,
+                    'download_url' => is_string($import->file_path) && $import->file_path !== ''
+                        ? url('/unidades/importaciones/'.$import->id.'/archivo')
+                        : null,
+                ])
+                ->all();
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return [];
+        }
     }
 
     /**
