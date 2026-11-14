@@ -123,9 +123,14 @@ export function VerificationPhotoCapture({
             return;
         }
 
+        const maxSide = 1280;
+        const scale = Math.min(
+            1,
+            maxSide / Math.max(video.videoWidth, video.videoHeight),
+        );
         const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+        canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
         const ctx = canvas.getContext('2d');
 
         if (!ctx) {
@@ -134,7 +139,7 @@ export function VerificationPhotoCapture({
             return;
         }
 
-        ctx.drawImage(video, 0, 0);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
         setPreview(dataUrl);
         stopCamera();

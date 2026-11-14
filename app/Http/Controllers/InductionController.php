@@ -14,6 +14,7 @@ use App\Models\TenantSetting;
 use App\Models\Unit;
 use App\Support\DriverBiometrics;
 use App\Support\IndexedRedirect;
+use App\Support\ImageShrinker;
 use App\Support\InductionAttendeeStatuses;
 use App\Support\InductionDocumentPackage;
 use App\Support\InductionDocumentSettings;
@@ -1101,7 +1102,18 @@ class InductionController extends Controller
 
         try {
             if ($request->hasFile('photo')) {
-                $path = $request->file('photo')->store($directory, 'public');
+                $file = $request->file('photo');
+                $raw = file_get_contents($file->getRealPath());
+                $jpeg = is_string($raw) ? ImageShrinker::toJpeg($raw, 1280, 72) : null;
+                unset($raw);
+
+                if ($jpeg === null) {
+                    throw new \RuntimeException('No se pudo reducir la foto.');
+                }
+
+                $path = trim($directory, '/').'/'.uniqid('foto_', true).'.jpg';
+                Storage::disk('public')->put($path, $jpeg);
+                unset($jpeg);
             } else {
                 $path = SignatureImage::storeFromDataUrl(
                     (string) $request->input('photo_data_url'),

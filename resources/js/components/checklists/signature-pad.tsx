@@ -15,6 +15,30 @@ type Props = {
     mode?: 'signature' | 'stamp';
 };
 
+function canvasToJpeg(
+    source: HTMLCanvasElement,
+    maxSide: number,
+    quality: number,
+): string {
+    const scale = Math.min(1, maxSide / Math.max(source.width, source.height, 1));
+    const width = Math.max(1, Math.round(source.width * scale));
+    const height = Math.max(1, Math.round(source.height * scale));
+    const out = document.createElement('canvas');
+    out.width = width;
+    out.height = height;
+    const ctx = out.getContext('2d');
+
+    if (!ctx) {
+        return source.toDataURL('image/jpeg', quality);
+    }
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(source, 0, 0, width, height);
+
+    return out.toDataURL('image/jpeg', quality);
+}
+
 function stampFingerprint(
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -149,7 +173,7 @@ export function SignaturePad({
         }
 
         setDirty(true);
-        onChange(canvas.toDataURL('image/png'));
+        onChange(canvasToJpeg(canvas, 800, 0.7));
     };
 
     const clear = () => {

@@ -590,7 +590,7 @@ function toFingerprintImage(
     );
 
     return {
-        dataUrl: out.toDataURL('image/png'),
+        dataUrl: out.toDataURL('image/jpeg', 0.72),
         sharpness,
     };
 }

@@ -70,7 +70,7 @@ function getCurrentPosition(): Promise<GeolocationPosition> {
 }
 
 const MAX_PHOTO_SIDE = 1280;
-const MAX_PHOTO_BYTES = 9 * 1024 * 1024;
+const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
 
 type Drawable = {
     source: CanvasImageSource;
@@ -208,7 +208,7 @@ function canvasToJpeg(canvas: HTMLCanvasElement): Promise<Blob | null> {
             return;
         }
 
-        canvas.toBlob((result) => resolve(result), 'image/jpeg', 0.82);
+        canvas.toBlob((result) => resolve(result), 'image/jpeg', 0.72);
     });
 }
 

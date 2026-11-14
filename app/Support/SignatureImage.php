@@ -26,7 +26,17 @@ final class SignatureImage
             throw new RuntimeException('La imagen es demasiado pesada.');
         }
 
-        $extension = strtolower($matches[1]) === 'jpeg' ? 'jpg' : strtolower($matches[1]);
+        $jpeg = ImageShrinker::toJpeg($binary, 1280, 72);
+
+        if ($jpeg !== null) {
+            $binary = $jpeg;
+            $extension = 'jpg';
+        } elseif (strlen($binary) > 1_500_000) {
+            throw new RuntimeException('La imagen es demasiado pesada.');
+        } else {
+            $extension = strtolower($matches[1]) === 'jpeg' ? 'jpg' : strtolower($matches[1]);
+        }
+
         $path = trim($directory, '/').'/'.uniqid('firma_', true).'.'.$extension;
 
         Storage::disk('public')->put($path, $binary);

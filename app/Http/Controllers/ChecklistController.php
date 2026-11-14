@@ -21,6 +21,7 @@ use App\Models\UnitChecklistSignature;
 use App\Models\UnitMovement;
 use App\Services\ParetoChecklistSync;
 use App\Support\DriverBiometrics;
+use App\Support\ImageShrinker;
 use App\Support\IndexedRedirect;
 use App\Support\InspectionDatabaseExporter;
 use App\Support\InspectionPlace;
@@ -1061,7 +1062,23 @@ class ChecklistController extends Controller
         $directory = $itemId
             ? "checklists/{$checklist->id}/{$pass}/items/{$itemId}"
             : "checklists/{$checklist->id}/{$pass}";
-        $path = $file->store($directory, 'public');
+        $raw = file_get_contents($file->getRealPath());
+        $jpeg = is_string($raw) ? ImageShrinker::toJpeg($raw, 1280, 72) : null;
+        unset($raw);
+
+        if ($jpeg !== null) {
+            $path = trim($directory, '/').'/'.uniqid('foto_', true).'.jpg';
+            Storage::disk('public')->put($path, $jpeg);
+            $mime = 'image/jpeg';
+            $size = strlen($jpeg);
+            unset($jpeg);
+        } elseif ($file->getSize() > 1_500_000) {
+            return $this->checklistToast($request, $checklist, 'error', 'La foto es muy pesada. Tómala de nuevo con la cámara.');
+        } else {
+            $path = $file->store($directory, 'public');
+            $mime = $file->getMimeType() ?: 'image/jpeg';
+            $size = (int) $file->getSize();
+        }
 
         $photo = UnitChecklistPhoto::query()->create([
             'unit_checklist_id' => $checklist->id,
@@ -1069,8 +1086,8 @@ class ChecklistController extends Controller
             'inspection_pass' => $pass,
             'path' => $path,
             'disk' => 'public',
-            'mime_type' => $file->getMimeType(),
-            'size' => $file->getSize(),
+            'mime_type' => $mime,
+            'size' => $size,
             'captured_at' => $validated['captured_at'] ?? now(),
             'latitude' => $validated['latitude'] ?? null,
             'longitude' => $validated['longitude'] ?? null,
@@ -1166,6 +1183,9 @@ class ChecklistController extends Controller
         $checklist->loadMissing('unit');
         $this->ensureCanAccessChecklist($checklist);
 
+        @ini_set('memory_limit', '512M');
+        @set_time_limit(180);
+
         if (! $checklist->canPreviewConsolidatedPdf()) {
             return redirect()
                 ->route('checklists.index')
@@ -1219,14 +1239,20 @@ class ChecklistController extends Controller
                 return null;
             }
 
-            $mime = mime_content_type($absolute) ?: 'image/png';
             $binary = file_get_contents($absolute);
 
             if ($binary === false || $binary === '') {
                 return null;
             }
 
-            return 'data:'.$mime.';base64,'.base64_encode($binary);
+            $jpeg = ImageShrinker::toJpeg($binary, 1200, 68);
+            unset($binary);
+
+            if ($jpeg === null) {
+                return null;
+            }
+
+            return 'data:image/jpeg;base64,'.base64_encode($jpeg);
         };
 
         $this->ensurePassSignatures($checklist);

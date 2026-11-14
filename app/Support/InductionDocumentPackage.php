@@ -453,59 +453,13 @@ final class InductionDocumentPackage
 
     private static function jpegBytes(string $absolute, int $maxWidth, int $quality): ?string
     {
-        if (! function_exists('imagecreatefromstring')) {
-            return null;
-        }
-
         $binary = @file_get_contents($absolute);
 
         if ($binary === false || $binary === '') {
             return null;
         }
 
-        $image = @imagecreatefromstring($binary);
-
-        if ($image === false) {
-            return null;
-        }
-
-        $width = imagesx($image);
-        $height = imagesy($image);
-
-        if ($width > $maxWidth && $width > 0) {
-            $nextHeight = max(1, (int) round($height * ($maxWidth / $width)));
-            $resized = imagecreatetruecolor($maxWidth, $nextHeight);
-            $white = imagecolorallocate($resized, 255, 255, 255);
-            imagefilledrectangle($resized, 0, 0, $maxWidth, $nextHeight, $white);
-            imagecopyresampled(
-                $resized,
-                $image,
-                0,
-                0,
-                0,
-                0,
-                $maxWidth,
-                $nextHeight,
-                $width,
-                $height,
-            );
-            imagedestroy($image);
-            $image = $resized;
-        } else {
-            $canvas = imagecreatetruecolor($width, $height);
-            $white = imagecolorallocate($canvas, 255, 255, 255);
-            imagefilledrectangle($canvas, 0, 0, $width, $height, $white);
-            imagecopy($canvas, $image, 0, 0, 0, 0, $width, $height);
-            imagedestroy($image);
-            $image = $canvas;
-        }
-
-        ob_start();
-        imagejpeg($image, null, $quality);
-        $jpeg = (string) ob_get_clean();
-        imagedestroy($image);
-
-        return $jpeg !== '' ? $jpeg : null;
+        return ImageShrinker::toJpeg($binary, $maxWidth, $quality);
     }
 
     private static function latin(string $value): string
