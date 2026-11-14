@@ -213,7 +213,7 @@ final class UnitExcelImporter
             ['DNI CONDUCTOR', '1F6A5B', 16],
             ['CATEGORÍA', '1F6A5B', 16],
             ['COORDINADOR', '8A5A12', 28],
-            ['LUGAR', '2E5A9E', 32],
+            ['LUGAR ACTUAL', '2E5A9E', 32],
             ['ESTADO', '1A2B4C', 12],
         ];
 

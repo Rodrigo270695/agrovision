@@ -490,7 +490,7 @@ export function UnitsTable({
             },
             {
                 key: 'lugar',
-                header: 'Lugar',
+                header: 'Lugar actual',
                 cell: (unit) => (
                     <span className="text-xs text-muted-foreground">
                         {unit.lugar?.trim() || '—'}
@@ -613,7 +613,7 @@ export function UnitsTable({
             },
             {
                 key: 'lugar',
-                header: 'Lugar',
+                header: 'Lugar actual',
                 cell: (movement) => (
                     <span className="text-xs text-muted-foreground">
                         {movement.lugar?.trim() || '—'}
