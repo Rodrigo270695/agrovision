@@ -6,6 +6,7 @@ use App\Http\Requests\UserRequest;
 use App\Http\Requests\UserRolesRequest;
 use App\Models\Place;
 use App\Models\User;
+use App\Support\ActivityLogger;
 use App\Support\IndexedRedirect;
 use App\Support\SystemRoles;
 use Illuminate\Http\RedirectResponse;
@@ -208,6 +209,16 @@ class UserController extends Controller
             : [];
 
         $this->syncPlaces($user, $placeIds);
+
+        ActivityLogger::write([
+            'action' => 'roles',
+            'module' => 'Usuarios',
+            'record_type' => 'User',
+            'record_id' => $user->id,
+            'record_code' => $user->email,
+            'is_alert' => true,
+            'alert_reason' => 'Cambiaron los roles de '.$user->name,
+        ]);
 
         return IndexedRedirect::toIndex($request, 'users.index', [
             'type' => 'success',

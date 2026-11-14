@@ -22,6 +22,8 @@ class ActivityLog extends Model
         'browser',
         'user_agent',
         'url',
+        'is_alert',
+        'alert_reason',
         'created_at',
     ];
 
@@ -29,6 +31,7 @@ class ActivityLog extends Model
     {
         return [
             'changes' => 'array',
+            'is_alert' => 'boolean',
             'created_at' => 'datetime',
         ];
     }

@@ -12,6 +12,7 @@ use App\Models\Place;
 use App\Models\Site;
 use App\Models\TenantSetting;
 use App\Models\Unit;
+use App\Support\ActivityLogger;
 use App\Support\DriverBiometrics;
 use App\Support\IndexedRedirect;
 use App\Support\ImageShrinker;
@@ -594,10 +595,27 @@ class InductionController extends Controller
             ]);
         }
 
+        $closing = $next === InductionStatuses::CLOSED && $induction->status !== InductionStatuses::CLOSED;
+
         $induction->update([
             'status' => $next,
             'closed_at' => $next === InductionStatuses::CLOSED ? now() : null,
         ]);
+
+        if ($closing) {
+            ActivityLogger::write([
+                'action' => 'closed',
+                'module' => 'Inducciones',
+                'record_type' => 'Induction',
+                'record_id' => $induction->id,
+                'record_code' => $induction->document_code ?: '#'.$induction->id,
+                'changes' => [[
+                    'field' => 'estado',
+                    'before' => 'en curso',
+                    'after' => 'cerrada',
+                ]],
+            ]);
+        }
 
         return back()->with('toast', [
             'type' => 'success',
@@ -1204,6 +1222,14 @@ class InductionController extends Controller
 
         @set_time_limit(300);
         @ini_set('memory_limit', '1024M');
+
+        ActivityLogger::write([
+            'action' => 'pdf',
+            'module' => 'Inducciones',
+            'record_type' => 'Induction',
+            'record_id' => $induction->id,
+            'record_code' => $induction->document_code ?: '#'.$induction->id,
+        ]);
 
         try {
             return InductionDocumentPackage::download($induction);

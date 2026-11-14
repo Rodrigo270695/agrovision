@@ -20,6 +20,7 @@ use App\Models\UnitChecklistPhoto;
 use App\Models\UnitChecklistSignature;
 use App\Models\UnitMovement;
 use App\Services\ParetoChecklistSync;
+use App\Support\ActivityLogger;
 use App\Support\DriverBiometrics;
 use App\Support\ImageShrinker;
 use App\Support\IndexedRedirect;
@@ -835,6 +836,8 @@ class ChecklistController extends Controller
                     ? $this->limaNow()
                     : null;
 
+                $wasSealed = $checklist->sealed_at !== null;
+
                 $checklist->update([
                     'location' => $data['location'] ?? null,
                     'transport_company' => $data['transport_company'] ?? null,
@@ -869,6 +872,21 @@ class ChecklistController extends Controller
                     'status' => $shouldSeal ? 'completed' : ($data['status'] ?? $checklist->status),
                     'sealed_at' => $shouldSeal ? now() : $checklist->sealed_at,
                 ]);
+
+                if ($shouldSeal && ! $wasSealed) {
+                    ActivityLogger::write([
+                        'action' => 'sealed',
+                        'module' => 'Inspecciones',
+                        'record_type' => 'UnitChecklist',
+                        'record_id' => $checklist->id,
+                        'record_code' => $checklist->plate_number ?: '#'.$checklist->id,
+                        'changes' => [[
+                            'field' => 'sello',
+                            'before' => 'abierta',
+                            'after' => 'sellada',
+                        ]],
+                    ]);
+                }
 
                 foreach ($data['answers'] ?? [] as $answer) {
                     $payload = [];
@@ -1349,6 +1367,14 @@ class ChecklistController extends Controller
             'paretoChart' => $paretoChart,
             'coordinatorSignatureSrc' => $coordinatorSignatureSrc,
         ])->setPaper('a4', 'portrait');
+
+        ActivityLogger::write([
+            'action' => 'pdf',
+            'module' => 'Inspecciones',
+            'record_type' => 'UnitChecklist',
+            'record_id' => $checklist->id,
+            'record_code' => $checklist->plate_number ?: '#'.$checklist->id,
+        ]);
 
         if ($request->boolean('download')) {
             return $pdf->download($filename);

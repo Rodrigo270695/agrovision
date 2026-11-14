@@ -17,6 +17,26 @@ final class ActivityLogger
 
     private static ?bool $ready = null;
 
+    private static ?bool $alertsReady = null;
+
+    private static function tableReady(): bool
+    {
+        if (self::$ready === null) {
+            self::$ready = Schema::hasTable('activity_logs');
+        }
+
+        return self::$ready;
+    }
+
+    private static function alertsReady(): bool
+    {
+        if (self::$alertsReady === null) {
+            self::$alertsReady = Schema::hasColumn('activity_logs', 'is_alert');
+        }
+
+        return self::$alertsReady;
+    }
+
     /** @var list<string> */
     private const HIDDEN = [
         'password',
@@ -41,6 +61,24 @@ final class ActivityLogger
 
     public static function login(?User $user): void
     {
+        $ip = request()?->ip();
+        $knownIp = false;
+        $hasHistory = false;
+
+        if ($user !== null && $ip && self::tableReady()) {
+            $hasHistory = ActivityLog::query()
+                ->where('user_id', $user->getKey())
+                ->where('action', 'login')
+                ->exists();
+            $knownIp = ActivityLog::query()
+                ->where('user_id', $user->getKey())
+                ->where('action', 'login')
+                ->where('ip', $ip)
+                ->exists();
+        }
+
+        $newIp = $hasHistory && ! $knownIp;
+
         self::write([
             'action' => 'login',
             'module' => 'Acceso',
@@ -49,6 +87,8 @@ final class ActivityLogger
             'record_code' => $user?->email,
             'user_id' => $user?->getKey(),
             'user_name' => $user?->name,
+            'is_alert' => $newIp,
+            'alert_reason' => $newIp ? 'Ingresó desde una IP nueva' : null,
         ]);
     }
 
@@ -81,6 +121,13 @@ final class ActivityLogger
             return;
         }
 
+        $sensitiveDelete = $event === 'deleted' && in_array(class_basename($model), [
+            'UnitChecklist',
+            'Induction',
+            'User',
+            'Role',
+        ], true);
+
         self::write([
             'action' => $event,
             'module' => self::module($model),
@@ -88,6 +135,8 @@ final class ActivityLogger
             'record_id' => $model->getKey(),
             'record_code' => self::code($model),
             'changes' => $changes,
+            'is_alert' => $sensitiveDelete,
+            'alert_reason' => $sensitiveDelete ? 'Se eliminó un registro de '.self::module($model) : null,
         ]);
     }
 
@@ -117,8 +166,7 @@ final class ActivityLogger
 
             $request = request();
             $user = Auth::user();
-
-            ActivityLog::query()->create([
+            $row = [
                 'user_id' => $extra['user_id'] ?? $user?->getKey(),
                 'user_name' => $extra['user_name'] ?? $user?->name,
                 'action' => $extra['action'],
@@ -132,7 +180,14 @@ final class ActivityLogger
                 'user_agent' => $request?->userAgent() ? Str::limit($request->userAgent(), 500, '') : null,
                 'url' => $request?->path() ? Str::limit('/'.$request->path(), 255, '') : null,
                 'created_at' => now(),
-            ]);
+            ];
+
+            if (self::alertsReady()) {
+                $row['is_alert'] = (bool) ($extra['is_alert'] ?? false);
+                $row['alert_reason'] = $extra['alert_reason'] ?? null;
+            }
+
+            ActivityLog::query()->create($row);
         } catch (\Throwable) {
             self::$ready = null;
         } finally {

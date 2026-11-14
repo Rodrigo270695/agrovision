@@ -8,6 +8,7 @@ use App\Models\UnitChecklistAnswer;
 use App\Models\User;
 use App\Services\ParetoChecklistSync;
 use App\Services\PushNotificationService;
+use App\Support\ActivityLogger;
 use App\Support\InspectionDatabaseExporter;
 use App\Support\PdfLogo;
 use App\Support\PermissionCatalog;
@@ -410,6 +411,14 @@ class InspectionBatchController extends Controller
         }
 
         $filename = 'paquete-inspecciones-'.$batch->inspected_on->format('Y-m-d').'-'.$batch->id.'.pdf';
+
+        ActivityLogger::write([
+            'action' => 'pdf',
+            'module' => 'Inspecciones',
+            'record_type' => 'InspectionBatch',
+            'record_id' => $batch->id,
+            'record_code' => '#'.$batch->id,
+        ]);
 
         return Pdf::loadView('pdfs.inspection-batch-report', [
             'batch' => $batch,

@@ -6,48 +6,30 @@ use App\Models\ActivityLog;
 use App\Models\UserLocationPing;
 use App\Models\UserPresence;
 use App\Support\ActivityLogger;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AuditController extends Controller
 {
     public function index(Request $request): Response
     {
-        $filters = [
-            'search' => trim((string) $request->query('search', '')),
-            'action' => (string) $request->query('action', ''),
-            'module' => (string) $request->query('module', ''),
-        ];
+        $filters = $this->filters($request);
+        $hasAlert = $this->hasAlertColumn();
 
-        $logs = ActivityLog::query()
-            ->when($filters['search'] !== '', function ($query) use ($filters) {
-                $term = '%'.$filters['search'].'%';
-                $query->where(function ($inner) use ($term) {
-                    $inner->where('user_name', 'ilike', $term)
-                        ->orWhere('record_code', 'ilike', $term)
-                        ->orWhere('module', 'ilike', $term)
-                        ->orWhere('ip', 'ilike', $term);
-                });
-            })
-            ->when($filters['action'] !== '', fn ($query) => $query->where('action', $filters['action']))
-            ->when($filters['module'] !== '', fn ($query) => $query->where('module', $filters['module']))
+        $logs = $this->filtered($filters)
             ->latest('created_at')
             ->paginate(15)
             ->withQueryString()
-            ->through(fn (ActivityLog $log) => [
-                'id' => $log->id,
-                'created_at' => optional($log->created_at)?->timezone(config('app.timezone'))->format('d/m/Y, h:i a'),
-                'user_name' => $log->user_name ?: 'Sistema',
-                'action' => $log->action,
-                'module' => $log->module,
-                'record_code' => $log->record_code,
-                'changes' => $log->changes ?? [],
-                'ip' => $log->ip,
-                'browser' => $log->browser,
-            ]);
+            ->through(fn (ActivityLog $log) => $this->logPayload($log, $hasAlert));
 
         $since = now()->subMinutes(20);
         $presences = UserPresence::query()
@@ -92,7 +74,89 @@ class AuditController extends Controller
             'actionsToday' => $this->actionsToday(),
             'hoursToday' => $this->hoursToday(),
             'trails' => $this->trails(),
+            'people' => ActivityLog::query()
+                ->whereNotNull('user_id')
+                ->select('user_id', 'user_name')
+                ->distinct()
+                ->orderBy('user_name')
+                ->limit(300)
+                ->get()
+                ->map(fn (ActivityLog $log) => [
+                    'user_id' => (int) $log->user_id,
+                    'user_name' => $log->user_name ?: 'Usuario',
+                ])
+                ->values(),
+            'alerts' => $this->alerts($hasAlert),
+            'shifts' => $this->shifts($filters),
         ]);
+    }
+
+    public function export(Request $request): StreamedResponse
+    {
+        $filters = $this->filters($request);
+        $hasAlert = $this->hasAlertColumn();
+        $logs = $this->filtered($filters)->latest('created_at')->limit(8000)->get();
+        $sheet = new Spreadsheet;
+        $grid = $sheet->getActiveSheet();
+        $grid->setTitle('Auditoría');
+        $headers = ['Fecha', 'Usuario', 'Acción', 'Módulo', 'Registro', 'Alerta', 'Detalle', 'IP', 'Navegador'];
+
+        foreach ($headers as $index => $header) {
+            $grid->setCellValue([$index + 1, 1], $header);
+        }
+
+        $row = 2;
+
+        foreach ($logs as $log) {
+            $grid->setCellValue([1, $row], optional($log->created_at)?->timezone(config('app.timezone'))->format('d/m/Y H:i'));
+            $grid->setCellValue([2, $row], $log->user_name ?: 'Sistema');
+            $grid->setCellValue([3, $row], $log->action);
+            $grid->setCellValue([4, $row], $log->module);
+            $grid->setCellValue([5, $row], $log->record_code);
+            $grid->setCellValue([6, $row], $hasAlert && $log->is_alert ? 'Sí' : '');
+            $grid->setCellValue([7, $row], $hasAlert ? $log->alert_reason : null);
+            $grid->setCellValue([8, $row], $log->ip);
+            $grid->setCellValue([9, $row], $log->browser);
+            $row++;
+        }
+
+        $filename = 'auditoria-'.now()->format('Y-m-d').'.xlsx';
+
+        return response()->streamDownload(function () use ($sheet): void {
+            (new Xlsx($sheet))->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    public function syncReport(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'synced' => ['required', 'integer', 'min:0', 'max:500'],
+            'failed' => ['required', 'integer', 'min:0', 'max:500'],
+            'pending' => ['required', 'integer', 'min:0', 'max:5000'],
+            'message' => ['nullable', 'string', 'max:180'],
+        ]);
+
+        $failed = (int) $data['failed'];
+
+        ActivityLogger::write([
+            'action' => 'sync',
+            'module' => 'Offline',
+            'record_code' => $data['synced'].' ok / '.$failed.' error',
+            'is_alert' => $failed > 0,
+            'alert_reason' => $failed > 0
+                ? 'La sincronización dejó '.$failed.' pendientes con error'
+                : null,
+            'changes' => [
+                ['field' => 'enviados', 'before' => null, 'after' => (string) $data['synced']],
+                ['field' => 'fallidos', 'before' => null, 'after' => (string) $failed],
+                ['field' => 'en_cola', 'before' => null, 'after' => (string) $data['pending']],
+                ['field' => 'detalle', 'before' => null, 'after' => $data['message'] ?? null],
+            ],
+        ]);
+
+        return response()->json(['ok' => true]);
     }
 
     public function live(): JsonResponse
@@ -168,6 +232,166 @@ class AuditController extends Controller
         }
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * @return array{search: string, action: string, module: string, user: string, from: string, to: string}
+     */
+    private function filters(Request $request): array
+    {
+        $user = (int) $request->query('user', 0);
+
+        return [
+            'search' => trim((string) $request->query('search', '')),
+            'action' => (string) $request->query('action', ''),
+            'module' => (string) $request->query('module', ''),
+            'user' => $user > 0 ? (string) $user : '',
+            'from' => $this->day($request->query('from')),
+            'to' => $this->day($request->query('to')),
+        ];
+    }
+
+    /**
+     * @param  array{search: string, action: string, module: string, user: string, from: string, to: string}  $filters
+     * @return Builder<ActivityLog>
+     */
+    private function filtered(array $filters): Builder
+    {
+        return ActivityLog::query()
+            ->when($filters['search'] !== '', function (Builder $query) use ($filters) {
+                $term = '%'.$filters['search'].'%';
+                $query->where(function (Builder $inner) use ($term) {
+                    $inner->where('user_name', 'ilike', $term)
+                        ->orWhere('record_code', 'ilike', $term)
+                        ->orWhere('module', 'ilike', $term)
+                        ->orWhere('ip', 'ilike', $term);
+                });
+            })
+            ->when($filters['action'] !== '', fn (Builder $query) => $query->where('action', $filters['action']))
+            ->when($filters['module'] !== '', fn (Builder $query) => $query->where('module', $filters['module']))
+            ->when($filters['user'] !== '', fn (Builder $query) => $query->where('user_id', (int) $filters['user']))
+            ->when($filters['from'] !== '', fn (Builder $query) => $query->where('created_at', '>=', Carbon::parse($filters['from'])->startOfDay()))
+            ->when($filters['to'] !== '', fn (Builder $query) => $query->where('created_at', '<=', Carbon::parse($filters['to'])->endOfDay()));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function logPayload(ActivityLog $log, bool $hasAlert): array
+    {
+        return [
+            'id' => $log->id,
+            'created_at' => optional($log->created_at)?->timezone(config('app.timezone'))->format('d/m/Y, h:i a'),
+            'user_name' => $log->user_name ?: 'Sistema',
+            'action' => $log->action,
+            'module' => $log->module,
+            'record_code' => $log->record_code,
+            'changes' => $log->changes ?? [],
+            'ip' => $log->ip,
+            'browser' => $log->browser,
+            'is_alert' => $hasAlert && (bool) $log->is_alert,
+            'alert_reason' => $hasAlert ? $log->alert_reason : null,
+        ];
+    }
+
+    private function hasAlertColumn(): bool
+    {
+        return Schema::hasColumn('activity_logs', 'is_alert');
+    }
+
+    private function day(mixed $value): string
+    {
+        $raw = trim((string) $value);
+
+        if ($raw === '' || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw)) {
+            return '';
+        }
+
+        return $raw;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function alerts(bool $hasAlert): array
+    {
+        $query = ActivityLog::query()->latest('created_at');
+
+        if ($hasAlert) {
+            $query->where(function (Builder $inner) {
+                $inner->where('is_alert', true)
+                    ->orWhere(function (Builder $deleted) {
+                        $deleted->where('action', 'deleted')
+                            ->whereIn('module', ['Inspecciones', 'Inducciones', 'Usuarios', 'Roles']);
+                    });
+            });
+        } else {
+            $query->where('action', 'deleted')
+                ->whereIn('module', ['Inspecciones', 'Inducciones', 'Usuarios', 'Roles']);
+        }
+
+        return $query->limit(40)->get()
+            ->map(fn (ActivityLog $log) => $this->logPayload($log, $hasAlert))
+            ->all();
+    }
+
+    /**
+     * @param  array{search: string, action: string, module: string, user: string, from: string, to: string}  $filters
+     * @return list<array<string, mixed>>
+     */
+    private function shifts(array $filters): array
+    {
+        $from = $filters['from'] !== ''
+            ? Carbon::parse($filters['from'])->startOfDay()
+            : now()->startOfDay();
+        $to = $filters['to'] !== ''
+            ? Carbon::parse($filters['to'])->endOfDay()
+            : now()->endOfDay();
+
+        $logins = ActivityLog::query()
+            ->where('action', 'login')
+            ->when($filters['user'] !== '', fn (Builder $query) => $query->where('user_id', (int) $filters['user']))
+            ->whereBetween('created_at', [$from, $to])
+            ->orderByDesc('created_at')
+            ->limit(200)
+            ->get();
+
+        if ($logins->isEmpty()) {
+            return [];
+        }
+
+        $userIds = $logins->pluck('user_id')->filter()->unique()->values();
+        $logouts = ActivityLog::query()
+            ->where('action', 'logout')
+            ->whereIn('user_id', $userIds)
+            ->where('created_at', '>=', $from)
+            ->orderBy('created_at')
+            ->get()
+            ->groupBy('user_id');
+        $presences = UserPresence::query()
+            ->whereIn('user_id', $userIds)
+            ->get()
+            ->keyBy('user_id');
+        $zone = (string) config('app.timezone');
+
+        return $logins->map(function (ActivityLog $login) use ($logouts, $presences, $zone) {
+            $logout = $logouts->get($login->user_id)?->first(
+                fn (ActivityLog $row) => $row->created_at !== null
+                    && $login->created_at !== null
+                    && $row->created_at->greaterThan($login->created_at),
+            );
+            $presence = $presences->get($login->user_id);
+
+            return [
+                'id' => $login->id,
+                'user_name' => $login->user_name ?: 'Usuario',
+                'started_at' => $login->created_at?->timezone($zone)->format('d/m/Y, h:i a'),
+                'ended_at' => $logout?->created_at?->timezone($zone)->format('d/m/Y, h:i a'),
+                'last_seen_at' => $presence?->last_seen_at?->timezone($zone)->format('d/m/Y, h:i a'),
+                'ip' => $login->ip,
+                'open' => $logout === null,
+            ];
+        })->all();
     }
 
     /**

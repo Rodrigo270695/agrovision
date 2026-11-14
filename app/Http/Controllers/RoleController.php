@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\RolePermissionsRequest;
 use App\Http\Requests\RoleRequest;
+use App\Support\ActivityLogger;
 use App\Support\IndexedRedirect;
 use App\Support\PermissionCatalog;
 use App\Support\SystemRoles;
@@ -147,6 +148,16 @@ class RoleController extends Controller
         }
 
         $role->syncPermissions($request->validated('permissions'));
+
+        ActivityLogger::write([
+            'action' => 'roles',
+            'module' => 'Roles',
+            'record_type' => 'Role',
+            'record_id' => $role->id,
+            'record_code' => $role->name,
+            'is_alert' => true,
+            'alert_reason' => 'Cambiaron los permisos del rol',
+        ]);
 
         return IndexedRedirect::toIndex($request, 'roles.index', [
             'type' => 'success',

@@ -277,6 +277,8 @@ export async function flushOutbox(): Promise<void> {
     flushing = true;
     setOfflineSyncing(true);
     let synced = 0;
+    let failed = 0;
+    let lastError = '';
 
     try {
         const items = await db.outbox.orderBy('createdAt').toArray();
@@ -305,6 +307,8 @@ export async function flushOutbox(): Promise<void> {
                     break;
                 }
 
+                failed += 1;
+                lastError = message;
                 const attempts = item.attempts + 1;
 
                 if (attempts >= maxSyncAttempts()) {
@@ -348,6 +352,26 @@ export async function flushOutbox(): Promise<void> {
         flushing = false;
         setOfflineSyncing(false);
         await refreshPendingCount();
+
+        if (synced > 0 || failed > 0) {
+            const pending = await db.outbox.count();
+
+            try {
+                await fetch('/auditoria/sincronizacion', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: jsonHeaders(),
+                    body: JSON.stringify({
+                        synced,
+                        failed,
+                        pending,
+                        message: lastError || null,
+                    }),
+                });
+            } catch {
+                // El registro de auditoría no debe frenar la cola.
+            }
+        }
 
         if (synced > 0) {
             window.dispatchEvent(new Event(MUTATIONS_EVENT));

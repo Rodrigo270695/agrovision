@@ -87,8 +87,13 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
         Route::get('auditoria/en-vivo', [\App\Http\Controllers\AuditController::class, 'live'])
             ->middleware('permission:audit.view')
             ->name('audit.live');
+        Route::get('auditoria/excel', [\App\Http\Controllers\AuditController::class, 'export'])
+            ->middleware('permission:audit.view')
+            ->name('audit.export');
         Route::post('auditoria/presencia', [\App\Http\Controllers\AuditController::class, 'presence'])
             ->name('audit.presence');
+        Route::post('auditoria/sincronizacion', [\App\Http\Controllers\AuditController::class, 'syncReport'])
+            ->name('audit.sync');
 
         Route::get('roles', [RoleController::class, 'index'])
             ->middleware('permission:roles.view')

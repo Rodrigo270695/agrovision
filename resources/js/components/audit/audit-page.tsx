@@ -25,6 +25,20 @@ type LogItem = {
     changes: ChangeRow[];
     ip: string | null;
     browser: string | null;
+    is_alert: boolean;
+    alert_reason: string | null;
+};
+
+type Person = { user_id: number; user_name: string };
+
+type Shift = {
+    id: number;
+    user_name: string;
+    started_at: string | null;
+    ended_at: string | null;
+    last_seen_at: string | null;
+    ip: string | null;
+    open: boolean;
 };
 
 type Paginator = {
@@ -59,8 +73,11 @@ type Trail = {
 
 type PageProps = {
     logs: Paginator;
-    filters: { search: string; action: string; module: string };
+    filters: { search: string; action: string; module: string; user: string; from: string; to: string };
     modules: string[];
+    people: Person[];
+    alerts: LogItem[];
+    shifts: Shift[];
     presences: Presence[];
     stats: { today: number; active: number; located: number; modules: number };
     moduleSummary: ModuleRow[];
@@ -72,6 +89,8 @@ type PageProps = {
 const tabs = [
     { id: 'panel', label: 'Panel' },
     { id: 'actividad', label: 'Actividad' },
+    { id: 'alertas', label: 'Alertas' },
+    { id: 'jornada', label: 'Jornada' },
     { id: 'activos', label: 'Usuarios activos' },
     { id: 'mapa', label: 'Mapa' },
     { id: 'modulos', label: 'Módulos' },
@@ -86,6 +105,11 @@ const actionLabel: Record<string, string> = {
     login: 'Ingreso',
     logout: 'Salida',
     location: 'Ubicación',
+    sealed: 'Sello',
+    closed: 'Cierre',
+    pdf: 'PDF',
+    roles: 'Roles',
+    sync: 'Sincronización',
 };
 
 function actionClass(action: string): string {
@@ -260,7 +284,7 @@ function BarRow({ label, value, max }: { label: string; value: number; max: numb
 
 export function AuditPage() {
     const page = usePage().props as unknown as PageProps;
-    const { logs, filters, modules, moduleSummary, actionsToday, hoursToday } = page;
+    const { logs, filters, modules, people, alerts, shifts, moduleSummary, actionsToday, hoursToday } = page;
     const [tab, setTab] = useState<TabId>('panel');
     const [search, setSearch] = useState(filters.search);
     const [openId, setOpenId] = useState<number | null>(null);
@@ -321,6 +345,9 @@ export function AuditPage() {
                 search: next.search ?? filters.search,
                 action: next.action ?? filters.action,
                 module: next.module ?? filters.module,
+                user: next.user ?? filters.user,
+                from: next.from ?? filters.from,
+                to: next.to ?? filters.to,
             },
             { preserveState: true, preserveScroll: true, replace: true },
         );
@@ -426,8 +453,8 @@ export function AuditPage() {
 
             {tab === 'actividad' ? (
                 <PlatformContentPanel>
-                    <form
-                        className="flex flex-col gap-2 border-b border-brand-100 p-3 sm:flex-row"
+                        <form
+                        className="flex flex-col gap-2 border-b border-brand-100 p-3 lg:flex-row lg:flex-wrap"
                         onSubmit={(event) => {
                             event.preventDefault();
                             apply({ search });
@@ -469,9 +496,46 @@ export function AuditPage() {
                                 </option>
                             ))}
                         </select>
+                        <select
+                            value={filters.user}
+                            aria-label="Usuario"
+                            onChange={(event) => apply({ user: event.target.value })}
+                            className="h-9 rounded-xl border border-brand-200 bg-white px-2 text-sm"
+                        >
+                            <option value="">Todas las personas</option>
+                            {people.map((person) => (
+                                <option key={person.user_id} value={String(person.user_id)}>
+                                    {person.user_name}
+                                </option>
+                            ))}
+                        </select>
+                        <input
+                            type="date"
+                            aria-label="Desde"
+                            value={filters.from}
+                            onChange={(event) => apply({ from: event.target.value })}
+                            className="h-9 rounded-xl border border-brand-200 bg-white px-2 text-sm"
+                        />
+                        <input
+                            type="date"
+                            aria-label="Hasta"
+                            value={filters.to}
+                            onChange={(event) => apply({ to: event.target.value })}
+                            className="h-9 rounded-xl border border-brand-200 bg-white px-2 text-sm"
+                        />
                         <Button type="submit" size="sm" className="cursor-pointer rounded-xl">
                             Buscar
                         </Button>
+                        <a
+                            href={`/auditoria/excel?${new URLSearchParams(
+                                Object.fromEntries(
+                                    Object.entries(filters).filter(([, value]) => value !== ''),
+                                ),
+                            ).toString()}`}
+                            className="inline-flex h-9 items-center rounded-xl border border-brand-200 bg-white px-3 text-sm font-medium text-brand-700 hover:bg-brand-50"
+                        >
+                            Excel
+                        </a>
                     </form>
 
                     <div className="overflow-x-auto">
@@ -507,6 +571,9 @@ export function AuditPage() {
                                                     <span className={cn('rounded-full px-2 py-0.5 text-xs font-semibold', actionClass(log.action))}>
                                                         {actionLabel[log.action] ?? log.action}
                                                     </span>
+                                                    {log.is_alert && log.alert_reason ? (
+                                                        <p className="mt-1 text-xs text-rose-700">{log.alert_reason}</p>
+                                                    ) : null}
                                                 </td>
                                                 <td className="px-3 py-2">{log.module}</td>
                                                 <td className="px-3 py-2 font-mono text-xs">{log.record_code ?? '—'}</td>
@@ -583,6 +650,99 @@ export function AuditPage() {
                             </div>
                         </div>
                     ) : null}
+                </PlatformContentPanel>
+            ) : null}
+
+            {tab === 'alertas' ? (
+                <PlatformContentPanel>
+                    <p className="border-b border-brand-100 px-3 py-2 text-xs text-muted-foreground">
+                        Borrados de inspecciones, inducciones, usuarios o roles, cambios de permisos, ingresos desde una IP nueva y sincronizaciones con error.
+                    </p>
+                    <div className="overflow-x-auto">
+                        <table className="w-full min-w-[760px] text-left text-sm">
+                            <thead className="bg-brand-50/80 text-xs tracking-wide text-brand-700 uppercase">
+                                <tr>
+                                    <th className="px-3 py-2 font-semibold">Fecha</th>
+                                    <th className="px-3 py-2 font-semibold">Usuario</th>
+                                    <th className="px-3 py-2 font-semibold">Alerta</th>
+                                    <th className="px-3 py-2 font-semibold">Módulo</th>
+                                    <th className="px-3 py-2 font-semibold">Registro</th>
+                                    <th className="px-3 py-2 font-semibold">IP</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {alerts.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={6} className="px-3 py-10 text-center text-muted-foreground">
+                                            No hay alertas todavía.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    alerts.map((log) => (
+                                        <tr key={log.id} className="border-t border-brand-100">
+                                            <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{log.created_at}</td>
+                                            <td className="px-3 py-2 font-medium">{log.user_name}</td>
+                                            <td className="px-3 py-2">
+                                                <span className="font-medium">{actionLabel[log.action] ?? log.action}</span>
+                                                {log.alert_reason ? (
+                                                    <p className="text-xs text-rose-700">{log.alert_reason}</p>
+                                                ) : null}
+                                            </td>
+                                            <td className="px-3 py-2">{log.module}</td>
+                                            <td className="px-3 py-2 font-mono text-xs">{log.record_code ?? '—'}</td>
+                                            <td className="px-3 py-2 font-mono text-xs">{log.ip ?? '—'}</td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </PlatformContentPanel>
+            ) : null}
+
+            {tab === 'jornada' ? (
+                <PlatformContentPanel>
+                    <p className="border-b border-brand-100 px-3 py-2 text-xs text-muted-foreground">
+                        Ingresos del rango elegido. Sin fechas, muestra el día de hoy. Abierta significa que todavía no hay salida después de ese ingreso.
+                    </p>
+                    <div className="overflow-x-auto">
+                        <table className="w-full min-w-[760px] text-left text-sm">
+                            <thead className="bg-brand-50/80 text-xs tracking-wide text-brand-700 uppercase">
+                                <tr>
+                                    <th className="px-3 py-2 font-semibold">Usuario</th>
+                                    <th className="px-3 py-2 font-semibold">Ingreso</th>
+                                    <th className="px-3 py-2 font-semibold">Salida</th>
+                                    <th className="px-3 py-2 font-semibold">Última señal</th>
+                                    <th className="px-3 py-2 font-semibold">Estado</th>
+                                    <th className="px-3 py-2 font-semibold">IP</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {shifts.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={6} className="px-3 py-10 text-center text-muted-foreground">
+                                            Nadie ingresó en ese rango.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    shifts.map((shift) => (
+                                        <tr key={shift.id} className="border-t border-brand-100">
+                                            <td className="px-3 py-2 font-medium">{shift.user_name}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{shift.started_at ?? '—'}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{shift.ended_at ?? '—'}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{shift.last_seen_at ?? '—'}</td>
+                                            <td className="px-3 py-2">
+                                                <span className={cn('rounded-full px-2 py-0.5 text-xs font-semibold', shift.open ? 'bg-emerald-50 text-emerald-700' : 'bg-brand-50 text-brand-700')}>
+                                                    {shift.open ? 'Abierta' : 'Cerrada'}
+                                                </span>
+                                            </td>
+                                            <td className="px-3 py-2 font-mono text-xs">{shift.ip ?? '—'}</td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </PlatformContentPanel>
             ) : null}
 
