@@ -5,10 +5,13 @@ namespace App\Http\Controllers;
 use App\Http\Requests\UserRequest;
 use App\Http\Requests\UserRolesRequest;
 use App\Models\Place;
+use App\Models\Unit;
 use App\Models\User;
 use App\Support\ActivityLogger;
+use App\Support\CoordinatorPlaceLabel;
 use App\Support\IndexedRedirect;
 use App\Support\SystemRoles;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -80,9 +83,19 @@ class UserController extends Controller
 
         $usersQuery->orderBy($sort, $direction);
 
+        $currentPlaces = $this->currentPlacesByCoordinator();
+
         $users = $usersQuery
             ->paginate($perPage)
-            ->withQueryString();
+            ->withQueryString()
+            ->through(function (User $user) use ($currentPlaces) {
+                $user->setAttribute(
+                    'lugar_actual',
+                    $this->lugarActual($user, $currentPlaces[(int) $user->id] ?? []),
+                );
+
+                return $user;
+            });
 
         $withoutRoles = User::query()
             ->withoutSupport()
@@ -253,6 +266,55 @@ class UserController extends Controller
     private function isProtected(User $user): bool
     {
         return (bool) $user->is_support;
+    }
+
+    /**
+     * Sedes y garitas de las unidades activas que dejó la carga de Excel.
+     *
+     * @return array<int, array<string, array{sede: string|null, garita: string|null}>>
+     */
+    private function currentPlacesByCoordinator(): array
+    {
+        if (! Schema::hasTable('units')) {
+            return [];
+        }
+
+        $grouped = [];
+
+        Unit::query()
+            ->when(
+                Schema::hasColumn('units', 'status'),
+                fn ($query) => $query->where('status', 'active'),
+            )
+            ->whereNotNull('coordinator_id')
+            ->get(['coordinator_id', 'sede', 'garita'])
+            ->each(function (Unit $unit) use (&$grouped): void {
+                $key = mb_strtoupper(trim((string) $unit->sede)).'|'.mb_strtoupper(trim((string) $unit->garita));
+                $grouped[(int) $unit->coordinator_id][$key] = [
+                    'sede' => $unit->sede,
+                    'garita' => $unit->garita,
+                ];
+            });
+
+        return $grouped;
+    }
+
+    /**
+     * @param  array<string, array{sede: string|null, garita: string|null}>  $pairs
+     */
+    private function lugarActual(User $user, array $pairs): string
+    {
+        $labels = [];
+
+        foreach ($pairs as $pair) {
+            $label = CoordinatorPlaceLabel::forCoordinator($user, $pair['sede'], $pair['garita']);
+
+            if ($label !== '') {
+                $labels[$label] = true;
+            }
+        }
+
+        return implode(' · ', array_keys($labels));
     }
 
     /**

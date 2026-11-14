@@ -56,7 +56,6 @@ export type UnitItem = {
         name: string;
         email?: string | null;
     } | null;
-    lugar?: string | null;
     documents?: UnitDocumentItem[];
     documents_count?: number;
     documents_progress?: {
@@ -94,7 +93,6 @@ export type MovementItem = {
         id: number;
         name: string;
     } | null;
-    lugar?: string | null;
     period?: {
         id: number;
         name: string;
@@ -489,15 +487,6 @@ export function UnitsTable({
                 ),
             },
             {
-                key: 'lugar',
-                header: 'Lugar actual',
-                cell: (unit) => (
-                    <span className="text-xs text-muted-foreground">
-                        {unit.lugar?.trim() || '—'}
-                    </span>
-                ),
-            },
-            {
                 key: 'documents',
                 header: 'Docs',
                 className: 'min-w-[8.5rem]',
@@ -608,15 +597,6 @@ export function UnitsTable({
                 cell: (movement) => (
                     <span className="text-xs text-muted-foreground">
                         {movement.garita || '—'}
-                    </span>
-                ),
-            },
-            {
-                key: 'lugar',
-                header: 'Lugar actual',
-                cell: (movement) => (
-                    <span className="text-xs text-muted-foreground">
-                        {movement.lugar?.trim() || '—'}
                     </span>
                 ),
             },

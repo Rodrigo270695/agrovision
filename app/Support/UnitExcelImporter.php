@@ -213,11 +213,10 @@ final class UnitExcelImporter
             ['DNI CONDUCTOR', '1F6A5B', 16],
             ['CATEGORÍA', '1F6A5B', 16],
             ['COORDINADOR', '8A5A12', 28],
-            ['LUGAR ACTUAL', '2E5A9E', 32],
             ['ESTADO', '1A2B4C', 12],
         ];
 
-        $lastColumn = 'T';
+        $lastColumn = 'S';
         $headerRow = 3;
 
         $sheet->mergeCells("A1:{$lastColumn}1");
@@ -323,14 +322,6 @@ final class UnitExcelImporter
             $sheet->setCellValue("R{$rowNumber}", (string) ($unit->coordinatorUser?->name ?? ''));
             $sheet->setCellValue(
                 "S{$rowNumber}",
-                CoordinatorPlaceLabel::forCoordinator(
-                    $unit->coordinatorUser,
-                    $unit->sede,
-                    $unit->garita,
-                ),
-            );
-            $sheet->setCellValue(
-                "T{$rowNumber}",
                 ($unit->status ?? '') === 'active' ? 'Activo' : 'Inactivo',
             );
 

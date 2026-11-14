@@ -18,7 +18,6 @@ use App\Support\SystemRoles;
 use App\Support\UnitCatalog;
 use App\Support\UnitStatusHistory;
 use App\Support\UnitDocumentTypes;
-use App\Support\CoordinatorPlaceLabel;
 use App\Support\UnitExcelImporter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -52,8 +51,6 @@ class UnitController extends Controller
                 ->with([
                     'period:id,name,status,date',
                     'coordinatorUser:id,name,email',
-                    'coordinatorUser.places:id,name,site_id',
-                    'coordinatorUser.places.site:id,name',
                     'documents' => fn ($query) => $query
                         ->latest()
                         ->with('uploader:id,name'),
@@ -80,14 +77,6 @@ class UnitController extends Controller
                         'documents_progress',
                         UnitDocumentTypes::progress($unit->documents),
                     );
-                    $unit->setAttribute(
-                        'lugar',
-                        CoordinatorPlaceLabel::forCoordinator(
-                            $unit->coordinatorUser,
-                            $unit->sede,
-                            $unit->garita,
-                        ),
-                    );
 
                     return $unit;
                 }));
@@ -97,23 +86,9 @@ class UnitController extends Controller
                 ->with([
                     'period:id,name,date',
                     'coordinator:id,name',
-                    'coordinator.places:id,name,site_id',
-                    'coordinator.places.site:id,name',
                 ])
                 ->paginate($filters['per_page'])
                 ->withQueryString()
-                ->through(function (UnitMovement $movement) {
-                    $movement->setAttribute(
-                        'lugar',
-                        CoordinatorPlaceLabel::forCoordinator(
-                            $movement->coordinator,
-                            $movement->sede,
-                            $movement->garita,
-                        ),
-                    );
-
-                    return $movement;
-                })
             : null;
 
         $activePage = $movements ?? $units;
@@ -361,12 +336,7 @@ class UnitController extends Controller
         $filters = $this->validatedFilters($request);
 
         $units = $this->filteredUnitsQuery($filters, $this->scopedUnitsQuery())
-            ->with([
-                'period:id,name,date',
-                'coordinatorUser:id,name',
-                'coordinatorUser.places:id,name,site_id',
-                'coordinatorUser.places.site:id,name',
-            ])
+            ->with(['period:id,name,date', 'coordinatorUser:id,name'])
             ->get();
 
         $periodName = 'Todos los periodos';
