@@ -395,13 +395,16 @@ class UnitController extends Controller
 
         return IndexedRedirect::toIndex($request, 'units.index', [
             'type' => 'success',
-            'message' => 'Los datos se cargaron correctamente.',
+            'message' => ($result['replaced'] ?? false)
+                ? 'Se reemplazó la carga de hoy y quedó el archivo nuevo.'
+                : 'Los datos se cargaron correctamente.',
         ])->with('unit_import', [
             'imported' => $result['imported'],
             'created' => $result['created'],
             'updated' => $result['updated'],
             'units_created' => $result['units_created'],
             'deactivated' => $result['deactivated'],
+            'replaced' => $result['replaced'] ?? false,
             'errors' => [],
         ]);
     }

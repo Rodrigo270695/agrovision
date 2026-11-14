@@ -15,7 +15,7 @@ final class UnitStatusHistory
         self::ensureTable();
     }
 
-    public static function record(int $unitId, string $status, CarbonInterface|string|null $on = null, string $source = 'manual'): void
+    public static function record(int $unitId, string $status, CarbonInterface|string|null $on = null, string $source = 'manual'): ?int
     {
         self::ensureTable();
 
@@ -23,22 +23,22 @@ final class UnitStatusHistory
             ? $on->toDateString()
             : Carbon::parse($on ?? now())->toDateString();
 
-        $exists = UnitStatusEvent::query()
+        $existing = UnitStatusEvent::query()
             ->where('unit_id', $unitId)
             ->where('status', $status)
             ->whereDate('happened_on', $date)
-            ->exists();
+            ->value('id');
 
-        if ($exists) {
-            return;
+        if ($existing) {
+            return (int) $existing;
         }
 
-        UnitStatusEvent::query()->create([
+        return (int) UnitStatusEvent::query()->create([
             'unit_id' => $unitId,
             'status' => $status,
             'happened_on' => $date,
             'source' => $source,
-        ]);
+        ])->id;
     }
 
     private static function ensureTable(): void

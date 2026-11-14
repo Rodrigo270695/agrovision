@@ -26,6 +26,7 @@ type UnitImportResult = {
     updated?: number;
     units_created?: number;
     deactivated?: number;
+    replaced?: boolean;
     errors: UnitImportError[];
 };
 
@@ -128,13 +129,16 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
 
     const loadedDetail = loadedResult
         ? [
-              loadedResult.created !== undefined &&
-              loadedResult.updated !== undefined
-                  ? `${loadedResult.created} movimientos nuevos y ${loadedResult.updated} ya registrados.`
-                  : `${loadedResult.imported} filas procesadas.`,
+              `${loadedResult.created ?? loadedResult.imported} filas quedaron en el historial.`,
               `Unidades nuevas: ${loadedResult.units_created ?? 0}.`,
+              (loadedResult.updated ?? 0) > 0
+                  ? `Placas ya registradas actualizadas: ${loadedResult.updated}.`
+                  : null,
               (loadedResult.deactivated ?? 0) > 0
-                  ? `Inactivas porque ya no vinieron: ${loadedResult.deactivated}.`
+                  ? `Pasaron a inactivas porque no vinieron: ${loadedResult.deactivated}.`
+                  : null,
+              loadedResult.replaced
+                  ? 'Esta carga reemplazó el Excel anterior de hoy.'
                   : null,
           ]
               .filter(Boolean)
@@ -196,7 +200,7 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
             open={open}
             onClose={handleClose}
             title="Importar unidades"
-            description="Descarga la plantilla, completa los datos y súbela en formato .xlsx."
+            description="Cada fila queda en el historial. Si hoy ya hubo una carga de este periodo, esta la reemplaza."
             className="sm:max-w-xl"
             footer={
                 <>

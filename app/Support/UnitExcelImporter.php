@@ -5,7 +5,10 @@ namespace App\Support;
 use App\Models\DriverBlacklistEntry;
 use App\Models\Period;
 use App\Models\Unit;
+use App\Models\UnitImport;
+use App\Models\UnitImportRollback;
 use App\Models\UnitMovement;
+use App\Models\UnitStatusEvent;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
@@ -589,12 +592,14 @@ final class UnitExcelImporter
         $updated = 0;
         $unitsCreated = 0;
         $deactivated = 0;
+        $replaced = false;
 
         try {
             $this->allowRepeatedMovementCorrelatives();
             $this->ensureUnitStatusColumn();
             $this->ensureUnitStatusEventsTable();
-            $this->persistImport($pending, $period, $created, $updated, $unitsCreated, $deactivated);
+            $this->ensureUnitImportTables();
+            $this->persistImport($pending, $period, $created, $updated, $unitsCreated, $deactivated, $replaced);
         } catch (QueryException $exception) {
             report($exception);
 
@@ -617,6 +622,7 @@ final class UnitExcelImporter
             'updated' => $updated,
             'units_created' => $unitsCreated,
             'deactivated' => $deactivated,
+            'replaced' => $replaced,
             'errors' => [],
         ];
     }
@@ -648,20 +654,26 @@ final class UnitExcelImporter
     /**
      * @param  array<int, array<string, mixed>>  $pending
      */
-    private function persistImport(array $pending, Period $period, int &$created, int &$updated, int &$unitsCreated, int &$deactivated): void
+    private function persistImport(array $pending, Period $period, int &$created, int &$updated, int &$unitsCreated, int &$deactivated, bool &$replaced): void
     {
-        DB::transaction(function () use ($pending, $period, &$created, &$updated, &$unitsCreated, &$deactivated): void {
+        DB::transaction(function () use ($pending, $period, &$created, &$updated, &$unitsCreated, &$deactivated, &$replaced): void {
+            $rollbacks = [];
+            $replaced = $this->revertTodayImport($period);
+            $import = UnitImport::query()->create([
+                'period_id' => $period->id,
+                'user_id' => Auth::id(),
+                'imported_on' => now()->toDateString(),
+                'scope_key' => $this->importScopeKey(),
+            ]);
             $createdUnitIds = [];
             $createdByCorrelative = [];
-            $movementIdByRow = [];
             $latestByUnit = [];
+            $refreshedUnits = [];
             $driverSync = new DriverImportSync();
             CoordinatorSede::flushCache();
 
-            foreach ($pending as $excelRow => $data) {
-                $movementId = $data['movement_id'] ?? null;
+            foreach ($pending as $data) {
                 $unitId = $data['unit_id'] ?? null;
-                $duplicateOf = $data['duplicate_of'] ?? null;
                 $correlative = (string) ($data['correlative'] ?? '');
                 unset($data['movement_id'], $data['unit_id'], $data['duplicate_of']);
 
@@ -707,40 +719,41 @@ final class UnitExcelImporter
                     $unitId = $unit->id;
                     $createdUnitIds[$plate] = $unitId;
                     $unitsCreated++;
-                    UnitStatusHistory::record(
+                    $this->rememberUnit($rollbacks, $unit, true);
+                    $this->pushStatusEvent($rollbacks, $unitId, UnitStatusHistory::record(
                         $unitId,
                         'active',
                         $data['service_date'] ?? now(),
                         'import',
-                    );
+                    ));
+                } else {
+                    $existing = Unit::query()->find($unitId);
+
+                    if ($existing instanceof Unit) {
+                        $this->rememberUnit($rollbacks, $existing, false);
+
+                        if (
+                            ! ($rollbacks[$unitId]['created_unit'] ?? false)
+                            && ! isset($refreshedUnits[$unitId])
+                        ) {
+                            $refreshedUnits[$unitId] = true;
+                            $updated++;
+                        }
+                    }
                 }
 
                 if ($correlative !== '') {
                     $createdByCorrelative[$correlative] = $unitId;
                 }
 
-                if ($duplicateOf !== null && isset($movementIdByRow[$duplicateOf])) {
-                    $movementId = $movementIdByRow[$duplicateOf];
-                }
-
-                $movementAttributes = [
+                $movement = UnitMovement::create([
                     ...$attributes,
                     'unit_id' => $unitId,
                     'period_id' => $period->id,
+                    'import_id' => $import->id,
                     'service_date' => $data['service_date'],
-                ];
-
-                if ($movementId) {
-                    $movement = UnitMovement::query()->findOrFail($movementId);
-                    $movement->fill($movementAttributes);
-                    $movement->save();
-                    $movementIdByRow[$excelRow] = $movement->id;
-                    $updated++;
-                } else {
-                    $movement = UnitMovement::create($movementAttributes);
-                    $movementIdByRow[$excelRow] = $movement->id;
-                    $created++;
-                }
+                ]);
+                $created++;
 
                 $serviceDate = (string) ($data['service_date'] ?? '');
 
@@ -754,40 +767,41 @@ final class UnitExcelImporter
                 $driverSync->recordRow($period, (int) $unitId, $movement, $data);
             }
 
-            $deactivated = $this->syncImportedPresence($period, $latestByUnit);
+            $deactivated = $this->syncImportedPresence($period, $latestByUnit, $rollbacks);
+            $this->storeRollbacks($import, $rollbacks);
             $driverSync->syncPresence($period);
         });
     }
 
     /**
-     * La unidad queda con los datos del día más reciente del archivo.
-     * Las placas del periodo que no vinieron en el Excel pasan a inactivas.
+     * La unidad conserva su ficha. Solo se actualizan conductor, documento,
+     * coordinador, responsable y proveedor. Lo que no viene en el archivo pasa a inactivo.
      *
      * @param  array<int, array<string, mixed>>  $latestByUnit
+     * @param  array<int, array<string, mixed>>  $rollbacks
      */
-    private function syncImportedPresence(Period $period, array $latestByUnit): int
+    private function syncImportedPresence(Period $period, array $latestByUnit, array &$rollbacks): int
     {
         foreach ($latestByUnit as $unitId => $data) {
-            $previous = Unit::query()->whereKey($unitId)->value('status') ?: 'active';
-            $snapshot = $this->presentAttributes($data);
-            // Conserva correlativo; proveedor/conductor/DNI/coordinador sí se
-            // reemplazan según el consolidado de la carga masiva.
-            unset($snapshot['correlative']);
-            $snapshot['status'] = 'active';
+            $unit = Unit::query()->find($unitId);
 
-            if (isset($data['service_date'])) {
-                $snapshot['service_date'] = $data['service_date'];
+            if (! $unit instanceof Unit) {
+                continue;
             }
 
-            Unit::query()->whereKey($unitId)->update($snapshot);
+            $this->rememberUnit($rollbacks, $unit, false);
+            $previous = $unit->status ?: 'active';
+            $unit->fill($this->liveFields($data));
+            $unit->status = 'active';
+            $unit->save();
 
             if ($previous !== 'active') {
-                UnitStatusHistory::record(
+                $this->pushStatusEvent($rollbacks, (int) $unitId, UnitStatusHistory::record(
                     (int) $unitId,
                     'active',
                     $data['service_date'] ?? now(),
                     'import',
-                );
+                ));
             }
         }
 
@@ -807,18 +821,209 @@ final class UnitExcelImporter
             $missing->where('coordinator_id', Auth::id());
         }
 
-        $returning = (clone $missing)->where(function ($query): void {
-            $query->where('status', '!=', 'inactive')->orWhereNull('status');
-        })->pluck('id');
-
-        $deactivated = $missing->update(['status' => 'inactive']);
+        $returning = (clone $missing)->get();
+        $deactivated = 0;
         $today = now()->toDateString();
 
-        foreach ($returning as $unitId) {
-            UnitStatusHistory::record((int) $unitId, 'inactive', $today, 'import');
+        foreach ($returning as $unit) {
+            if (($unit->status ?: 'active') === 'inactive') {
+                continue;
+            }
+
+            $this->rememberUnit($rollbacks, $unit, false);
+            $unit->status = 'inactive';
+            $unit->save();
+            $deactivated++;
+            $this->pushStatusEvent($rollbacks, (int) $unit->id, UnitStatusHistory::record(
+                (int) $unit->id,
+                'inactive',
+                $today,
+                'import',
+            ));
         }
 
         return $deactivated;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function liveFields(array $data): array
+    {
+        $fields = [];
+
+        foreach (['provider', 'driver_name', 'driver_dni', 'coordinator_id', 'responsible_person', 'service_date'] as $key) {
+            if (! array_key_exists($key, $data) || $data[$key] === null || $data[$key] === '') {
+                continue;
+            }
+
+            $fields[$key] = $data[$key];
+        }
+
+        return $fields;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rollbacks
+     */
+    private function rememberUnit(array &$rollbacks, Unit $unit, bool $created): void
+    {
+        $id = (int) $unit->id;
+
+        if (isset($rollbacks[$id])) {
+            return;
+        }
+
+        $rollbacks[$id] = [
+            'unit_id' => $id,
+            'created_unit' => $created,
+            'previous_status' => $created ? null : ($unit->status ?: 'active'),
+            'previous_provider' => $created ? null : $unit->provider,
+            'previous_driver_name' => $created ? null : $unit->driver_name,
+            'previous_driver_dni' => $created ? null : $unit->driver_dni,
+            'previous_coordinator_id' => $created ? null : $unit->coordinator_id,
+            'previous_responsible_person' => $created ? null : $unit->responsible_person,
+            'status_event_ids' => [],
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rollbacks
+     */
+    private function pushStatusEvent(array &$rollbacks, int $unitId, ?int $eventId): void
+    {
+        if ($eventId === null || ! isset($rollbacks[$unitId])) {
+            return;
+        }
+
+        $rollbacks[$unitId]['status_event_ids'][] = $eventId;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rollbacks
+     */
+    private function storeRollbacks(UnitImport $import, array $rollbacks): void
+    {
+        foreach ($rollbacks as $row) {
+            UnitImportRollback::query()->create([
+                'import_id' => $import->id,
+                'unit_id' => $row['unit_id'],
+                'created_unit' => $row['created_unit'],
+                'previous_status' => $row['previous_status'],
+                'previous_provider' => $row['previous_provider'],
+                'previous_driver_name' => $row['previous_driver_name'],
+                'previous_driver_dni' => $row['previous_driver_dni'],
+                'previous_coordinator_id' => $row['previous_coordinator_id'],
+                'previous_responsible_person' => $row['previous_responsible_person'],
+                'status_event_ids' => $row['status_event_ids'],
+            ]);
+        }
+    }
+
+    private function importScopeKey(): string
+    {
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            return 'user:'.Auth::id();
+        }
+
+        return 'all';
+    }
+
+    private function revertTodayImport(Period $period): bool
+    {
+        $import = UnitImport::query()
+            ->where('period_id', $period->id)
+            ->whereDate('imported_on', now()->toDateString())
+            ->where('scope_key', $this->importScopeKey())
+            ->first();
+
+        if (! $import instanceof UnitImport) {
+            return false;
+        }
+
+        $rollbacks = $import->rollbacks()->get();
+        $import->movements()->delete();
+
+        foreach ($rollbacks as $row) {
+            $eventIds = array_values(array_filter($row->status_event_ids ?? []));
+
+            if ($eventIds !== []) {
+                UnitStatusEvent::query()->whereIn('id', $eventIds)->delete();
+            }
+
+            if ($row->unit_id === null) {
+                continue;
+            }
+
+            if ($row->created_unit) {
+                $unit = Unit::query()
+                    ->withCount(['checklists', 'documents', 'movements'])
+                    ->find($row->unit_id);
+
+                if (
+                    $unit instanceof Unit
+                    && $unit->checklists_count === 0
+                    && $unit->documents_count === 0
+                    && $unit->movements_count === 0
+                ) {
+                    $unit->delete();
+                }
+
+                continue;
+            }
+
+            Unit::query()->whereKey($row->unit_id)->update([
+                'status' => $row->previous_status ?: 'active',
+                'provider' => $row->previous_provider ?? '',
+                'driver_name' => $row->previous_driver_name,
+                'driver_dni' => $row->previous_driver_dni,
+                'coordinator_id' => $row->previous_coordinator_id,
+                'responsible_person' => $row->previous_responsible_person,
+            ]);
+        }
+
+        $import->delete();
+
+        return true;
+    }
+
+    private function ensureUnitImportTables(): void
+    {
+        if (! Schema::hasTable('unit_imports')) {
+            Schema::create('unit_imports', function (Blueprint $table): void {
+                $table->id();
+                $table->foreignId('period_id')->constrained('periods')->cascadeOnDelete();
+                $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
+                $table->date('imported_on');
+                $table->string('scope_key', 40);
+                $table->timestamps();
+                $table->unique(['period_id', 'imported_on', 'scope_key']);
+            });
+        }
+
+        if (! Schema::hasTable('unit_import_rollbacks')) {
+            Schema::create('unit_import_rollbacks', function (Blueprint $table): void {
+                $table->id();
+                $table->foreignId('import_id')->constrained('unit_imports')->cascadeOnDelete();
+                $table->foreignId('unit_id')->nullable()->constrained('units')->nullOnDelete();
+                $table->boolean('created_unit')->default(false);
+                $table->string('previous_status', 20)->nullable();
+                $table->string('previous_provider')->nullable();
+                $table->string('previous_driver_name')->nullable();
+                $table->string('previous_driver_dni', 20)->nullable();
+                $table->foreignId('previous_coordinator_id')->nullable()->constrained('users')->nullOnDelete();
+                $table->string('previous_responsible_person')->nullable();
+                $table->json('status_event_ids')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        if (Schema::hasTable('unit_movements') && ! Schema::hasColumn('unit_movements', 'import_id')) {
+            Schema::table('unit_movements', function (Blueprint $table): void {
+                $table->foreignId('import_id')->nullable()->constrained('unit_imports')->nullOnDelete();
+            });
+        }
     }
 
     private function ensureUnitStatusEventsTable(): void

@@ -32,6 +32,7 @@ class UnitMovement extends Model
     protected $fillable = [
         'unit_id',
         'period_id',
+        'import_id',
         'correlative',
         'service_date',
         'plate_number',
