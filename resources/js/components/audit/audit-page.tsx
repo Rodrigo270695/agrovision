@@ -410,11 +410,27 @@ function BarRow({ label, value, max }: { label: string; value: number; max: numb
 
 export function AuditPage() {
     const page = usePage().props as unknown as PageProps;
-    const { logs, filters, modules, people, alerts, shifts, moduleSummary, actionsToday, hoursToday } = page;
+    const logs = page.logs;
+    const filters = {
+        search: '',
+        action: '',
+        module: '',
+        user: '',
+        from: '',
+        to: '',
+        ...page.filters,
+    };
+    const modules = page.modules ?? [];
+    const people = page.people ?? [];
+    const alerts = page.alerts ?? [];
+    const shifts = page.shifts ?? [];
+    const moduleSummary = page.moduleSummary ?? [];
+    const actionsToday = page.actionsToday ?? {};
+    const hoursToday = page.hoursToday ?? [];
     const [tab, setTab] = useState<TabId>('panel');
     const [openId, setOpenId] = useState<number | null>(null);
-    const [presences, setPresences] = useState(page.presences);
-    const [trails, setTrails] = useState(page.trails);
+    const [presences, setPresences] = useState(page.presences ?? []);
+    const [trails, setTrails] = useState(page.trails ?? []);
     const [liveAt, setLiveAt] = useState<string | null>(null);
     const active = presences.filter((row) => row.active);
     const hourMax = Math.max(1, ...hoursToday);

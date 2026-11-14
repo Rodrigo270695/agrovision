@@ -34,12 +34,12 @@ class AuditController extends Controller
             ->through(fn (ActivityLog $log) => $this->logPayload($log, $hasAlert));
 
         $since = now()->subMinutes(20);
-        $presences = UserPresence::query()
-            ->with('user.roles')
+        $presenceRows = UserPresence::query()
             ->latest('last_seen_at')
             ->limit(200)
-            ->get()
-            ->map(fn (UserPresence $row) => $this->presencePayload($row, $since));
+            ->get();
+        $roles = $this->roleMap($presenceRows->pluck('user_id'));
+        $presences = $presenceRows->map(fn (UserPresence $row) => $this->presencePayload($row, $since, $roles));
 
         return Inertia::render('audit/index', [
             'logs' => $logs,
@@ -154,12 +154,12 @@ class AuditController extends Controller
     public function live(): JsonResponse
     {
         $since = now()->subMinutes(20);
-        $presences = UserPresence::query()
-            ->with('user.roles')
+        $presenceRows = UserPresence::query()
             ->latest('last_seen_at')
             ->limit(200)
-            ->get()
-            ->map(fn (UserPresence $row) => $this->presencePayload($row, $since));
+            ->get();
+        $roles = $this->roleMap($presenceRows->pluck('user_id'));
+        $presences = $presenceRows->map(fn (UserPresence $row) => $this->presencePayload($row, $since, $roles));
 
         return response()->json([
             'presences' => $presences,
@@ -432,22 +432,32 @@ class AuditController extends Controller
             return [];
         }
 
+        try {
+            return $this->trailRows();
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return [];
+        }
+    }
+
+    /**
+     * @return list<array{user_id: int, user_name: string, role: string, role_label: string, points: list<array{latitude: float, longitude: float, at: string}>}>
+     */
+    private function trailRows(): array
+    {
         $pings = UserLocationPing::query()
             ->where('recorded_at', '>=', now()->subHours(8))
             ->orderBy('recorded_at')
-            ->get();
-        $users = User::query()
-            ->with('roles')
-            ->whereIn('id', $pings->pluck('user_id')->unique()->filter())
-            ->get()
-            ->keyBy('id');
+            ->get(['user_id', 'user_name', 'latitude', 'longitude', 'recorded_at']);
+        $roles = $this->roleMap($pings->pluck('user_id'));
 
         return $pings
             ->groupBy('user_id')
-            ->map(function ($rows) use ($users) {
+            ->map(function ($rows) use ($roles) {
                 $points = $rows->take(-40)->values();
                 $userId = (int) $points->first()->user_id;
-                $role = $this->roleMeta($users->get($userId));
+                $role = $roles[$userId] ?? ['role' => 'otro', 'role_label' => 'Sin rol'];
 
                 return [
                     'user_id' => $userId,
@@ -466,11 +476,38 @@ class AuditController extends Controller
     }
 
     /**
+     * @param  \Illuminate\Support\Collection<int, mixed>  $userIds
+     * @return array<int, array{role: string, role_label: string}>
+     */
+    private function roleMap(\Illuminate\Support\Collection $userIds): array
+    {
+        $ids = $userIds->filter()->unique()->values();
+
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        try {
+            return User::query()
+                ->with('roles:id,name')
+                ->whereIn('id', $ids)
+                ->get()
+                ->mapWithKeys(fn (User $user) => [$user->id => $this->roleMeta($user)])
+                ->all();
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return [];
+        }
+    }
+
+    /**
+     * @param  array<int, array{role: string, role_label: string}>  $roles
      * @return array<string, mixed>
      */
-    private function presencePayload(UserPresence $row, \Illuminate\Support\Carbon $since): array
+    private function presencePayload(UserPresence $row, \Illuminate\Support\Carbon $since, array $roles = []): array
     {
-        $role = $this->roleMeta($row->user);
+        $role = $roles[(int) $row->user_id] ?? ['role' => 'otro', 'role_label' => 'Sin rol'];
 
         return [
             'id' => $row->id,
