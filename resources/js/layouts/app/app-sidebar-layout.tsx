@@ -7,6 +7,7 @@ import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import { OfflineBanner } from '@/components/offline/offline-banner';
 import { TenantImpersonationBanner } from '@/components/tenant-impersonation-banner';
 import { preloadTenantPages } from '@/lib/offline/preload';
+import { reportPresence } from '@/lib/presence';
 import type { AppLayoutProps } from '@/types';
 
 export default function AppSidebarLayout({
@@ -21,6 +22,7 @@ export default function AppSidebarLayout({
         }
 
         preloadTenantPages(page.version);
+        reportPresence();
     }, [page.props.central, page.version]);
 
     return (

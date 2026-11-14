@@ -83,6 +83,8 @@ final class PermissionCatalog
             'driver_blacklists.view' => ['label' => 'Ver lista negra de conductores', 'module' => 'Lista negra'],
             'driver_blacklists.create' => ['label' => 'Enviar conductor a lista negra', 'module' => 'Lista negra'],
             'driver_blacklists.update' => ['label' => 'Levantar restricción de lista negra', 'module' => 'Lista negra'],
+
+            'audit.view' => ['label' => 'Ver auditoría', 'module' => 'Auditoría'],
         ];
     }
 
@@ -147,6 +149,10 @@ final class PermissionCatalog
             if (! $existed && $name === 'checklists.transfer') {
                 self::giveIfRoleExists(SystemRoles::COORDINADOR, $name);
                 self::giveIfRoleExists(SystemRoles::INSPECTOR, $name);
+            }
+
+            if (! $existed && $name === 'audit.view') {
+                self::giveIfRoleExists('admin', $name);
             }
         }
 

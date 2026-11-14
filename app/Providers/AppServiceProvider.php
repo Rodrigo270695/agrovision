@@ -4,10 +4,15 @@ namespace App\Providers;
 
 use App\Models\UnitChecklist;
 use App\Models\UnitChecklistPhoto;
+use App\Models\User;
+use App\Support\ActivityLogger;
 use App\Support\PdfLogo;
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
@@ -50,6 +55,25 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->configureDefaults();
+        ActivityLogger::boot();
+
+        Event::listen(Login::class, function (Login $event): void {
+            if ($event->user instanceof User) {
+                ActivityLogger::login($event->user);
+            }
+        });
+
+        Event::listen(Logout::class, function (Logout $event): void {
+            if ($event->user instanceof User) {
+                ActivityLogger::logout($event->user);
+            }
+        });
+
+        Event::listen(\Stancl\Tenancy\Events\TenancyInitialized::class, function (): void {
+            if (! \Spatie\Permission\Models\Permission::query()->where('name', 'audit.view')->where('guard_name', 'web')->exists()) {
+                \App\Support\PermissionCatalog::syncToDatabase();
+            }
+        });
 
         Route::bind('checklist', fn (string $value) => UnitChecklist::query()->findOrFail($value));
         Route::bind('photo', fn (string $value) => UnitChecklistPhoto::query()->findOrFail($value));

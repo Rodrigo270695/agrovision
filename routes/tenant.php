@@ -81,6 +81,12 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:users.delete')
             ->name('users.destroy');
 
+        Route::get('auditoria', [\App\Http\Controllers\AuditController::class, 'index'])
+            ->middleware('permission:audit.view')
+            ->name('audit.index');
+        Route::post('auditoria/presencia', [\App\Http\Controllers\AuditController::class, 'presence'])
+            ->name('audit.presence');
+
         Route::get('roles', [RoleController::class, 'index'])
             ->middleware('permission:roles.view')
             ->name('roles.index');
