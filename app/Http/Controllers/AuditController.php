@@ -66,6 +66,8 @@ class AuditController extends Controller
                 ]),
             'actionsToday' => $this->actionsToday(),
             'hoursToday' => $this->hoursToday(),
+            'weekDays' => $this->weekDays(),
+            'peopleToday' => $this->peopleToday(),
             'trails' => $this->trails(),
             'people' => ActivityLog::query()
                 ->whereNotNull('user_id')
@@ -422,6 +424,68 @@ class AuditController extends Controller
             });
 
         return $buckets;
+    }
+
+    /**
+     * @return list<array{label: string, total: int}>
+     */
+    private function weekDays(): array
+    {
+        $names = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+        $zone = (string) config('app.timezone');
+        $counts = [];
+
+        try {
+            $rows = ActivityLog::query()
+                ->where('created_at', '>=', now()->subDays(6)->startOfDay())
+                ->selectRaw("to_char((created_at AT TIME ZONE 'UTC') AT TIME ZONE ?, 'YYYY-MM-DD') as day, count(*) as total", [$zone])
+                ->groupByRaw("to_char((created_at AT TIME ZONE 'UTC') AT TIME ZONE ?, 'YYYY-MM-DD')", [$zone])
+                ->pluck('total', 'day');
+
+            foreach ($rows as $day => $total) {
+                $counts[(string) $day] = (int) $total;
+            }
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
+
+        $days = [];
+
+        for ($i = 6; $i >= 0; $i--) {
+            $day = now()->subDays($i);
+            $days[] = [
+                'label' => $names[(int) $day->dayOfWeek].' '.$day->format('d'),
+                'total' => $counts[$day->toDateString()] ?? 0,
+            ];
+        }
+
+        return $days;
+    }
+
+    /**
+     * @return list<array{name: string, total: int}>
+     */
+    private function peopleToday(): array
+    {
+        try {
+            return ActivityLog::query()
+                ->where('created_at', '>=', now()->startOfDay())
+                ->whereNotNull('user_id')
+                ->selectRaw('user_id, max(user_name) as user_name, count(*) as total')
+                ->groupBy('user_id')
+                ->orderByDesc('total')
+                ->limit(6)
+                ->get()
+                ->map(fn ($row) => [
+                    'name' => $row->user_name ?: 'Usuario',
+                    'total' => (int) $row->total,
+                ])
+                ->all();
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return [];
+        }
     }
 
     /**

@@ -90,6 +90,8 @@ type PageProps = {
     moduleSummary: ModuleRow[];
     actionsToday: Record<string, number>;
     hoursToday: number[];
+    weekDays: Array<{ label: string; total: number }>;
+    peopleToday: Array<{ name: string; total: number }>;
     trails: Trail[];
 };
 
@@ -104,6 +106,22 @@ const tabs = [
 ] as const;
 
 type TabId = (typeof tabs)[number]['id'];
+
+const actionColor: Record<string, string> = {
+    created: '#059669',
+    updated: '#0284c7',
+    deleted: '#e11d48',
+    login: '#7c3aed',
+    logout: '#64748b',
+    location: '#0e7490',
+    sealed: '#d97706',
+    closed: '#1d4ed8',
+    pdf: '#db2777',
+    roles: '#9333ea',
+    sync: '#0f766e',
+};
+
+const chartPalette = ['#0284c7', '#059669', '#d97706', '#e11d48', '#7c3aed', '#0e7490', '#db2777', '#65a30d'];
 
 const actionLabel: Record<string, string> = {
     created: 'Creación',
@@ -394,14 +412,108 @@ function AuditMap({
     );
 }
 
-function BarRow({ label, value, max }: { label: string; value: number; max: number }) {
+function heatColor(value: number, max: number): string {
+    if (value <= 0) {
+        return '#e2e8f0';
+    }
+
+    const ratio = max > 0 ? value / max : 0;
+
+    if (ratio > 0.75) {
+        return '#e11d48';
+    }
+
+    if (ratio > 0.5) {
+        return '#f97316';
+    }
+
+    if (ratio > 0.25) {
+        return '#eab308';
+    }
+
+    return '#0ea5e9';
+}
+
+function Donut({
+    slices,
+}: {
+    slices: Array<{ label: string; value: number; color: string }>;
+}) {
+    const total = slices.reduce((sum, slice) => sum + slice.value, 0);
+    const radius = 42;
+    const circumference = 2 * Math.PI * radius;
+    let offset = 0;
+
+    return (
+        <div className="flex flex-wrap items-center gap-4">
+            <svg viewBox="0 0 120 120" className="size-36 shrink-0 -rotate-90" role="img" aria-label="Acciones de hoy">
+                <circle cx="60" cy="60" r={radius} fill="none" stroke="#e8eef5" strokeWidth="14" />
+                {total > 0
+                    ? slices.map((slice) => {
+                          const length = (slice.value / total) * circumference;
+                          const arc = (
+                              <circle
+                                  key={slice.label}
+                                  cx="60"
+                                  cy="60"
+                                  r={radius}
+                                  fill="none"
+                                  stroke={slice.color}
+                                  strokeWidth="14"
+                                  strokeDasharray={`${length} ${circumference - length}`}
+                                  strokeDashoffset={-offset}
+                              />
+                          );
+                          offset += length;
+
+                          return arc;
+                      })
+                    : null}
+                <text
+                    x="60"
+                    y="64"
+                    textAnchor="middle"
+                    className="fill-brand-800 text-[16px] font-bold"
+                    transform="rotate(90 60 60)"
+                >
+                    {total}
+                </text>
+            </svg>
+            <ul className="min-w-0 flex-1 space-y-1.5">
+                {slices.length === 0 ? (
+                    <li className="text-sm text-muted-foreground">Todavía no hay movimientos hoy.</li>
+                ) : (
+                    slices.map((slice) => (
+                        <li key={slice.label} className="flex items-center gap-2 text-sm">
+                            <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: slice.color }} />
+                            <span className="min-w-0 flex-1 truncate text-brand-800">{slice.label}</span>
+                            <span className="font-semibold text-brand-700">{slice.value}</span>
+                        </li>
+                    ))
+                )}
+            </ul>
+        </div>
+    );
+}
+
+function BarRow({
+    label,
+    value,
+    max,
+    color,
+}: {
+    label: string;
+    value: number;
+    max: number;
+    color: string;
+}) {
     const width = max > 0 ? Math.max(4, Math.round((value / max) * 100)) : 0;
 
     return (
         <div className="grid grid-cols-[7.5rem_1fr_2rem] items-center gap-2 text-sm">
             <span className="truncate text-brand-800">{label}</span>
-            <div className="h-2 overflow-hidden rounded-full bg-brand-100">
-                <div className="h-full rounded-full bg-brand-500" style={{ width: `${width}%` }} />
+            <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                <div className="h-full rounded-full" style={{ width: `${width}%`, backgroundColor: color }} />
             </div>
             <span className="text-right text-xs font-semibold text-brand-700">{value}</span>
         </div>
@@ -427,6 +539,8 @@ export function AuditPage() {
     const moduleSummary = page.moduleSummary ?? [];
     const actionsToday = page.actionsToday ?? {};
     const hoursToday = page.hoursToday ?? [];
+    const weekDays = page.weekDays ?? [];
+    const peopleToday = page.peopleToday ?? [];
     const [tab, setTab] = useState<TabId>('panel');
     const [openId, setOpenId] = useState<number | null>(null);
     const [presences, setPresences] = useState(page.presences ?? []);
@@ -434,7 +548,15 @@ export function AuditPage() {
     const [liveAt, setLiveAt] = useState<string | null>(null);
     const active = presences.filter((row) => row.active);
     const hourMax = Math.max(1, ...hoursToday);
-    const actionMax = Math.max(1, ...Object.values(actionsToday));
+    const weekMax = Math.max(1, ...weekDays.map((day) => day.total));
+    const peopleMax = Math.max(1, ...peopleToday.map((person) => person.total));
+    const actionSlices = Object.entries(actionsToday)
+        .map(([action, total]) => ({
+            label: actionLabel[action] ?? action,
+            value: total,
+            color: actionColor[action] ?? '#64748b',
+        }))
+        .sort((left, right) => right.value - left.value);
 
     useEffect(() => {
         if (tab !== 'mapa' && tab !== 'activos' && tab !== 'panel') {
@@ -538,12 +660,15 @@ export function AuditPage() {
                         <div className="border-b border-brand-100 px-3 py-2 text-sm font-semibold text-brand-900">
                             Movimientos de hoy por hora
                         </div>
-                        <div className="flex h-40 items-end gap-1 px-3 py-3">
+                        <div className="flex h-44 items-end gap-1 px-3 py-3">
                             {hoursToday.map((value, hour) => (
                                 <div key={hour} className="flex min-w-0 flex-1 flex-col items-center gap-1">
                                     <div
-                                        className="w-full rounded-t bg-brand-500"
-                                        style={{ height: `${Math.max(value > 0 ? 8 : 2, (value / hourMax) * 112)}px` }}
+                                        className="w-full rounded-t"
+                                        style={{
+                                            height: `${Math.max(value > 0 ? 8 : 2, (value / hourMax) * 120)}px`,
+                                            backgroundColor: heatColor(value, hourMax),
+                                        }}
                                         title={`${hour}:00 · ${value}`}
                                     />
                                     {hour % 3 === 0 ? (
@@ -559,16 +684,45 @@ export function AuditPage() {
                         <div className="border-b border-brand-100 px-3 py-2 text-sm font-semibold text-brand-900">
                             Acciones de hoy
                         </div>
+                        <div className="p-3">
+                            <Donut slices={actionSlices} />
+                        </div>
+                    </PlatformContentPanel>
+                    <PlatformContentPanel>
+                        <div className="border-b border-brand-100 px-3 py-2 text-sm font-semibold text-brand-900">
+                            Últimos 7 días
+                        </div>
+                        <div className="flex h-44 items-end gap-2 px-3 py-3">
+                            {weekDays.map((day, index) => (
+                                <div key={day.label} className="flex min-w-0 flex-1 flex-col items-center gap-1">
+                                    <span className="text-[10px] font-semibold text-brand-700">{day.total}</span>
+                                    <div
+                                        className="w-full rounded-t"
+                                        style={{
+                                            height: `${Math.max(day.total > 0 ? 10 : 4, (day.total / weekMax) * 112)}px`,
+                                            backgroundColor: chartPalette[index % chartPalette.length],
+                                        }}
+                                    />
+                                    <span className="text-[10px] text-muted-foreground">{day.label}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </PlatformContentPanel>
+                    <PlatformContentPanel>
+                        <div className="border-b border-brand-100 px-3 py-2 text-sm font-semibold text-brand-900">
+                            Quién más movió hoy
+                        </div>
                         <div className="space-y-2 p-3">
-                            {Object.keys(actionsToday).length === 0 ? (
+                            {peopleToday.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">Todavía no hay movimientos hoy.</p>
                             ) : (
-                                Object.entries(actionsToday).map(([action, total]) => (
+                                peopleToday.map((person, index) => (
                                     <BarRow
-                                        key={action}
-                                        label={actionLabel[action] ?? action}
-                                        value={total}
-                                        max={actionMax}
+                                        key={person.name}
+                                        label={person.name}
+                                        value={person.total}
+                                        max={peopleMax}
+                                        color={chartPalette[index % chartPalette.length]}
                                     />
                                 ))
                             )}
@@ -579,14 +733,19 @@ export function AuditPage() {
                             Módulos · últimos 7 días
                         </div>
                         <div className="space-y-2 p-3">
-                            {moduleSummary.map((row) => (
-                                <BarRow
-                                    key={row.module}
-                                    label={row.module}
-                                    value={row.total}
-                                    max={moduleSummary[0]?.total ?? 1}
-                                />
-                            ))}
+                            {moduleSummary.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">Sin movimientos en la semana.</p>
+                            ) : (
+                                moduleSummary.map((row, index) => (
+                                    <BarRow
+                                        key={row.module}
+                                        label={row.module}
+                                        value={row.total}
+                                        max={moduleSummary[0]?.total ?? 1}
+                                        color={chartPalette[index % chartPalette.length]}
+                                    />
+                                ))
+                            )}
                         </div>
                     </PlatformContentPanel>
                 </div>
