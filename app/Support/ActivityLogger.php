@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\ActivityLog;
 use App\Models\User;
+use App\Models\UserLocationPing;
 use App\Models\UserPresence;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
@@ -66,7 +67,7 @@ final class ActivityLogger
 
     public static function fromModel(string $event, Model $model): void
     {
-        if ($model instanceof ActivityLog || $model instanceof UserPresence) {
+        if ($model instanceof ActivityLog || $model instanceof UserPresence || $model instanceof UserLocationPing) {
             return;
         }
 

@@ -84,6 +84,9 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
         Route::get('auditoria', [\App\Http\Controllers\AuditController::class, 'index'])
             ->middleware('permission:audit.view')
             ->name('audit.index');
+        Route::get('auditoria/en-vivo', [\App\Http\Controllers\AuditController::class, 'live'])
+            ->middleware('permission:audit.view')
+            ->name('audit.live');
         Route::post('auditoria/presencia', [\App\Http\Controllers\AuditController::class, 'presence'])
             ->name('audit.presence');
 

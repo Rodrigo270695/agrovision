@@ -49,6 +49,14 @@ type Presence = {
 
 type ModuleRow = { module: string; total: number };
 
+type TrailPoint = { latitude: number; longitude: number; at: string | null };
+
+type Trail = {
+    user_id: number;
+    user_name: string;
+    points: TrailPoint[];
+};
+
 type PageProps = {
     logs: Paginator;
     filters: { search: string; action: string; module: string };
@@ -56,9 +64,13 @@ type PageProps = {
     presences: Presence[];
     stats: { today: number; active: number; located: number; modules: number };
     moduleSummary: ModuleRow[];
+    actionsToday: Record<string, number>;
+    hoursToday: number[];
+    trails: Trail[];
 };
 
 const tabs = [
+    { id: 'panel', label: 'Panel' },
     { id: 'actividad', label: 'Actividad' },
     { id: 'activos', label: 'Usuarios activos' },
     { id: 'mapa', label: 'Mapa' },
@@ -92,8 +104,19 @@ function actionClass(action: string): string {
     return 'bg-brand-50 text-brand-700';
 }
 
-function AuditMap({ points }: { points: Presence[] }) {
+const trailColors = ['#1d4ed8', '#059669', '#d97706', '#e11d48', '#7c3aed', '#0f766e'];
+
+function AuditMap({
+    points,
+    trails,
+}: {
+    points: Presence[];
+    trails: Trail[];
+}) {
     const host = useRef<HTMLDivElement>(null);
+    const mapRef = useRef<any>(null);
+    const layerRef = useRef<any>(null);
+    const fitted = useRef(false);
     const located = useMemo(
         () =>
             points.filter(
@@ -101,9 +124,6 @@ function AuditMap({ points }: { points: Presence[] }) {
             ),
         [points],
     );
-    const signature = located
-        .map((point) => `${point.id}:${point.latitude}:${point.longitude}`)
-        .join('|');
 
     useEffect(() => {
         const node = host.current;
@@ -112,71 +132,98 @@ function AuditMap({ points }: { points: Presence[] }) {
             return;
         }
 
-        let map: { remove: () => void } | null = null;
         let cancelled = false;
 
-        const start = () => {
+        const draw = () => {
             const L = (window as Window & { L?: any }).L;
 
             if (!L || cancelled || !host.current) {
                 return;
             }
 
-            const first: [number, number] = [
-                located[0].latitude as number,
-                located[0].longitude as number,
-            ];
-            const instance = L.map(host.current).setView(first, 6);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; OpenStreetMap',
-            }).addTo(instance);
+            if (!mapRef.current) {
+                mapRef.current = L.map(host.current).setView(
+                    [located[0].latitude, located[0].longitude],
+                    13,
+                );
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '&copy; OpenStreetMap',
+                }).addTo(mapRef.current);
+                layerRef.current = L.layerGroup().addTo(mapRef.current);
+            }
 
-            const coords: [number, number][] = located.map((point) => {
+            layerRef.current.clearLayers();
+            const coords: [number, number][] = [];
+
+            trails.forEach((trail, index) => {
+                const line = trail.points.map(
+                    (point) => [point.latitude, point.longitude] as [number, number],
+                );
+
+                if (line.length > 1) {
+                    L.polyline(line, {
+                        color: trailColors[index % trailColors.length],
+                        weight: 4,
+                        opacity: 0.85,
+                    }).addTo(layerRef.current);
+                }
+            });
+
+            located.forEach((point) => {
                 const coord: [number, number] = [
                     point.latitude as number,
                     point.longitude as number,
                 ];
+                coords.push(coord);
                 const label = point.user_name
                     .replaceAll('&', '&amp;')
                     .replaceAll('<', '&lt;')
                     .replaceAll('>', '&gt;');
-                L.marker(coord)
-                    .addTo(instance)
+                L.circleMarker(coord, {
+                    radius: point.active ? 9 : 6,
+                    color: point.active ? '#059669' : '#64748b',
+                    fillColor: point.active ? '#34d399' : '#cbd5e1',
+                    fillOpacity: 0.95,
+                    weight: 2,
+                })
+                    .addTo(layerRef.current)
                     .bindPopup(
-                        `<strong>${label}</strong><br>${point.last_seen_at ?? ''}<br>${point.browser ?? ''} · ${point.ip ?? ''}`,
+                        `<strong>${label}</strong><br>${point.active ? 'En línea' : 'Última señal'} · ${point.last_seen_at ?? ''}<br>${point.browser ?? ''} · ${point.ip ?? ''}`,
                     );
-
-                return coord;
             });
 
-            if (coords.length > 1) {
-                instance.fitBounds(coords, { padding: [28, 28] });
+            if (!fitted.current && coords.length > 0) {
+                fitted.current = true;
+                mapRef.current.fitBounds(coords, { padding: [28, 28], maxZoom: 15 });
             }
-
-            map = instance;
         };
 
         if ((window as Window & { L?: unknown }).L) {
-            start();
-        } else {
+            draw();
+        } else if (!document.querySelector('script[data-audit-leaflet]')) {
             const css = document.createElement('link');
             css.rel = 'stylesheet';
             css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
             document.head.appendChild(css);
             const script = document.createElement('script');
             script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-            script.onload = start;
+            script.dataset.auditLeaflet = '1';
+            script.onload = draw;
             document.body.appendChild(script);
         }
 
         return () => {
             cancelled = true;
-            map?.remove();
         };
-        // signature cambia solo cuando se mueven los puntos
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [signature]);
+    }, [located, trails]);
+
+    useEffect(() => {
+        return () => {
+            mapRef.current?.remove();
+            mapRef.current = null;
+        };
+    }, []);
 
     if (located.length === 0) {
         return (
@@ -197,13 +244,75 @@ function AuditMap({ points }: { points: Presence[] }) {
     );
 }
 
+function BarRow({ label, value, max }: { label: string; value: number; max: number }) {
+    const width = max > 0 ? Math.max(4, Math.round((value / max) * 100)) : 0;
+
+    return (
+        <div className="grid grid-cols-[7.5rem_1fr_2rem] items-center gap-2 text-sm">
+            <span className="truncate text-brand-800">{label}</span>
+            <div className="h-2 overflow-hidden rounded-full bg-brand-100">
+                <div className="h-full rounded-full bg-brand-500" style={{ width: `${width}%` }} />
+            </div>
+            <span className="text-right text-xs font-semibold text-brand-700">{value}</span>
+        </div>
+    );
+}
+
 export function AuditPage() {
-    const { logs, filters, modules, presences, stats, moduleSummary } =
-        usePage().props as unknown as PageProps;
-    const [tab, setTab] = useState<TabId>('actividad');
+    const page = usePage().props as unknown as PageProps;
+    const { logs, filters, modules, moduleSummary, actionsToday, hoursToday } = page;
+    const [tab, setTab] = useState<TabId>('panel');
     const [search, setSearch] = useState(filters.search);
     const [openId, setOpenId] = useState<number | null>(null);
+    const [presences, setPresences] = useState(page.presences);
+    const [trails, setTrails] = useState(page.trails);
+    const [liveAt, setLiveAt] = useState<string | null>(null);
     const active = presences.filter((row) => row.active);
+    const hourMax = Math.max(1, ...hoursToday);
+    const actionMax = Math.max(1, ...Object.values(actionsToday));
+
+    useEffect(() => {
+        if (tab !== 'mapa' && tab !== 'activos' && tab !== 'panel') {
+            return;
+        }
+
+        let cancelled = false;
+
+        const pull = () => {
+            void fetch('/auditoria/en-vivo', {
+                credentials: 'same-origin',
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+                .then((response) => (response.ok ? response.json() : null))
+                .then((payload) => {
+                    if (!payload || cancelled) {
+                        return;
+                    }
+
+                    setPresences(payload.presences);
+                    setTrails(payload.trails);
+                    setLiveAt(
+                        new Date().toLocaleTimeString('es-PE', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                        }),
+                    );
+                })
+                .catch(() => undefined);
+        };
+
+        pull();
+        const timer = window.setInterval(pull, 15_000);
+
+        return () => {
+            cancelled = true;
+            window.clearInterval(timer);
+        };
+    }, [tab]);
 
     const apply = (next: Partial<PageProps['filters']>) => {
         router.get(
@@ -224,10 +333,14 @@ export function AuditPage() {
                 title="Auditoría"
                 description="Quién hizo cada cambio, en qué módulo, desde qué IP y navegador."
                 stats={[
-                    { label: 'Hoy', value: stats.today, tone: 'navy' },
-                    { label: 'Activos', value: stats.active, tone: 'emerald' },
-                    { label: 'Con GPS', value: stats.located, tone: 'sky' },
-                    { label: 'Módulos hoy', value: stats.modules, tone: 'amber' },
+                    { label: 'Hoy', value: page.stats.today, tone: 'navy' },
+                    { label: 'Activos', value: active.length, tone: 'emerald' },
+                    {
+                        label: 'Con GPS',
+                        value: presences.filter((row) => row.latitude !== null).length,
+                        tone: 'sky',
+                    },
+                    { label: 'Módulos hoy', value: page.stats.modules, tone: 'amber' },
                 ]}
             />
 
@@ -250,6 +363,66 @@ export function AuditPage() {
                     </button>
                 ))}
             </div>
+
+            {tab === 'panel' ? (
+                <div className="grid gap-3 lg:grid-cols-2">
+                    <PlatformContentPanel>
+                        <div className="border-b border-brand-100 px-3 py-2 text-sm font-semibold text-brand-900">
+                            Movimientos de hoy por hora
+                        </div>
+                        <div className="flex h-40 items-end gap-1 px-3 py-3">
+                            {hoursToday.map((value, hour) => (
+                                <div key={hour} className="flex min-w-0 flex-1 flex-col items-center gap-1">
+                                    <div
+                                        className="w-full rounded-t bg-brand-500"
+                                        style={{ height: `${Math.max(value > 0 ? 8 : 2, (value / hourMax) * 112)}px` }}
+                                        title={`${hour}:00 · ${value}`}
+                                    />
+                                    {hour % 3 === 0 ? (
+                                        <span className="text-[9px] text-muted-foreground">{hour}</span>
+                                    ) : (
+                                        <span className="text-[9px] text-transparent">.</span>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </PlatformContentPanel>
+                    <PlatformContentPanel>
+                        <div className="border-b border-brand-100 px-3 py-2 text-sm font-semibold text-brand-900">
+                            Acciones de hoy
+                        </div>
+                        <div className="space-y-2 p-3">
+                            {Object.keys(actionsToday).length === 0 ? (
+                                <p className="text-sm text-muted-foreground">Todavía no hay movimientos hoy.</p>
+                            ) : (
+                                Object.entries(actionsToday).map(([action, total]) => (
+                                    <BarRow
+                                        key={action}
+                                        label={actionLabel[action] ?? action}
+                                        value={total}
+                                        max={actionMax}
+                                    />
+                                ))
+                            )}
+                        </div>
+                    </PlatformContentPanel>
+                    <PlatformContentPanel className="lg:col-span-2">
+                        <div className="border-b border-brand-100 px-3 py-2 text-sm font-semibold text-brand-900">
+                            Módulos · últimos 7 días
+                        </div>
+                        <div className="space-y-2 p-3">
+                            {moduleSummary.map((row) => (
+                                <BarRow
+                                    key={row.module}
+                                    label={row.module}
+                                    value={row.total}
+                                    max={moduleSummary[0]?.total ?? 1}
+                                />
+                            ))}
+                        </div>
+                    </PlatformContentPanel>
+                </div>
+            ) : null}
 
             {tab === 'actividad' ? (
                 <PlatformContentPanel>
@@ -468,9 +641,10 @@ export function AuditPage() {
             {tab === 'mapa' ? (
                 <PlatformContentPanel>
                     <p className="border-b border-brand-100 px-3 py-2 text-xs text-muted-foreground">
-                        Al entrar, el navegador pide la ubicación una vez. Si la rechazan, igual quedan como activos, sin punto en el mapa.
+                        Se actualiza solo cada 15 segundos. La línea es el recorrido de las últimas 8 horas y el punto es dónde está ahora.
+                        {liveAt ? ` Última lectura ${liveAt}.` : ''}
                     </p>
-                    <AuditMap points={presences} />
+                    <AuditMap points={presences} trails={trails} />
                 </PlatformContentPanel>
             ) : null}
 

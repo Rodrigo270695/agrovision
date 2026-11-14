@@ -30,35 +30,48 @@ function sendPresence(coords?: {
     }).catch(() => undefined);
 }
 
+let started = false;
+
 export function reportPresence(): void {
-    const key = 'agrovision-presence-at';
-
-    try {
-        const last = Number(sessionStorage.getItem(key) || 0);
-
-        if (Date.now() - last < 10 * 60 * 1000) {
-            return;
-        }
-
-        sessionStorage.setItem(key, String(Date.now()));
-    } catch {
-        // El navegador puede bloquear sessionStorage.
+    if (started) {
+        return;
     }
+
+    started = true;
     sendPresence();
+
+    window.setInterval(() => {
+        if (document.visibilityState === 'visible') {
+            sendPresence();
+        }
+    }, 45_000);
 
     if (!navigator.geolocation) {
         return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-        (position) => {
-            sendPresence({
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-                accuracy: position.coords.accuracy,
-            });
-        },
-        () => undefined,
-        { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
-    );
+    let lastGps = 0;
+
+    const push = (position: GeolocationPosition) => {
+        if (document.visibilityState !== 'visible') {
+            return;
+        }
+
+        if (Date.now() - lastGps < 20_000) {
+            return;
+        }
+
+        lastGps = Date.now();
+        sendPresence({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+        });
+    };
+
+    navigator.geolocation.watchPosition(push, () => undefined, {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 5000,
+    });
 }
