@@ -11,6 +11,7 @@ use App\Support\SystemRoles;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
@@ -505,7 +506,7 @@ class AuditController extends Controller
      * @param  array<int, array{role: string, role_label: string}>  $roles
      * @return array<string, mixed>
      */
-    private function presencePayload(UserPresence $row, \Illuminate\Support\Carbon $since, array $roles = []): array
+    private function presencePayload(UserPresence $row, CarbonInterface $since, array $roles = []): array
     {
         $role = $roles[(int) $row->user_id] ?? ['role' => 'otro', 'role_label' => 'Sin rol'];
 
