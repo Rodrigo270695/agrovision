@@ -430,10 +430,6 @@ export default function ObservationRemediationsPage() {
         });
     };
 
-    const applySearch = (value?: string) => {
-        baseVisit({ search: (value ?? searchDraft).trim() || null });
-    };
-
     const unitActions = (unit: DayUnit): RowActionItem[] => {
         const actions: RowActionItem[] = [];
 
@@ -585,13 +581,7 @@ export default function ObservationRemediationsPage() {
                                 </button>
                             </div>
 
-                            <form
-                                className="flex min-w-0 flex-1 flex-col gap-2 sm:max-w-3xl sm:items-end"
-                                onSubmit={(event) => {
-                                    event.preventDefault();
-                                    applySearch();
-                                }}
-                            >
+                            <div className="flex min-w-0 flex-1 flex-col gap-2 sm:max-w-3xl sm:items-end">
                                 <div className="flex w-full min-w-0 flex-wrap gap-2 sm:justify-end">
                                     <select
                                         aria-label="Filtrar por sede"
@@ -665,13 +655,6 @@ export default function ObservationRemediationsPage() {
                                             className="h-10 border-slate-200 bg-white pl-9 text-sm"
                                         />
                                     </div>
-                                    <Button
-                                        type="submit"
-                                        variant="outline"
-                                        className="h-10 cursor-pointer border-slate-200"
-                                    >
-                                        Buscar
-                                    </Button>
                                     {hasActiveFilters ? (
                                         <Button
                                             type="button"
@@ -692,7 +675,7 @@ export default function ObservationRemediationsPage() {
                                         </Button>
                                     ) : null}
                                 </div>
-                            </form>
+                            </div>
                         </div>
 
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

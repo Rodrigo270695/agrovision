@@ -1,6 +1,7 @@
 import { router, usePage } from '@inertiajs/react';
-import { MapPin, Search } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { DataToolbar } from '@/components/data-page/data-toolbar';
 import {
     PlatformContentPanel,
     PlatformHero,
@@ -52,7 +53,10 @@ type Paginator = {
 
 type Presence = {
     id: number;
+    user_id?: number;
     user_name: string;
+    role?: string;
+    role_label?: string;
     latitude: number | null;
     longitude: number | null;
     accuracy: number | null;
@@ -69,6 +73,8 @@ type TrailPoint = { latitude: number; longitude: number; at: string | null };
 type Trail = {
     user_id: number;
     user_name: string;
+    role?: string;
+    role_label?: string;
     points: TrailPoint[];
 };
 
@@ -129,7 +135,30 @@ function actionClass(action: string): string {
     return 'bg-brand-50 text-brand-700';
 }
 
-const trailColors = ['#1d4ed8', '#059669', '#d97706', '#e11d48', '#7c3aed', '#0f766e'];
+const rolePalette: Record<string, string> = {
+    superadmin: '#7c3aed',
+    admin: '#1d4ed8',
+    coordinador: '#d97706',
+    inspector: '#059669',
+    soporte: '#0e7490',
+    otro: '#64748b',
+};
+
+function roleColor(role: string | undefined): string {
+    if (role && rolePalette[role]) {
+        return rolePalette[role];
+    }
+
+    return '#e11d48';
+}
+
+function escapeHtml(value: string): string {
+    return value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;');
+}
 
 function AuditMap({
     points,
@@ -141,14 +170,42 @@ function AuditMap({
     const host = useRef<HTMLDivElement>(null);
     const mapRef = useRef<any>(null);
     const layerRef = useRef<any>(null);
+    const markers = useRef<Map<number, any>>(new Map());
     const fitted = useRef(false);
+    const [selected, setSelected] = useState<number | null>(null);
     const located = useMemo(
         () =>
-            points.filter(
-                (point) => point.latitude !== null && point.longitude !== null,
-            ),
+            points
+                .filter((point) => point.latitude !== null && point.longitude !== null)
+                .slice()
+                .sort((a, b) => Number(b.active) - Number(a.active) || a.user_name.localeCompare(b.user_name, 'es')),
         [points],
     );
+    const legend = useMemo(() => {
+        const seen = new Map<string, string>();
+
+        for (const point of located) {
+            const role = point.role || 'otro';
+            if (!seen.has(role)) {
+                seen.set(role, point.role_label || 'Sin rol');
+            }
+        }
+
+        return [...seen.entries()];
+    }, [located]);
+
+    const focusPerson = (userId: number) => {
+        setSelected(userId);
+        const marker = markers.current.get(userId);
+        const map = mapRef.current;
+
+        if (!marker || !map) {
+            return;
+        }
+
+        map.setView(marker.getLatLng(), Math.max(map.getZoom(), 16), { animate: true });
+        marker.openPopup();
+    };
 
     useEffect(() => {
         const node = host.current;
@@ -179,19 +236,21 @@ function AuditMap({
             }
 
             layerRef.current.clearLayers();
+            markers.current.clear();
             const coords: [number, number][] = [];
 
-            trails.forEach((trail, index) => {
+            trails.forEach((trail) => {
                 const line = trail.points.map(
                     (point) => [point.latitude, point.longitude] as [number, number],
                 );
+                const color = roleColor(trail.role);
 
                 if (line.length > 1) {
-                    L.polyline(line, {
-                        color: trailColors[index % trailColors.length],
-                        weight: 4,
-                        opacity: 0.85,
-                    }).addTo(layerRef.current);
+                    const name = escapeHtml(trail.user_name);
+                    L.polyline(line, { color: '#ffffff', weight: 7, opacity: 0.9 }).addTo(layerRef.current);
+                    L.polyline(line, { color, weight: 4, opacity: 0.95 })
+                        .addTo(layerRef.current)
+                        .bindTooltip(name, { sticky: true, className: 'audit-map-tip' });
                 }
             });
 
@@ -201,21 +260,37 @@ function AuditMap({
                     point.longitude as number,
                 ];
                 coords.push(coord);
-                const label = point.user_name
-                    .replaceAll('&', '&amp;')
-                    .replaceAll('<', '&lt;')
-                    .replaceAll('>', '&gt;');
-                L.circleMarker(coord, {
-                    radius: point.active ? 9 : 6,
-                    color: point.active ? '#059669' : '#64748b',
-                    fillColor: point.active ? '#34d399' : '#cbd5e1',
-                    fillOpacity: 0.95,
-                    weight: 2,
-                })
-                    .addTo(layerRef.current)
-                    .bindPopup(
-                        `<strong>${label}</strong><br>${point.active ? 'En línea' : 'Última señal'} · ${point.last_seen_at ?? ''}<br>${point.browser ?? ''} · ${point.ip ?? ''}`,
-                    );
+                const color = roleColor(point.role);
+                const name = escapeHtml(point.user_name);
+                const role = escapeHtml(point.role_label || 'Sin rol');
+                const status = point.active ? 'En línea' : 'Sin señal reciente';
+                const marker = L.marker(coord, {
+                    icon: L.divIcon({
+                        className: 'audit-pin-icon',
+                        html: `<span class="audit-pin${point.active ? ' is-live' : ' is-idle'}" style="background:${color};color:${color}"></span>`,
+                        iconSize: [16, 16],
+                        iconAnchor: [8, 8],
+                        tooltipAnchor: [0, -10],
+                        popupAnchor: [0, -12],
+                    }),
+                    keyboard: true,
+                    title: point.user_name,
+                }).addTo(layerRef.current);
+
+                marker.bindTooltip(name, {
+                    direction: 'top',
+                    offset: [0, -8],
+                    opacity: 1,
+                    className: 'audit-map-tip',
+                });
+                marker.bindPopup(
+                    `<strong>${name}</strong><div style="margin-top:2px;color:#334155">${role} · ${status}</div><div style="margin-top:4px;color:#64748b">${escapeHtml(point.last_seen_at ?? '')}</div>`,
+                );
+                marker.on('click', () => setSelected(point.user_id ?? point.id));
+
+                if (point.user_id) {
+                    markers.current.set(point.user_id, marker);
+                }
             });
 
             if (!fitted.current && coords.length > 0) {
@@ -260,12 +335,62 @@ function AuditMap({
     }
 
     return (
-        <div
-            ref={host}
-            className="h-[28rem] w-full"
-            role="application"
-            aria-label="Mapa de usuarios"
-        />
+        <div>
+            <style>{`
+                .audit-pin-icon { background: transparent !important; border: 0 !important; }
+                .leaflet-marker-icon.audit-pin-icon { overflow: visible; }
+                .audit-pin { position: relative; display: block; width: 16px; height: 16px; border: 2px solid #fff; border-radius: 999px; box-shadow: 0 1px 4px rgba(15, 23, 42, 0.35); }
+                .audit-pin.is-idle { opacity: 0.55; }
+                .audit-pin.is-live::after { content: ''; position: absolute; inset: -7px; border: 2px solid currentColor; border-radius: 999px; animation: audit-pulse 1.8s ease-out infinite; }
+                .audit-map-tip { border: 0; border-radius: 8px; font-weight: 650; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.16); }
+                @keyframes audit-pulse { to { transform: scale(1.7); opacity: 0; } }
+                @media (prefers-reduced-motion: reduce) { .audit-pin.is-live::after { animation: none; } }
+            `}</style>
+            <div className="flex flex-wrap gap-2 border-b border-brand-100 px-3 py-2">
+                {legend.map(([role, label]) => (
+                    <span key={role} className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-2 py-1 text-xs font-medium text-brand-800">
+                        <span className="size-2.5 rounded-full" style={{ background: roleColor(role) }} aria-hidden />
+                        {label}
+                    </span>
+                ))}
+            </div>
+            <div className="grid lg:grid-cols-[16rem_1fr]">
+                <ul className="max-h-56 overflow-y-auto border-b border-brand-100 lg:max-h-[28rem] lg:border-r lg:border-b-0">
+                    {located.map((point) => {
+                        const key = point.user_id ?? point.id;
+                        const current = selected === key;
+
+                        return (
+                            <li key={key}>
+                                <button
+                                    type="button"
+                                    onClick={() => point.user_id && focusPerson(point.user_id)}
+                                    aria-pressed={current}
+                                    className={cn(
+                                        'flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left hover:bg-brand-50 focus-visible:bg-brand-50 focus-visible:outline-none',
+                                        current && 'bg-brand-50',
+                                    )}
+                                >
+                                    <span className="size-2.5 shrink-0 rounded-full" style={{ background: roleColor(point.role) }} aria-hidden />
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block truncate text-sm font-medium text-brand-900">{point.user_name}</span>
+                                        <span className="block truncate text-xs text-muted-foreground">
+                                            {point.role_label || 'Sin rol'} · {point.active ? 'En línea' : 'Sin señal'}
+                                        </span>
+                                    </span>
+                                </button>
+                            </li>
+                        );
+                    })}
+                </ul>
+                <div
+                    ref={host}
+                    className="h-[28rem] w-full"
+                    role="application"
+                    aria-label="Mapa de usuarios"
+                />
+            </div>
+        </div>
     );
 }
 
@@ -287,7 +412,6 @@ export function AuditPage() {
     const page = usePage().props as unknown as PageProps;
     const { logs, filters, modules, people, alerts, shifts, moduleSummary, actionsToday, hoursToday } = page;
     const [tab, setTab] = useState<TabId>('panel');
-    const [search, setSearch] = useState(filters.search);
     const [openId, setOpenId] = useState<number | null>(null);
     const [presences, setPresences] = useState(page.presences);
     const [trails, setTrails] = useState(page.trails);
@@ -454,28 +578,18 @@ export function AuditPage() {
 
             {tab === 'actividad' ? (
                 <PlatformContentPanel>
-                        <form
-                        className="flex flex-col gap-2 border-b border-brand-100 p-3 lg:flex-row lg:flex-wrap"
-                        onSubmit={(event) => {
-                            event.preventDefault();
-                            apply({ search });
-                        }}
-                    >
-                        <label className="relative min-w-0 flex-1">
-                            <span className="sr-only">Buscar</span>
-                            <Search className="pointer-events-none absolute top-2.5 left-3 size-4 text-muted-foreground" />
-                            <input
-                                value={search}
-                                onChange={(event) => setSearch(event.target.value)}
-                                placeholder="Usuario, código, módulo o IP"
-                                className="h-9 w-full rounded-xl border border-brand-200 bg-white pr-3 pl-9 text-sm focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none"
-                            />
-                        </label>
+                    <div className="border-b border-brand-100 p-3">
+                        <DataToolbar
+                            search={filters.search}
+                            onSearchChange={(value) => apply({ search: value })}
+                            placeholder="Usuario, código, módulo o IP"
+                            searchWrapperClassName="sm:max-w-xs"
+                        >
                         <select
                             value={filters.action}
                             aria-label="Acción"
                             onChange={(event) => apply({ action: event.target.value })}
-                            className="h-9 rounded-xl border border-brand-200 bg-white px-2 text-sm"
+                            className="h-10 rounded-xl border border-brand-200 bg-white px-2 text-sm"
                         >
                             <option value="">Todas las acciones</option>
                             {Object.entries(actionLabel).map(([value, label]) => (
@@ -488,7 +602,7 @@ export function AuditPage() {
                             value={filters.module}
                             aria-label="Módulo"
                             onChange={(event) => apply({ module: event.target.value })}
-                            className="h-9 rounded-xl border border-brand-200 bg-white px-2 text-sm"
+                            className="h-10 rounded-xl border border-brand-200 bg-white px-2 text-sm"
                         >
                             <option value="">Todos los módulos</option>
                             {modules.map((module) => (
@@ -501,7 +615,7 @@ export function AuditPage() {
                             value={filters.user}
                             aria-label="Usuario"
                             onChange={(event) => apply({ user: event.target.value })}
-                            className="h-9 rounded-xl border border-brand-200 bg-white px-2 text-sm"
+                            className="h-10 rounded-xl border border-brand-200 bg-white px-2 text-sm"
                         >
                             <option value="">Todas las personas</option>
                             {people.map((person) => (
@@ -517,20 +631,18 @@ export function AuditPage() {
                             onApply={(from, to) => apply({ from, to })}
                             onClear={() => apply({ from: '', to: '' })}
                         />
-                        <Button type="submit" size="sm" className="cursor-pointer rounded-xl">
-                            Buscar
-                        </Button>
                         <a
                             href={`/auditoria/excel?${new URLSearchParams(
                                 Object.fromEntries(
                                     Object.entries(filters).filter(([, value]) => value !== ''),
                                 ),
                             ).toString()}`}
-                            className="inline-flex h-9 items-center rounded-xl border border-brand-200 bg-white px-3 text-sm font-medium text-brand-700 hover:bg-brand-50"
+                            className="inline-flex h-10 items-center rounded-xl border border-brand-200 bg-white px-3 text-sm font-medium text-brand-700 hover:bg-brand-50"
                         >
                             Excel
                         </a>
-                    </form>
+                        </DataToolbar>
+                    </div>
 
                     <div className="overflow-x-auto">
                         <table className="w-full min-w-[860px] text-left text-sm">
@@ -803,7 +915,7 @@ export function AuditPage() {
             {tab === 'mapa' ? (
                 <PlatformContentPanel>
                     <p className="border-b border-brand-100 px-3 py-2 text-xs text-muted-foreground">
-                        Se actualiza solo cada 15 segundos. La línea es el recorrido de las últimas 8 horas y el punto es dónde está ahora.
+                        Cada color es un rol. Pasa el cursor o haz clic en un punto, o elige a la persona en la lista. La línea es el recorrido de las últimas 8 horas y el pulso marca quién está en línea. Se actualiza cada 15 segundos.
                         {liveAt ? ` Última lectura ${liveAt}.` : ''}
                     </p>
                     <AuditMap points={presences} trails={trails} />

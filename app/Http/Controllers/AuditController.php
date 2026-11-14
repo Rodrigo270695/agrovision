@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\User;
 use App\Models\UserLocationPing;
 use App\Models\UserPresence;
 use App\Support\ActivityLogger;
+use App\Support\SystemRoles;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -33,21 +35,11 @@ class AuditController extends Controller
 
         $since = now()->subMinutes(20);
         $presences = UserPresence::query()
+            ->with('user.roles')
             ->latest('last_seen_at')
             ->limit(200)
             ->get()
-            ->map(fn (UserPresence $row) => [
-                'id' => $row->id,
-                'user_id' => $row->user_id,
-                'user_name' => $row->user_name ?: 'Usuario',
-                'latitude' => $row->latitude,
-                'longitude' => $row->longitude,
-                'accuracy' => $row->accuracy,
-                'ip' => $row->ip,
-                'browser' => $row->browser,
-                'last_seen_at' => optional($row->last_seen_at)?->timezone(config('app.timezone'))->format('d/m/Y, h:i a'),
-                'active' => $row->last_seen_at !== null && $row->last_seen_at->greaterThanOrEqualTo($since),
-            ]);
+            ->map(fn (UserPresence $row) => $this->presencePayload($row, $since));
 
         return Inertia::render('audit/index', [
             'logs' => $logs,
@@ -163,6 +155,7 @@ class AuditController extends Controller
     {
         $since = now()->subMinutes(20);
         $presences = UserPresence::query()
+            ->with('user.roles')
             ->latest('last_seen_at')
             ->limit(200)
             ->get()
@@ -439,17 +432,28 @@ class AuditController extends Controller
             return [];
         }
 
-        return UserLocationPing::query()
+        $pings = UserLocationPing::query()
             ->where('recorded_at', '>=', now()->subHours(8))
             ->orderBy('recorded_at')
+            ->get();
+        $users = User::query()
+            ->with('roles')
+            ->whereIn('id', $pings->pluck('user_id')->unique()->filter())
             ->get()
+            ->keyBy('id');
+
+        return $pings
             ->groupBy('user_id')
-            ->map(function ($rows) {
+            ->map(function ($rows) use ($users) {
                 $points = $rows->take(-40)->values();
+                $userId = (int) $points->first()->user_id;
+                $role = $this->roleMeta($users->get($userId));
 
                 return [
-                    'user_id' => (int) $points->first()->user_id,
+                    'user_id' => $userId,
                     'user_name' => (string) ($points->last()->user_name ?: 'Usuario'),
+                    'role' => $role['role'],
+                    'role_label' => $role['role_label'],
                     'points' => $points->map(fn (UserLocationPing $ping) => [
                         'latitude' => (float) $ping->latitude,
                         'longitude' => (float) $ping->longitude,
@@ -466,10 +470,14 @@ class AuditController extends Controller
      */
     private function presencePayload(UserPresence $row, \Illuminate\Support\Carbon $since): array
     {
+        $role = $this->roleMeta($row->user);
+
         return [
             'id' => $row->id,
             'user_id' => $row->user_id,
             'user_name' => $row->user_name ?: 'Usuario',
+            'role' => $role['role'],
+            'role_label' => $role['role_label'],
             'latitude' => $row->latitude,
             'longitude' => $row->longitude,
             'accuracy' => $row->accuracy,
@@ -477,6 +485,35 @@ class AuditController extends Controller
             'browser' => $row->browser,
             'last_seen_at' => optional($row->last_seen_at)?->timezone(config('app.timezone'))->format('d/m/Y, h:i a'),
             'active' => $row->last_seen_at !== null && $row->last_seen_at->greaterThanOrEqualTo($since),
+        ];
+    }
+
+    /**
+     * @return array{role: string, role_label: string}
+     */
+    private function roleMeta(?User $user): array
+    {
+        $names = collect($user?->roles?->pluck('name') ?? [])
+            ->map(fn ($name) => mb_strtolower(trim((string) $name)));
+
+        foreach (['superadmin', 'admin', 'coordinador', 'inspector'] as $role) {
+            if ($names->contains($role)) {
+                return [
+                    'role' => $role,
+                    'role_label' => $role === 'admin' ? 'Admin' : SystemRoles::label($role),
+                ];
+            }
+        }
+
+        if ($user?->is_support) {
+            return ['role' => 'soporte', 'role_label' => 'Soporte'];
+        }
+
+        $first = $names->first();
+
+        return [
+            'role' => $first ?: 'otro',
+            'role_label' => $first ? SystemRoles::label((string) $first) : 'Sin rol',
         ];
     }
 

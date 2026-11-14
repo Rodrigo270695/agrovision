@@ -1,6 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { Ban, Search, ShieldOff } from 'lucide-react';
+import { Ban, ShieldOff } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { DataToolbar } from '@/components/data-page/data-toolbar';
 import {
     DriverBlacklistModal,
     type DriverBlacklistDraft,
@@ -10,7 +11,6 @@ import {
     PlatformPageShell,
 } from '@/components/platform';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useCan } from '@/hooks/use-can';
 import { dashboard } from '@/routes';
 import { cn } from '@/lib/utils';
@@ -71,7 +71,6 @@ function formatDate(value?: string | null): string {
 export default function DriverBlacklistIndex() {
     const { entries, filters, stats } = usePage().props as unknown as PageProps;
     const { can } = useCan();
-    const [search, setSearch] = useState(filters.search ?? '');
     const [manualOpen, setManualOpen] = useState(false);
     const rows = entries?.data ?? [];
 
@@ -87,7 +86,7 @@ export default function DriverBlacklistIndex() {
         router.get(
             '/lista-negra-conductores',
             {
-                search: next.search ?? search,
+                search: next.search ?? filters.search ?? '',
                 active:
                     next.active === undefined
                         ? filters.active
@@ -139,36 +138,17 @@ export default function DriverBlacklistIndex() {
                         </span>
                     </div>
 
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <div className="relative min-w-0 flex-1">
-                            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-brand-400" />
-                            <Input
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        visit({ search, page: 1 });
-                                    }
-                                }}
-                                placeholder="Buscar por nombre, DNI o placa"
-                                className="h-10 border-brand-200 bg-white pl-9"
-                            />
-                        </div>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => visit({ search, page: 1 })}
-                            className="cursor-pointer border-brand-300"
-                        >
-                            Buscar
-                        </Button>
+                    <DataToolbar
+                        search={filters.search ?? ''}
+                        onSearchChange={(value) => visit({ search: value, page: 1 })}
+                        placeholder="Buscar por nombre, DNI o placa"
+                    >
                         <Button
                             type="button"
                             variant={filters.active ? 'default' : 'outline'}
                             onClick={() =>
                                 visit({
                                     active: true,
-                                    search,
                                     page: 1,
                                 })
                             }
@@ -186,7 +166,6 @@ export default function DriverBlacklistIndex() {
                             onClick={() =>
                                 visit({
                                     active: false,
-                                    search,
                                     page: 1,
                                 })
                             }
@@ -198,7 +177,7 @@ export default function DriverBlacklistIndex() {
                         >
                             Todos
                         </Button>
-                    </div>
+                    </DataToolbar>
                 </div>
 
                 <PlatformContentPanel className="mt-4 p-3 sm:p-4">
