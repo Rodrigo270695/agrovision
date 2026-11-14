@@ -46,7 +46,6 @@ export type UserItem = {
         name: string;
         site?: { id: number; name: string } | null;
     }[];
-    lugar_actual?: string | null;
     created_at?: string | null;
 };
 
@@ -288,22 +287,6 @@ export function UsersTable({
                                           : names.join(', '),
                                   )
                                   .join(' · ');
-
-                    return (
-                        <span
-                            className="block max-w-48 truncate text-xs text-muted-foreground"
-                            title={label}
-                        >
-                            {label}
-                        </span>
-                    );
-                },
-            },
-            {
-                key: 'lugar_actual',
-                header: 'Lugar actual',
-                cell: (user) => {
-                    const label = user.lugar_actual?.trim() || '—';
 
                     return (
                         <span
