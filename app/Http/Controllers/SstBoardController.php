@@ -2,11 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ChecklistItem;
 use App\Models\ChecklistTemplate;
 use App\Models\Unit;
-use App\Models\UnitChecklist;
-use App\Models\UnitChecklistAnswer;
 use App\Support\ReportPeriod;
 use App\Support\SstBoardItemDetailReport;
 use App\Support\SystemRoles;
@@ -34,38 +31,22 @@ class SstBoardController extends Controller
         $inspectorId = $context['inspector_id'];
         $vehicleTypes = $context['vehicle_types'];
 
-        $checklists = $this->checklists($template, $range, $coordinatorId, $vehicleTypes, $inspectorId);
-        $latest = $checklists
-            ->groupBy('unit_id')
-            ->map(fn (Collection $rows) => $rows->sortByDesc('id')->first())
-            ->filter()
-            ->values();
-
-        $items = $this->items($template, $latest, $inspection);
-
-        $coordinatorNames = $latest
-            ->map(fn (UnitChecklist $checklist) => $checklist->unit?->coordinatorUser?->name)
-            ->filter()
-            ->unique()
-            ->sort()
-            ->values()
-            ->all();
-
-        $vehicleNames = $latest
-            ->map(fn (UnitChecklist $checklist) => trim((string) ($checklist->unit?->vehicle_type ?? '')))
-            ->filter()
-            ->unique()
-            ->sort()
-            ->values()
-            ->all();
+        $board = $this->itemDetailReport->board(
+            $template,
+            $range,
+            $coordinatorId,
+            $vehicleTypes,
+            $inspectorId,
+            $inspection,
+        );
 
         return Inertia::render('sst-board/index', [
-            'items' => $items,
+            'items' => $board['items'],
             'summary' => [
-                'units' => $latest->count(),
+                'units' => $board['units'],
                 'week_label' => $range['label'],
-                'coordinators' => $coordinatorNames,
-                'vehicle_types' => $vehicleNames,
+                'coordinators' => $board['coordinators'],
+                'vehicle_types' => $board['vehicle_types'],
                 'template_label' => ChecklistTemplate::query()->where('type', $template)->first()?->displayLabel()
                     ?? mb_strtoupper($template),
             ],
@@ -213,124 +194,6 @@ class SstBoardController extends Controller
                 ->unique()
                 ->values(),
         ];
-    }
-
-    /**
-     * @param  Collection<int, string>  $vehicleTypes
-     * @return Collection<int, UnitChecklist>
-     */
-    private function checklists(string $template, array $range, ?int $coordinatorId, Collection $vehicleTypes, ?int $inspectorId): Collection
-    {
-        $query = UnitChecklist::query()
-            ->with([
-                'answers.item:id,item_number,parent_id,pareto_id',
-                'unit:id,coordinator_id,vehicle_type',
-                'unit.coordinatorUser:id,name',
-            ])
-            ->whereHas('template', fn ($builder) => $builder->where('type', $template))
-            ->whereHas('period', fn ($builder) => $builder->where('status', 'active'));
-
-        if ($range['from'] !== null && $range['to'] !== null) {
-            $query->whereBetween('first_inspected_on', [$range['from'], $range['to']]);
-        }
-
-        if ($coordinatorId) {
-            $query->whereHas('unit', fn ($builder) => $builder->where('coordinator_id', $coordinatorId));
-        }
-
-        if ($inspectorId) {
-            $query->where('created_by', $inspectorId);
-        }
-
-        if ($vehicleTypes->isNotEmpty()) {
-            $query->whereHas(
-                'unit',
-                fn ($builder) => $builder->whereIn('vehicle_type', $vehicleTypes->all()),
-            );
-        }
-
-        return $query->get();
-    }
-
-    /**
-     * @param  Collection<int, UnitChecklist>  $checklists
-     * @return list<array<string, mixed>>
-     */
-    private function items(string $template, Collection $checklists, string $inspection): array
-    {
-        $templateId = ChecklistTemplate::query()->where('type', $template)->value('id');
-        $parents = ChecklistItem::activeParentsForTemplateId($templateId);
-        $activeParentIds = $parents->pluck('id')->flip();
-
-        $indexed = $checklists->map(function (UnitChecklist $checklist) use ($inspection, $activeParentIds) {
-            $answers = [];
-
-            foreach ($checklist->answers as $answer) {
-                $item = $answer->item;
-
-                if ($item === null || $item->parent_id !== null || $item->item_number === null) {
-                    continue;
-                }
-
-                if (! $activeParentIds->has($item->id)) {
-                    continue;
-                }
-
-                $answers[(string) $item->item_number] = $this->valueFor($checklist, $answer, $inspection);
-            }
-
-            return $answers;
-        });
-
-        return $parents
-            ->filter(fn (ChecklistItem $item) => filled($item->item_number))
-            ->map(function (ChecklistItem $item) use ($indexed) {
-                $number = (string) $item->item_number;
-                $ok = 0;
-                $falta = 0;
-                $baja = 0;
-
-                foreach ($indexed as $answers) {
-                    $value = $answers[$number] ?? null;
-
-                    if ($value === 'yes') {
-                        $ok++;
-                    } elseif ($value === 'no') {
-                        $falta++;
-                    } else {
-                        $baja++;
-                    }
-                }
-
-                $total = $ok + $falta + $baja;
-
-                return [
-                    'key' => $number,
-                    'label' => trim((string) $item->label),
-                    'ok' => $ok,
-                    'baja' => $baja,
-                    'falta' => $falta,
-                    'total' => $total,
-                    'percent' => $total > 0 ? (int) round(($ok / $total) * 100) : 0,
-                ];
-            })
-            ->values()
-            ->all();
-    }
-
-    private function valueFor(UnitChecklist $checklist, UnitChecklistAnswer $answer, string $inspection): ?string
-    {
-        if ($inspection === 'first') {
-            return $answer->first_value;
-        }
-
-        if ($inspection === 'second') {
-            return $answer->second_value;
-        }
-
-        return $checklist->second_result !== null
-            ? $answer->second_value
-            : $answer->first_value;
     }
 
     /**

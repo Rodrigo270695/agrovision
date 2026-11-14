@@ -20,6 +20,7 @@ type Ring = {
     ok: number;
     baja: number;
     falta: number;
+    pendiente: number;
     total: number;
     percent: number;
 };
@@ -57,6 +58,7 @@ type PageProps = {
 };
 
 const OK = '#22c55e';
+const PENDIENTE = '#eab308';
 const BAJA = '#94a3b8';
 const FALTA = '#ef4444';
 
@@ -134,10 +136,10 @@ export default function SstBoardPage() {
                 <PlatformHero
                     eyebrow="Reportes · SST"
                     title={`Tablero de mando SST ${summary.template_label}`}
-                    description={`${summary.units} inspecciones. ${summary.week_label}. Personaliza ítems con el selector de la derecha. Clic en un gráfico para ampliarlo.`}
+                    description={`${summary.units} unidades, cada placa una sola vez. ${summary.week_label}. Pendiente es planilla sin inspección cerrada.`}
                     stats={[
                         {
-                            label: 'Inspecciones',
+                            label: 'Unidades',
                             value: summary.units,
                             tone: 'navy',
                         },
@@ -427,7 +429,7 @@ function RingZoomLightbox({
 
                         <RingDonut ring={ring} size="xl" />
 
-                        <div className="mt-5 grid grid-cols-3 gap-2">
+                        <div className="mt-5 grid grid-cols-4 gap-2">
                             <ZoomStat
                                 label="OK"
                                 value={ring.ok}
@@ -442,6 +444,11 @@ function RingZoomLightbox({
                                 label="Falta"
                                 value={ring.falta}
                                 tone="falta"
+                            />
+                            <ZoomStat
+                                label="Pend."
+                                value={ring.pendiente}
+                                tone="pendiente"
                             />
                         </div>
 
@@ -471,12 +478,13 @@ function ZoomStat({
 }: {
     label: string;
     value: number;
-    tone: 'ok' | 'baja' | 'falta';
+    tone: 'ok' | 'baja' | 'falta' | 'pendiente';
 }) {
     const styles = {
         ok: 'border-[#bbf7d0]/80 bg-[#f0fdf4]/90 text-[#166534]',
         baja: 'border-[#e2e8f0] bg-background/90 text-[#64748b]',
         falta: 'border-[#fecaca]/80 bg-[#fef2f2]/90 text-[#b91c1c]',
+        pendiente: 'border-[#fde68a]/80 bg-[#fffbeb]/90 text-[#a16207]',
     }[tone];
 
     return (
@@ -518,7 +526,7 @@ function RingCard({
                 {ring.label}
             </h2>
             <RingDonut ring={ring} size="sm" />
-            <div className="mt-1.5 grid grid-cols-3 gap-1 border-t border-[#e8eef5] pt-1.5 text-center">
+            <div className="mt-1.5 grid grid-cols-4 gap-1 border-t border-[#e8eef5] pt-1.5 text-center">
                 <Count
                     label="OK"
                     value={ring.ok}
@@ -535,6 +543,12 @@ function RingCard({
                     label="Falta"
                     value={ring.falta}
                     className="text-[#b91c1c]"
+                    compact
+                />
+                <Count
+                    label="Pend."
+                    value={ring.pendiente}
+                    className="text-[#a16207]"
                     compact
                 />
             </div>
@@ -554,6 +568,7 @@ function RingDonut({
     const circumference = 2 * Math.PI * radius;
     const parts = [
         { key: 'ok', value: ring.ok, color: OK },
+        { key: 'pendiente', value: ring.pendiente, color: PENDIENTE },
         { key: 'baja', value: ring.baja, color: BAJA },
         { key: 'falta', value: ring.falta, color: FALTA },
     ].filter((part) => part.value > 0);

@@ -110,6 +110,95 @@ final class SstBoardItemDetailReport
     }
 
     /**
+     * Mismas placas únicas y la misma clasificación que el detalle del ítem.
+     *
+     * @param  array{from: string|null, to: string|null, label: string}  $range
+     * @param  Collection<int, string>  $vehicleTypes
+     * @return array{
+     *     items: list<array{key: string, label: string, ok: int, falta: int, baja: int, pendiente: int, total: int, percent: int}>,
+     *     units: int,
+     *     coordinators: list<string>,
+     *     vehicle_types: list<string>
+     * }
+     */
+    public function board(
+        string $templateType,
+        array $range,
+        ?int $coordinatorId,
+        Collection $vehicleTypes,
+        ?int $inspectorId,
+        string $inspection,
+    ): array {
+        $templateId = ChecklistTemplate::query()->where('type', $templateType)->value('id');
+        $parents = ChecklistItem::activeParentsForTemplateId($templateId)
+            ->filter(fn (ChecklistItem $item) => filled($item->item_number))
+            ->values();
+        $activeParentIds = $parents->pluck('id')->flip();
+        $fleet = $this->loadFleet(
+            $this->periodsInRange($range, $templateType, $coordinatorId, $vehicleTypes, $inspectorId),
+            $templateType,
+            $coordinatorId,
+            $vehicleTypes,
+            $inspectorId,
+        );
+
+        $items = [];
+        $sample = null;
+
+        foreach ($parents as $item) {
+            $number = (string) $item->item_number;
+            $grouped = $this->unitsGroupedForRange(
+                $range,
+                $this->rowsForItem($fleet, $number, $inspection, $activeParentIds),
+            );
+
+            if ($sample === null) {
+                $sample = $grouped;
+            }
+
+            $summary = $this->summaryFromGrouped($grouped);
+            $items[] = [
+                'key' => $number,
+                'label' => trim((string) $item->label),
+                'ok' => $summary['ok'],
+                'falta' => $summary['falta'],
+                'baja' => $summary['baja'],
+                'pendiente' => $summary['pendiente'],
+                'total' => $summary['total'],
+                'percent' => $summary['percent'],
+            ];
+        }
+
+        $plates = $sample === null
+            ? []
+            : array_merge($sample['ok'], $sample['falta'], $sample['baja'], $sample['pendiente']);
+
+        $coordinators = collect($plates)
+            ->pluck('coordinator')
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        $vehicles = collect($plates)
+            ->pluck('vehicle_type')
+            ->map(fn ($type) => trim((string) $type))
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        return [
+            'items' => $items,
+            'units' => count($plates),
+            'coordinators' => $coordinators,
+            'vehicle_types' => $vehicles,
+        ];
+    }
+
+    /**
      * @param  'ok'|'falta'|'baja'|'pendiente'  $status
      * @return list<array<string, mixed>>
      */
@@ -270,6 +359,26 @@ final class SstBoardItemDetailReport
         string $inspection,
         Collection $activeParentIds,
     ): array {
+        return $this->rowsForItem(
+            $this->loadFleet($periods, $templateType, $coordinatorId, $vehicleTypes, $inspectorId),
+            $itemNumber,
+            $inspection,
+            $activeParentIds,
+        );
+    }
+
+    /**
+     * @param  Collection<int, Period>  $periods
+     * @param  Collection<int, string>  $vehicleTypes
+     * @return list<array{period: Period, units: Collection<int, Unit>, checklists: Collection<int|string, UnitChecklist>}>
+     */
+    private function loadFleet(
+        Collection $periods,
+        string $templateType,
+        ?int $coordinatorId,
+        Collection $vehicleTypes,
+        ?int $inspectorId,
+    ): array {
         $loaded = [];
 
         foreach ($periods as $period) {
@@ -309,14 +418,38 @@ final class SstBoardItemDetailReport
                 ->groupBy('unit_id')
                 ->map(fn (Collection $rows) => $rows->sortByDesc('id')->first());
 
+            $loaded[] = [
+                'period' => $period,
+                'units' => $units,
+                'checklists' => $checklists,
+            ];
+        }
+
+        return $loaded;
+    }
+
+    /**
+     * @param  list<array{period: Period, units: Collection<int, Unit>, checklists: Collection<int|string, UnitChecklist>}>  $fleet
+     * @param  Collection<int, int>  $activeParentIds
+     * @return list<array{period: Period, units: Collection<int, Unit>, checklists: Collection<int|string, UnitChecklist>, rows: list<array{unit: Unit, status: string}>}>
+     */
+    private function rowsForItem(
+        array $fleet,
+        string $itemNumber,
+        string $inspection,
+        Collection $activeParentIds,
+    ): array {
+        $loaded = [];
+
+        foreach ($fleet as $chunk) {
             $rows = [];
 
-            foreach ($units as $unit) {
+            foreach ($chunk['units'] as $unit) {
                 $rows[] = [
                     'unit' => $unit,
                     'status' => $this->classify(
                         $unit,
-                        $checklists->get($unit->id),
+                        $chunk['checklists']->get($unit->id),
                         $itemNumber,
                         $inspection,
                         $activeParentIds,
@@ -325,9 +458,9 @@ final class SstBoardItemDetailReport
             }
 
             $loaded[] = [
-                'period' => $period,
-                'units' => $units,
-                'checklists' => $checklists,
+                'period' => $chunk['period'],
+                'units' => $chunk['units'],
+                'checklists' => $chunk['checklists'],
                 'rows' => $rows,
             ];
         }
