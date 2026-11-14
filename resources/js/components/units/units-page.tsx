@@ -14,6 +14,7 @@ import { UnitsHeader } from '@/components/units/units-header';
 import type { UnitsStatsData } from '@/components/units/units-stats';
 import { UnitsTable } from '@/components/units/units-table';
 import type {
+    ImportFileItem,
     MovementsPagination,
     UnitItem,
     UnitsFilters,
@@ -29,6 +30,7 @@ import { usePendingPosts } from '@/lib/offline/use-pending-posts';
 type UnitsPageProps = {
     units: UnitsPagination;
     movements?: MovementsPagination | null;
+    imports?: ImportFileItem[];
     stats: UnitsStatsData;
     filters: UnitsFilters;
     periodOptions: PeriodOption[];
@@ -54,6 +56,7 @@ export function UnitsPage() {
     const {
         units,
         movements,
+        imports,
         stats,
         filters,
         periodOptions,
@@ -209,6 +212,7 @@ export function UnitsPage() {
                 <UnitsTable
                     units={mergedUnits}
                     movements={movements}
+                    imports={imports ?? []}
                     filters={filters}
                     periodOptions={periodOptions ?? []}
                     onEdit={openEdit}

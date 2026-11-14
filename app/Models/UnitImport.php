@@ -21,6 +21,9 @@ class UnitImport extends Model
         'user_id',
         'imported_on',
         'scope_key',
+        'original_name',
+        'file_path',
+        'file_disk',
     ];
 
     protected function casts(): array
@@ -43,5 +46,10 @@ class UnitImport extends Model
     public function period(): BelongsTo
     {
         return $this->belongsTo(Period::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 }

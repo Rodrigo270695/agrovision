@@ -1,4 +1,4 @@
-import { Bus, FileStack, Pencil, Trash2 } from 'lucide-react';
+import { Bus, Download, FileStack, Pencil, Trash2 } from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { useCallback, useMemo } from 'react';
 import {
@@ -126,7 +126,7 @@ export type UnitsFilters = {
     date_from?: string | null;
     date_to?: string | null;
     all_dates?: boolean;
-    view?: 'units' | 'movements';
+    view?: 'units' | 'movements' | 'files';
     sort:
         | 'correlative'
         | 'provider'
@@ -139,9 +139,21 @@ export type UnitsFilters = {
     per_page: number;
 };
 
+export type ImportFileItem = {
+    id: number;
+    imported_on?: string | null;
+    created_at?: string | null;
+    original_name?: string | null;
+    rows: number;
+    period?: { id: number; name: string } | null;
+    user?: { id: number; name: string } | null;
+    download_url?: string | null;
+};
+
 type Props = {
     units: UnitsPagination;
     movements?: MovementsPagination | null;
+    imports?: ImportFileItem[];
     filters: UnitsFilters;
     periodOptions: PeriodFilterOption[];
     onEdit: (unit: UnitItem) => void;
@@ -235,9 +247,41 @@ function UnitActions({
     );
 }
 
+function formatDay(value?: string | null): string {
+    if (!value) {
+        return '—';
+    }
+
+    const [year, month, day] = value.slice(0, 10).split('-');
+
+    if (!year || !month || !day) {
+        return '—';
+    }
+
+    return `${day}/${month}/${year}`;
+}
+
+function formatClock(value?: string | null): string {
+    if (!value) {
+        return '—';
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return '—';
+    }
+
+    return date.toLocaleTimeString('es-PE', {
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}
+
 export function UnitsTable({
     units,
     movements = null,
+    imports = [],
     filters,
     periodOptions,
     onEdit,
@@ -245,6 +289,7 @@ export function UnitsTable({
     onDocuments,
 }: Props) {
     const showingHistory = filters.view === 'movements';
+    const showingFiles = filters.view === 'files';
     const visit = useCallback(
         (params: Partial<UnitsFilters> & { page?: number }) => {
             if (!isBrowserOnline()) {
@@ -604,6 +649,11 @@ export function UnitsTable({
             filters.date_to,
     );
 
+    const tabClass = (active: boolean) =>
+        `cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium ${
+            active ? 'bg-brand-700 text-white' : 'text-muted-foreground'
+        }`;
+
     const viewToggle = (
         <div className="flex rounded-lg border border-brand-300 bg-white p-0.5">
             <button
@@ -616,11 +666,7 @@ export function UnitsTable({
                         page: 1,
                     })
                 }
-                className={`cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium ${
-                    showingHistory
-                        ? 'text-muted-foreground'
-                        : 'bg-brand-700 text-white'
-                }`}
+                className={tabClass(!showingHistory && !showingFiles)}
             >
                 Unidades
             </button>
@@ -634,16 +680,108 @@ export function UnitsTable({
                         page: 1,
                     })
                 }
-                className={`cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium ${
-                    showingHistory
-                        ? 'bg-brand-700 text-white'
-                        : 'text-muted-foreground'
-                }`}
+                className={tabClass(showingHistory)}
             >
                 Historial
             </button>
-            </div>
+            <button
+                type="button"
+                onClick={() =>
+                    visit({
+                        view: 'files',
+                        page: 1,
+                    })
+                }
+                className={tabClass(showingFiles)}
+            >
+                Archivos
+            </button>
+        </div>
     );
+
+    const fileColumns: DataTableColumn<ImportFileItem>[] = [
+        {
+            key: 'imported_on',
+            header: 'Fecha',
+            cell: (file) => formatDay(file.imported_on),
+        },
+        {
+            key: 'created_at',
+            header: 'Hora',
+            cell: (file) => formatClock(file.created_at),
+        },
+        {
+            key: 'original_name',
+            header: 'Archivo',
+            cell: (file) => file.original_name || 'Sin archivo guardado',
+        },
+        {
+            key: 'user',
+            header: 'Subió',
+            cell: (file) => file.user?.name || '—',
+        },
+        {
+            key: 'period',
+            header: 'Periodo',
+            cell: (file) => file.period?.name || '—',
+        },
+        {
+            key: 'rows',
+            header: 'Filas',
+            cell: (file) => String(file.rows),
+        },
+        {
+            key: 'download',
+            header: '',
+            align: 'right',
+            cell: (file) =>
+                file.download_url ? (
+                    <a
+                        href={file.download_url}
+                        className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline"
+                    >
+                        <Download className="size-3.5" />
+                        Descargar
+                    </a>
+                ) : (
+                    '—'
+                ),
+        },
+    ];
+
+    if (showingFiles) {
+        return (
+            <DataTable
+                columns={fileColumns}
+                data={imports}
+                rowKey={(file) => file.id}
+                ariaLiveMessage={`${imports.length} archivos encontrados`}
+                emptyState={
+                    <EmptyState
+                        icon={FileStack}
+                        title="Sin archivos"
+                        description="Los Excel que subas desde Importar quedan aquí, con su fecha, y se pueden descargar."
+                    />
+                }
+                toolbar={
+                    <DataToolbar
+                        search={filters.search}
+                        onSearchChange={(search) => visit({ search, page: 1 })}
+                        placeholder="Buscar archivo, persona o periodo..."
+                    >
+                        {viewToggle}
+                        <PeriodFilterSelect
+                            value={filters.period_id}
+                            options={periodOptions}
+                            onChange={(periodId) =>
+                                visit({ period_id: periodId, page: 1 })
+                            }
+                        />
+                    </DataToolbar>
+                }
+            />
+        );
+    }
 
     const historyRows = movements?.data ?? [];
 

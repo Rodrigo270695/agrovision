@@ -221,6 +221,10 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:units.create')
             ->name('units.import');
 
+        Route::get('unidades/importaciones/{unitImport}/archivo', [UnitController::class, 'downloadImport'])
+            ->middleware('permission:units.view')
+            ->name('units.import-file');
+
         Route::post('unidades/tipos-vehiculo', [UnitController::class, 'storeVehicleType'])
             ->middleware('permission:units.create|units.update')
             ->name('units.vehicle-types.store');

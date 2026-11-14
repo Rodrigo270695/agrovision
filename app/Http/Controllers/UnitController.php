@@ -8,6 +8,7 @@ use App\Models\Period;
 use App\Models\ResponsiblePerson;
 use App\Models\ServiceType;
 use App\Models\Unit;
+use App\Models\UnitImport;
 use App\Models\UnitMovement;
 use App\Models\UnitStatusEvent;
 use App\Models\VehicleType;
@@ -24,6 +25,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -39,9 +42,10 @@ class UnitController extends Controller
 
         $baseQuery = $this->scopedUnitsQuery();
         $showingMovements = $filters['view'] === 'movements';
+        $showingFiles = $filters['view'] === 'files';
         UnitStatusHistory::ensure();
 
-        $units = $showingMovements
+        $units = $showingMovements || $showingFiles
             ? null
             : ($this->filteredUnitsQuery($filters, clone $baseQuery)
                 ->with([
@@ -100,6 +104,7 @@ class UnitController extends Controller
                 'to' => null,
             ],
             'movements' => $movements,
+            'imports' => $showingFiles ? $this->importFiles($filters) : [],
             'filters' => [
                 'search' => $filters['search'],
                 'period_id' => $filters['period_id'],
@@ -409,6 +414,68 @@ class UnitController extends Controller
         ]);
     }
 
+    public function downloadImport(UnitImport $unitImport): StreamedResponse
+    {
+        $disk = $unitImport->file_disk ?: 'local';
+        $path = $unitImport->file_path;
+
+        abort_unless(
+            is_string($path) && $path !== '' && Storage::disk($disk)->exists($path),
+            404,
+            'Ese Excel ya no está guardado.',
+        );
+
+        return Storage::disk($disk)->download(
+            $path,
+            $unitImport->original_name ?: 'unidades.xlsx',
+        );
+    }
+
+    /**
+     * @param  array{search: string, period_id: int|null}  $filters
+     * @return list<array<string, mixed>>
+     */
+    private function importFiles(array $filters): array
+    {
+        if (! Schema::hasTable('unit_imports')) {
+            return [];
+        }
+
+        return UnitImport::query()
+            ->with(['period:id,name', 'user:id,name'])
+            ->withCount('movements')
+            ->when($filters['period_id'], fn (Builder $query, int $periodId) => $query->where('period_id', $periodId))
+            ->when($filters['search'] !== '', function (Builder $query) use ($filters): void {
+                $term = '%'.$filters['search'].'%';
+                $query->where(function (Builder $inner) use ($term): void {
+                    $inner->where('original_name', 'ilike', $term)
+                        ->orWhereHas('user', fn (Builder $user) => $user->where('name', 'ilike', $term))
+                        ->orWhereHas('period', fn (Builder $period) => $period->where('name', 'ilike', $term));
+                });
+            })
+            ->orderByDesc('imported_on')
+            ->orderByDesc('id')
+            ->limit(100)
+            ->get()
+            ->map(fn (UnitImport $import): array => [
+                'id' => $import->id,
+                'imported_on' => $import->imported_on?->toDateString(),
+                'created_at' => $import->created_at?->toIso8601String(),
+                'original_name' => $import->original_name,
+                'rows' => (int) $import->movements_count,
+                'period' => $import->period
+                    ? ['id' => $import->period->id, 'name' => $import->period->name]
+                    : null,
+                'user' => $import->user
+                    ? ['id' => $import->user->id, 'name' => $import->user->name]
+                    : null,
+                'download_url' => is_string($import->file_path) && $import->file_path !== ''
+                    ? route('units.import-file', $import)
+                    : null,
+            ])
+            ->all();
+    }
+
     /**
      * @return array{search: string, period_id: int|null, date_from: string|null, date_to: string|null, all_dates: bool, view: string, sort: string, direction: string, per_page: int}
      */
@@ -417,7 +484,7 @@ class UnitController extends Controller
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:255'],
             'period_id' => ['nullable', 'integer', 'exists:periods,id'],
-            'view' => ['nullable', Rule::in(['units', 'movements'])],
+            'view' => ['nullable', Rule::in(['units', 'movements', 'files'])],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
             'all_dates' => ['nullable', 'boolean'],

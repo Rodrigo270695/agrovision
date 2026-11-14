@@ -24,6 +24,9 @@ return new class extends Migration
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->date('imported_on');
             $table->string('scope_key', 40);
+            $table->string('original_name')->nullable();
+            $table->string('file_path')->nullable();
+            $table->string('file_disk', 20)->default('local');
             $table->timestamps();
 
             $table->unique(['period_id', 'imported_on', 'scope_key']);

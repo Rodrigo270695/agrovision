@@ -18,6 +18,8 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
@@ -599,7 +601,7 @@ final class UnitExcelImporter
             $this->ensureUnitStatusColumn();
             $this->ensureUnitStatusEventsTable();
             $this->ensureUnitImportTables();
-            $this->persistImport($pending, $period, $created, $updated, $unitsCreated, $deactivated, $replaced);
+            $this->persistImport($pending, $period, $file, $created, $updated, $unitsCreated, $deactivated, $replaced);
         } catch (QueryException $exception) {
             report($exception);
 
@@ -654,9 +656,19 @@ final class UnitExcelImporter
     /**
      * @param  array<int, array<string, mixed>>  $pending
      */
-    private function persistImport(array $pending, Period $period, int &$created, int &$updated, int &$unitsCreated, int &$deactivated, bool &$replaced): void
+    private function persistImport(array $pending, Period $period, UploadedFile $file, int &$created, int &$updated, int &$unitsCreated, int &$deactivated, bool &$replaced): void
     {
-        DB::transaction(function () use ($pending, $period, &$created, &$updated, &$unitsCreated, &$deactivated, &$replaced): void {
+        $previous = UnitImport::query()
+            ->where('period_id', $period->id)
+            ->whereDate('imported_on', now()->toDateString())
+            ->where('scope_key', $this->importScopeKey())
+            ->first();
+        $previousPath = $previous?->file_path;
+        $previousDisk = $previous?->file_disk ?: 'local';
+        $newPath = null;
+
+        try {
+            DB::transaction(function () use ($pending, $period, $file, &$created, &$updated, &$unitsCreated, &$deactivated, &$replaced, &$newPath): void {
             $rollbacks = [];
             $replaced = $this->revertTodayImport($period);
             $import = UnitImport::query()->create([
@@ -664,7 +676,11 @@ final class UnitExcelImporter
                 'user_id' => Auth::id(),
                 'imported_on' => now()->toDateString(),
                 'scope_key' => $this->importScopeKey(),
+                'original_name' => $this->originalFileName($file),
+                'file_disk' => 'local',
             ]);
+            $newPath = $this->storeImportFile($file, $period);
+            $import->update(['file_path' => $newPath]);
             $createdUnitIds = [];
             $createdByCorrelative = [];
             $latestByUnit = [];
@@ -770,7 +786,51 @@ final class UnitExcelImporter
             $deactivated = $this->syncImportedPresence($period, $latestByUnit, $rollbacks);
             $this->storeRollbacks($import, $rollbacks);
             $driverSync->syncPresence($period);
-        });
+            });
+        } catch (\Throwable $exception) {
+            if (is_string($newPath) && $newPath !== '') {
+                Storage::disk('local')->delete($newPath);
+            }
+
+            throw $exception;
+        }
+
+        if (is_string($previousPath) && $previousPath !== '' && $previousPath !== $newPath) {
+            Storage::disk($previousDisk)->delete($previousPath);
+        }
+    }
+
+    private function storeImportFile(UploadedFile $file, Period $period): string
+    {
+        $extension = strtolower($file->getClientOriginalExtension() ?: 'xlsx');
+
+        if (! in_array($extension, ['xlsx', 'xls'], true)) {
+            $extension = 'xlsx';
+        }
+
+        $path = $file->storeAs(
+            'unit-imports/'.$period->id,
+            now()->format('YmdHis').'-'.Str::lower(Str::random(8)).'.'.$extension,
+            'local',
+        );
+
+        if (! is_string($path) || $path === '') {
+            throw new \RuntimeException('No se pudo guardar el Excel.');
+        }
+
+        return $path;
+    }
+
+    private function originalFileName(UploadedFile $file): string
+    {
+        $name = basename(str_replace('\\', '/', $file->getClientOriginalName()));
+        $name = trim($name);
+
+        if ($name === '' || $name === '.' || $name === '..') {
+            return 'unidades.xlsx';
+        }
+
+        return Str::limit($name, 180, '');
     }
 
     /**
@@ -997,6 +1057,9 @@ final class UnitExcelImporter
                 $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
                 $table->date('imported_on');
                 $table->string('scope_key', 40);
+                $table->string('original_name')->nullable();
+                $table->string('file_path')->nullable();
+                $table->string('file_disk', 20)->default('local');
                 $table->timestamps();
                 $table->unique(['period_id', 'imported_on', 'scope_key']);
             });
@@ -1024,6 +1087,33 @@ final class UnitExcelImporter
                 $table->foreignId('import_id')->nullable()->constrained('unit_imports')->nullOnDelete();
             });
         }
+
+        if (! Schema::hasTable('unit_imports')) {
+            return;
+        }
+
+        $missingFileColumns = array_values(array_filter(
+            ['original_name', 'file_path', 'file_disk'],
+            fn (string $column): bool => ! Schema::hasColumn('unit_imports', $column),
+        ));
+
+        if ($missingFileColumns === []) {
+            return;
+        }
+
+        Schema::table('unit_imports', function (Blueprint $table) use ($missingFileColumns): void {
+            if (in_array('original_name', $missingFileColumns, true)) {
+                $table->string('original_name')->nullable();
+            }
+
+            if (in_array('file_path', $missingFileColumns, true)) {
+                $table->string('file_path')->nullable();
+            }
+
+            if (in_array('file_disk', $missingFileColumns, true)) {
+                $table->string('file_disk', 20)->default('local');
+            }
+        });
     }
 
     private function ensureUnitStatusEventsTable(): void

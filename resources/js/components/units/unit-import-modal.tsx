@@ -200,7 +200,7 @@ export function UnitImportModal({ open, periodOptions, onClose }: Props) {
             open={open}
             onClose={handleClose}
             title="Importar unidades"
-            description="Cada fila queda en el historial. Si hoy ya hubo una carga de este periodo, esta la reemplaza."
+            description="Cada fila queda en el historial y el archivo se guarda en Archivos. Si hoy ya hubo una carga de este periodo, esta la reemplaza."
             className="sm:max-w-xl"
             footer={
                 <>
