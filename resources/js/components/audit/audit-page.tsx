@@ -6,6 +6,7 @@ import {
     PlatformHero,
     PlatformPageShell,
 } from '@/components/platform';
+import { DateRangeFilter } from '@/components/shared/date-range-filter';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -509,19 +510,12 @@ export function AuditPage() {
                                 </option>
                             ))}
                         </select>
-                        <input
-                            type="date"
-                            aria-label="Desde"
-                            value={filters.from}
-                            onChange={(event) => apply({ from: event.target.value })}
-                            className="h-9 rounded-xl border border-brand-200 bg-white px-2 text-sm"
-                        />
-                        <input
-                            type="date"
-                            aria-label="Hasta"
-                            value={filters.to}
-                            onChange={(event) => apply({ to: event.target.value })}
-                            className="h-9 rounded-xl border border-brand-200 bg-white px-2 text-sm"
+                        <DateRangeFilter
+                            desde={filters.from || null}
+                            hasta={filters.to || null}
+                            align="start"
+                            onApply={(from, to) => apply({ from, to })}
+                            onClear={() => apply({ from: '', to: '' })}
                         />
                         <Button type="submit" size="sm" className="cursor-pointer rounded-xl">
                             Buscar
@@ -702,9 +696,17 @@ export function AuditPage() {
 
             {tab === 'jornada' ? (
                 <PlatformContentPanel>
-                    <p className="border-b border-brand-100 px-3 py-2 text-xs text-muted-foreground">
-                        Ingresos del rango elegido. Sin fechas, muestra el día de hoy. Abierta significa que todavía no hay salida después de ese ingreso.
-                    </p>
+                    <div className="flex flex-col gap-2 border-b border-brand-100 p-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-xs text-muted-foreground">
+                            Sin fechas, muestra el día de hoy. Abierta significa que todavía no hay salida después de ese ingreso.
+                        </p>
+                        <DateRangeFilter
+                            desde={filters.from || null}
+                            hasta={filters.to || null}
+                            onApply={(from, to) => apply({ from, to })}
+                            onClear={() => apply({ from: '', to: '' })}
+                        />
+                    </div>
                     <div className="overflow-x-auto">
                         <table className="w-full min-w-[760px] text-left text-sm">
                             <thead className="bg-brand-50/80 text-xs tracking-wide text-brand-700 uppercase">
