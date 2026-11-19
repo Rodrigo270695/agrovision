@@ -56,7 +56,11 @@ class UnitController extends Controller
                         ->with('uploader:id,name'),
                 ])
                 ->withCount('documents')
-                ->withExists('checklists as has_inspection')
+                ->withExists([
+                    'checklists as has_inspection' => function (Builder $query) use ($filters): void {
+                        $this->constrainInspectionDates($query, $filters['date_from'], $filters['date_to']);
+                    },
+                ])
                 ->addSelect([
                     'last_inactive_on' => UnitStatusEvent::query()
                         ->select('happened_on')
@@ -119,6 +123,8 @@ class UnitController extends Controller
                 'all_dates' => $filters['all_dates'],
                 'view' => $filters['view'],
                 'status' => $filters['status'],
+                'coordinator_id' => $filters['coordinator_id'],
+                'inspection' => $filters['inspection'],
                 'sort' => $filters['sort'],
                 'direction' => $filters['direction'],
                 'per_page' => $filters['per_page'],
@@ -343,7 +349,11 @@ class UnitController extends Controller
 
         $units = $this->filteredUnitsQuery($filters, $this->scopedUnitsQuery())
             ->with(['period:id,name,date', 'coordinatorUser:id,name'])
-            ->withExists('checklists as has_inspection')
+            ->withExists([
+                'checklists as has_inspection' => function (Builder $query) use ($filters): void {
+                    $this->constrainInspectionDates($query, $filters['date_from'], $filters['date_to']);
+                },
+            ])
             ->get();
 
         $periodName = 'Todos los periodos';
@@ -501,7 +511,7 @@ class UnitController extends Controller
     }
 
     /**
-     * @return array{search: string, period_id: int|null, date_from: string|null, date_to: string|null, all_dates: bool, view: string, status: string|null, sort: string, direction: string, per_page: int}
+     * @return array{search: string, period_id: int|null, date_from: string|null, date_to: string|null, all_dates: bool, view: string, status: string|null, coordinator_id: int|null, inspection: string|null, sort: string, direction: string, per_page: int}
      */
     private function validatedFilters(Request $request): array
     {
@@ -509,6 +519,8 @@ class UnitController extends Controller
             'search' => ['nullable', 'string', 'max:255'],
             'period_id' => ['nullable', 'integer', 'exists:periods,id'],
             'status' => ['nullable', Rule::in(['active', 'inactive'])],
+            'coordinator_id' => ['nullable', 'integer', 'exists:users,id'],
+            'inspection' => ['nullable', Rule::in(['yes', 'no'])],
             'view' => ['nullable', Rule::in(['units', 'movements', 'files'])],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
@@ -537,9 +549,9 @@ class UnitController extends Controller
             $dateFrom = null;
             $dateTo = null;
         } elseif ($dateFrom === null && $dateTo === null) {
-            $today = now()->toDateString();
-            $dateFrom = $today;
-            $dateTo = $today;
+            $today = now();
+            $dateFrom = $today->startOfMonth()->toDateString();
+            $dateTo = $today->endOfMonth()->toDateString();
         } elseif ($dateFrom && $dateTo && $dateFrom > $dateTo) {
             [$dateFrom, $dateTo] = [$dateTo, $dateFrom];
         }
@@ -552,6 +564,8 @@ class UnitController extends Controller
             'all_dates' => $allDates,
             'view' => $validated['view'] ?? 'units',
             'status' => $validated['status'] ?? null,
+            'coordinator_id' => isset($validated['coordinator_id']) ? (int) $validated['coordinator_id'] : null,
+            'inspection' => $validated['inspection'] ?? null,
             'sort' => $validated['sort'] ?? 'correlative',
             'direction' => $validated['direction'] ?? 'desc',
             'per_page' => (int) ($validated['per_page'] ?? 10),
@@ -593,6 +607,10 @@ class UnitController extends Controller
             });
         }
 
+        if (! empty($filters['coordinator_id'])) {
+            $query->where('coordinator_id', (int) $filters['coordinator_id']);
+        }
+
         $dateFrom = $filters['date_from'];
         $dateTo = $filters['date_to'];
 
@@ -618,6 +636,19 @@ class UnitController extends Controller
                     }
                 });
             });
+        }
+
+        $inspection = $filters['inspection'] ?? null;
+        if ($inspection === 'yes' || $inspection === 'no') {
+            $constraint = function (Builder $checklist) use ($dateFrom, $dateTo): void {
+                $this->constrainInspectionDates($checklist, $dateFrom, $dateTo);
+            };
+
+            if ($inspection === 'yes') {
+                $query->whereHas('checklists', $constraint);
+            } else {
+                $query->whereDoesntHave('checklists', $constraint);
+            }
         }
 
         if ($filters['search'] !== '') {
@@ -742,6 +773,33 @@ class UnitController extends Controller
         ) {
             abort(403, 'No tienes acceso a esta unidad.');
         }
+    }
+
+    private function constrainInspectionDates(Builder $query, ?string $from, ?string $to): void
+    {
+        if ($from === null && $to === null) {
+            return;
+        }
+
+        $query->where(function (Builder $dates) use ($from, $to): void {
+            $dates->where(function (Builder $first) use ($from, $to): void {
+                $first->whereNotNull('first_inspected_on');
+                if ($from) {
+                    $first->whereDate('first_inspected_on', '>=', $from);
+                }
+                if ($to) {
+                    $first->whereDate('first_inspected_on', '<=', $to);
+                }
+            })->orWhere(function (Builder $second) use ($from, $to): void {
+                $second->whereNotNull('second_inspected_on');
+                if ($from) {
+                    $second->whereDate('second_inspected_on', '>=', $from);
+                }
+                if ($to) {
+                    $second->whereDate('second_inspected_on', '<=', $to);
+                }
+            });
+        });
     }
 
     /**

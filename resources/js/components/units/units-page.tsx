@@ -215,6 +215,7 @@ export function UnitsPage() {
                     imports={imports ?? []}
                     filters={filters}
                     periodOptions={periodOptions ?? []}
+                    coordinatorOptions={coordinatorOptions ?? []}
                     onEdit={openEdit}
                     onDelete={openDelete}
                     onDocuments={openDocuments}

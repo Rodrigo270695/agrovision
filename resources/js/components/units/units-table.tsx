@@ -1,12 +1,15 @@
 import {
     Bus,
     CheckCircle2,
+    ClipboardCheck,
     Download,
     FileStack,
     Layers,
     PauseCircle,
     Pencil,
     Trash2,
+    UserRound,
+    XCircle,
 } from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { useCallback, useMemo } from 'react';
@@ -34,6 +37,7 @@ import {
     getWorstDocumentExpiry,
     unitExpiryRowClass,
 } from '@/lib/document-expiry';
+import { rangeThisMonth } from '@/lib/date-range-presets';
 import { isBrowserOnline } from '@/lib/offline/ids';
 import { asPaginated } from '@/lib/paginated';
 import { toast } from 'sonner';
@@ -138,6 +142,8 @@ export type UnitsFilters = {
     date_to?: string | null;
     all_dates?: boolean;
     status?: 'active' | 'inactive' | null;
+    coordinator_id?: number | null;
+    inspection?: 'yes' | 'no' | null;
     view?: 'units' | 'movements' | 'files';
     sort:
         | 'correlative'
@@ -168,12 +174,36 @@ type Props = {
     imports?: ImportFileItem[];
     filters: UnitsFilters;
     periodOptions: PeriodFilterOption[];
+    coordinatorOptions?: { id: number; name: string }[];
     onEdit: (unit: UnitItem) => void;
     onDelete: (unit: UnitItem) => void;
     onDocuments: (unit: UnitItem) => void;
 };
 
 type SortKey = UnitsFilters['sort'];
+
+function isoDate(date: Date): string {
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${date.getFullYear()}-${month}-${day}`;
+}
+
+function thisMonthQuery(): {
+    date_from: string;
+    date_to: string;
+    all_dates: false;
+    page: number;
+} {
+    const range = rangeThisMonth();
+
+    return {
+        date_from: isoDate(range.from),
+        date_to: isoDate(range.to),
+        all_dates: false,
+        page: 1,
+    };
+}
 
 function formatDate(value?: string | null): string {
     if (!value) {
@@ -296,6 +326,7 @@ export function UnitsTable({
     imports = [],
     filters,
     periodOptions,
+    coordinatorOptions = [],
     onEdit,
     onDelete,
     onDocuments,
@@ -342,6 +373,18 @@ export function UnitsTable({
             )
                 ? params.status
                 : filters.status;
+            const nextCoordinatorId = Object.prototype.hasOwnProperty.call(
+                params,
+                'coordinator_id',
+            )
+                ? params.coordinator_id
+                : filters.coordinator_id;
+            const nextInspection = Object.prototype.hasOwnProperty.call(
+                params,
+                'inspection',
+            )
+                ? params.inspection
+                : filters.inspection;
 
             router.get(
                 '/unidades',
@@ -349,6 +392,10 @@ export function UnitsTable({
                     search: params.search ?? filters.search,
                     ...(nextPeriodId ? { period_id: nextPeriodId } : {}),
                     ...(nextStatus ? { status: nextStatus } : {}),
+                    ...(nextCoordinatorId
+                        ? { coordinator_id: nextCoordinatorId }
+                        : {}),
+                    ...(nextInspection ? { inspection: nextInspection } : {}),
                     ...(nextAllDates ? { all_dates: 1 } : {}),
                     ...(nextDateFrom ? { date_from: nextDateFrom } : {}),
                     ...(nextDateTo ? { date_to: nextDateTo } : {}),
@@ -515,15 +562,6 @@ export function UnitsTable({
                 ),
             },
             {
-                key: 'coordinator',
-                header: 'Coordinador',
-                cell: (unit) => (
-                    <span className="text-xs text-muted-foreground">
-                                        {unit.coordinatorUser?.name || '—'}
-                    </span>
-                ),
-            },
-            {
                 key: 'documents',
                 header: 'Docs',
                 className: 'min-w-[8.5rem]',
@@ -683,6 +721,8 @@ export function UnitsTable({
         filters.search ||
             filters.period_id ||
             filters.status ||
+            filters.coordinator_id ||
+            filters.inspection ||
             filters.date_from ||
             filters.date_to,
     );
@@ -716,6 +756,68 @@ export function UnitsTable({
                     icon: <PauseCircle className="size-3.5" />,
                     tone: 'muted',
                 },
+            ]}
+        />
+    );
+
+    const inspectionFilter = (
+        <FilterChips
+            ariaLabel="Filtrar por inspección"
+            value={filters.inspection ?? 'all'}
+            onChange={(next) =>
+                visit({
+                    inspection: next === 'all' ? null : next,
+                    page: 1,
+                })
+            }
+            options={[
+                {
+                    value: 'all',
+                    label: 'Todas las inspecciones',
+                    icon: <Layers className="size-3.5" />,
+                    tone: 'default',
+                },
+                {
+                    value: 'yes',
+                    label: 'Con inspección',
+                    icon: <ClipboardCheck className="size-3.5" />,
+                    tone: 'success',
+                },
+                {
+                    value: 'no',
+                    label: 'Sin inspección',
+                    icon: <XCircle className="size-3.5" />,
+                    tone: 'muted',
+                },
+            ]}
+        />
+    );
+
+    const coordinatorFilter = (
+        <FilterChips
+            ariaLabel="Filtrar por coordinador"
+            value={
+                filters.coordinator_id ? String(filters.coordinator_id) : 'all'
+            }
+            onChange={(next) =>
+                visit({
+                    coordinator_id: next === 'all' ? null : Number(next),
+                    page: 1,
+                })
+            }
+            options={[
+                {
+                    value: 'all',
+                    label: 'Todos los coordinadores',
+                    icon: <Layers className="size-3.5" />,
+                    tone: 'default',
+                },
+                ...coordinatorOptions.map((option) => ({
+                    value: String(option.id),
+                    label: option.name,
+                    icon: <UserRound className="size-3.5" />,
+                    tone: 'default' as const,
+                })),
             ]}
         />
     );
@@ -906,12 +1008,7 @@ export function UnitsTable({
                                 })
                             }
                             onClear={() =>
-                                visit({
-                                    date_from: null,
-                                    date_to: null,
-                                    all_dates: true,
-                                    page: 1,
-                                })
+                                visit(thisMonthQuery())
                             }
                         />
                     </DataToolbar>
@@ -941,6 +1038,8 @@ export function UnitsTable({
                             view: 'movements',
                             period_id: filters.period_id ?? undefined,
                             status: filters.status || undefined,
+                            coordinator_id: filters.coordinator_id ?? undefined,
+                            inspection: filters.inspection || undefined,
                             date_from: filters.date_from || undefined,
                             date_to: filters.date_to || undefined,
                             all_dates: filters.all_dates ? 1 : undefined,
@@ -997,6 +1096,8 @@ export function UnitsTable({
                         }
                     />
                     {statusFilter}
+                    {inspectionFilter}
+                    {coordinatorFilter}
                     <DateRangeFilter
                         desde={filters.date_from ?? null}
                         hasta={filters.date_to ?? null}
@@ -1009,12 +1110,7 @@ export function UnitsTable({
                             })
                         }
                         onClear={() =>
-                            visit({
-                                date_from: null,
-                                date_to: null,
-                                all_dates: true,
-                                page: 1,
-                            })
+                            visit(thisMonthQuery())
                         }
                     />
                 </DataToolbar>
@@ -1030,6 +1126,8 @@ export function UnitsTable({
                         direction: filters.direction,
                         period_id: filters.period_id ?? undefined,
                         status: filters.status || undefined,
+                        coordinator_id: filters.coordinator_id ?? undefined,
+                        inspection: filters.inspection || undefined,
                         date_from: filters.date_from || undefined,
                         date_to: filters.date_to || undefined,
                         all_dates: filters.all_dates ? 1 : undefined,

@@ -30,6 +30,14 @@ function buildExportUrl(filters: UnitsFilters): string {
         params.set('status', filters.status);
     }
 
+    if (filters.coordinator_id) {
+        params.set('coordinator_id', String(filters.coordinator_id));
+    }
+
+    if (filters.inspection) {
+        params.set('inspection', filters.inspection);
+    }
+
     if (filters.all_dates) {
         params.set('all_dates', '1');
     }
