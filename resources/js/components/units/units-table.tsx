@@ -1,4 +1,13 @@
-import { Bus, Download, FileStack, Pencil, Trash2 } from 'lucide-react';
+import {
+    Bus,
+    CheckCircle2,
+    Download,
+    FileStack,
+    Layers,
+    PauseCircle,
+    Pencil,
+    Trash2,
+} from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { useCallback, useMemo } from 'react';
 import {
@@ -10,6 +19,7 @@ import {
     type DataTableColumn,
     type SortState,
 } from '@/components/data-page';
+import { FilterChips } from '@/components/data-page/filter-chips';
 import { DateRangeFilter } from '@/components/shared/date-range-filter';
 import {
     PeriodFilterSelect,
@@ -49,6 +59,7 @@ export type UnitItem = {
     category?: string | null;
     coordinator_id?: number | null;
     status?: string | null;
+    has_inspection?: boolean;
     last_inactive_on?: string | null;
     last_active_on?: string | null;
     coordinatorUser?: {
@@ -126,6 +137,7 @@ export type UnitsFilters = {
     date_from?: string | null;
     date_to?: string | null;
     all_dates?: boolean;
+    status?: 'active' | 'inactive' | null;
     view?: 'units' | 'movements' | 'files';
     sort:
         | 'correlative'
@@ -324,12 +336,19 @@ export function UnitsTable({
             )
                 ? params.all_dates
                 : filters.all_dates;
+            const nextStatus = Object.prototype.hasOwnProperty.call(
+                params,
+                'status',
+            )
+                ? params.status
+                : filters.status;
 
             router.get(
                 '/unidades',
                 {
                     search: params.search ?? filters.search,
                     ...(nextPeriodId ? { period_id: nextPeriodId } : {}),
+                    ...(nextStatus ? { status: nextStatus } : {}),
                     ...(nextAllDates ? { all_dates: 1 } : {}),
                     ...(nextDateFrom ? { date_from: nextDateFrom } : {}),
                     ...(nextDateTo ? { date_to: nextDateTo } : {}),
@@ -416,6 +435,24 @@ export function UnitsTable({
                         ) : null}
                     </div>
                 ),
+            },
+            {
+                key: 'inspection',
+                header: 'Inspección',
+                cell: (unit) =>
+                    unit.has_inspection ? (
+                        <StatBadge
+                            label="Sí"
+                            value=""
+                            variant="success"
+                        />
+                    ) : (
+                        <StatBadge
+                            label="No"
+                            value=""
+                            variant="muted"
+                        />
+                    ),
             },
             {
                 key: 'driver_name',
@@ -645,8 +682,42 @@ export function UnitsTable({
     const hasFilters = Boolean(
         filters.search ||
             filters.period_id ||
+            filters.status ||
             filters.date_from ||
             filters.date_to,
+    );
+
+    const statusFilter = (
+        <FilterChips
+            ariaLabel="Filtrar por estado"
+            value={filters.status ?? 'all'}
+            onChange={(next) =>
+                visit({
+                    status: next === 'all' ? null : next,
+                    page: 1,
+                })
+            }
+            options={[
+                {
+                    value: 'all',
+                    label: 'Todos los estados',
+                    icon: <Layers className="size-3.5" />,
+                    tone: 'default',
+                },
+                {
+                    value: 'active',
+                    label: 'Activo',
+                    icon: <CheckCircle2 className="size-3.5" />,
+                    tone: 'success',
+                },
+                {
+                    value: 'inactive',
+                    label: 'Inactivo',
+                    icon: <PauseCircle className="size-3.5" />,
+                    tone: 'muted',
+                },
+            ]}
+        />
     );
 
     const tabClass = (active: boolean) =>
@@ -869,6 +940,7 @@ export function UnitsTable({
                             direction: filters.direction,
                             view: 'movements',
                             period_id: filters.period_id ?? undefined,
+                            status: filters.status || undefined,
                             date_from: filters.date_from || undefined,
                             date_to: filters.date_to || undefined,
                             all_dates: filters.all_dates ? 1 : undefined,
@@ -924,6 +996,7 @@ export function UnitsTable({
                             visit({ period_id: periodId, page: 1 })
                         }
                     />
+                    {statusFilter}
                     <DateRangeFilter
                         desde={filters.date_from ?? null}
                         hasta={filters.date_to ?? null}
@@ -956,6 +1029,7 @@ export function UnitsTable({
                         sort: filters.sort,
                         direction: filters.direction,
                         period_id: filters.period_id ?? undefined,
+                        status: filters.status || undefined,
                         date_from: filters.date_from || undefined,
                         date_to: filters.date_to || undefined,
                         all_dates: filters.all_dates ? 1 : undefined,

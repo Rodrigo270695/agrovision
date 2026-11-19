@@ -56,6 +56,7 @@ class UnitController extends Controller
                         ->with('uploader:id,name'),
                 ])
                 ->withCount('documents')
+                ->withExists('checklists as has_inspection')
                 ->addSelect([
                     'last_inactive_on' => UnitStatusEvent::query()
                         ->select('happened_on')
@@ -76,6 +77,10 @@ class UnitController extends Controller
                     $unit->setAttribute(
                         'documents_progress',
                         UnitDocumentTypes::progress($unit->documents),
+                    );
+                    $unit->setAttribute(
+                        'has_inspection',
+                        in_array($unit->has_inspection, [true, 1, '1', 't', 'true'], true),
                     );
 
                     return $unit;
@@ -113,6 +118,7 @@ class UnitController extends Controller
                 'date_to' => $filters['date_to'],
                 'all_dates' => $filters['all_dates'],
                 'view' => $filters['view'],
+                'status' => $filters['status'],
                 'sort' => $filters['sort'],
                 'direction' => $filters['direction'],
                 'per_page' => $filters['per_page'],
@@ -337,6 +343,7 @@ class UnitController extends Controller
 
         $units = $this->filteredUnitsQuery($filters, $this->scopedUnitsQuery())
             ->with(['period:id,name,date', 'coordinatorUser:id,name'])
+            ->withExists('checklists as has_inspection')
             ->get();
 
         $periodName = 'Todos los periodos';
@@ -494,13 +501,14 @@ class UnitController extends Controller
     }
 
     /**
-     * @return array{search: string, period_id: int|null, date_from: string|null, date_to: string|null, all_dates: bool, view: string, sort: string, direction: string, per_page: int}
+     * @return array{search: string, period_id: int|null, date_from: string|null, date_to: string|null, all_dates: bool, view: string, status: string|null, sort: string, direction: string, per_page: int}
      */
     private function validatedFilters(Request $request): array
     {
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:255'],
             'period_id' => ['nullable', 'integer', 'exists:periods,id'],
+            'status' => ['nullable', Rule::in(['active', 'inactive'])],
             'view' => ['nullable', Rule::in(['units', 'movements', 'files'])],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
@@ -543,6 +551,7 @@ class UnitController extends Controller
             'date_to' => $dateTo,
             'all_dates' => $allDates,
             'view' => $validated['view'] ?? 'units',
+            'status' => $validated['status'] ?? null,
             'sort' => $validated['sort'] ?? 'correlative',
             'direction' => $validated['direction'] ?? 'desc',
             'per_page' => (int) ($validated['per_page'] ?? 10),
@@ -574,6 +583,14 @@ class UnitController extends Controller
 
         if ($filters['period_id']) {
             $query->where('period_id', $filters['period_id']);
+        }
+
+        if (($filters['status'] ?? null) === 'inactive') {
+            $query->where('status', 'inactive');
+        } elseif (($filters['status'] ?? null) === 'active') {
+            $query->where(function ($builder) {
+                $builder->where('status', 'active')->orWhereNull('status');
+            });
         }
 
         $dateFrom = $filters['date_from'];

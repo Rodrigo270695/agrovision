@@ -214,9 +214,10 @@ final class UnitExcelImporter
             ['CATEGORÍA', '1F6A5B', 16],
             ['COORDINADOR', '8A5A12', 28],
             ['ESTADO', '1A2B4C', 12],
+            ['INSPECCIÓN', '1F6A5B', 16],
         ];
 
-        $lastColumn = 'S';
+        $lastColumn = 'T';
         $headerRow = 3;
 
         $sheet->mergeCells("A1:{$lastColumn}1");
@@ -323,6 +324,10 @@ final class UnitExcelImporter
             $sheet->setCellValue(
                 "S{$rowNumber}",
                 ($unit->status ?? '') === 'active' ? 'Activo' : 'Inactivo',
+            );
+            $sheet->setCellValue(
+                "T{$rowNumber}",
+                in_array($unit->has_inspection, [true, 1, '1', 't', 'true'], true) ? 'Sí' : 'No',
             );
 
             $fill = $written % 2 === 0 ? 'FFFFFF' : 'F4F7FB';
