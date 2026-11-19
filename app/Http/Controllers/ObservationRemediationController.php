@@ -13,8 +13,10 @@ use App\Support\PermissionCatalog;
 use App\Support\SystemRoles;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use App\Support\ParetoPassThreshold;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -143,7 +145,7 @@ class ObservationRemediationController extends Controller
         PushNotificationService $push,
     ): RedirectResponse {
         $validated = $request->validate([
-            'pass' => ['required', Rule::in(['first', 'second'])],
+            'pass' => ['required', 'regex:/^(first|second|r[1-9][0-9]*)$/'],
             'note' => ['nullable', 'string', 'max:2000'],
             'photos' => ['nullable', 'array'],
             'photos.*' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:10240'],
@@ -258,7 +260,7 @@ class ObservationRemediationController extends Controller
     public function verify(Request $request, UnitChecklist $checklist): RedirectResponse
     {
         $validated = $request->validate([
-            'pass' => ['required', Rule::in(['first', 'second'])],
+            'pass' => ['required', 'regex:/^(first|second|r[1-9][0-9]*)$/'],
             'decision' => ['required', Rule::in(['approve', 'reject'])],
             'note' => ['nullable', 'string', 'max:2000'],
             'checked_ids' => ['nullable', 'array'],
@@ -332,10 +334,11 @@ class ObservationRemediationController extends Controller
             ->values()
             ->all();
 
-        if ($requiredIds !== [] && $checkedIds !== $requiredIds) {
+        $unknown = array_values(array_diff($checkedIds, $requiredIds));
+        if ($checkedIds === [] || $unknown !== []) {
             return back()->with('toast', [
                 'type' => 'error',
-                'message' => 'Debes marcar el check de todos los ítems en NO antes de aprobar.',
+                'message' => 'Marca al menos un ítem que sigue en NO. Solo se levantan los que marques.',
             ]);
         }
 
@@ -344,24 +347,47 @@ class ObservationRemediationController extends Controller
             ->filter(fn ($note) => $note !== '')
             ->all();
 
-        DB::transaction(function () use ($checklist, $pass, $remediation, $snap, $checkedIds, $itemNotes, $validated) {
-            $resultField = $pass === 'second' ? 'second_result' : 'first_result';
-            $previousResult = $checklist->{$resultField};
+        $outcome = ['grade' => 'approved', 'round' => 2];
 
-            $changed = ObservationRemediationSupport::applyFullYes($checklist, $pass);
+        DB::transaction(function () use ($checklist, $pass, $remediation, $snap, $checkedIds, $itemNotes, $validated, &$outcome) {
+            $previousResult = $pass === 'first'
+                ? $checklist->first_result
+                : $checklist->second_result;
+
+            ObservationRemediationSupport::copyFirstIntoSecond($checklist);
+            $checklist->load('answers.item');
+
+            $changed = ObservationRemediationSupport::applyCheckedYes($checklist, 'second_value', $checkedIds);
             $checklist->refresh()->load('answers.item');
 
-            $after = ObservationRemediationSupport::passSnapshot($checklist, $pass);
-            $checklist->update([
-                $resultField => 'approved',
-            ]);
+            $afterSnap = ParetoPassThreshold::snapshot($checklist->answers, 'second_value');
+            $grade = ParetoPassThreshold::grade($afterSnap['percent'], $afterSnap['has_no']);
+            $stored = $grade === 'rejected' ? 'rejected' : 'approved';
+
+            $usedPasses = $checklist->observationRemediations->pluck('inspection_pass');
+            $nextRound = 2;
+            while ($usedPasses->contains('r'.$nextRound)) {
+                $nextRound++;
+            }
+
+            $updates = [
+                'first_result' => $stored,
+                'second_result' => $stored,
+            ];
+            if ($checklist->second_inspected_on === null) {
+                $updates['second_inspected_on'] = $checklist->first_inspected_on;
+                $updates['second_inspected_time'] = $checklist->first_inspected_time;
+            }
+            if (Schema::hasColumn('unit_checklists', 'round_number')) {
+                $updates['round_number'] = $nextRound;
+            }
+            $checklist->update($updates);
 
             $remediation->update([
                 'status' => ObservationRemediation::VERIFIED,
                 'verified_by' => Auth::id(),
                 'verified_at' => now(),
                 'rejection_note' => null,
-                'submit_note' => $remediation->submit_note,
             ]);
 
             ObservationRemediationSupport::recordEvent(
@@ -370,22 +396,36 @@ class ObservationRemediationController extends Controller
                 Auth::id(),
                 [
                     'pass' => $pass,
+                    'round' => $nextRound,
+                    'grade' => $grade,
                     'previous_result' => $previousResult,
-                    'new_result' => 'approved',
+                    'new_result' => $stored,
                     'previous_percent' => $snap['percent'],
-                    'new_percent' => $after['percent'],
+                    'new_percent' => $afterSnap['percent'],
                     'answers_updated' => $changed,
                     'checked_ids' => $checkedIds,
                     'item_notes' => $itemNotes,
                     'note' => trim((string) ($validated['note'] ?? '')) ?: null,
-                    'had_observation' => true,
+                    'had_observation' => $grade !== 'approved',
                 ],
             );
+
+            if ($grade !== 'approved') {
+                ObservationRemediationSupport::findOrCreate($checklist, 'r'.$nextRound);
+            }
+
+            $outcome = ['grade' => $grade, 'round' => $nextRound];
         });
+
+        $message = match ($outcome['grade']) {
+            'approved' => 'Ronda '.$outcome['round'].' registrada. La inspección quedó aprobada.',
+            'rejected' => 'Ronda '.$outcome['round'].' registrada. Sigue desaprobada. Se puede levantar lo que falte.',
+            default => 'Ronda '.$outcome['round'].' registrada. Sigue aprobada con observaciones. Se puede levantar lo que falte.',
+        };
 
         return back()->with('toast', [
             'type' => 'success',
-            'message' => 'Observaciones verificadas. La inspección queda aprobada.',
+            'message' => $message,
         ]);
     }
 

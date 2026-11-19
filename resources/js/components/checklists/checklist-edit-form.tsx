@@ -765,6 +765,11 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
         return { percent, hasNo };
     }, [answers, checklist.items]);
 
+    const readyToSeal =
+        checklist.first_result === 'approved' &&
+        firstPareto.percent >= 100 &&
+        !firstPareto.hasNo;
+
     const secondPareto = useMemo(() => {
         let scored = 0;
         let catalog = 0;
@@ -1458,9 +1463,10 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                 ) : waitingCoordinator ? (
                     <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                            La 1ra quedó cerrada. La 2da es de la misma fecha.
-                            Al terminar las del día, envía el paquete al
-                            coordinador desde Inspecciones.
+                            La inspección quedó cerrada. Si sigue con
+                            observaciones, el coordinador las levanta en el
+                            calendario: cada levantamiento es una ronda nueva
+                            de esta misma inspección, hasta llegar al 100 %.
                         </div>
                         <Button
                             type="button"
@@ -1520,9 +1526,11 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                     </div>
                 ) : !secondUnlocked ? (
                     <div className="mt-3 rounded-xl border border-brand-200 bg-background px-3 py-2 text-xs text-muted-foreground">
-                        Empieza por la <strong>1ra inspección</strong>. Cuando
-                        todos los ítems estén en SÍ (y con vencimiento donde
-                        aplique), apruébala para habilitar la 2da.
+                        Empieza por la <strong>inspección</strong>. Si termina
+                        aprobada al 100 %, ahí queda. Si termina con
+                        observaciones o desaprobada, el coordinador levanta
+                        los ítems en el calendario y se abren las rondas que
+                        hagan falta.
                         <span className="mt-1 block font-medium text-brand-700">
                             Progreso 1ra: {firstStats.marked}/{firstStats.total}{' '}
                             · {firstStats.yes} SÍ · {firstStats.no} NO
@@ -2391,7 +2399,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                 </Button>
                             ) : null}
 
-                            {canSeal && !grantedPass ? (
+                            {readyToSeal && !grantedPass ? (
                                 <Button
                                     type="button"
                                     disabled={processing}

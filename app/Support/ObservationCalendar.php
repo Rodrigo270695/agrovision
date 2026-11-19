@@ -46,49 +46,31 @@ final class ObservationCalendar
         $byDate = [];
 
         foreach ($checklists as $checklist) {
-            foreach (['first', 'second'] as $pass) {
-                $date = $pass === 'second'
-                    ? $checklist->second_inspected_on
-                    : $checklist->first_inspected_on;
+            $pass = ObservationRemediationSupport::currentPassKey($checklist);
+            $date = $pass === 'first'
+                ? $checklist->first_inspected_on
+                : ($checklist->second_inspected_on ?? $checklist->first_inspected_on);
 
-                if ($date === null) {
-                    continue;
-                }
-
-                $dateKey = Carbon::parse($date)->toDateString();
-                if ($dateKey < $from || $dateKey > $to) {
-                    continue;
-                }
-
-                $snap = ObservationRemediationSupport::passSnapshot($checklist, $pass);
-                $grade = $snap['grade'];
-
-                if ($grade === 'pending') {
-                    continue;
-                }
-
-                $remediation = $checklist->observationRemediations
-                    ->firstWhere('inspection_pass', $pass);
-
-                if ($grade === 'approved'
-                    || (ObservationRemediationSupport::isRemediableGrade($grade)
-                        && $remediation?->status === ObservationRemediation::VERIFIED)
-                ) {
-                    $bucket = 'approved';
-                } elseif ($grade === 'rejected') {
-                    $bucket = 'rejected';
-                } elseif ($grade === 'approved_notes') {
-                    $bucket = 'approved_notes';
-                } else {
-                    continue;
-                }
-
-                if (! $this->matchesGrade($filters, $bucket)) {
-                    continue;
-                }
-
-                $byDate[$dateKey][] = $bucket;
+            if ($date === null) {
+                continue;
             }
+
+            $dateKey = Carbon::parse($date)->toDateString();
+            if ($dateKey < $from || $dateKey > $to) {
+                continue;
+            }
+
+            $grade = ObservationRemediationSupport::passSnapshot($checklist, $pass)['grade'];
+
+            if (! in_array($grade, ['approved', 'approved_notes', 'rejected'], true)) {
+                continue;
+            }
+
+            if (! $this->matchesGrade($filters, $grade)) {
+                continue;
+            }
+
+            $byDate[$dateKey][] = $grade;
         }
 
         $days = [];
@@ -403,7 +385,9 @@ final class ObservationCalendar
         return [
             'checklist_id' => $checklist->id,
             'pass' => $pass,
-            'pass_label' => $pass === 'second' ? '2da inspección' : '1ra inspección',
+            'pass_label' => ((int) ($checklist->round_number ?? 1)) > 1
+                ? 'Ronda '.(int) $checklist->round_number
+                : ($pass === 'first' ? '1ra inspección' : 'Ronda 2'),
             'tone' => $tone,
             'grade' => $passInfo['grade'],
             'grade_label' => match ($passInfo['grade']) {
@@ -430,7 +414,7 @@ final class ObservationCalendar
                 'submitted_at' => optional($remediation?->submitted_at)?->toIso8601String(),
                 'verified_at' => optional($remediation?->verified_at)?->toIso8601String(),
             ],
-            'history' => $this->serializeHistory($remediation),
+            'history' => $this->serializeHistory($checklist),
             'observations' => $this->observationsWithPhotos(
                 $checklist,
                 $pass,
@@ -448,22 +432,31 @@ final class ObservationCalendar
     /**
      * @return list<array{id: int, event: string, label: string, detail: string|null, user: string|null, at: string|null}>
      */
-    private function serializeHistory(?ObservationRemediation $remediation): array
+    private function serializeHistory(UnitChecklist $checklist): array
     {
-        if ($remediation === null) {
-            return [];
-        }
+        $events = $checklist->observationRemediations
+            ->flatMap(function ($remediation) {
+                if ($remediation->relationLoaded('events')) {
+                    return $remediation->events;
+                }
 
-        $events = $remediation->relationLoaded('events')
-            ? $remediation->events->sortBy('id')->values()
-            : $remediation->events()->with('user:id,name')->orderBy('id')->get();
+                return $remediation->events()->with('user:id,name')->orderBy('id')->get();
+            })
+            ->sortBy('id')
+            ->values();
 
         return $events->map(function ($event) {
             $payload = is_array($event->payload) ? $event->payload : [];
+            $round = isset($payload['round']) ? 'Ronda '.$payload['round'].': ' : '';
             $label = match ($event->event) {
-                'submitted' => 'Coordinador envió el levantamiento',
-                'rejected' => 'Inspector rechazó el levantamiento',
-                'verified' => 'Inspector aprobó: pasó a Aprobado',
+                'submitted' => $round.'Coordinador envió el levantamiento',
+                'rejected' => $round.'Inspector rechazó el levantamiento',
+                'verified' => $round.match ($payload['grade'] ?? null) {
+                    'approved' => 'Inspector registró la ronda: quedó Aprobado',
+                    'approved_notes' => 'Inspector registró la ronda: sigue Aprobado c/ obs.',
+                    'rejected' => 'Inspector registró la ronda: sigue Desaprobado',
+                    default => 'Inspector aprobó: pasó a Aprobado',
+                },
                 default => (string) $event->event,
             };
 

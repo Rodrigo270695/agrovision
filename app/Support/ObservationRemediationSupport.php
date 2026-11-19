@@ -42,10 +42,40 @@ final class ObservationRemediationSupport
      * @param  Collection<int, UnitChecklistAnswer>  $answers
      * @return array{percent: float, has_no: bool, grade: string}
      */
+    public static function valueField(string $pass): string
+    {
+        return $pass === 'first' ? 'first_value' : 'second_value';
+    }
+
+    public static function currentPassKey(UnitChecklist $checklist): string
+    {
+        $remediations = $checklist->relationLoaded('observationRemediations')
+            ? $checklist->observationRemediations
+            : $checklist->observationRemediations()->get();
+
+        $open = $remediations->sortByDesc('id')->first(
+            fn ($row) => in_array($row->status, [
+                ObservationRemediation::OPEN,
+                ObservationRemediation::SUBMITTED,
+                ObservationRemediation::REJECTED,
+            ], true),
+        );
+
+        if ($open !== null) {
+            return (string) $open->inspection_pass;
+        }
+
+        if ($checklist->second_result !== null || $checklist->second_inspected_on !== null) {
+            return 'second';
+        }
+
+        return 'first';
+    }
+
     public static function passSnapshot(UnitChecklist $checklist, string $pass): array
     {
-        $field = $pass === 'second' ? 'second_value' : 'first_value';
-        $stored = $pass === 'second' ? $checklist->second_result : $checklist->first_result;
+        $field = self::valueField($pass);
+        $stored = $pass === 'first' ? $checklist->first_result : $checklist->second_result;
         $snap = ParetoPassThreshold::snapshot($checklist->answers, $field);
         $grade = self::effectiveGrade($stored, $snap['percent'], $snap['has_no']);
 
@@ -96,44 +126,84 @@ final class ObservationRemediationSupport
      */
     public static function listedPasses(UnitChecklist $checklist): array
     {
-        $out = [];
+        $pass = self::currentPassKey($checklist);
+        $date = $pass === 'first'
+            ? $checklist->first_inspected_on
+            : ($checklist->second_inspected_on ?? $checklist->first_inspected_on);
 
-        foreach (['first', 'second'] as $pass) {
-            $date = $pass === 'second'
-                ? $checklist->second_inspected_on
-                : $checklist->first_inspected_on;
+        if ($date === null) {
+            return [];
+        }
 
-            if ($date === null) {
+        $snap = self::passSnapshot($checklist, $pass);
+        $grade = $snap['grade'];
+
+        if (! in_array($grade, ['rejected', 'approved_notes', 'approved'], true)) {
+            return [];
+        }
+
+        return [[
+            'pass' => $pass,
+            'date' => Carbon::parse($date)->toDateString(),
+            'grade' => $grade,
+            'percent' => $snap['percent'],
+            'has_no' => $snap['has_no'],
+        ]];
+    }
+
+    /**
+     * @param  list<int>  $answerIds
+     * @return list<array{answer_id: int, item_id: int, from: string, to: string}>
+     */
+    public static function applyCheckedYes(UnitChecklist $checklist, string $field, array $answerIds): array
+    {
+        $wanted = array_fill_keys($answerIds, true);
+        $changed = [];
+
+        foreach ($checklist->answers as $answer) {
+            if (! isset($wanted[(int) $answer->id])) {
                 continue;
             }
 
-            $snap = self::passSnapshot($checklist, $pass);
-            $remediation = $checklist->relationLoaded('observationRemediations')
-                ? $checklist->observationRemediations->firstWhere('inspection_pass', $pass)
-                : null;
-
-            $grade = $snap['grade'];
-
-            if (self::isRemediableGrade($grade)
-                && $remediation?->status === ObservationRemediation::VERIFIED
-            ) {
-                $grade = 'approved';
-            }
-
-            if (! in_array($grade, ['rejected', 'approved_notes', 'approved'], true)) {
+            $liftsFirst = $answer->first_value === 'no';
+            $liftsSecond = $answer->second_value === 'no';
+            if (! $liftsFirst && ! $liftsSecond && $answer->{$field} !== 'no') {
                 continue;
             }
 
-            $out[] = [
-                'pass' => $pass,
-                'date' => Carbon::parse($date)->toDateString(),
-                'grade' => $grade,
-                'percent' => $snap['percent'],
-                'has_no' => $snap['has_no'],
+            if ($liftsFirst) {
+                $answer->first_value = 'yes';
+            }
+            if ($liftsSecond || $answer->{$field} === 'no') {
+                $answer->second_value = 'yes';
+            }
+            $note = trim((string) ($answer->observations ?? ''));
+            $stamp = '['.now()->timezone(config('app.timezone'))->format('d/m/Y H:i')
+                .'] Ítem levantado en la ronda. Valor anterior: NO.';
+            $answer->observations = $note !== '' ? $note."\n".$stamp : $stamp;
+            $answer->save();
+
+            $changed[] = [
+                'answer_id' => $answer->id,
+                'item_id' => $answer->checklist_item_id,
+                'from' => 'no',
+                'to' => 'yes',
             ];
         }
 
-        return $out;
+        return $changed;
+    }
+
+    public static function copyFirstIntoSecond(UnitChecklist $checklist): void
+    {
+        foreach ($checklist->answers as $answer) {
+            if ($answer->second_value !== null) {
+                continue;
+            }
+
+            $answer->second_value = $answer->first_value;
+            $answer->save();
+        }
     }
 
     public static function dayTone(array $grades): string
@@ -169,7 +239,7 @@ final class ObservationRemediationSupport
      */
     public static function observationItems(UnitChecklist $checklist, string $pass): array
     {
-        $field = $pass === 'second' ? 'second_value' : 'first_value';
+        $field = self::valueField($pass);
         $items = [];
 
         foreach ($checklist->answers as $answer) {

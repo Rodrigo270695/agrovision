@@ -993,8 +993,11 @@ class ChecklistController extends Controller
                 if ($shouldSeal) {
                     $checklist->refresh();
 
-                    if ($checklist->first_result !== 'approved' || $checklist->second_result !== 'approved') {
-                        throw new \RuntimeException('Para sellar, la 1ra y 2da inspección deben estar aprobadas.');
+                    $sealSnap = ParetoPassThreshold::snapshot($checklist->answers, 'first_value');
+                    $sealGrade = ParetoPassThreshold::grade($sealSnap['percent'], $sealSnap['has_no']);
+
+                    if ($checklist->first_result !== 'approved' || $sealGrade !== 'approved') {
+                        throw new \RuntimeException('Para sellar, la inspección tiene que estar aprobada al 100 %, sin observaciones.');
                     }
                 }
             });

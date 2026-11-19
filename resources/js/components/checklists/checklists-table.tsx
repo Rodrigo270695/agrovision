@@ -49,6 +49,7 @@ export type ChecklistItemRow = {
     status: 'draft' | 'completed';
     sealed_at?: string | null;
     first_result?: 'approved' | 'rejected' | null;
+    round_number?: number | null;
     first_pareto_percent?: number | null;
     first_has_no?: boolean | null;
     second_result?: 'approved' | 'rejected' | null;
@@ -302,14 +303,17 @@ function editActions(
 
     actions.push(closedPassAction(item, 'first', isSuperAdmin, onEdit));
 
-    if (!secondClosed) {
+    const secondStarted =
+        (item.second_pareto_percent ?? 0) > 0 || item.second_has_no === true;
+
+    if (!secondClosed && secondStarted) {
         actions.push({
             key: 'continue-second',
             label: 'Completar 2da',
             icon: Pencil,
             onSelect: () => onEdit(item),
         });
-    } else {
+    } else if (secondClosed) {
         actions.push(closedPassAction(item, 'second', isSuperAdmin, onEdit));
     }
 
@@ -472,11 +476,18 @@ export function ChecklistsTable({
                 header: '1ra insp.',
                 sortable: true,
                 cell: (item) => (
-                    <ResultChip
-                        value={item.first_result}
-                        percent={item.first_pareto_percent}
-                        hasNo={item.first_has_no}
-                    />
+                    <div className="flex flex-col items-start gap-1">
+                        <ResultChip
+                            value={item.first_result}
+                            percent={item.first_pareto_percent}
+                            hasNo={item.first_has_no}
+                        />
+                        {(item.round_number ?? 1) > 1 ? (
+                            <span className="text-[10px] font-medium text-slate-500">
+                                Ronda {item.round_number}
+                            </span>
+                        ) : null}
+                    </div>
                 ),
             },
             {

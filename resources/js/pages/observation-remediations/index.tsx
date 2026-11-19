@@ -53,7 +53,7 @@ type ObservationItem = {
 
 type DayUnit = {
     checklist_id: number;
-    pass: 'first' | 'second';
+    pass: string;
     pass_label: string;
     tone: 'amber' | 'red' | 'green';
     grade: string;
@@ -1637,9 +1637,8 @@ function RemediationDetailModal({
     const showVerify = canVerify && unit.can_verify;
     const isRed = unit.tone === 'red';
     const noItems = unit.observations;
-    const allChecked =
-        noItems.length === 0 ||
-        noItems.every((item) => checkedIds[item.id] === true);
+    const checkedCount = noItems.filter((item) => checkedIds[item.id] === true).length;
+    const hasChecked = checkedCount > 0;
 
     const sendToInspector = () => {
         const data = new FormData();
@@ -1745,17 +1744,17 @@ function RemediationDetailModal({
                                 type="button"
                                 className="cursor-pointer rounded-xl bg-brand-500 text-white hover:bg-brand-600"
                                 disabled={
-                                    verifyForm.processing || !allChecked
+                                    verifyForm.processing || !hasChecked
                                 }
                                 title={
-                                    allChecked
+                                    hasChecked
                                         ? undefined
-                                        : 'Marca el check de todos los ítems NO'
+                                        : 'Marca al menos un ítem en NO'
                                 }
                                 onClick={() => {
-                                    if (!allChecked) {
+                                    if (!hasChecked) {
                                         toast.error(
-                                            'Marca el check de todos los ítems en NO para aprobar.',
+                                            'Marca al menos un ítem que se levantó. Los que no marques siguen en observación.',
                                         );
                                         return;
                                     }
@@ -1783,7 +1782,7 @@ function RemediationDetailModal({
                             >
                                 {verifyForm.processing
                                     ? 'Guardando…'
-                                    : 'Aprobar levantamiento'}
+                                    : 'Registrar ronda'}
                             </Button>
                         </>
                     ) : null}
@@ -1822,10 +1821,10 @@ function RemediationDetailModal({
                     <div className="flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-900">
                         <ShieldAlert className="mt-0.5 size-4 shrink-0" />
                         <p>
-                            Desaprobada: el levantamiento es el mismo que en
-                            aprobadas con observaciones. Sube evidencia de los
-                            ítems en NO, envía al inspector y, al verificar, la
-                            inspección pasa a Aprobado.
+                            Desaprobada: el coordinador levanta los ítems que
+                            ya corrigió. El inspector confirma esa ronda y la
+                            unidad sigue desaprobada, o pasa a aprobado con
+                            observaciones, hasta que no quede ninguna.
                         </p>
                     </div>
                 ) : null}
@@ -2040,15 +2039,16 @@ function RemediationDetailModal({
                     {showSubmit ? (
                         <p className="mt-2 text-xs text-slate-500">
                             Por cada ítem en NO puedes tomar foto con la cámara
-                            o subirla desde la galería (opcional) y enviar el
-                            paquete. El inspector confirma el 100 % SÍ.
+                            o subirla desde la galería (opcional). El inspector
+                            confirma solo los ítems que marques en la siguiente
+                            ronda.
                         </p>
                     ) : null}
                     {showVerify ? (
                         <p className="mt-2 text-xs text-slate-500">
-                            Marca el check de cada ítem. Las fotos son
-                            opcionales; si hay, revísalas. Al aprobar, todos
-                            pasan a SÍ y la inspección queda aprobada al 100 %.
+                            Marca solo los ítems que ya se levantaron. Los demás
+                            siguen en NO. Si la unidad llega al 100 %, la
+                            inspección queda aprobada y no hay más rondas.
                         </p>
                     ) : null}
                 </div>
@@ -2080,17 +2080,18 @@ function RemediationDetailModal({
                 {showVerify ? (
                     <div className="space-y-3 rounded-2xl border border-sky-200/80 bg-sky-50/50 p-3">
                         <p className="text-sm text-slate-600">
-                            <strong>Aprobar:</strong> marca el check de todos
-                            los ítems → la inspección queda al 100 % aprobada.
+                            <strong>Registrar ronda:</strong> marca los ítems
+                            levantados. Si falta alguno, la inspección sigue en
+                            el mismo estado hasta llegar al 100 %.
                         </p>
                         <p className="text-sm text-slate-600">
                             <strong>Rechazar:</strong> no hace falta marcar
                             checks. Escribe el motivo aquí abajo y pulsa
                             Rechazar; el coordinador podrá corregir y reenviar.
                         </p>
-                        {!allChecked ? (
+                        {!hasChecked ? (
                             <p className="text-xs font-medium text-amber-700">
-                                Para aprobar faltan ítems por marcar.
+                                Marca al menos un ítem para registrar la ronda.
                             </p>
                         ) : null}
                         <label className="block text-sm font-semibold text-slate-800">

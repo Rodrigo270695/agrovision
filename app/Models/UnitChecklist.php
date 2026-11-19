@@ -75,6 +75,7 @@ class UnitChecklist extends Model
         'license_revalidation_on',
         'first_result',
         'second_result',
+        'round_number',
         'additional_observations',
         'status',
         'coordinator_status',
@@ -197,8 +198,15 @@ class UnitChecklist extends Model
 
     public function canStartSecondInspection(): bool
     {
-        return $this->hasFirstInspectionDecision()
-            && ! $this->isSealed();
+        if ($this->isSealed() || ! $this->hasFirstInspectionDecision() || $this->second_result !== null) {
+            return false;
+        }
+
+        if ($this->relationLoaded('answers')) {
+            return $this->answers->contains(fn ($answer) => $answer->second_value !== null);
+        }
+
+        return $this->answers()->whereNotNull('second_value')->exists();
     }
 
     public function coordinatorSignatureUrl(): ?string
