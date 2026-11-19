@@ -1,4 +1,6 @@
 import { ArrowRightLeft, Ban, ClipboardCheck, Clock, FileDown, FilePenLine, Pencil, Trash2 } from 'lucide-react';
+import { AppModal } from '@/components/shared/app-modal';
+import { Button } from '@/components/ui/button';
 import { formatDaysSince } from '@/lib/document-expiry';
 import { router, usePage } from '@inertiajs/react';
 import { useCallback, useMemo, useState } from 'react';
@@ -35,6 +37,14 @@ import {
     type InspectionGrade,
 } from '@/lib/pareto-grade';
 
+export type ChecklistObservation = {
+    id: number;
+    number?: string | null;
+    label: string;
+    group?: string | null;
+    note?: string | null;
+};
+
 export type ChecklistItemRow = {
     id: number | string;
     pending_sync?: boolean;
@@ -52,6 +62,9 @@ export type ChecklistItemRow = {
     round_number?: number | null;
     first_pareto_percent?: number | null;
     first_has_no?: boolean | null;
+    rounds?: number | null;
+    items_yes?: number | null;
+    observations?: ChecklistObservation[];
     second_result?: 'approved' | 'rejected' | null;
     second_pareto_percent?: number | null;
     second_has_no?: boolean | null;
@@ -192,30 +205,141 @@ function ResultLegend() {
     );
 }
 
-function statusBadge(item: ChecklistItemRow) {
-    const sealed = Boolean(item.sealed_at);
+function ObservationPreview({
+    item,
+    onOpen,
+}: {
+    item: ChecklistItemRow;
+    onOpen: () => void;
+}) {
+    const observations = item.observations ?? [];
+    const preview = observations.slice(0, 2);
+    const extra = observations.length - preview.length;
 
-    if (item.pending_sync) {
-        return <StatBadge label="En dispositivo" value="" variant="warning" />;
-    }
+    return (
+        <button
+            type="button"
+            onClick={onOpen}
+            className="flex max-w-56 cursor-pointer flex-col items-start gap-0.5 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
+            aria-label={
+                observations.length === 0
+                    ? `Ver ítems de ${item.plate_number}. Sin observaciones`
+                    : `Ver ${observations.length} observaciones de ${item.plate_number}`
+            }
+        >
+            {observations.length === 0 ? (
+                <span className="text-xs text-slate-500">Sin observaciones</span>
+            ) : (
+                preview.map((observation) => (
+                    <span
+                        key={observation.id}
+                        className="max-w-full truncate text-xs text-slate-700"
+                    >
+                        {observation.number ? `${observation.number} ` : ''}
+                        {observation.label}
+                    </span>
+                ))
+            )}
+            <span className="text-xs font-semibold whitespace-nowrap text-brand-700">
+                {observations.length === 0
+                    ? 'Ver ítems'
+                    : extra > 0
+                      ? `Ver ${observations.length} ítems`
+                      : 'Ver detalle'}
+            </span>
+        </button>
+    );
+}
 
-    if (sealed) {
-        return <StatBadge label="Sellado" value="" variant="info" />;
-    }
+function ObservationDetailModal({
+    item,
+    onClose,
+}: {
+    item: ChecklistItemRow | null;
+    onClose: () => void;
+}) {
+    const observations = item?.observations ?? [];
+    const rounds = Math.max(1, item?.rounds ?? item?.round_number ?? 1);
 
-    if (item.coordinator_status === 'reviewed') {
-        return <StatBadge label="Revisado" value="" variant="primary" />;
-    }
-
-    if (item.coordinator_status === 'observed') {
-        return <StatBadge label="Observado" value="" variant="warning" />;
-    }
-
-    if (item.status === 'completed') {
-        return <StatBadge label="Completado" value="" variant="success" />;
-    }
-
-    return <StatBadge label="Borrador" value="" variant="warning" />;
+    return (
+        <AppModal
+            open={item !== null}
+            onClose={onClose}
+            title={item ? `${item.plate_number}` : 'Inspección'}
+            description={
+                item
+                    ? `${item.driver_name || 'Sin conductor'} · ${rounds === 1 ? '1 inspección' : `${rounds} rondas`}`
+                    : undefined
+            }
+            className="sm:max-w-xl"
+            footer={
+                <Button
+                    type="button"
+                    variant="outline"
+                    className="cursor-pointer rounded-xl"
+                    onClick={onClose}
+                >
+                    Cerrar
+                </Button>
+            }
+        >
+            {item ? (
+                <div className="space-y-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <ResultChip
+                            value={item.first_result}
+                            percent={item.first_pareto_percent}
+                            hasNo={item.first_has_no}
+                        />
+                        <span className="text-sm font-semibold tabular-nums text-slate-700">
+                            {item.first_pareto_percent != null
+                                ? `${item.first_pareto_percent}%`
+                                : 'Sin puntaje'}
+                        </span>
+                    </div>
+                    <p className="text-sm text-slate-600">
+                        {observations.length === 0
+                            ? `${item.items_yes ?? 0} ítems en SÍ. No hay observaciones.`
+                            : `${observations.length} en NO · ${item.items_yes ?? 0} en SÍ.`}
+                    </p>
+                    {observations.length === 0 ? (
+                        <p className="rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-600 ring-1 ring-slate-100">
+                            Esta inspección no tiene ítems observados.
+                        </p>
+                    ) : (
+                        <ul className="space-y-2">
+                            {observations.map((observation) => (
+                                <li
+                                    key={observation.id}
+                                    className="rounded-xl border border-slate-200 bg-white px-3 py-2.5"
+                                >
+                                    {observation.group ? (
+                                        <p className="text-[11px] font-medium tracking-wide text-slate-500 uppercase">
+                                            {observation.group}
+                                        </p>
+                                    ) : null}
+                                    <p className="text-sm font-semibold text-slate-800">
+                                        {observation.number
+                                            ? `${observation.number}. `
+                                            : ''}
+                                        {observation.label}
+                                    </p>
+                                    <p className="mt-1 text-xs font-medium text-rose-700">
+                                        En NO
+                                    </p>
+                                    {observation.note ? (
+                                        <p className="mt-1 text-sm whitespace-pre-line text-slate-600">
+                                            {observation.note}
+                                        </p>
+                                    ) : null}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            ) : null}
+        </AppModal>
+    );
 }
 
 function decided(result?: 'approved' | 'rejected' | null): boolean {
@@ -341,6 +465,7 @@ export function ChecklistsTable({
     const [transferring, setTransferring] = useState<ChecklistItemRow | null>(
         null,
     );
+    const [detail, setDetail] = useState<ChecklistItemRow | null>(null);
 
     const visit = useCallback(
         (params: Partial<ChecklistsFilters> & { page?: number; batch_id?: number | null }) => {
@@ -466,49 +591,51 @@ export function ChecklistsTable({
                 ),
             },
             {
-                key: 'status',
-                header: 'Estado',
-                sortable: true,
-                cell: (item) => statusBadge(item),
-            },
-            {
                 key: 'first_result',
-                header: '1ra insp.',
+                header: 'Resultado',
                 sortable: true,
                 cell: (item) => (
-                    <div className="flex flex-col items-start gap-1">
+                    <div className="flex items-center gap-2">
                         <ResultChip
                             value={item.first_result}
                             percent={item.first_pareto_percent}
                             hasNo={item.first_has_no}
                         />
-                        {(item.round_number ?? 1) > 1 ? (
-                            <span className="text-[10px] font-medium text-slate-500">
-                                Ronda {item.round_number}
+                        {item.first_pareto_percent != null ? (
+                            <span className="shrink-0 text-xs font-semibold tabular-nums text-slate-600">
+                                {item.first_pareto_percent}%
                             </span>
                         ) : null}
                     </div>
                 ),
             },
             {
-                key: 'second_result',
-                header: '2da insp.',
-                cell: (item) =>
-                    item.coordinator_status === 'reviewed' ? (
-                        <ResultChip
-                            value={item.second_result}
-                            percent={item.second_pareto_percent}
-                            hasNo={item.second_has_no}
-                        />
-                    ) : item.coordinator_status === 'observed' ? (
-                        <StatBadge
-                            label="En revisión"
-                            value=""
-                            variant="warning"
-                        />
-                    ) : (
-                        <ResultChip value={null} />
-                    ),
+                key: 'rounds',
+                header: 'Rondas',
+                cell: (item) => {
+                    const rounds = Math.max(1, item.rounds ?? item.round_number ?? 1);
+
+                    return (
+                        <div className="flex items-center gap-2">
+                            <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-800 ring-1 ring-brand-200">
+                                {rounds}
+                            </span>
+                            <span className="whitespace-nowrap text-xs text-slate-600">
+                                {rounds === 1 ? 'inspección' : 'rondas'}
+                            </span>
+                        </div>
+                    );
+                },
+            },
+            {
+                key: 'observations',
+                header: 'Observaciones',
+                cell: (item) => (
+                    <ObservationPreview
+                        item={item}
+                        onOpen={() => setDetail(item)}
+                    />
+                ),
             },
             {
                 key: 'first_inspected_on',
@@ -815,6 +942,10 @@ export function ChecklistsTable({
             checklist={transferring}
             inspectors={inspectors}
             onClose={() => setTransferring(null)}
+        />
+        <ObservationDetailModal
+            item={detail}
+            onClose={() => setDetail(null)}
         />
         </>
     );

@@ -95,8 +95,9 @@ class ChecklistController extends Controller
                 'period:id,name,date,status',
                 'creator:id,name',
                 'unit:id,correlative,plate_number,driver_name,driver_dni,period_id,coordinator_id,sede,garita',
-                'answers:id,unit_checklist_id,checklist_item_id,first_value,second_value',
-                'answers.item:id,weight',
+                'answers:id,unit_checklist_id,checklist_item_id,first_value,second_value,observations',
+                'answers.item:id,parent_id,item_number,label,sort_order,weight',
+                'answers.item.parent:id,label',
             ])
             ->whereHas('period', fn ($q) => $q->where('status', 'active'));
 
@@ -151,6 +152,24 @@ class ChecklistController extends Controller
                 $checklist->setAttribute('first_has_no', $hasAnswers ? $first['has_no'] : null);
                 $checklist->setAttribute('second_pareto_percent', $hasAnswers ? $second['percent'] : null);
                 $checklist->setAttribute('second_has_no', $hasAnswers ? $second['has_no'] : null);
+                $checklist->setAttribute('rounds', max(1, (int) ($checklist->round_number ?? 1)));
+                $checklist->setAttribute('items_yes', $checklist->answers->where('first_value', 'yes')->count());
+                $checklist->setAttribute('observations', $checklist->answers
+                    ->filter(fn ($answer) => $answer->first_value === 'no')
+                    ->sortBy(fn ($answer) => sprintf(
+                        '%05d-%s',
+                        (int) ($answer->item?->sort_order ?? 0),
+                        (string) ($answer->item?->item_number ?? ''),
+                    ))
+                    ->map(fn ($answer) => [
+                        'id' => $answer->id,
+                        'number' => $answer->item?->item_number,
+                        'label' => $answer->item?->label ?: 'Ítem',
+                        'group' => $answer->item?->parent?->label,
+                        'note' => trim((string) ($answer->observations ?? '')) ?: null,
+                    ])
+                    ->values()
+                    ->all());
                 $checklist->unsetRelation('answers');
 
                 return $checklist;
