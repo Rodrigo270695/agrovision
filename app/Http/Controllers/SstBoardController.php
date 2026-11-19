@@ -235,6 +235,9 @@ class SstBoardController extends Controller
     {
         return Unit::query()
             ->whereHas('period', fn ($builder) => $builder->where('status', 'active'))
+            ->where(function ($query) {
+                $query->where('status', 'active')->orWhereNull('status');
+            })
             ->whereNotNull('vehicle_type')
             ->where('vehicle_type', '!=', '')
             ->distinct()

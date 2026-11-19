@@ -384,6 +384,9 @@ final class SstBoardItemDetailReport
         foreach ($periods as $period) {
             $units = Unit::query()
                 ->where('period_id', $period->id)
+                ->where(function ($query) {
+                    $query->where('status', 'active')->orWhereNull('status');
+                })
                 ->when($coordinatorId, fn ($query) => $query->where('coordinator_id', $coordinatorId))
                 ->when(
                     $vehicleTypes->isNotEmpty(),
