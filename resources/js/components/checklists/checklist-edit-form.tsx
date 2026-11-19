@@ -661,6 +661,26 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
         };
     }, [answers, checklist.items]);
 
+    const pendingItems = useMemo(() => {
+        return checklist.items.flatMap((item, index) => {
+            if ((answers[index]?.first_value ?? '') !== '') {
+                return [];
+            }
+
+            const parent = item.parent_id
+                ? checklist.items.find((row) => row.id === item.parent_id)
+                : null;
+            const source = parent ?? item;
+
+            return [
+                {
+                    parentId: parent?.id ?? null,
+                    label: `${source.item_number ? `${source.item_number} ` : ''}${source.label}`.trim(),
+                },
+            ];
+        });
+    }, [answers, checklist.items]);
+
     const secondStats = useMemo(() => {
         const marked = answers.filter((a) => a.second_value !== '').length;
         const yes = answers.filter((a) => a.second_value === 'yes').length;
@@ -2228,7 +2248,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                             {firstLocked
                                 ? 'La inspección ya tiene resultado. Las rondas siguientes se hacen en el calendario de observaciones.'
                                 : !firstStats.allMarked
-                                  ? 'Marca todos los ítems en SÍ o NO. Al aprobar, el sistema deja el resultado.'
+                                  ? `Faltan ${pendingItems.length} ítems dentro de ${[...new Set(pendingItems.map((item) => item.label))].slice(0, 2).join(' y ')}. Ábrelos y marca SÍ o NO. Las fotos no son obligatorias.`
                                   : firstStats.missingExpiry
                                     ? 'Completa el vencimiento de los ítems en SÍ.'
                                     : (passCloseBlocked('first', signatures) ??
@@ -2249,12 +2269,35 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                             {showFirstActions ? (
                                 <Button
                                     type="button"
-                                    disabled={
-                                        processing ||
-                                        !firstStats.allMarked ||
-                                        firstStats.missingExpiry
-                                    }
-                                    onClick={() =>
+                                    disabled={processing}
+                                    onClick={() => {
+                                        if (!firstStats.allMarked) {
+                                            setOpenParents((current) => {
+                                                const next = new Set(current);
+
+                                                for (const item of pendingItems) {
+                                                    if (item.parentId !== null) {
+                                                        next.add(item.parentId);
+                                                    }
+                                                }
+
+                                                return next;
+                                            });
+                                            toast.error(
+                                                'Faltan ítems por marcar dentro de los grupos. Las fotos no son obligatorias.',
+                                            );
+
+                                            return;
+                                        }
+
+                                        if (firstStats.missingExpiry) {
+                                            toast.error(
+                                                'Completa el vencimiento de los ítems en SÍ.',
+                                            );
+
+                                            return;
+                                        }
+
                                         save({
                                             status: 'draft',
                                             first_result:
@@ -2262,11 +2305,11 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                                                 PARETO_PASS_THRESHOLD
                                                     ? 'approved'
                                                     : 'rejected',
-                                        })
-                                    }
+                                        });
+                                    }}
                                     className="h-11 cursor-pointer bg-emerald-700 text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10"
                                 >
-                                    Aprobar inspección
+                                    Guardar inspección
                                 </Button>
                             ) : null}
 
