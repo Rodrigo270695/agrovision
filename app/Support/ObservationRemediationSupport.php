@@ -194,6 +194,135 @@ final class ObservationRemediationSupport
         return $changed;
     }
 
+    /**
+     * La ronda 1 conserva todo lo observado. Cada ronda siguiente
+     * solo muestra lo que sigue en NO y lo que se subsanó en esa ronda.
+     *
+     * @return list<array{number: int, items: list<array{id: int, number: string|null, label: string, group: string|null, status: string}>}>
+     */
+    public static function roundHistory(UnitChecklist $checklist): array
+    {
+        $catalog = [];
+        $openIds = [];
+
+        foreach ($checklist->answers as $answer) {
+            $itemId = (int) $answer->checklist_item_id;
+            $catalog[$itemId] = [
+                'id' => $itemId,
+                'number' => $answer->item?->item_number,
+                'label' => $answer->item?->label ?: 'Ítem',
+                'group' => $answer->item?->parent?->label,
+                'sort' => sprintf(
+                    '%05d-%s',
+                    (int) ($answer->item?->sort_order ?? 0),
+                    (string) ($answer->item?->item_number ?? ''),
+                ),
+            ];
+
+            if ($answer->first_value === 'no') {
+                $openIds[$itemId] = true;
+            }
+        }
+
+        $lifts = [];
+        $remediations = $checklist->relationLoaded('observationRemediations')
+            ? $checklist->observationRemediations
+            : collect();
+
+        foreach ($remediations->sortBy('id') as $remediation) {
+            $events = $remediation->relationLoaded('events')
+                ? $remediation->events
+                : collect();
+
+            foreach ($events->sortBy('id') as $event) {
+                if ($event->event !== 'verified') {
+                    continue;
+                }
+
+                $payload = is_array($event->payload) ? $event->payload : [];
+                $updated = $payload['answers_updated'] ?? [];
+                if (! is_array($updated)) {
+                    continue;
+                }
+
+                $ids = [];
+                foreach ($updated as $row) {
+                    if (! is_array($row)) {
+                        continue;
+                    }
+
+                    $itemId = (int) ($row['item_id'] ?? 0);
+                    if ($itemId > 0 && isset($catalog[$itemId])) {
+                        $ids[$itemId] = true;
+                    }
+                }
+
+                if ($ids !== []) {
+                    $lifts[] = array_keys($ids);
+                }
+            }
+        }
+
+        $original = $openIds;
+        foreach ($lifts as $ids) {
+            foreach ($ids as $id) {
+                $original[$id] = true;
+            }
+        }
+
+        $rowsFor = function (array $open, array $clearedNow) use ($catalog): array {
+            $rows = [];
+
+            foreach ($catalog as $id => $meta) {
+                if (! isset($open[$id]) && ! isset($clearedNow[$id])) {
+                    continue;
+                }
+
+                $rows[] = [
+                    'id' => $meta['id'],
+                    'number' => $meta['number'],
+                    'label' => $meta['label'],
+                    'group' => $meta['group'],
+                    'sort' => $meta['sort'],
+                    'status' => isset($clearedNow[$id]) ? 'cleared' : 'open',
+                ];
+            }
+
+            usort($rows, fn (array $a, array $b) => strcmp((string) $a['sort'], (string) $b['sort']));
+
+            return array_map(function (array $row) {
+                unset($row['sort']);
+
+                return $row;
+            }, $rows);
+        };
+
+        $stillOpen = $original;
+        $rounds = [[
+            'number' => 1,
+            'items' => $rowsFor($stillOpen, []),
+        ]];
+
+        foreach ($lifts as $index => $ids) {
+            $clearedNow = [];
+            foreach ($ids as $id) {
+                if (! isset($stillOpen[$id])) {
+                    continue;
+                }
+
+                unset($stillOpen[$id]);
+                $clearedNow[$id] = true;
+            }
+
+            $rounds[] = [
+                'number' => $index + 2,
+                'items' => $rowsFor($stillOpen, $clearedNow),
+            ];
+        }
+
+        return $rounds;
+    }
+
     public static function copyFirstIntoSecond(UnitChecklist $checklist): void
     {
         foreach ($checklist->answers as $answer) {

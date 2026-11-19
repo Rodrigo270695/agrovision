@@ -1,4 +1,4 @@
-import { ArrowRightLeft, Ban, ClipboardCheck, Clock, FileDown, FilePenLine, Pencil, Trash2 } from 'lucide-react';
+import { ArrowRightLeft, Ban, Check, ClipboardCheck, Clock, FileDown, FilePenLine, Pencil, Trash2 } from 'lucide-react';
 import { AppModal } from '@/components/shared/app-modal';
 import { Button } from '@/components/ui/button';
 import { formatDaysSince } from '@/lib/document-expiry';
@@ -45,6 +45,19 @@ export type ChecklistObservation = {
     note?: string | null;
 };
 
+export type ChecklistRoundItem = {
+    id: number;
+    number?: string | null;
+    label: string;
+    group?: string | null;
+    status: 'open' | 'cleared';
+};
+
+export type ChecklistRound = {
+    number: number;
+    items: ChecklistRoundItem[];
+};
+
 export type ChecklistItemRow = {
     id: number | string;
     pending_sync?: boolean;
@@ -65,6 +78,7 @@ export type ChecklistItemRow = {
     rounds?: number | null;
     items_yes?: number | null;
     observations?: ChecklistObservation[];
+    round_history?: ChecklistRound[];
     second_result?: 'approved' | 'rejected' | null;
     second_pareto_percent?: number | null;
     second_has_no?: boolean | null;
@@ -214,7 +228,6 @@ function ObservationPreview({
 }) {
     const observations = item.observations ?? [];
     const preview = observations.slice(0, 2);
-    const extra = observations.length - preview.length;
 
     return (
         <button
@@ -241,11 +254,7 @@ function ObservationPreview({
                 ))
             )}
             <span className="text-xs font-semibold whitespace-nowrap text-brand-700">
-                {observations.length === 0
-                    ? 'Ver ítems'
-                    : extra > 0
-                      ? `Ver ${observations.length} ítems`
-                      : 'Ver detalle'}
+                Ver rondas
             </span>
         </button>
     );
@@ -258,20 +267,46 @@ function ObservationDetailModal({
     item: ChecklistItemRow | null;
     onClose: () => void;
 }) {
-    const observations = item?.observations ?? [];
-    const rounds = Math.max(1, item?.rounds ?? item?.round_number ?? 1);
+    const history =
+        item?.round_history && item.round_history.length > 0
+            ? item.round_history
+            : [
+                  {
+                      number: 1,
+                      items: (item?.observations ?? []).map((observation) => ({
+                          id: observation.id,
+                          number: observation.number,
+                          label: observation.label,
+                          group: observation.group,
+                          status: 'open' as const,
+                      })),
+                  },
+              ];
+    const itemKey = item?.id ?? 'none';
+    const [selection, setSelection] = useState({ key: itemKey, number: 1 });
+    if (selection.key !== itemKey) {
+        setSelection({ key: itemKey, number: 1 });
+    }
+    const round =
+        history.find((entry) => entry.number === selection.number) ??
+        history[0];
+    const openItems = (round?.items ?? []).filter((entry) => entry.status === 'open');
+    const clearedItems = (round?.items ?? []).filter(
+        (entry) => entry.status === 'cleared',
+    );
+    const finished = openItems.length === 0 && (round?.number ?? 1) > 1;
 
     return (
         <AppModal
             open={item !== null}
             onClose={onClose}
-            title={item ? `${item.plate_number}` : 'Inspección'}
+            title={item ? `Rondas · ${item.plate_number}` : 'Rondas'}
             description={
                 item
-                    ? `${item.driver_name || 'Sin conductor'} · ${rounds === 1 ? '1 inspección' : `${rounds} rondas`}`
+                    ? `${item.driver_name || 'Sin conductor'}. La primera ronda queda registrada. En las siguientes solo se ven las observaciones que siguen y las que se subsanaron.`
                     : undefined
             }
-            className="sm:max-w-xl"
+            className="sm:max-w-2xl"
             footer={
                 <Button
                     type="button"
@@ -283,7 +318,7 @@ function ObservationDetailModal({
                 </Button>
             }
         >
-            {item ? (
+            {item && round ? (
                 <div className="space-y-4">
                     <div className="flex flex-wrap items-center gap-2">
                         <ResultChip
@@ -297,45 +332,123 @@ function ObservationDetailModal({
                                 : 'Sin puntaje'}
                         </span>
                     </div>
-                    <p className="text-sm text-slate-600">
-                        {observations.length === 0
-                            ? `${item.items_yes ?? 0} ítems en SÍ. No hay observaciones.`
-                            : `${observations.length} en NO · ${item.items_yes ?? 0} en SÍ.`}
-                    </p>
-                    {observations.length === 0 ? (
-                        <p className="rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-600 ring-1 ring-slate-100">
-                            Esta inspección no tiene ítems observados.
+                    <div
+                        className="flex gap-2 overflow-x-auto pb-1"
+                        role="tablist"
+                        aria-label="Rondas de la inspección"
+                    >
+                        {history.map((entry) => {
+                            const pending = entry.items.filter(
+                                (row) => row.status === 'open',
+                            ).length;
+                            const active = entry.number === round.number;
+                            const done = pending === 0 && entry.number > 1;
+
+                            return (
+                                <button
+                                    key={entry.number}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={active}
+                                    onClick={() =>
+                                        setSelection({
+                                            key: itemKey,
+                                            number: entry.number,
+                                        })
+                                    }
+                                    className={`inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset ${
+                                        active
+                                            ? 'bg-brand-700 text-white ring-brand-700'
+                                            : 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    <span
+                                        className={`inline-flex size-4 items-center justify-center rounded-full ${
+                                            active
+                                                ? 'bg-white/20'
+                                                : done
+                                                  ? 'bg-emerald-100 text-emerald-700'
+                                                  : 'bg-slate-100 text-slate-500'
+                                        }`}
+                                        aria-hidden="true"
+                                    >
+                                        {done ? (
+                                            <Check className="size-3" />
+                                        ) : (
+                                            entry.number
+                                        )}
+                                    </span>
+                                    {entry.number === 1
+                                        ? 'Ronda 1'
+                                        : `Ronda ${entry.number}`}
+                                    <span className={active ? 'text-white/80' : 'font-medium text-slate-500'}>
+                                        {pending === 0
+                                            ? 'sin observaciones'
+                                            : `${pending} en NO`}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                    {finished ? (
+                        <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800 ring-1 ring-emerald-100">
+                            Esta ronda llegó al 100 %. No quedan observaciones.
                         </p>
                     ) : (
-                        <ul className="space-y-2">
-                            {observations.map((observation) => (
-                                <li
-                                    key={observation.id}
-                                    className="rounded-xl border border-slate-200 bg-white px-3 py-2.5"
-                                >
-                                    {observation.group ? (
-                                        <p className="text-[11px] font-medium tracking-wide text-slate-500 uppercase">
-                                            {observation.group}
-                                        </p>
-                                    ) : null}
-                                    <p className="text-sm font-semibold text-slate-800">
-                                        {observation.number
-                                            ? `${observation.number}. `
-                                            : ''}
-                                        {observation.label}
-                                    </p>
-                                    <p className="mt-1 text-xs font-medium text-rose-700">
-                                        En NO
-                                    </p>
-                                    {observation.note ? (
-                                        <p className="mt-1 text-sm whitespace-pre-line text-slate-600">
-                                            {observation.note}
-                                        </p>
-                                    ) : null}
-                                </li>
-                            ))}
-                        </ul>
+                        <p className="text-sm text-slate-600">
+                            {round.number === 1
+                                ? `${openItems.length} observaciones de la primera inspección. Este registro no se borra.`
+                                : `${openItems.length} siguen en NO · ${clearedItems.length} subsanadas en esta ronda.`}
+                        </p>
                     )}
+                    <ul className="space-y-2">
+                        {[...openItems, ...clearedItems].map((entry) => {
+                            const cleared = entry.status === 'cleared';
+
+                            return (
+                                <li
+                                    key={`${round.number}-${entry.id}`}
+                                    className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5"
+                                >
+                                    <span
+                                        className={`mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded border ${
+                                            cleared
+                                                ? 'border-emerald-600 bg-emerald-600 text-white'
+                                                : 'border-slate-300 bg-white'
+                                        }`}
+                                        aria-hidden="true"
+                                    >
+                                        {cleared ? <Check className="size-3.5" /> : null}
+                                    </span>
+                                    <div className="min-w-0">
+                                        {entry.group ? (
+                                            <p className="text-[11px] font-medium tracking-wide text-slate-500 uppercase">
+                                                {entry.group}
+                                            </p>
+                                        ) : null}
+                                        <p
+                                            className={`text-sm font-semibold ${
+                                                cleared
+                                                    ? 'text-slate-400 line-through'
+                                                    : 'text-slate-800'
+                                            }`}
+                                        >
+                                            {entry.number ? `${entry.number}. ` : ''}
+                                            {entry.label}
+                                        </p>
+                                        <p className={`text-xs font-medium ${cleared ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                            {cleared ? 'Subsanado' : 'Observado'}
+                                        </p>
+                                    </div>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                    {openItems.length === 0 && clearedItems.length === 0 ? (
+                        <p className="rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-600 ring-1 ring-slate-100">
+                            Esta ronda no tiene observaciones.
+                        </p>
+                    ) : null}
                 </div>
             ) : null}
         </AppModal>
@@ -352,7 +465,7 @@ function closedPassAction(
     isSuperAdmin: boolean,
     onEdit: (item: ChecklistItemRow, pass?: 'first' | 'second') => void,
 ): RowActionItem {
-    const label = pass === 'first' ? '1ra' : '2da';
+    const label = pass === 'first' ? 'inspección' : '2da';
     const status = pass === 'first' ? item.edit_first : item.edit_second;
 
     if (isSuperAdmin || status === 'approved') {
@@ -411,7 +524,6 @@ function editActions(
     }
 
     const firstClosed = decided(item.first_result);
-    const secondClosed = decided(item.second_result);
     const actions: RowActionItem[] = [];
 
     if (!firstClosed) {
@@ -425,21 +537,15 @@ function editActions(
         return actions;
     }
 
-    actions.push(closedPassAction(item, 'first', isSuperAdmin, onEdit));
-
-    const secondStarted =
-        (item.second_pareto_percent ?? 0) > 0 || item.second_has_no === true;
-
-    if (!secondClosed && secondStarted) {
-        actions.push({
-            key: 'continue-second',
-            label: 'Completar 2da',
-            icon: Pencil,
-            onSelect: () => onEdit(item),
-        });
-    } else if (secondClosed) {
-        actions.push(closedPassAction(item, 'second', isSuperAdmin, onEdit));
-    }
+    actions.push({
+        ...closedPassAction(item, 'first', isSuperAdmin, onEdit),
+        label:
+            isSuperAdmin || item.edit_first === 'approved'
+                ? 'Editar'
+                : item.edit_first === 'pending'
+                  ? 'Esperando edición'
+                  : 'Pedir editar',
+    });
 
     return actions;
 }
@@ -613,17 +719,28 @@ export function ChecklistsTable({
                 key: 'rounds',
                 header: 'Rondas',
                 cell: (item) => {
-                    const rounds = Math.max(1, item.rounds ?? item.round_number ?? 1);
+                    const rounds = Math.max(
+                        1,
+                        item.round_history?.length ??
+                            item.rounds ??
+                            item.round_number ??
+                            1,
+                    );
 
                     return (
-                        <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setDetail(item)}
+                            className="flex cursor-pointer items-center gap-2 rounded-lg px-1 py-1 text-left hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
+                            aria-label={`Ver ${rounds === 1 ? 'la inspección' : `${rounds} rondas`} de ${item.plate_number}`}
+                        >
                             <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-800 ring-1 ring-brand-200">
                                 {rounds}
                             </span>
-                            <span className="whitespace-nowrap text-xs text-slate-600">
-                                {rounds === 1 ? 'inspección' : 'rondas'}
+                            <span className="text-xs font-semibold whitespace-nowrap text-brand-700">
+                                {rounds === 1 ? 'Ver ronda' : 'Ver rondas'}
                             </span>
-                        </div>
+                        </button>
                     );
                 },
             },

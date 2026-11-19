@@ -26,6 +26,7 @@ use App\Support\ImageShrinker;
 use App\Support\IndexedRedirect;
 use App\Support\InspectionDatabaseExporter;
 use App\Support\InspectionPlace;
+use App\Support\ObservationRemediationSupport;
 use App\Support\ParetoCheckTypes;
 use App\Support\ChecklistTemplateResolver;
 use App\Support\ParetoPassThreshold;
@@ -98,6 +99,7 @@ class ChecklistController extends Controller
                 'answers:id,unit_checklist_id,checklist_item_id,first_value,second_value,observations',
                 'answers.item:id,parent_id,item_number,label,sort_order,weight',
                 'answers.item.parent:id,label',
+                'observationRemediations.events:id,observation_remediation_id,event,payload',
             ])
             ->whereHas('period', fn ($q) => $q->where('status', 'active'));
 
@@ -170,7 +172,12 @@ class ChecklistController extends Controller
                     ])
                     ->values()
                     ->all());
+                $checklist->setAttribute(
+                    'round_history',
+                    ObservationRemediationSupport::roundHistory($checklist),
+                );
                 $checklist->unsetRelation('answers');
+                $checklist->unsetRelation('observationRemediations');
 
                 return $checklist;
             });
