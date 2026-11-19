@@ -397,6 +397,10 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:observation_remediations.view')
             ->name('observation-remediations.index');
 
+        Route::get('calendario-observaciones/exportar', [ObservationRemediationController::class, 'export'])
+            ->middleware('permission:observation_remediations.view')
+            ->name('observation-remediations.export');
+
         Route::post('calendario-observaciones/{checklist}/enviar', [ObservationRemediationController::class, 'submit'])
             ->middleware('permission:observation_remediations.submit')
             ->name('observation-remediations.submit');

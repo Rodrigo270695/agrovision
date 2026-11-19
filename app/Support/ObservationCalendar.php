@@ -399,6 +399,7 @@ final class ObservationCalendar
                 default => $passInfo['grade'],
             },
             'percent' => $passInfo['percent'],
+            ...$this->pendingLift((string) $passInfo['date'], (string) $passInfo['grade']),
             'plate_number' => $checklist->plate_number,
             'driver_name' => $checklist->driver_name,
             'driver_dni' => $checklist->unit?->driver_dni,
@@ -562,6 +563,33 @@ final class ObservationCalendar
             })
             ->values()
             ->all();
+    }
+
+    /**
+     * @return array{pending_days: int|null, pending_label: string}
+     */
+    private function pendingLift(string $date, string $grade): array
+    {
+        if ($grade === 'approved') {
+            return [
+                'pending_days' => null,
+                'pending_label' => '—',
+            ];
+        }
+
+        $start = Carbon::parse($date, (string) config('app.timezone'))->startOfDay();
+        $today = now()->timezone(config('app.timezone'))->startOfDay();
+        $seconds = $today->getTimestamp() - $start->getTimestamp();
+        $days = max(0, (int) floor($seconds / 86400));
+
+        return [
+            'pending_days' => $days,
+            'pending_label' => match ($days) {
+                0 => 'Hoy',
+                1 => '1 día',
+                default => $days.' días',
+            },
+        ];
     }
 
     /**

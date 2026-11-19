@@ -9,6 +9,7 @@ use App\Models\UnitChecklist;
 use App\Models\UnitChecklistSignature;
 use App\Services\PushNotificationService;
 use App\Support\ObservationCalendar;
+use App\Support\ObservationListExcel;
 use App\Support\ObservationRemediationSupport;
 use App\Support\PermissionCatalog;
 use App\Support\SignatureImage;
@@ -23,6 +24,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ObservationRemediationController extends Controller
 {
@@ -89,6 +91,58 @@ class ObservationRemediationController extends Controller
             ],
             'can_submit' => Auth::user()?->can('observation_remediations.submit') ?? false,
             'can_verify' => Auth::user()?->can('observation_remediations.verify') ?? false,
+        ]);
+    }
+
+    public function export(Request $request, ObservationCalendar $calendar, ObservationListExcel $excel): StreamedResponse
+    {
+        $validated = $request->validate([
+            'year' => ['nullable', 'integer', 'min:2020', 'max:2100'],
+            'month' => ['nullable', 'integer', 'min:1', 'max:12'],
+            'search' => ['nullable', 'string', 'max:120'],
+            'sede' => ['nullable', 'string', 'max:120'],
+            'provider' => ['nullable', 'string', 'max:255'],
+            'responsible' => ['nullable', 'string', 'max:255'],
+            'grade' => ['nullable', Rule::in(['approved', 'approved_notes', 'rejected'])],
+        ]);
+
+        $today = now()->timezone(config('app.timezone'));
+        $year = (int) ($validated['year'] ?? $today->year);
+        $month = (int) ($validated['month'] ?? $today->month);
+        $search = trim((string) ($validated['search'] ?? ''));
+        $filters = [
+            'search' => $search !== '' ? $search : null,
+            'sede' => trim((string) ($validated['sede'] ?? '')) ?: null,
+            'provider' => trim((string) ($validated['provider'] ?? '')) ?: null,
+            'responsible' => trim((string) ($validated['responsible'] ?? '')) ?: null,
+            'grade' => $validated['grade'] ?? null,
+        ];
+
+        $rows = $calendar->actionableList($year, $month, $filters);
+        $months = [
+            1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',
+            5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto',
+            9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre',
+        ];
+        $gradeLabel = match ($filters['grade']) {
+            'approved' => 'Aprobados',
+            'approved_notes' => 'Aprobados con observación',
+            'rejected' => 'Desaprobados',
+            default => 'Con observación y desaprobados',
+        };
+        $parts = array_filter([
+            $search !== '' ? $search : null,
+            $filters['sede'],
+            $filters['provider'],
+            $filters['responsible'],
+        ]);
+
+        return $excel->download($rows, sprintf('observaciones-%04d-%02d.xlsx', $year, $month), [
+            'month' => ($months[$month] ?? '').' '.$year,
+            'grade' => $gradeLabel,
+            'search' => $parts === [] ? 'Sin búsqueda' : implode(' · ', $parts),
+            'generated_at' => $today->format('d/m/Y H:i'),
+            'total' => count($rows),
         ]);
     }
 

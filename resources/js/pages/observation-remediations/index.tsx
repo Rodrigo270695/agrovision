@@ -8,6 +8,7 @@ import {
     ChevronLeft,
     ChevronRight,
     ClipboardCheck,
+    Download,
     Eye,
     ImagePlus,
     List,
@@ -79,6 +80,8 @@ type DayUnit = {
     inspector?: string | null;
     template?: string | null;
     inspected_on?: string | null;
+    pending_days?: number | null;
+    pending_label?: string | null;
     remediation: {
         id: number | null;
         status: string;
@@ -850,6 +853,15 @@ export default function ObservationRemediationsPage() {
                                         ? 'No hay desaprobados en este mes'
                                         : 'No hay observaciones pendientes ni desaprobadas en este mes'
                             }
+                            exportUrl={observationExportUrl({
+                                year: calendar.year,
+                                month: calendar.month,
+                                search: activeSearch,
+                                sede: activeSede,
+                                provider: activeProvider,
+                                responsible: activeResponsible,
+                                grade: activeGrade,
+                            })}
                             onOpen={setDetail}
                             actionsFor={unitActions}
                         />
@@ -1225,6 +1237,7 @@ function ObservationListPanel({
     description,
     search,
     emptyLabel,
+    exportUrl,
     onOpen,
     actionsFor,
 }: {
@@ -1234,6 +1247,7 @@ function ObservationListPanel({
     description: string;
     search: string;
     emptyLabel: string;
+    exportUrl?: string;
     onOpen: (unit: DayUnit) => void;
     actionsFor: (unit: DayUnit) => RowActionItem[];
 }) {
@@ -1252,9 +1266,20 @@ function ObservationListPanel({
                         {search ? ` · filtro “${search}”` : ''}.
                     </p>
                 </div>
-                <p className="text-xs font-semibold tabular-nums text-brand-700">
-                    {units.length} registro{units.length === 1 ? '' : 's'}
-                </p>
+                <div className="flex items-center gap-3">
+                    {exportUrl ? (
+                        <a
+                            href={exportUrl}
+                            className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-brand-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-800"
+                        >
+                            <Download className="size-3.5" />
+                            Descargar Excel
+                        </a>
+                    ) : null}
+                    <p className="text-xs font-semibold tabular-nums text-brand-700">
+                        {units.length} registro{units.length === 1 ? '' : 's'}
+                    </p>
+                </div>
             </div>
 
             {units.length === 0 ? (
@@ -1272,6 +1297,7 @@ function ObservationListPanel({
                                 <th className="px-4 py-2.5">Conductor</th>
                                 <th className="px-4 py-2.5">Estado</th>
                                 <th className="px-4 py-2.5">Levantamiento</th>
+                                <th className="px-4 py-2.5">Sin levantar</th>
                                 <th className="px-4 py-2.5 text-right">
                                     Acciones
                                 </th>
@@ -1318,6 +1344,12 @@ function ObservationListPanel({
                                     </td>
                                     <td className="px-4 py-3 text-xs text-slate-600">
                                         {unit.remediation.status_label}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <PendingLift
+                                            days={unit.pending_days}
+                                            label={unit.pending_label}
+                                        />
                                     </td>
                                     <td className="px-4 py-3 text-right">
                                         <div className="inline-flex justify-end">
@@ -1399,6 +1431,67 @@ function NavIconButton({
         >
             {children}
         </Button>
+    );
+}
+
+function observationExportUrl(query: {
+    year: number;
+    month: number;
+    search?: string | null;
+    sede?: string | null;
+    provider?: string | null;
+    responsible?: string | null;
+    grade?: string | null;
+}): string {
+    const params = new URLSearchParams();
+    params.set('year', String(query.year));
+    params.set('month', String(query.month));
+    if (query.search) {
+        params.set('search', query.search);
+    }
+    if (query.sede) {
+        params.set('sede', query.sede);
+    }
+    if (query.provider) {
+        params.set('provider', query.provider);
+    }
+    if (query.responsible) {
+        params.set('responsible', query.responsible);
+    }
+    if (query.grade) {
+        params.set('grade', query.grade);
+    }
+
+    return `/calendario-observaciones/exportar?${params.toString()}`;
+}
+
+function PendingLift({
+    days,
+    label,
+}: {
+    days?: number | null;
+    label?: string | null;
+}) {
+    if (days == null || !label || label === '—') {
+        return <span className="text-xs text-slate-400">—</span>;
+    }
+
+    const tone =
+        days >= 7
+            ? 'bg-rose-100 text-rose-800'
+            : days >= 3
+              ? 'bg-amber-100 text-amber-900'
+              : 'bg-slate-100 text-slate-700';
+
+    return (
+        <span
+            className={cn(
+                'inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tabular-nums',
+                tone,
+            )}
+        >
+            {label}
+        </span>
     );
 }
 
