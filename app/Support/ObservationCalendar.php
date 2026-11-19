@@ -119,6 +119,7 @@ final class ObservationCalendar
                     'answers.item:id,weight,label,item_number',
                     'observationRemediations.photos',
                     'observationRemediations.events.user:id,name',
+                    'signatures:id,unit_checklist_id,inspection_pass,slot,signer_name,signature_path',
                 ])
                 ->where(function ($q) use ($date) {
                     $q->whereDate('first_inspected_on', $date)
@@ -209,6 +210,7 @@ final class ObservationCalendar
                     'answers.item:id,weight,label,item_number',
                     'observationRemediations.photos',
                     'observationRemediations.events.user:id,name',
+                    'signatures:id,unit_checklist_id,inspection_pass,slot,signer_name,signature_path',
                 ])
                 ->where(function ($q) use ($from, $to) {
                     $q->whereBetween('first_inspected_on', [$from, $to])
@@ -400,6 +402,9 @@ final class ObservationCalendar
             'plate_number' => $checklist->plate_number,
             'driver_name' => $checklist->driver_name,
             'driver_dni' => $checklist->unit?->driver_dni,
+            'plate_driver' => trim((string) ($checklist->unit?->driver_name ?: $checklist->driver_name)),
+            'driver_signature' => $this->firstDriverSignature($checklist),
+            'ok_items' => $this->okItems($checklist),
             'sede' => $checklist->unit?->sede,
             'garita' => $checklist->unit?->garita,
             'inspector' => $checklist->creator?->name,
@@ -555,6 +560,60 @@ final class ObservationCalendar
                     'photos' => $photos,
                 ];
             })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array{name: string, url: string, same_driver: bool}|null
+     */
+    private function firstDriverSignature(UnitChecklist $checklist): ?array
+    {
+        if (! $checklist->relationLoaded('signatures')) {
+            return null;
+        }
+
+        $signature = $checklist->signatures->first(
+            fn ($row) => $row->inspection_pass === 'first'
+                && $row->slot === 'driver'
+                && filled($row->signature_path),
+        );
+
+        if ($signature === null) {
+            return null;
+        }
+
+        $plateDriver = trim((string) ($checklist->unit?->driver_name ?: $checklist->driver_name));
+        $signedName = trim((string) $signature->signer_name);
+        $same = $signedName !== '' && (
+            $plateDriver === ''
+            || mb_strtolower($signedName) === mb_strtolower($plateDriver)
+        );
+
+        return [
+            'name' => $signedName,
+            'url' => $signature->signatureUrl(),
+            'same_driver' => $same,
+        ];
+    }
+
+    /**
+     * @return list<array{id: int, item_number: mixed, label: string}>
+     */
+    private function okItems(UnitChecklist $checklist): array
+    {
+        if (! $checklist->relationLoaded('answers')) {
+            return [];
+        }
+
+        return $checklist->answers
+            ->filter(fn ($answer) => $answer->first_value === 'yes')
+            ->map(fn ($answer) => [
+                'id' => $answer->id,
+                'item_number' => $answer->item?->item_number,
+                'label' => $answer->item?->label ?: 'Ítem',
+            ])
+            ->sortBy(fn (array $row) => sprintf('%08s', (string) ($row['item_number'] ?? '')))
             ->values()
             ->all();
     }

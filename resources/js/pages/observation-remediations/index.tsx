@@ -21,6 +21,7 @@ import {
     XCircle,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { SignaturePad } from '@/components/checklists/signature-pad';
 import { AppModal } from '@/components/shared/app-modal';
 import {
     RowActionsMenu,
@@ -62,6 +63,17 @@ type DayUnit = {
     plate_number: string;
     driver_name?: string | null;
     driver_dni?: string | null;
+    plate_driver?: string | null;
+    driver_signature?: {
+        name: string;
+        url: string | null;
+        same_driver: boolean;
+    } | null;
+    ok_items?: {
+        id: number;
+        item_number?: string | number | null;
+        label: string;
+    }[];
     sede?: string | null;
     garita?: string | null;
     inspector?: string | null;
@@ -1618,6 +1630,24 @@ function RemediationDetailModal({
     const [sending, setSending] = useState(false);
     const [checkedIds, setCheckedIds] = useState<Record<number, boolean>>({});
     const [itemNotes, setItemNotes] = useState<Record<number, string>>({});
+    const { auth } = usePage<{
+        auth: { user?: { name?: string | null } | null };
+    }>().props;
+    const priorDriver = unit.driver_signature;
+    const canReuseDriver = Boolean(priorDriver?.url);
+    const [reuseDriver, setReuseDriver] = useState(
+        canReuseDriver && priorDriver?.same_driver !== false,
+    );
+    const [driverName, setDriverName] = useState(
+        unit.plate_driver || unit.driver_name || '',
+    );
+    const [driverSignature, setDriverSignature] = useState<string | null>(null);
+    const [sstName, setSstName] = useState(
+        auth.user?.name?.trim() || unit.inspector || '',
+    );
+    const [sstSignature, setSstSignature] = useState<string | null>(null);
+    const [showNewIssues, setShowNewIssues] = useState(false);
+    const [newNoIds, setNewNoIds] = useState<Record<number, boolean>>({});
 
     const verifyForm = useForm<{
         pass: string;
@@ -1639,6 +1669,9 @@ function RemediationDetailModal({
     const noItems = unit.observations;
     const checkedCount = noItems.filter((item) => checkedIds[item.id] === true).length;
     const hasChecked = checkedCount > 0;
+    const okItems = unit.ok_items ?? [];
+    const newNoCount = okItems.filter((item) => newNoIds[item.id] === true).length;
+    const hasChange = hasChecked || newNoCount > 0;
 
     const sendToInspector = () => {
         const data = new FormData();
@@ -1744,18 +1777,53 @@ function RemediationDetailModal({
                                 type="button"
                                 className="cursor-pointer rounded-xl bg-brand-500 text-white hover:bg-brand-600"
                                 disabled={
-                                    verifyForm.processing || !hasChecked
+                                    verifyForm.processing || !hasChange
                                 }
                                 title={
-                                    hasChecked
+                                    hasChange
                                         ? undefined
-                                        : 'Marca al menos un ítem en NO'
+                                        : 'Marca un ítem levantado o una observación nueva'
                                 }
                                 onClick={() => {
-                                    if (!hasChecked) {
+                                    if (!hasChange) {
                                         toast.error(
-                                            'Marca al menos un ítem que se levantó. Los que no marques siguen en observación.',
+                                            'Marca al menos un ítem levantado o una observación nueva.',
                                         );
+                                        return;
+                                    }
+
+                                    if (
+                                        sstName.trim() === '' ||
+                                        !sstSignature
+                                    ) {
+                                        toast.error(
+                                            'Firma el V°B° del inspector para registrar la ronda.',
+                                        );
+                                        document
+                                            .getElementById('round-sst-sign')
+                                            ?.scrollIntoView({
+                                                behavior: 'smooth',
+                                                block: 'center',
+                                            });
+                                        return;
+                                    }
+
+                                    if (
+                                        !reuseDriver &&
+                                        (driverName.trim() === '' ||
+                                            !driverSignature)
+                                    ) {
+                                        toast.error(
+                                            'Indica el nombre del conductor y su firma.',
+                                        );
+                                        document
+                                            .getElementById(
+                                                'round-driver-sign',
+                                            )
+                                            ?.scrollIntoView({
+                                                behavior: 'smooth',
+                                                block: 'center',
+                                            });
                                         return;
                                     }
 
@@ -1771,7 +1839,20 @@ function RemediationDetailModal({
                                                         checkedIds[item.id],
                                                 )
                                                 .map((item) => item.id),
+                                            new_no_ids: okItems
+                                                .filter(
+                                                    (item) =>
+                                                        newNoIds[item.id],
+                                                )
+                                                .map((item) => item.id),
                                             item_notes: itemNotes,
+                                            reuse_driver: reuseDriver,
+                                            driver_name: driverName.trim(),
+                                            driver_signature: reuseDriver
+                                                ? null
+                                                : driverSignature,
+                                            sst_name: sstName.trim(),
+                                            sst_signature: sstSignature,
                                         },
                                         {
                                             preserveScroll: true,
@@ -2051,6 +2132,76 @@ function RemediationDetailModal({
                             inspección queda aprobada y no hay más rondas.
                         </p>
                     ) : null}
+                    {showVerify && okItems.length > 0 ? (
+                        <div className="mt-3">
+                            <button
+                                type="button"
+                                className="cursor-pointer text-sm font-semibold text-brand-700 underline-offset-2 hover:underline"
+                                onClick={() => setShowNewIssues((open) => !open)}
+                            >
+                                {showNewIssues
+                                    ? 'Ocultar ítems en SÍ'
+                                    : 'Surgieron observaciones nuevas'}
+                            </button>
+                            {showNewIssues ? (
+                                <div className="mt-2 space-y-2">
+                                    <p className="text-xs text-slate-500">
+                                        Estos ítems estaban en SÍ. Márcalos solo
+                                        si en esta ronda salieron mal.
+                                    </p>
+                                    <ul className="space-y-2">
+                                    {okItems.map((item) => {
+                                        const marked = newNoIds[item.id] === true;
+
+                                        return (
+                                            <li
+                                                key={item.id}
+                                                className={
+                                                    marked
+                                                        ? 'rounded-xl border border-rose-200 bg-rose-50/50 px-3 py-2'
+                                                        : 'rounded-xl border border-slate-200 bg-white px-3 py-2'
+                                                }
+                                            >
+                                                <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="mt-0.5 size-4 cursor-pointer rounded border-slate-300 accent-rose-600"
+                                                        checked={marked}
+                                                        onChange={(e) =>
+                                                            setNewNoIds(
+                                                                (prev) => ({
+                                                                    ...prev,
+                                                                    [item.id]:
+                                                                        e.target
+                                                                            .checked,
+                                                                }),
+                                                            )
+                                                        }
+                                                    />
+                                                    <span>
+                                                        {item.item_number
+                                                            ? `${item.item_number}. `
+                                                            : ''}
+                                                        {item.label}
+                                                        <span
+                                                            className={
+                                                                marked
+                                                                    ? 'ml-2 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700'
+                                                                    : 'ml-2 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800'
+                                                            }
+                                                        >
+                                                            {marked ? 'NO' : 'SÍ'}
+                                                        </span>
+                                                    </span>
+                                                </label>
+                                            </li>
+                                        );
+                                    })}
+                                    </ul>
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : null}
                 </div>
 
                 {unit.remediation.rejection_note ? (
@@ -2079,19 +2230,91 @@ function RemediationDetailModal({
 
                 {showVerify ? (
                     <div className="space-y-3 rounded-2xl border border-sky-200/80 bg-sky-50/50 p-3">
+                        <div id="round-sst-sign" className="space-y-2">
+                            <p className="text-sm font-semibold text-slate-800">
+                                V°B° del inspector
+                            </p>
+                            <Input
+                                value={sstName}
+                                onChange={(e) => setSstName(e.target.value)}
+                                placeholder="Nombre del inspector"
+                            />
+                            <SignaturePad
+                                valueUrl={sstSignature}
+                                onChange={setSstSignature}
+                            />
+                        </div>
+                        <div id="round-driver-sign" className="space-y-2">
+                            <p className="text-sm font-semibold text-slate-800">
+                                Firma del conductor
+                            </p>
+                            {reuseDriver && priorDriver?.url ? (
+                                <div className="rounded-xl border border-slate-200 bg-white p-3">
+                                    <p className="text-sm text-slate-700">
+                                        Se usa la firma de{' '}
+                                        <strong>
+                                            {priorDriver.name || 'el conductor'}
+                                        </strong>{' '}
+                                        de la primera inspección.
+                                    </p>
+                                    <img
+                                        src={priorDriver.url}
+                                        alt={`Firma de ${priorDriver.name || 'conductor'}`}
+                                        className="mt-2 h-16 max-w-full object-contain"
+                                    />
+                                    <button
+                                        type="button"
+                                        className="mt-2 cursor-pointer text-sm font-semibold text-brand-700 underline-offset-2 hover:underline"
+                                        onClick={() => setReuseDriver(false)}
+                                    >
+                                        Es otro conductor
+                                    </button>
+                                </div>
+                            ) : (
+                                <>
+                                    <Input
+                                        value={driverName}
+                                        onChange={(e) =>
+                                            setDriverName(e.target.value)
+                                        }
+                                        placeholder="Nombre del conductor"
+                                    />
+                                    <SignaturePad
+                                        valueUrl={driverSignature}
+                                        onChange={setDriverSignature}
+                                    />
+                                    {canReuseDriver ? (
+                                        <button
+                                            type="button"
+                                            className="cursor-pointer text-sm font-semibold text-brand-700 underline-offset-2 hover:underline"
+                                            onClick={() => setReuseDriver(true)}
+                                        >
+                                            Usar la firma de la primera
+                                            inspección
+                                        </button>
+                                    ) : (
+                                        <p className="text-xs text-slate-500">
+                                            La primera inspección no tiene firma
+                                            del conductor. Hay que firmarla aquí.
+                                        </p>
+                                    )}
+                                </>
+                            )}
+                        </div>
                         <p className="text-sm text-slate-600">
                             <strong>Registrar ronda:</strong> marca los ítems
-                            levantados. Si falta alguno, la inspección sigue en
-                            el mismo estado hasta llegar al 100 %.
+                            levantados y firma. Si falta alguno, la inspección
+                            sigue en el mismo estado hasta llegar al 100 %.
                         </p>
                         <p className="text-sm text-slate-600">
                             <strong>Rechazar:</strong> no hace falta marcar
                             checks. Escribe el motivo aquí abajo y pulsa
                             Rechazar; el coordinador podrá corregir y reenviar.
                         </p>
-                        {!hasChecked ? (
+                        {!hasChange ? (
                             <p className="text-xs font-medium text-amber-700">
-                                Marca al menos un ítem para registrar la ronda.
+                                Marca al menos un ítem levantado o una
+                                observación nueva.
                             </p>
                         ) : null}
                         <label className="block text-sm font-semibold text-slate-800">

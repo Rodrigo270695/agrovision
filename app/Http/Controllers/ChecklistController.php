@@ -1308,10 +1308,11 @@ class ChecklistController extends Controller
         $checklist->load('signatures');
 
         $signatures = $checklist->signatures
-            ->filter(fn (UnitChecklistSignature $signature) => in_array($signature->slot, ['driver', 'sst'], true))
+            ->filter(fn (UnitChecklistSignature $signature) => in_array($signature->slot, ['driver', 'sst'], true)
+                && filled($signature->signature_path))
             ->sortBy(fn (UnitChecklistSignature $signature) => sprintf(
-                '%s-%02d',
-                $signature->inspection_pass === 'second' ? '2' : '1',
+                '%02d-%02d',
+                $this->signaturePassOrder((string) $signature->inspection_pass),
                 array_search($signature->slot, ['driver', 'sst'], true) ?: 0,
             ))
             ->values()
@@ -1319,7 +1320,7 @@ class ChecklistController extends Controller
                 $image = $signature->signature_path
                     ? $toDataUri(Storage::disk('public')->path($signature->signature_path))
                     : null;
-                $pass = $signature->inspection_pass === 'second' ? '2da' : '1ra';
+                $pass = $this->signaturePassLabel((string) $signature->inspection_pass);
 
                 return [
                     'label' => $pass.' · '.$this->signatureSlotLabel((string) $signature->slot),
@@ -1994,6 +1995,30 @@ class ChecklistController extends Controller
             4 => '4ta',
             default => 'Ronda '.$number,
         };
+    }
+
+    private function signaturePassOrder(string $pass): int
+    {
+        if ($pass === 'first') {
+            return 1;
+        }
+
+        if ($pass === 'second') {
+            return 2;
+        }
+
+        if (preg_match('/^r(\d+)$/', $pass, $matches) === 1) {
+            return (int) $matches[1];
+        }
+
+        return 90;
+    }
+
+    private function signaturePassLabel(string $pass): string
+    {
+        $order = $this->signaturePassOrder($pass);
+
+        return $order < 90 ? self::roundColumnLabel($order) : $pass;
     }
 
     private function signatureSlotLabel(string $slot): string

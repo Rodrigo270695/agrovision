@@ -195,6 +195,43 @@ final class ObservationRemediationSupport
     }
 
     /**
+     * @param  list<int>  $answerIds
+     * @return list<array{answer_id: int, item_id: int, from: string, to: string}>
+     */
+    public static function applyNewNo(UnitChecklist $checklist, array $answerIds): array
+    {
+        $wanted = array_fill_keys($answerIds, true);
+        $changed = [];
+
+        foreach ($checklist->answers as $answer) {
+            if (! isset($wanted[(int) $answer->id])) {
+                continue;
+            }
+
+            if ($answer->first_value !== 'yes' && $answer->second_value !== 'yes') {
+                continue;
+            }
+
+            $answer->first_value = 'no';
+            $answer->second_value = 'no';
+            $note = trim((string) ($answer->observations ?? ''));
+            $stamp = '['.now()->timezone(config('app.timezone'))->format('d/m/Y H:i')
+                .'] Observación nueva en la ronda. Valor anterior: SÍ.';
+            $answer->observations = $note !== '' ? $note."\n".$stamp : $stamp;
+            $answer->save();
+
+            $changed[] = [
+                'answer_id' => $answer->id,
+                'item_id' => $answer->checklist_item_id,
+                'from' => 'yes',
+                'to' => 'no',
+            ];
+        }
+
+        return $changed;
+    }
+
+    /**
      * Checklist completo de cada ronda. La última usa el valor actual.
      * Las anteriores vuelven a NO los ítems que se subsanaron después.
      *
@@ -231,7 +268,7 @@ final class ObservationRemediationSupport
             }
         }
 
-        $lifts = [];
+        $changes = [];
         $remediations = $checklist->relationLoaded('observationRemediations')
             ? $checklist->observationRemediations
             : collect();
@@ -247,47 +284,74 @@ final class ObservationRemediationSupport
                 }
 
                 $payload = is_array($event->payload) ? $event->payload : [];
-                $updated = $payload['answers_updated'] ?? [];
-                if (! is_array($updated)) {
-                    continue;
-                }
-
-                $ids = [];
-                foreach ($updated as $row) {
-                    if (! is_array($row)) {
+                $fixed = [];
+                $failed = [];
+                foreach (['answers_updated' => &$fixed, 'new_nos' => &$failed] as $key => &$bucket) {
+                    $rows = $payload[$key] ?? [];
+                    if (! is_array($rows)) {
                         continue;
                     }
 
-                    $itemId = (int) ($row['item_id'] ?? 0);
-                    if ($itemId > 0 && isset($catalog[$itemId])) {
-                        $ids[$itemId] = true;
+                    foreach ($rows as $row) {
+                        if (! is_array($row)) {
+                            continue;
+                        }
+
+                        $itemId = (int) ($row['item_id'] ?? 0);
+                        if ($itemId > 0 && isset($catalog[$itemId])) {
+                            $bucket[$itemId] = true;
+                        }
                     }
                 }
+                unset($bucket);
 
-                if ($ids !== []) {
-                    $lifts[] = $ids;
+                if ($fixed !== [] || $failed !== []) {
+                    $changes[] = ['fixed' => $fixed, 'failed' => $failed];
                 }
             }
         }
 
-        $roundCount = $lifts === [] ? ($hasSecond ? 2 : 1) : count($lifts) + 1;
+        $snapshots = [];
+        if ($changes === []) {
+            $snapshots[] = $current;
+            if ($hasSecond) {
+                $secondSnapshot = $current;
+                foreach ($second as $id => $value) {
+                    if ($value !== '') {
+                        $secondSnapshot[$id] = $value;
+                    }
+                }
+                $snapshots[] = $secondSnapshot;
+            }
+        } else {
+            $cursor = $current;
+            foreach (array_reverse($changes) as $change) {
+                foreach ($change['fixed'] as $id => $_) {
+                    $cursor[$id] = 'no';
+                }
+                foreach ($change['failed'] as $id => $_) {
+                    $cursor[$id] = 'yes';
+                }
+            }
+            $snapshots[] = $cursor;
+            foreach ($changes as $change) {
+                foreach ($change['fixed'] as $id => $_) {
+                    $cursor[$id] = 'yes';
+                }
+                foreach ($change['failed'] as $id => $_) {
+                    $cursor[$id] = 'no';
+                }
+                $snapshots[] = $cursor;
+            }
+        }
+
         $rounds = [];
 
-        for ($round = 1; $round <= $roundCount; $round++) {
+        foreach ($snapshots as $index => $snapshot) {
             $items = [];
 
             foreach ($catalog as $id => $meta) {
-                if ($lifts === [] && $round === 2) {
-                    $value = $second[$id] !== '' ? $second[$id] : $current[$id];
-                } else {
-                    $value = $current[$id];
-                    for ($lift = $round - 1; $lift < count($lifts); $lift++) {
-                        if (isset($lifts[$lift][$id])) {
-                            $value = 'no';
-                            break;
-                        }
-                    }
-                }
+                $value = $snapshot[$id] ?? '';
 
                 $items[] = [
                     'id' => $meta['id'],
@@ -302,7 +366,7 @@ final class ObservationRemediationSupport
 
             usort($items, fn (array $a, array $b) => strcmp((string) $a['sort'], (string) $b['sort']));
             $rounds[] = [
-                'number' => $round,
+                'number' => $index + 1,
                 'items' => array_map(function (array $row) {
                     unset($row['sort']);
 

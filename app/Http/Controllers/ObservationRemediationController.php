@@ -6,10 +6,12 @@ use App\Models\ObservationRemediation;
 use App\Models\ObservationRemediationPhoto;
 use App\Models\Unit;
 use App\Models\UnitChecklist;
+use App\Models\UnitChecklistSignature;
 use App\Services\PushNotificationService;
 use App\Support\ObservationCalendar;
 use App\Support\ObservationRemediationSupport;
 use App\Support\PermissionCatalog;
+use App\Support\SignatureImage;
 use App\Support\SystemRoles;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -265,8 +267,15 @@ class ObservationRemediationController extends Controller
             'note' => ['nullable', 'string', 'max:2000'],
             'checked_ids' => ['nullable', 'array'],
             'checked_ids.*' => ['integer'],
+            'new_no_ids' => ['nullable', 'array'],
+            'new_no_ids.*' => ['integer'],
             'item_notes' => ['nullable', 'array'],
             'item_notes.*' => ['nullable', 'string', 'max:1000'],
+            'reuse_driver' => ['nullable', 'boolean'],
+            'driver_name' => ['nullable', 'string', 'max:160'],
+            'driver_signature' => ['nullable', 'string'],
+            'sst_name' => ['nullable', 'string', 'max:160'],
+            'sst_signature' => ['nullable', 'string'],
         ]);
 
         $pass = $validated['pass'];
@@ -334,11 +343,63 @@ class ObservationRemediationController extends Controller
             ->values()
             ->all();
 
+        $newNoIds = collect($validated['new_no_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+        $yesIds = $checklist->answers
+            ->filter(fn ($answer) => $answer->first_value === 'yes')
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
         $unknown = array_values(array_diff($checkedIds, $requiredIds));
-        if ($checkedIds === [] || $unknown !== []) {
+        $unknownNew = array_values(array_diff($newNoIds, $yesIds));
+        if ($unknown !== [] || $unknownNew !== [] || array_intersect($checkedIds, $newNoIds) !== []) {
             return back()->with('toast', [
                 'type' => 'error',
-                'message' => 'Marca al menos un ítem que sigue en NO. Solo se levantan los que marques.',
+                'message' => 'Hay ítems que no se pueden cambiar en esta ronda.',
+            ]);
+        }
+
+        if ($checkedIds === [] && $newNoIds === []) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Marca al menos un ítem levantado o una observación nueva.',
+            ]);
+        }
+
+        $reuseDriver = $request->boolean('reuse_driver');
+        $sstName = trim((string) ($validated['sst_name'] ?? ''));
+        $sstSignature = (string) ($validated['sst_signature'] ?? '');
+        $driverName = trim((string) ($validated['driver_name'] ?? ''));
+        $driverSignature = (string) ($validated['driver_signature'] ?? '');
+        $firstDriver = UnitChecklistSignature::query()
+            ->where('unit_checklist_id', $checklist->id)
+            ->where('inspection_pass', 'first')
+            ->where('slot', 'driver')
+            ->whereNotNull('signature_path')
+            ->first();
+
+        if ($sstName === '' || ! str_starts_with($sstSignature, 'data:image/')) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Firma el V°B° del inspector para registrar la ronda.',
+            ]);
+        }
+
+        if ($reuseDriver) {
+            if ($firstDriver === null) {
+                return back()->with('toast', [
+                    'type' => 'error',
+                    'message' => 'No hay firma del conductor en la primera inspección. Añade nombre y firma.',
+                ]);
+            }
+        } elseif ($driverName === '' || ! str_starts_with($driverSignature, 'data:image/')) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Indica el nombre del conductor y su firma.',
             ]);
         }
 
@@ -348,8 +409,26 @@ class ObservationRemediationController extends Controller
             ->all();
 
         $outcome = ['grade' => 'approved', 'round' => 2];
+        $signingRound = max(2, (int) ($checklist->round_number ?? 1));
 
-        DB::transaction(function () use ($checklist, $pass, $remediation, $snap, $checkedIds, $itemNotes, $validated, &$outcome) {
+        DB::transaction(function () use (
+            $checklist,
+            $pass,
+            $remediation,
+            $snap,
+            $checkedIds,
+            $newNoIds,
+            $itemNotes,
+            $validated,
+            $reuseDriver,
+            $sstName,
+            $sstSignature,
+            $driverName,
+            $driverSignature,
+            $firstDriver,
+            $signingRound,
+            &$outcome,
+        ) {
             $previousResult = $pass === 'first'
                 ? $checklist->first_result
                 : $checklist->second_result;
@@ -357,7 +436,12 @@ class ObservationRemediationController extends Controller
             ObservationRemediationSupport::copyFirstIntoSecond($checklist);
             $checklist->load('answers.item');
 
-            $changed = ObservationRemediationSupport::applyCheckedYes($checklist, 'second_value', $checkedIds);
+            $newNos = $newNoIds === []
+                ? []
+                : ObservationRemediationSupport::applyNewNo($checklist, $newNoIds);
+            $changed = $checkedIds === []
+                ? []
+                : ObservationRemediationSupport::applyCheckedYes($checklist, 'second_value', $checkedIds);
             $checklist->refresh()->load('answers.item');
 
             $afterSnap = ParetoPassThreshold::snapshot($checklist->answers, 'second_value');
@@ -403,7 +487,11 @@ class ObservationRemediationController extends Controller
                     'previous_percent' => $snap['percent'],
                     'new_percent' => $afterSnap['percent'],
                     'answers_updated' => $changed,
+                    'new_nos' => $newNos,
                     'checked_ids' => $checkedIds,
+                    'signing_round' => $signingRound,
+                    'driver_name' => $reuseDriver ? $firstDriver?->signer_name : $driverName,
+                    'sst_name' => $sstName,
                     'item_notes' => $itemNotes,
                     'note' => trim((string) ($validated['note'] ?? '')) ?: null,
                     'had_observation' => $grade !== 'approved',
@@ -414,7 +502,18 @@ class ObservationRemediationController extends Controller
                 ObservationRemediationSupport::findOrCreate($checklist, 'r'.$nextRound);
             }
 
-            $outcome = ['grade' => $grade, 'round' => $nextRound];
+            $this->storeRoundSignatures(
+                $checklist,
+                'r'.$signingRound,
+                $sstName,
+                $sstSignature,
+                $reuseDriver,
+                $firstDriver,
+                $driverName,
+                $driverSignature,
+            );
+
+            $outcome = ['grade' => $grade, 'round' => $signingRound];
         });
 
         $message = match ($outcome['grade']) {
@@ -454,6 +553,56 @@ class ObservationRemediationController extends Controller
             'type' => 'success',
             'message' => 'Foto eliminada.',
         ]);
+    }
+
+    private function storeRoundSignatures(
+        UnitChecklist $checklist,
+        string $pass,
+        string $sstName,
+        string $sstSignature,
+        bool $reuseDriver,
+        ?UnitChecklistSignature $firstDriver,
+        string $driverName,
+        string $driverSignature,
+    ): void {
+        $directory = "checklists/{$checklist->id}/signatures";
+        $sstPath = SignatureImage::storeFromDataUrl($sstSignature, $directory);
+
+        UnitChecklistSignature::query()->updateOrCreate(
+            [
+                'unit_checklist_id' => $checklist->id,
+                'inspection_pass' => $pass,
+                'slot' => 'sst',
+            ],
+            [
+                'signer_name' => $sstName,
+                'signature_path' => $sstPath,
+                'signed_at' => now(),
+            ],
+        );
+
+        if ($reuseDriver && $firstDriver !== null) {
+            $extension = pathinfo((string) $firstDriver->signature_path, PATHINFO_EXTENSION) ?: 'jpg';
+            $driverPath = trim($directory, '/').'/'.uniqid('firma_', true).'.'.$extension;
+            Storage::disk('public')->copy((string) $firstDriver->signature_path, $driverPath);
+            $signedName = $firstDriver->signer_name;
+        } else {
+            $driverPath = SignatureImage::storeFromDataUrl($driverSignature, $directory);
+            $signedName = $driverName;
+        }
+
+        UnitChecklistSignature::query()->updateOrCreate(
+            [
+                'unit_checklist_id' => $checklist->id,
+                'inspection_pass' => $pass,
+                'slot' => 'driver',
+            ],
+            [
+                'signer_name' => $signedName,
+                'signature_path' => $driverPath,
+                'signed_at' => now(),
+            ],
+        );
     }
 
     private function ensureCanAccessChecklist(UnitChecklist $checklist): void
