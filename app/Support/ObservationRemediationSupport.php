@@ -195,15 +195,17 @@ final class ObservationRemediationSupport
     }
 
     /**
-     * La ronda 1 conserva todo lo observado. Cada ronda siguiente
-     * solo muestra lo que sigue en NO y lo que se subsanó en esa ronda.
+     * Checklist completo de cada ronda. La última usa el valor actual.
+     * Las anteriores vuelven a NO los ítems que se subsanaron después.
      *
-     * @return list<array{number: int, items: list<array{id: int, number: string|null, label: string, group: string|null, status: string}>}>
+     * @return list<array{number: int, items: list<array{id: int, number: string|null, label: string, group: string|null, value: string, status: string}>}>
      */
     public static function roundHistory(UnitChecklist $checklist): array
     {
         $catalog = [];
-        $openIds = [];
+        $current = [];
+        $second = [];
+        $hasSecond = false;
 
         foreach ($checklist->answers as $answer) {
             $itemId = (int) $answer->checklist_item_id;
@@ -218,9 +220,14 @@ final class ObservationRemediationSupport
                     (string) ($answer->item?->item_number ?? ''),
                 ),
             ];
-
-            if ($answer->first_value === 'no') {
-                $openIds[$itemId] = true;
+            $current[$itemId] = in_array($answer->first_value, ['yes', 'no'], true)
+                ? $answer->first_value
+                : '';
+            $second[$itemId] = in_array($answer->second_value, ['yes', 'no'], true)
+                ? $answer->second_value
+                : '';
+            if ($second[$itemId] !== '') {
+                $hasSecond = true;
             }
         }
 
@@ -258,65 +265,49 @@ final class ObservationRemediationSupport
                 }
 
                 if ($ids !== []) {
-                    $lifts[] = array_keys($ids);
+                    $lifts[] = $ids;
                 }
             }
         }
 
-        $original = $openIds;
-        foreach ($lifts as $ids) {
-            foreach ($ids as $id) {
-                $original[$id] = true;
-            }
-        }
+        $roundCount = $lifts === [] ? ($hasSecond ? 2 : 1) : count($lifts) + 1;
+        $rounds = [];
 
-        $rowsFor = function (array $open, array $clearedNow) use ($catalog): array {
-            $rows = [];
+        for ($round = 1; $round <= $roundCount; $round++) {
+            $items = [];
 
             foreach ($catalog as $id => $meta) {
-                if (! isset($open[$id]) && ! isset($clearedNow[$id])) {
-                    continue;
+                if ($lifts === [] && $round === 2) {
+                    $value = $second[$id] !== '' ? $second[$id] : $current[$id];
+                } else {
+                    $value = $current[$id];
+                    for ($lift = $round - 1; $lift < count($lifts); $lift++) {
+                        if (isset($lifts[$lift][$id])) {
+                            $value = 'no';
+                            break;
+                        }
+                    }
                 }
 
-                $rows[] = [
+                $items[] = [
                     'id' => $meta['id'],
                     'number' => $meta['number'],
                     'label' => $meta['label'],
                     'group' => $meta['group'],
                     'sort' => $meta['sort'],
-                    'status' => isset($clearedNow[$id]) ? 'cleared' : 'open',
+                    'value' => $value,
+                    'status' => $value === 'no' ? 'open' : 'yes',
                 ];
             }
 
-            usort($rows, fn (array $a, array $b) => strcmp((string) $a['sort'], (string) $b['sort']));
-
-            return array_map(function (array $row) {
-                unset($row['sort']);
-
-                return $row;
-            }, $rows);
-        };
-
-        $stillOpen = $original;
-        $rounds = [[
-            'number' => 1,
-            'items' => $rowsFor($stillOpen, []),
-        ]];
-
-        foreach ($lifts as $index => $ids) {
-            $clearedNow = [];
-            foreach ($ids as $id) {
-                if (! isset($stillOpen[$id])) {
-                    continue;
-                }
-
-                unset($stillOpen[$id]);
-                $clearedNow[$id] = true;
-            }
-
+            usort($items, fn (array $a, array $b) => strcmp((string) $a['sort'], (string) $b['sort']));
             $rounds[] = [
-                'number' => $index + 2,
-                'items' => $rowsFor($stillOpen, $clearedNow),
+                'number' => $round,
+                'items' => array_map(function (array $row) {
+                    unset($row['sort']);
+
+                    return $row;
+                }, $items),
             ];
         }
 

@@ -1245,7 +1245,8 @@ class ChecklistController extends Controller
         $checklist->load([
             'period:id,name,date,status',
             'template.signatureRoles',
-            'answers.item',
+            'answers.item.parent',
+            'observationRemediations.events:id,observation_remediation_id,event,payload',
             'signatures',
             'photos',
             'inspectionBatch',
@@ -1353,13 +1354,50 @@ class ChecklistController extends Controller
             ]);
         }
 
-        $rows = $rows->map(function (array $row) use ($evidenceByItem) {
+        $history = ObservationRemediationSupport::roundHistory($checklist);
+        $valuesByItem = [];
+        foreach ($history as $round) {
+            foreach ($round['items'] as $item) {
+                $valuesByItem[$item['id']][] = $item['value'];
+            }
+        }
+
+        $rows = $rows->map(function (array $row) use ($evidenceByItem, $valuesByItem, $history) {
             $evidence = $evidenceByItem[$row['checklist_item_id']] ?? [];
             $row['evidence_first'] = $evidence['first'] ?? null;
             $row['evidence_second'] = $evidence['second'] ?? null;
+            $row['round_values'] = $valuesByItem[$row['checklist_item_id']]
+                ?? array_fill(0, max(1, count($history)), $row['first_value']);
 
             return $row;
         });
+
+        $roundSummaries = [];
+        foreach ($history as $index => $round) {
+            $roundScored = 0.0;
+            $roundCatalog = 0.0;
+            $roundHasNo = false;
+
+            foreach ($rows as $row) {
+                $weight = (float) ($row['weight'] ?? 0);
+                $roundCatalog += $weight;
+                $value = $row['round_values'][$index] ?? '';
+                if ($value === 'yes') {
+                    $roundScored += $weight;
+                }
+                if ($value === 'no') {
+                    $roundHasNo = true;
+                }
+            }
+
+            $roundPercent = $roundCatalog > 0 ? round(($roundScored / $roundCatalog) * 100, 2) : 0.0;
+            $roundSummaries[] = [
+                'number' => $round['number'],
+                'label' => self::roundColumnLabel((int) $round['number']),
+                'percent' => $roundPercent,
+                'grade' => ParetoPassThreshold::grade($roundPercent, $roundHasNo),
+            ];
+        }
 
         $paretoChart = ParetoPieChart::build($scored, $catalog > 0 ? $catalog : 100);
 
@@ -1395,6 +1433,7 @@ class ChecklistController extends Controller
             'logoSrc' => PdfLogo::dataUri(),
             'paretoChart' => $paretoChart,
             'coordinatorSignatureSrc' => $coordinatorSignatureSrc,
+            'roundSummaries' => $roundSummaries,
         ])->setPaper('a4', 'portrait');
 
         ActivityLogger::write([
@@ -1944,6 +1983,17 @@ class ChecklistController extends Controller
             'driver' => 'Firma del conductor',
             'sst' => 'V°B° SST',
         ];
+    }
+
+    private static function roundColumnLabel(int $number): string
+    {
+        return match ($number) {
+            1 => '1ra',
+            2 => '2da',
+            3 => '3ra',
+            4 => '4ta',
+            default => 'Ronda '.$number,
+        };
     }
 
     private function signatureSlotLabel(string $slot): string

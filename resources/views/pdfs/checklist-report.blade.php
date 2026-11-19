@@ -239,7 +239,9 @@
                 {!! $paretoChart['svg'] !!}
             </td>
             <td>
-                <div style="font-size: 12px; font-weight: bold; margin-bottom: 4px;">Pareto (1ra inspección)</div>
+                <div style="font-size: 12px; font-weight: bold; margin-bottom: 4px;">
+                    Pareto ({{ count($roundSummaries ?? []) > 1 ? 'última ronda' : 'inspección' }})
+                </div>
                 <div class="pareto-legend">
                     <div><span class="dot" style="background:#15803d;"></span>Cumple (SÍ): {{ number_format($paretoChart['scored'], 2) }}%</div>
                     <div><span class="dot" style="background:#dbe4ef;"></span>No cumple / pendiente: {{ number_format($paretoChart['remaining'], 2) }}%</div>
@@ -281,33 +283,36 @@
             </td>
         </tr>
         <tr>
-            <td>
-                <span class="label">1ra inspección</span>
-                {{ $fmtDate($checklist->first_inspected_on, $checklist->first_inspected_time) }}
-            </td>
-            <td>
-                <span class="label">Resultado 1ra</span>
-                {{ $result($firstGrade) }}
-            </td>
-            <td>
-                <span class="label">2da inspección</span>
-                {{ $fmtDate($checklist->second_inspected_on, $checklist->second_inspected_time) }}
-            </td>
-            <td>
-                <span class="label">Resultado 2da</span>
-                {{ $result($secondGrade) }}
+            <td colspan="4">
+                <span class="label">Inspecciones</span>
+                @foreach ($roundSummaries ?? [] as $summary)
+                    <span style="display:inline-block; margin: 2px 10px 2px 0;">
+                        <strong>{{ $summary['label'] }}:</strong>
+                        {{ $result($summary['grade']) }}
+                        ({{ number_format($summary['percent'], 2) }}%)
+                    </span>
+                @endforeach
             </td>
         </tr>
     </table>
 
     <h2>Exigencias</h2>
+    @php
+        $pdfRounds = $roundSummaries ?? [];
+        $pdfRoundCount = max(1, count($pdfRounds));
+        $pdfRoundWidth = (int) max(8, min(14, floor(40 / $pdfRoundCount)));
+        $pdfItemWidth = max(28, 78 - ($pdfRoundWidth * $pdfRoundCount));
+    @endphp
     <table class="items">
         <thead>
             <tr>
-                <th style="width: 52%;">Ítem</th>
-                <th style="width: 12%;">1ra</th>
-                <th style="width: 12%;">2da</th>
-                <th style="width: 24%;">Observaciones</th>
+                <th style="width: {{ $pdfItemWidth }}%;">Ítem</th>
+                @forelse ($pdfRounds as $summary)
+                    <th style="width: {{ $pdfRoundWidth }}%;">{{ $summary['label'] }}</th>
+                @empty
+                    <th style="width: 12%;">Inspección</th>
+                @endforelse
+                <th>Observaciones</th>
             </tr>
         </thead>
         <tbody>
@@ -319,34 +324,26 @@
                         @if (! empty($row['evidence_first']) || ! empty($row['evidence_second']))
                             <div>
                                 @if (! empty($row['evidence_first']))
-                                    <div class="muted">1ra</div>
-                                    <img class="evidence-img" src="{{ $row['evidence_first'] }}" alt="Evidencia 1ra" width="92" height="70">
+                                    <div class="muted">Evidencia</div>
+                                    <img class="evidence-img" src="{{ $row['evidence_first'] }}" alt="Evidencia" width="92" height="70">
                                 @endif
                                 @if (! empty($row['evidence_second']))
-                                    <div class="muted">2da</div>
-                                    <img class="evidence-img" src="{{ $row['evidence_second'] }}" alt="Evidencia 2da" width="92" height="70">
+                                    <img class="evidence-img" src="{{ $row['evidence_second'] }}" alt="Evidencia" width="92" height="70">
                                 @endif
                             </div>
                         @endif
                     </td>
-                    <td>
-                        @if ($row['first_value'] === 'yes')
-                            <span class="badge badge-ok">SÍ</span>
-                        @elseif ($row['first_value'] === 'no')
-                            <span class="badge badge-no">NO</span>
-                        @else
-                            —
-                        @endif
-                    </td>
-                    <td>
-                        @if ($row['second_value'] === 'yes')
-                            <span class="badge badge-ok">SÍ</span>
-                        @elseif ($row['second_value'] === 'no')
-                            <span class="badge badge-no">NO</span>
-                        @else
-                            —
-                        @endif
-                    </td>
+                    @foreach ($row['round_values'] ?? [$row['first_value']] as $roundValue)
+                        <td>
+                            @if ($roundValue === 'yes')
+                                <span class="badge badge-ok">SÍ</span>
+                            @elseif ($roundValue === 'no')
+                                <span class="badge badge-no">NO</span>
+                            @else
+                                —
+                            @endif
+                        </td>
+                    @endforeach
                     <td>{{ $row['observations'] ?: '—' }}</td>
                 </tr>
             @endforeach

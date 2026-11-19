@@ -50,7 +50,8 @@ export type ChecklistRoundItem = {
     number?: string | null;
     label: string;
     group?: string | null;
-    status: 'open' | 'cleared';
+    value?: 'yes' | 'no' | '';
+    status: 'open' | 'yes' | 'cleared';
 };
 
 export type ChecklistRound = {
@@ -278,6 +279,7 @@ function ObservationDetailModal({
                           number: observation.number,
                           label: observation.label,
                           group: observation.group,
+                          value: 'no' as const,
                           status: 'open' as const,
                       })),
                   },
@@ -290,11 +292,14 @@ function ObservationDetailModal({
     const round =
         history.find((entry) => entry.number === selection.number) ??
         history[0];
-    const openItems = (round?.items ?? []).filter((entry) => entry.status === 'open');
-    const clearedItems = (round?.items ?? []).filter(
-        (entry) => entry.status === 'cleared',
+    const roundItems = round?.items ?? [];
+    const openItems = roundItems.filter(
+        (entry) => (entry.value ?? (entry.status === 'open' ? 'no' : 'yes')) === 'no',
     );
-    const finished = openItems.length === 0 && (round?.number ?? 1) > 1;
+    const yesItems = roundItems.filter(
+        (entry) => (entry.value ?? (entry.status === 'open' ? 'no' : 'yes')) === 'yes',
+    );
+    const finished = openItems.length === 0 && yesItems.length > 0;
 
     return (
         <AppModal
@@ -303,7 +308,7 @@ function ObservationDetailModal({
             title={item ? `Rondas · ${item.plate_number}` : 'Rondas'}
             description={
                 item
-                    ? `${item.driver_name || 'Sin conductor'}. La primera ronda queda registrada. En las siguientes solo se ven las observaciones que siguen y las que se subsanaron.`
+                    ? `${item.driver_name || 'Sin conductor'}. Cada ronda muestra el checklist completo, con lo que estaba en SÍ y en NO.`
                     : undefined
             }
             className="sm:max-w-2xl"
@@ -390,20 +395,18 @@ function ObservationDetailModal({
                             );
                         })}
                     </div>
-                    {finished ? (
-                        <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800 ring-1 ring-emerald-100">
-                            Esta ronda llegó al 100 %. No quedan observaciones.
-                        </p>
-                    ) : (
-                        <p className="text-sm text-slate-600">
-                            {round.number === 1
-                                ? `${openItems.length} observaciones de la primera inspección. Este registro no se borra.`
-                                : `${openItems.length} siguen en NO · ${clearedItems.length} subsanadas en esta ronda.`}
-                        </p>
-                    )}
+                    <p className="text-sm text-slate-600">
+                        {yesItems.length} en SÍ · {openItems.length} en NO.
+                        {finished
+                            ? ' Esta ronda llegó al 100 %.'
+                            : ' El checklist completo de esta inspección queda guardado.'}
+                    </p>
                     <ul className="space-y-2">
-                        {[...openItems, ...clearedItems].map((entry) => {
-                            const cleared = entry.status === 'cleared';
+                        {roundItems.map((entry) => {
+                            const value =
+                                entry.value ??
+                                (entry.status === 'open' ? 'no' : 'yes');
+                            const isYes = value === 'yes';
 
                             return (
                                 <li
@@ -412,43 +415,36 @@ function ObservationDetailModal({
                                 >
                                     <span
                                         className={`mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded border ${
-                                            cleared
+                                            isYes
                                                 ? 'border-emerald-600 bg-emerald-600 text-white'
-                                                : 'border-slate-300 bg-white'
+                                                : 'border-rose-300 bg-white'
                                         }`}
                                         aria-hidden="true"
                                     >
-                                        {cleared ? <Check className="size-3.5" /> : null}
+                                        {isYes ? <Check className="size-3.5" /> : null}
                                     </span>
-                                    <div className="min-w-0">
+                                    <div className="min-w-0 flex-1">
                                         {entry.group ? (
                                             <p className="text-[11px] font-medium tracking-wide text-slate-500 uppercase">
                                                 {entry.group}
                                             </p>
                                         ) : null}
-                                        <p
-                                            className={`text-sm font-semibold ${
-                                                cleared
-                                                    ? 'text-slate-400 line-through'
-                                                    : 'text-slate-800'
-                                            }`}
-                                        >
+                                        <p className="text-sm font-semibold text-slate-800">
                                             {entry.number ? `${entry.number}. ` : ''}
                                             {entry.label}
                                         </p>
-                                        <p className={`text-xs font-medium ${cleared ? 'text-emerald-700' : 'text-rose-700'}`}>
-                                            {cleared ? 'Subsanado' : 'Observado'}
-                                        </p>
                                     </div>
+                                    <span
+                                        className={`shrink-0 text-xs font-semibold ${
+                                            isYes ? 'text-emerald-700' : 'text-rose-700'
+                                        }`}
+                                    >
+                                        {value === '' ? '—' : isYes ? 'SÍ' : 'NO'}
+                                    </span>
                                 </li>
                             );
                         })}
                     </ul>
-                    {openItems.length === 0 && clearedItems.length === 0 ? (
-                        <p className="rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-600 ring-1 ring-slate-100">
-                            Esta ronda no tiene observaciones.
-                        </p>
-                    ) : null}
                 </div>
             ) : null}
         </AppModal>
