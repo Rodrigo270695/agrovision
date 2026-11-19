@@ -711,7 +711,7 @@ export function ChecklistPhotosSection({
                     <PhotoPassSection
                         checklistId={checklistId}
                         pass="first"
-                        title="1ra inspección"
+                        title="Inspección"
                         photos={firstPhotos}
                         readonly={readonlyFirst ?? readonly}
                     />

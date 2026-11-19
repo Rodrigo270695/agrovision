@@ -1455,6 +1455,10 @@ class ChecklistController extends Controller
             $this->assertPassSignaturesReady($checklist, $data, 'first');
         }
 
+        if ($incomingFirst === 'rejected' && $closingFirst) {
+            $this->assertPassAnswersReady($checklist, $answers, 'first', false);
+        }
+
         if ($incomingFirst === 'approved' && ! $firstAlreadyApproved) {
             $this->assertPassAnswersReady($checklist, $answers, 'first');
         }
@@ -1528,9 +1532,10 @@ class ChecklistController extends Controller
         UnitChecklist $checklist,
         $answers,
         string $pass,
+        bool $requireThreshold = true,
     ): void {
         $valueKey = $pass === 'first' ? 'first_value' : 'second_value';
-        $passLabel = $pass === 'first' ? '1ra' : '2da';
+        $passLabel = $pass === 'first' ? 'inspección' : '2da inspección';
 
         $expectedIds = $checklist->answers()->pluck('checklist_item_id')->all();
         $byItem = $answers->keyBy('checklist_item_id');
@@ -1556,7 +1561,7 @@ class ChecklistController extends Controller
 
             if ($value === null || $value === '') {
                 throw new \RuntimeException(
-                    "Para aprobar la {$passLabel} inspección debes marcar SÍ/NO en todos los ítems. Falta: {$label}."
+                    "Para cerrar la {$passLabel} debes marcar SÍ o NO en todos los ítems. Falta: {$label}."
                 );
             }
 
@@ -1577,10 +1582,10 @@ class ChecklistController extends Controller
         $total = $catalog > 0 ? $catalog : 100.0;
         $percent = $total > 0 ? round(($scored / $total) * 100, 2) : 0.0;
 
-        if (! ParetoPassThreshold::passes($percent)) {
+        if ($requireThreshold && ! ParetoPassThreshold::passes($percent)) {
             $min = ParetoPassThreshold::MIN_PERCENT;
             throw new \RuntimeException(
-                "Para aprobar la {$passLabel} inspección el Pareto debe ser ≥ {$min}% (actual: {$percent}%)."
+                "Para dejar la {$passLabel} aprobada el Pareto debe ser ≥ {$min}% (actual: {$percent}%)."
             );
         }
     }

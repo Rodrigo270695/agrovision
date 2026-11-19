@@ -333,7 +333,7 @@ function passCloseBlocked(
         );
 
         if (!named || !signed) {
-            const passLabel = pass === 'first' ? '1ra' : '2da';
+            const passLabel = pass === 'first' ? 'inspección' : '2da inspección';
 
             return `Para cerrar la ${passLabel} hacen falta el nombre y la firma del ${labels[slot]}.`;
         }
@@ -692,10 +692,8 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
     }, [answers, checklist.items]);
 
     const activePass: 'first' | 'second' =
-        grantedPass ?? (secondUnlocked ? 'second' : 'first');
+        grantedPass === 'second' ? 'second' : 'first';
     const showFirstActions = !sealed && !firstLocked && grantedPass !== 'second';
-    const showSecondActions =
-        !sealed && secondUnlocked && !secondLocked && grantedPass !== 'first';
     const activeStats = activePass === 'first' ? firstStats : secondStats;
 
     const livePareto = useMemo(() => {
@@ -770,37 +768,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
         firstPareto.percent >= 100 &&
         !firstPareto.hasNo;
 
-    const secondPareto = useMemo(() => {
-        let scored = 0;
-        let catalog = 0;
-        let hasNo = false;
-
-        checklist.items.forEach((item, index) => {
-            const weight = Number(item.weight ?? 0);
-            catalog += weight;
-            const value = answers[index]?.second_value;
-
-            if (value === 'yes') {
-                scored += weight;
-            }
-
-            if (value === 'no') {
-                hasNo = true;
-            }
-        });
-
-        const percent =
-            catalog > 0 ? Math.round((scored / catalog) * 10000) / 100 : 0;
-
-        return { percent, hasNo };
-    }, [answers, checklist.items]);
-
     const liveBand = paretoBand(livePareto.percent, livePareto.hasNo);
-
-    const canApproveActivePass =
-        activeStats.allMarked &&
-        !activeStats.missingExpiry &&
-        livePareto.passes;
 
     const updateAnswer = (
         index: number,
@@ -1351,23 +1319,13 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <StepPill
-                            label="1ra"
+                            label="Inspección"
                             active={activePass === 'first'}
                             done={
                                 grantedPass !== 'first' &&
                                 (checklist.first_result === 'approved' ||
                                     checklist.first_result === 'rejected')
                             }
-                        />
-                        <StepPill
-                            label="2da"
-                            active={activePass === 'second'}
-                            done={
-                                grantedPass !== 'second' &&
-                                (checklist.second_result === 'approved' ||
-                                    checklist.second_result === 'rejected')
-                            }
-                            locked={!secondUnlocked}
                         />
                         <StepPill
                             label="Firmas"
@@ -1425,7 +1383,6 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                     <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
                         Edición autorizada de la{' '}
                         <strong>
-                            {grantedPass === 'first' ? '1ra' : '2da'}{' '}
                             inspección
                         </strong>
                         . Al guardar, esta autorización se cierra y hay que
@@ -1487,26 +1444,10 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                 ) : secondUnlocked ? (
                     <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                            {canSeal
-                                ? '1ra y 2da cerradas. Cada una lleva la firma del conductor y el V°B° SST.'
-                                : (
-                                      <>
-                                          La 1ra quedó cerrada. Sigue con la{' '}
-                                          <strong>2da inspección</strong> de la
-                                          misma fecha. Al terminar el día, envía
-                                          el paquete al coordinador.
-                                          <span className="mt-1 block font-medium">
-                                              Progreso 2da:{' '}
-                                              {secondStats.marked}/
-                                              {secondStats.total} ·{' '}
-                                              {secondStats.yes} SÍ ·{' '}
-                                              {secondStats.no} NO
-                                              {secondStats.missingExpiry
-                                                  ? ' · Faltan vencimientos'
-                                                  : ''}
-                                          </span>
-                                      </>
-                                  )}
+                            La inspección quedó cerrada. Si sigue con
+                            observaciones, el coordinador las levanta en el
+                            calendario. Cada levantamiento es una ronda nueva
+                            hasta llegar al 100 %.
                         </div>
                         <Button
                             type="button"
@@ -1532,7 +1473,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                         los ítems en el calendario y se abren las rondas que
                         hagan falta.
                         <span className="mt-1 block font-medium text-brand-700">
-                            Progreso 1ra: {firstStats.marked}/{firstStats.total}{' '}
+                            Progreso: {firstStats.marked}/{firstStats.total}{' '}
                             · {firstStats.yes} SÍ · {firstStats.no} NO
                             {firstStats.missingExpiry
                                 ? ' · Faltan vencimientos'
@@ -1571,7 +1512,7 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                             {driversForDate.length > 1 ? (
                                 <p className="text-[11px] text-muted-foreground">
                                     Conductores de esta placa en la fecha de la
-                                    1ra inspección.
+                                    inspección.
                                 </p>
                             ) : null}
                         </div>
@@ -1627,37 +1568,22 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                         onChange={setFirstAt}
                         disabled={sealed || firstLocked}
                     />
-                    {secondUnlocked ? (
-                        <Field
-                            label="2da inspección (fecha y hora)"
-                            type="datetime-local"
-                            value={secondAt}
-                            onChange={setSecondAt}
-                            disabled={sealed || secondLocked}
-                        />
-                    ) : null}
                     <div className="grid gap-1.5">
                         <Label className="text-xs text-brand-700">
-                            Resultado 1ra
+                            Resultado
                         </Label>
                         <ResultBadge
-                            value={firstResult || null}
+                            value={
+                                firstStats.allMarked
+                                    ? firstPareto.percent >= PARETO_PASS_THRESHOLD
+                                        ? 'approved'
+                                        : 'rejected'
+                                    : firstResult || null
+                            }
                             percent={firstPareto.percent}
                             hasNo={firstPareto.hasNo}
                         />
                     </div>
-                    {secondUnlocked ? (
-                        <div className="grid gap-1.5">
-                            <Label className="text-xs text-brand-700">
-                                Resultado 2da
-                            </Label>
-                            <ResultBadge
-                                value={secondResult || null}
-                                percent={secondPareto.percent}
-                                hasNo={secondPareto.hasNo}
-                            />
-                        </div>
-                    ) : null}
                 </div>
             </div>
 
@@ -1665,15 +1591,11 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                 <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h2 className="text-sm font-semibold text-brand-700">
-                            Exigencias —{' '}
-                            {activePass === 'first'
-                                ? '1ra inspección'
-                                : '2da inspección'}
+                            Exigencias
                         </h2>
                         <p className="text-xs text-muted-foreground">
-                            {activePass === 'first'
-                                ? 'Marca SÍ o NO. La fecha de caducidad solo aparece si marcas SÍ.'
-                                : '1ra bloqueada. Marca ahora la segunda inspección.'}
+                            Marca SÍ o NO. La fecha de caducidad solo aparece si
+                            marcas SÍ. El resultado se calcula al aprobar.
                         </p>
                     </div>
                     <div className="flex flex-col items-start gap-1 sm:items-end">
@@ -2015,9 +1937,9 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                 checklistId={checklist.id}
                 photos={checklist.photos ?? []}
                 showFirst
-                showSecond={secondUnlocked}
+                showSecond={false}
                 readonlyFirst={sealed}
-                readonlySecond={sealed || !secondUnlocked}
+                readonlySecond
             />
 
             <div className="rounded-2xl border border-brand-200 bg-white p-3 shadow-sm sm:p-5">
@@ -2025,12 +1947,11 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                     Firmas
                 </h2>
                 <p className="mb-3 text-xs text-muted-foreground">
-                    La 1ra y la 2da firman por separado. Cada una lleva la
-                    firma del conductor y el V°B° SST.
+                    La inspección lleva la firma del conductor y el V°B° SST.
+                    Las rondas siguientes se firman en el levantamiento.
                 </p>
-                {(['first', 'second'] as const).map((pass) => {
-                    const passLocked =
-                        sealed || (pass === 'second' && !secondUnlocked);
+                {(['first'] as const).map((pass) => {
+                    const passLocked = sealed;
                     const cards = checklist.signatures
                         .map((signature, index) => ({ signature, index }))
                         .filter(
@@ -2045,17 +1966,8 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                     return (
                         <div key={pass} className="mt-4">
                             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-brand-700">
-                                {pass === 'first'
-                                    ? 'Firmas de la 1ra'
-                                    : 'Firmas de la 2da'}
+                                Conductor y V°B° SST
                             </h3>
-                            {pass === 'second' && !secondUnlocked ? (
-                                <p className="mb-2 text-xs text-[#8a5a12]">
-                                    Se habilitan al cerrar la 1ra. No hace
-                                    falta que la 2da esté aprobada para
-                                    enviar el paquete.
-                                </p>
-                            ) : null}
                             <div className="grid gap-4 sm:grid-cols-2">
                                 {cards
                                     .filter(
@@ -2313,29 +2225,14 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                 <div className="fixed inset-x-0 bottom-0 z-40 border-t border-brand-200 bg-white/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
                     <div className="mx-auto flex max-w-5xl flex-col gap-2">
                         <p className="text-center text-[11px] text-muted-foreground sm:text-right">
-                            {waitingCoordinator
-                                ? 'Cierra la 1ra para habilitar la 2da de esta misma fecha.'
-                                  : !firstLocked && !livePareto.passes
-                                    ? `Pareto ${livePareto.percent.toFixed(2)}% (< ${PARETO_PASS_THRESHOLD}%): desaprueba o corrige ítems en NO.`
-                                    : !firstLocked && !canApproveActivePass
-                                      ? firstStats.missingExpiry
-                                          ? 'Completa los vencimientos / observaciones para poder aprobar la 1ra.'
-                                          : !firstStats.allMarked
-                                            ? 'Marca todos los ítems en SÍ/NO para poder aprobar o desaprobar.'
-                                            : `Necesitas ≥ ${PARETO_PASS_THRESHOLD}% Pareto para aprobar la 1ra.`
-                                      : secondUnlocked &&
-                                          !secondLocked &&
-                                          !canApproveActivePass
-                                        ? secondStats.missingExpiry
-                                            ? 'Completa los vencimientos / observaciones para aprobar la 2da.'
-                                            : !secondStats.allMarked
-                                              ? 'Marca todos los ítems en SÍ/NO para aprobar la 2da.'
-                                              : `Necesitas ≥ ${PARETO_PASS_THRESHOLD}% Pareto para aprobar la 2da.`
-                                        : passCloseBlocked(
-                                                activePass,
-                                                signatures,
-                                            ) ??
-                                          'Las firmas de la 1ra y de la 2da son independientes: conductor y V°B° SST. Puedes guardar en cualquier momento.'}
+                            {firstLocked
+                                ? 'La inspección ya tiene resultado. Las rondas siguientes se hacen en el calendario de observaciones.'
+                                : !firstStats.allMarked
+                                  ? 'Marca todos los ítems en SÍ o NO. Al aprobar, el sistema deja el resultado.'
+                                  : firstStats.missingExpiry
+                                    ? 'Completa el vencimiento de los ítems en SÍ.'
+                                    : (passCloseBlocked('first', signatures) ??
+                                      `Al aprobar quedará ${inspectionGradeLabel(paretoBand(firstPareto.percent, firstPareto.hasNo))}.`)}
                         </p>
                         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                             <Button
@@ -2352,50 +2249,24 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                             {showFirstActions ? (
                                 <Button
                                     type="button"
-                                    disabled={processing || !canApproveActivePass}
+                                    disabled={
+                                        processing ||
+                                        !firstStats.allMarked ||
+                                        firstStats.missingExpiry
+                                    }
                                     onClick={() =>
                                         save({
                                             status: 'draft',
-                                            first_result: 'approved',
+                                            first_result:
+                                                firstPareto.percent >=
+                                                PARETO_PASS_THRESHOLD
+                                                    ? 'approved'
+                                                    : 'rejected',
                                         })
                                     }
                                     className="h-11 cursor-pointer bg-emerald-700 text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10"
                                 >
-                                    Aprobar 1ra inspección
-                                </Button>
-                            ) : null}
-
-                            {showFirstActions &&
-                            (firstStats.no > 0 || !livePareto.passes) ? (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    disabled={processing || !firstStats.allMarked}
-                                    onClick={() =>
-                                        save({
-                                            status: 'draft',
-                                            first_result: 'rejected',
-                                        })
-                                    }
-                                    className="h-11 cursor-pointer border-red-200 text-red-700 sm:h-10"
-                                >
-                                    Desaprobar 1ra
-                                </Button>
-                            ) : null}
-
-                            {showSecondActions ? (
-                                <Button
-                                    type="button"
-                                    disabled={processing || !canApproveActivePass}
-                                    onClick={() =>
-                                        save({
-                                            status: 'draft',
-                                            second_result: 'approved',
-                                        })
-                                    }
-                                    className="h-11 cursor-pointer bg-emerald-700 text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10"
-                                >
-                                    Aprobar 2da inspección
+                                    Aprobar inspección
                                 </Button>
                             ) : null}
 
