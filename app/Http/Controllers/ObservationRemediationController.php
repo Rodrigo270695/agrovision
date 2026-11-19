@@ -35,6 +35,7 @@ class ObservationRemediationController extends Controller
             'sede' => ['nullable', 'string', 'max:120'],
             'provider' => ['nullable', 'string', 'max:255'],
             'responsible' => ['nullable', 'string', 'max:255'],
+            'grade' => ['nullable', Rule::in(['approved', 'approved_notes', 'rejected'])],
         ]);
 
         $today = now()->timezone(config('app.timezone'));
@@ -46,11 +47,13 @@ class ObservationRemediationController extends Controller
         $sede = trim((string) ($validated['sede'] ?? '')) ?: null;
         $provider = trim((string) ($validated['provider'] ?? '')) ?: null;
         $responsible = trim((string) ($validated['responsible'] ?? '')) ?: null;
+        $grade = $validated['grade'] ?? null;
         $filters = [
             'search' => $search,
             'sede' => $sede,
             'provider' => $provider,
             'responsible' => $responsible,
+            'grade' => $grade,
         ];
 
         $payload = $calendar->month($year, $month, $filters);
@@ -60,7 +63,7 @@ class ObservationRemediationController extends Controller
         $listUnits = $view === 'list'
             ? $calendar->actionableList($year, $month, $filters)
             : [];
-        $hasTextOrFacetFilter = $search || $sede || $provider || $responsible;
+        $hasTextOrFacetFilter = $search || $sede || $provider || $responsible || $grade;
         $searchUnits = $view === 'calendar' && $hasTextOrFacetFilter
             ? $calendar->searchMonthUnits($year, $month, $filters)
             : [];
@@ -78,6 +81,7 @@ class ObservationRemediationController extends Controller
                 'sede' => $sede ?? '',
                 'provider' => $provider ?? '',
                 'responsible' => $responsible ?? '',
+                'grade' => $grade ?? '',
             ],
             'can_submit' => Auth::user()?->can('observation_remediations.submit') ?? false,
             'can_verify' => Auth::user()?->can('observation_remediations.verify') ?? false,

@@ -108,6 +108,7 @@ type PageProps = {
         sede?: string;
         provider?: string;
         responsible?: string;
+        grade?: string;
     };
     can_submit: boolean;
     can_verify: boolean;
@@ -139,6 +140,7 @@ function visit(params: {
     sede?: string | null;
     provider?: string | null;
     responsible?: string | null;
+    grade?: string | null;
 }) {
     const query: Record<string, string> = {
         year: String(params.year),
@@ -168,6 +170,11 @@ function visit(params: {
     const responsible = params.responsible?.trim();
     if (responsible) {
         query.responsible = responsible;
+    }
+
+    const grade = params.grade?.trim();
+    if (grade) {
+        query.grade = grade;
     }
 
     router.get('/calendario-observaciones', query, {
@@ -268,6 +275,7 @@ export default function ObservationRemediationsPage() {
     const activeSede = filters?.sede ?? '';
     const activeProvider = filters?.provider ?? '';
     const activeResponsible = filters?.responsible ?? '';
+    const activeGrade = filters?.grade ?? '';
     const sedeOptions = filter_options?.sedes ?? [];
     const providerOptions = useMemo(
         () =>
@@ -286,10 +294,23 @@ export default function ObservationRemediationsPage() {
         [filter_options?.responsibles],
     );
     const hasActiveFilters = Boolean(
-        activeSearch || activeSede || activeProvider || activeResponsible,
+        activeSearch ||
+            activeSede ||
+            activeProvider ||
+            activeResponsible ||
+            activeGrade,
     );
+    const gradeLabel =
+        activeGrade === 'approved'
+            ? 'Aprobados'
+            : activeGrade === 'approved_notes'
+              ? 'Aprobado c/ obs.'
+              : activeGrade === 'rejected'
+                ? 'Desaprobados'
+                : null;
     const filterSummary = [
         activeSearch ? `“${activeSearch}”` : null,
+        gradeLabel,
         activeSede ? `sede ${activeSede}` : null,
         activeProvider ? `proveedor ${activeProvider}` : null,
         activeResponsible ? `responsable ${activeResponsible}` : null,
@@ -384,6 +405,7 @@ export default function ObservationRemediationsPage() {
         sede?: string | null;
         provider?: string | null;
         responsible?: string | null;
+        grade?: string | null;
     }) => {
         visit({
             year: patch.year ?? calendar.year,
@@ -404,6 +426,7 @@ export default function ObservationRemediationsPage() {
                 patch.responsible === undefined
                     ? activeResponsible
                     : patch.responsible,
+            grade: patch.grade === undefined ? activeGrade : patch.grade,
         });
     };
 
@@ -584,6 +607,27 @@ export default function ObservationRemediationsPage() {
                             <div className="flex min-w-0 flex-1 flex-col gap-2 sm:max-w-3xl sm:items-end">
                                 <div className="flex w-full min-w-0 flex-wrap gap-2 sm:justify-end">
                                     <select
+                                        aria-label="Filtrar por estado"
+                                        className="h-10 min-w-[11rem] cursor-pointer rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                                        value={activeGrade}
+                                        onChange={(event) =>
+                                            baseVisit({
+                                                grade:
+                                                    event.target.value || null,
+                                                date: null,
+                                            })
+                                        }
+                                    >
+                                        <option value="">Todos los estados</option>
+                                        <option value="approved">Aprobados</option>
+                                        <option value="approved_notes">
+                                            Aprobado c/ obs.
+                                        </option>
+                                        <option value="rejected">
+                                            Desaprobados
+                                        </option>
+                                    </select>
+                                    <select
                                         aria-label="Filtrar por sede"
                                         className="h-10 min-w-[8.5rem] cursor-pointer rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
                                         value={activeSede}
@@ -667,6 +711,7 @@ export default function ObservationRemediationsPage() {
                                                     sede: null,
                                                     provider: null,
                                                     responsible: null,
+                                                    grade: null,
                                                     date: null,
                                                 });
                                             }}
@@ -774,9 +819,25 @@ export default function ObservationRemediationsPage() {
                             units={list_units}
                             eyebrow="Lista del mes"
                             title={`${MONTHS[calendar.month - 1]} ${calendar.year}`}
-                            description="Solo aprobados con observación y desaprobados"
+                            description={
+                                activeGrade === 'approved'
+                                    ? 'Solo aprobados'
+                                    : activeGrade === 'approved_notes'
+                                      ? 'Solo aprobados con observación'
+                                      : activeGrade === 'rejected'
+                                        ? 'Solo desaprobados'
+                                        : 'Aprobados con observación y desaprobados'
+                            }
                             search={filterSummary}
-                            emptyLabel="No hay observaciones pendientes ni desaprobadas en este mes"
+                            emptyLabel={
+                                activeGrade === 'approved'
+                                    ? 'No hay aprobados en este mes'
+                                    : activeGrade === 'approved_notes'
+                                      ? 'No hay aprobados con observación en este mes'
+                                      : activeGrade === 'rejected'
+                                        ? 'No hay desaprobados en este mes'
+                                        : 'No hay observaciones pendientes ni desaprobadas en este mes'
+                            }
                             onOpen={setDetail}
                             actionsFor={unitActions}
                         />

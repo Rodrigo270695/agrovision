@@ -74,20 +74,20 @@ final class ObservationCalendar
                     || (ObservationRemediationSupport::isRemediableGrade($grade)
                         && $remediation?->status === ObservationRemediation::VERIFIED)
                 ) {
-                    $byDate[$dateKey][] = 'approved';
-
+                    $bucket = 'approved';
+                } elseif ($grade === 'rejected') {
+                    $bucket = 'rejected';
+                } elseif ($grade === 'approved_notes') {
+                    $bucket = 'approved_notes';
+                } else {
                     continue;
                 }
 
-                if ($grade === 'rejected') {
-                    $byDate[$dateKey][] = 'rejected';
-
+                if (! $this->matchesGrade($filters, $bucket)) {
                     continue;
                 }
 
-                if ($grade === 'approved_notes') {
-                    $byDate[$dateKey][] = 'approved_notes';
-                }
+                $byDate[$dateKey][] = $bucket;
             }
         }
 
@@ -150,7 +150,7 @@ final class ObservationCalendar
 
         foreach ($checklists as $checklist) {
             foreach (ObservationRemediationSupport::listedPasses($checklist) as $passInfo) {
-                if ($passInfo['date'] !== $date) {
+                if ($passInfo['date'] !== $date || ! $this->matchesGrade($filters, $passInfo['grade'])) {
                     continue;
                 }
 
@@ -238,15 +238,17 @@ final class ObservationCalendar
 
         $rows = [];
 
+        $grade = $this->selectedGrade($filters);
+
         foreach ($checklists as $checklist) {
-            $passes = $onlyActionable
+            $passes = $onlyActionable && $grade === null
                 ? ObservationRemediationSupport::actionablePasses($checklist)
                 : ObservationRemediationSupport::listedPasses($checklist);
 
             foreach ($passes as $passInfo) {
                 $dateKey = Carbon::parse($passInfo['date'])->toDateString();
 
-                if ($dateKey < $from || $dateKey > $to) {
+                if ($dateKey < $from || $dateKey > $to || ! $this->matchesGrade($filters, $passInfo['grade'])) {
                     continue;
                 }
 
@@ -273,6 +275,28 @@ final class ObservationCalendar
      * @param  array{search?: ?string, sede?: ?string, provider?: ?string, responsible?: ?string}  $filters
      * @return Builder<UnitChecklist>
      */
+    /**
+     * @param  array{grade?: ?string}  $filters
+     */
+    private function selectedGrade(array $filters): ?string
+    {
+        $grade = trim((string) ($filters['grade'] ?? ''));
+
+        return in_array($grade, ['approved', 'approved_notes', 'rejected'], true)
+            ? $grade
+            : null;
+    }
+
+    /**
+     * @param  array{grade?: ?string}  $filters
+     */
+    private function matchesGrade(array $filters, string $grade): bool
+    {
+        $selected = $this->selectedGrade($filters);
+
+        return $selected === null || $selected === $grade;
+    }
+
     private function applyFilters(Builder $query, array $filters = []): Builder
     {
         $search = trim((string) ($filters['search'] ?? '')) ?: null;
