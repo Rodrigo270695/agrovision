@@ -99,7 +99,7 @@ function useSheetLayout(): boolean {
     const [sheet, setSheet] = useState(false);
 
     useEffect(() => {
-        const query = window.matchMedia('(max-width: 1023px), (max-height: 760px)');
+        const query = window.matchMedia('(max-width: 1023px), (max-height: 820px)');
         const update = () => setSheet(query.matches);
         update();
         query.addEventListener('change', update);
@@ -297,6 +297,10 @@ export function DateRangeFilter({
     align = 'end',
 }: Props) {
     const sheet = useSheetLayout();
+    const popoverCollisionBoundary = useMemo(
+        () => (typeof document !== 'undefined' ? [document.documentElement] : []),
+        [],
+    );
     const [open, setOpen] = useState(false);
     const [draftFrom, setDraftFrom] = useState<Date | undefined>();
     const [draftTo, setDraftTo] = useState<Date | undefined>();
@@ -488,8 +492,11 @@ export function DateRangeFilter({
                 align={align}
                 side="bottom"
                 sideOffset={8}
-                collisionPadding={16}
-                className="w-auto max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border-brand-200 p-0 shadow-xl"
+                collisionBoundary={popoverCollisionBoundary}
+                collisionPadding={24}
+                sticky="partial"
+                updatePositionStrategy="always"
+                className="w-auto max-w-[calc(100vw-1.5rem)] max-h-[min(36rem,var(--radix-popover-content-available-height))] overflow-x-hidden overflow-y-auto rounded-2xl border-brand-200 p-0 shadow-xl"
             >
                 {panel}
             </PopoverContent>
