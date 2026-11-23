@@ -8,6 +8,7 @@ use App\Models\Period;
 use App\Models\ResponsiblePerson;
 use App\Models\ServiceType;
 use App\Models\Unit;
+use App\Models\UnitChecklist;
 use App\Models\UnitImport;
 use App\Models\UnitMovement;
 use App\Models\UnitStatusEvent;
@@ -56,12 +57,11 @@ class UnitController extends Controller
                         ->with('uploader:id,name'),
                 ])
                 ->withCount('documents')
-                ->withExists([
-                    'checklists as has_inspection' => function (Builder $query) use ($filters): void {
-                        $this->constrainInspectionDates($query, $filters['date_from'], $filters['date_to']);
-                    },
-                ])
                 ->addSelect([
+                    'has_inspection' => $this->inspectionExistsSubquery(
+                        $filters['date_from'],
+                        $filters['date_to'],
+                    ),
                     'last_inactive_on' => UnitStatusEvent::query()
                         ->select('happened_on')
                         ->whereColumn('unit_status_events.unit_id', 'units.id')
@@ -349,10 +349,11 @@ class UnitController extends Controller
 
         $units = $this->filteredUnitsQuery($filters, $this->scopedUnitsQuery())
             ->with(['period:id,name,date', 'coordinatorUser:id,name'])
-            ->withExists([
-                'checklists as has_inspection' => function (Builder $query) use ($filters): void {
-                    $this->constrainInspectionDates($query, $filters['date_from'], $filters['date_to']);
-                },
+            ->addSelect([
+                'has_inspection' => $this->inspectionExistsSubquery(
+                    $filters['date_from'],
+                    $filters['date_to'],
+                ),
             ])
             ->get();
 
@@ -640,14 +641,12 @@ class UnitController extends Controller
 
         $inspection = $filters['inspection'] ?? null;
         if ($inspection === 'yes' || $inspection === 'no') {
-            $constraint = function (Builder $checklist) use ($dateFrom, $dateTo): void {
-                $this->constrainInspectionDates($checklist, $dateFrom, $dateTo);
-            };
+            $exists = fn (Builder $outer) => $this->applyInspectionExists($outer, $dateFrom, $dateTo);
 
             if ($inspection === 'yes') {
-                $query->whereHas('checklists', $constraint);
+                $query->whereExists($exists);
             } else {
-                $query->whereDoesntHave('checklists', $constraint);
+                $query->whereNotExists($exists);
             }
         }
 
@@ -775,31 +774,87 @@ class UnitController extends Controller
         }
     }
 
+    /**
+     * La inspección puede estar ligada por unit_id o por placa + periodo (como en Inspecciones).
+     */
+    private function constrainChecklistBelongsToUnit(Builder $query): void
+    {
+        $table = (new UnitChecklist)->getTable();
+
+        $query->where(function (Builder $match) use ($table): void {
+            $match->whereColumn("{$table}.unit_id", 'units.id')
+                ->orWhere(function (Builder $plate) use ($table): void {
+                    $plate->whereColumn("{$table}.period_id", 'units.period_id')
+                        ->whereNotNull('units.plate_number')
+                        ->where('units.plate_number', '!=', '')
+                        ->whereRaw(
+                            "upper(trim({$table}.plate_number)) = upper(trim(units.plate_number))",
+                        );
+                });
+        });
+    }
+
     private function constrainInspectionDates(Builder $query, ?string $from, ?string $to): void
     {
+        $table = (new UnitChecklist)->getTable();
+
         if ($from === null && $to === null) {
+            $query->where(function (Builder $dates) use ($table): void {
+                $dates->whereNotNull("{$table}.first_inspected_on")
+                    ->orWhereNotNull("{$table}.second_inspected_on");
+            });
+
             return;
         }
 
-        $query->where(function (Builder $dates) use ($from, $to): void {
-            $dates->where(function (Builder $first) use ($from, $to): void {
-                $first->whereNotNull('first_inspected_on');
+        $query->where(function (Builder $dates) use ($from, $to, $table): void {
+            $dates->where(function (Builder $first) use ($from, $to, $table): void {
+                $first->whereNotNull("{$table}.first_inspected_on");
                 if ($from) {
-                    $first->whereDate('first_inspected_on', '>=', $from);
+                    $first->whereDate("{$table}.first_inspected_on", '>=', $from);
                 }
                 if ($to) {
-                    $first->whereDate('first_inspected_on', '<=', $to);
+                    $first->whereDate("{$table}.first_inspected_on", '<=', $to);
                 }
-            })->orWhere(function (Builder $second) use ($from, $to): void {
-                $second->whereNotNull('second_inspected_on');
+            })->orWhere(function (Builder $second) use ($from, $to, $table): void {
+                $second->whereNotNull("{$table}.second_inspected_on");
                 if ($from) {
-                    $second->whereDate('second_inspected_on', '>=', $from);
+                    $second->whereDate("{$table}.second_inspected_on", '>=', $from);
                 }
                 if ($to) {
-                    $second->whereDate('second_inspected_on', '<=', $to);
+                    $second->whereDate("{$table}.second_inspected_on", '<=', $to);
                 }
             });
         });
+    }
+
+    private function applyInspectionExists(Builder $query, ?string $from, ?string $to): void
+    {
+        $table = (new UnitChecklist)->getTable();
+
+        $query->selectRaw('1')
+            ->from($table)
+            ->where(function (Builder $checklist): void {
+                $this->constrainChecklistBelongsToUnit($checklist);
+            })
+            ->where(function (Builder $checklist) use ($from, $to): void {
+                $this->constrainInspectionDates($checklist, $from, $to);
+            })
+            ->limit(1);
+    }
+
+    private function inspectionExistsSubquery(?string $from, ?string $to): \Illuminate\Database\Query\Builder
+    {
+        return UnitChecklist::query()
+            ->selectRaw('1')
+            ->where(function (Builder $checklist): void {
+                $this->constrainChecklistBelongsToUnit($checklist);
+            })
+            ->where(function (Builder $checklist) use ($from, $to): void {
+                $this->constrainInspectionDates($checklist, $from, $to);
+            })
+            ->limit(1)
+            ->getQuery();
     }
 
     /**

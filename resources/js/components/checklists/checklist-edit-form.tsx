@@ -10,10 +10,10 @@ import {
     ShieldCheck,
     Trash2,
 } from 'lucide-react';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { FingerprintCameraCapture } from '@/components/inductions/fingerprint-camera-capture';
-import { AppDeleteModal } from '@/components/shared/app-delete-modal';
+import { AppModal } from '@/components/shared/app-modal';
 import {
     ChecklistPhotosSection,
     type ChecklistPhoto,
@@ -26,14 +26,12 @@ import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { getCsrfToken } from '@/lib/csrf';
 import { isBrowserOnline, isLocalChecklistId, newLocalPhotoId } from '@/lib/offline/ids';
-import { enqueueMutation } from '@/lib/offline/mutations';
 import {
     fetchWithNetworkRetry,
     isNetworkFailure,
 } from '@/lib/offline/network';
 import {
     applyUpdateToChecklist,
-    deleteLocalDraft,
     listPendingPhotos,
     photoToView,
     queueDeletePhoto,
@@ -580,8 +578,9 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
         })),
     );
     const [leaveOpen, setLeaveOpen] = useState(false);
-    const [leaving, setLeaving] = useState(false);
     const inspectionStillOpen = !sealed && !firstLocked;
+    const allowLeave = useRef(false);
+    const pendingLeave = useRef<string | null>(null);
 
     useEffect(() => {
         if (!inspectionStillOpen) {
@@ -589,13 +588,45 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
         }
 
         const warn = (event: BeforeUnloadEvent) => {
+            if (allowLeave.current) {
+                return;
+            }
+
             event.preventDefault();
             event.returnValue = '';
         };
 
+        const stopInertia = router.on('before', (event) => {
+            if (allowLeave.current) {
+                return;
+            }
+
+            const visit = event.detail.visit;
+            const method = String(visit.method ?? 'get').toLowerCase();
+
+            if (method !== 'get') {
+                return;
+            }
+
+            const raw =
+                typeof visit.url === 'string' ? visit.url : visit.url.toString();
+            const path = new URL(raw, window.location.origin).pathname;
+
+            if (path === window.location.pathname) {
+                return;
+            }
+
+            event.preventDefault();
+            pendingLeave.current = raw;
+            setLeaveOpen(true);
+        });
+
         window.addEventListener('beforeunload', warn);
 
-        return () => window.removeEventListener('beforeunload', warn);
+        return () => {
+            window.removeEventListener('beforeunload', warn);
+            stopInertia();
+        };
     }, [inspectionStillOpen]);
 
     const reuseDriverImage = async (
@@ -1245,54 +1276,23 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
     };
 
     const confirmLeave = () => {
-        if (leaving) {
+        allowLeave.current = true;
+        setLeaveOpen(false);
+        const target = pendingLeave.current;
+        pendingLeave.current = null;
+
+        if (target) {
+            router.visit(target);
+
             return;
         }
 
-        if (!inspectionStillOpen) {
-            leaveWithoutSaving();
-
-            return;
-        }
-
-        setLeaving(true);
-
-        void (async () => {
-            try {
-                await deleteLocalDraft(checklist.id);
-
-                if (isLocalChecklistId(checklist.id)) {
-                    toast.success('Inspección descartada.');
-                    leaveWithoutSaving();
-
-                    return;
-                }
-
-                if (!isBrowserOnline()) {
-                    await enqueueMutation({
-                        method: 'DELETE',
-                        url: `/inspecciones/${checklist.id}`,
-                    });
-                    toast.success(
-                        'Se eliminará al reconectar. No quedó guardada.',
-                    );
-                    leaveWithoutSaving();
-
-                    return;
-                }
-
-                router.delete(`/inspecciones/${checklist.id}`, {
-                    onFinish: () => setLeaving(false),
-                });
-            } catch {
-                toast.error('No se pudo descartar la inspección.');
-                setLeaving(false);
-            }
-        })();
+        leaveWithoutSaving();
     };
 
     const requestLeave = () => {
         if (inspectionStillOpen) {
+            pendingLeave.current = null;
             setLeaveOpen(true);
 
             return;
@@ -2334,21 +2334,41 @@ export function ChecklistEditForm({ checklist, onBack }: Props) {
                 </div>
             ) : null}
         </form>
-        <AppDeleteModal
+        <AppModal
             open={leaveOpen}
             onClose={() => {
-                if (!leaving) {
-                    setLeaveOpen(false);
-                }
+                pendingLeave.current = null;
+                setLeaveOpen(false);
             }}
-            onConfirm={confirmLeave}
-            processing={leaving}
-            title="Salir sin guardar"
-            description="Si sales ahora se borra esta inspección y no quedará guardada."
-            confirmLabel="Salir y borrar"
-            cancelLabel="Seguir aquí"
-            itemName={checklist.plate_number}
-        />
+            title="Salir de la inspección"
+            description={`Estás en plena inspección de ${checklist.plate_number}. Si sales ahora, lo que no hayas guardado puede perderse.`}
+            footer={
+                <div className="flex flex-wrap justify-end gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="cursor-pointer"
+                        onClick={() => {
+                            pendingLeave.current = null;
+                            setLeaveOpen(false);
+                        }}
+                    >
+                        Seguir en la inspección
+                    </Button>
+                    <Button
+                        type="button"
+                        className="cursor-pointer bg-brand-700 text-white hover:bg-brand-800"
+                        onClick={confirmLeave}
+                    >
+                        Sí, salir
+                    </Button>
+                </div>
+            }
+        >
+            <p className="text-sm text-slate-600">
+                Confirma solo si de verdad quieres dejar esta inspección.
+            </p>
+        </AppModal>
         </>
     );
 }
