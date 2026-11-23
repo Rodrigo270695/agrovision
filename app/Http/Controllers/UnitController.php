@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UnitRequest;
+use App\Models\ChecklistTemplate;
 use App\Models\LicenseCategory;
 use App\Models\Period;
 use App\Models\ResponsiblePerson;
@@ -63,6 +64,7 @@ class UnitController extends Controller
                     'has_inspection' => $this->inspectionExistsSubquery(
                         $filters['date_from'],
                         $filters['date_to'],
+                        $filters['template_type'],
                     ),
                     'last_inactive_on' => UnitStatusEvent::query()
                         ->select('happened_on')
@@ -127,10 +129,18 @@ class UnitController extends Controller
                 'status' => $filters['status'],
                 'coordinator_id' => $filters['coordinator_id'],
                 'inspection' => $filters['inspection'],
+                'template_type' => $filters['template_type'],
                 'sort' => $filters['sort'],
                 'direction' => $filters['direction'],
                 'per_page' => $filters['per_page'],
             ],
+            'checklistTemplateOptions' => collect(ChecklistTemplate::options())
+                ->map(fn (array $row) => [
+                    'value' => $row['value'],
+                    'label' => $row['label'],
+                ])
+                ->values()
+                ->all(),
             'periodOptions' => Period::query()
                 ->orderByDesc('date')
                 ->get(['id', 'name', 'status', 'date']),
@@ -355,6 +365,7 @@ class UnitController extends Controller
                 'has_inspection' => $this->inspectionExistsSubquery(
                     $filters['date_from'],
                     $filters['date_to'],
+                    $filters['template_type'],
                 ),
             ])
             ->get();
@@ -514,16 +525,19 @@ class UnitController extends Controller
     }
 
     /**
-     * @return array{search: string, period_id: int|null, date_from: string|null, date_to: string|null, all_dates: bool, view: string, status: string|null, coordinator_id: int|null, inspection: string|null, sort: string, direction: string, per_page: int}
+     * @return array{search: string, period_id: int|null, date_from: string|null, date_to: string|null, all_dates: bool, view: string, status: string|null, coordinator_id: int|null, inspection: string|null, template_type: string|null, sort: string, direction: string, per_page: int}
      */
     private function validatedFilters(Request $request): array
     {
+        $templateTypes = array_column(ChecklistTemplate::options(), 'value');
+
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:255'],
             'period_id' => ['nullable', 'integer', 'exists:periods,id'],
             'status' => ['nullable', Rule::in(['active', 'inactive'])],
             'coordinator_id' => ['nullable', 'integer', 'exists:users,id'],
             'inspection' => ['nullable', Rule::in(['yes', 'no'])],
+            'template_type' => ['nullable', Rule::in($templateTypes)],
             'view' => ['nullable', Rule::in(['units', 'movements', 'files'])],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
@@ -569,6 +583,7 @@ class UnitController extends Controller
             'status' => $validated['status'] ?? null,
             'coordinator_id' => isset($validated['coordinator_id']) ? (int) $validated['coordinator_id'] : null,
             'inspection' => $validated['inspection'] ?? null,
+            'template_type' => $validated['template_type'] ?? null,
             'sort' => $validated['sort'] ?? 'correlative',
             'direction' => $validated['direction'] ?? 'desc',
             'per_page' => (int) ($validated['per_page'] ?? 10),
@@ -614,6 +629,8 @@ class UnitController extends Controller
             $query->where('coordinator_id', (int) $filters['coordinator_id']);
         }
 
+        $this->applyChecklistTemplateFilter($query, $filters['template_type'] ?? null);
+
         $dateFrom = $filters['date_from'];
         $dateTo = $filters['date_to'];
 
@@ -647,6 +664,7 @@ class UnitController extends Controller
                 $outer,
                 $dateFrom,
                 $dateTo,
+                $filters['template_type'] ?? null,
             );
 
             if ($inspection === 'yes') {
@@ -823,8 +841,12 @@ class UnitController extends Controller
         }
     }
 
-    private function applyInspectionExists(QueryBuilder $query, ?string $from, ?string $to): void
-    {
+    private function applyInspectionExists(
+        QueryBuilder $query,
+        ?string $from,
+        ?string $to,
+        ?string $templateType = null,
+    ): void {
         $table = (new UnitChecklist)->getTable();
 
         $query->selectRaw('1')
@@ -832,23 +854,90 @@ class UnitController extends Controller
             ->where(function (QueryBuilderContract $checklist): void {
                 $this->constrainChecklistBelongsToUnit($checklist);
             })
-            ->where(function (QueryBuilderContract $checklist) use ($from, $to): void {
+            ->where(function (QueryBuilderContract $checklist) use ($from, $to, $templateType, $table): void {
                 $this->constrainInspectionDates($checklist, $from, $to);
+                $this->constrainChecklistTemplateType($checklist, $templateType, $table);
             });
     }
 
-    private function inspectionExistsSubquery(?string $from, ?string $to): QueryBuilder
-    {
+    private function inspectionExistsSubquery(
+        ?string $from,
+        ?string $to,
+        ?string $templateType = null,
+    ): QueryBuilder {
+        $table = (new UnitChecklist)->getTable();
+
         return UnitChecklist::query()
             ->selectRaw('1')
             ->where(function (QueryBuilderContract $checklist): void {
                 $this->constrainChecklistBelongsToUnit($checklist);
             })
-            ->where(function (QueryBuilderContract $checklist) use ($from, $to): void {
+            ->where(function (QueryBuilderContract $checklist) use ($from, $to, $templateType, $table): void {
                 $this->constrainInspectionDates($checklist, $from, $to);
+                $this->constrainChecklistTemplateType($checklist, $templateType, $table);
             })
             ->limit(1)
             ->getQuery();
+    }
+
+    /**
+     * Tipos de vehículo asignados en Pareto a la plantilla (BUS → TDP, etc.).
+     *
+     * @return list<string>
+     */
+    private function vehicleTypeNamesForChecklistTemplate(string $templateType): array
+    {
+        return VehicleType::query()
+            ->whereHas(
+                'checklistTemplate',
+                fn ($builder) => $builder->where('type', $templateType)->where('is_active', true),
+            )
+            ->pluck('name')
+            ->map(fn ($name) => mb_strtoupper(trim((string) $name)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  Builder<Unit>  $query
+     */
+    private function applyChecklistTemplateFilter(Builder $query, ?string $templateType): void
+    {
+        if ($templateType === null || $templateType === '') {
+            return;
+        }
+
+        $names = $this->vehicleTypeNamesForChecklistTemplate($templateType);
+
+        if ($names === []) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($names), '?'));
+        $query->whereRaw("upper(trim(vehicle_type)) in ({$placeholders})", $names);
+    }
+
+    private function constrainChecklistTemplateType(
+        QueryBuilderContract $query,
+        ?string $templateType,
+        string $checklistTable,
+    ): void {
+        if ($templateType === null || $templateType === '') {
+            return;
+        }
+
+        $templatesTable = (new ChecklistTemplate)->getTable();
+
+        $query->whereIn("{$checklistTable}.template_id", function (QueryBuilder $sub) use ($templateType, $templatesTable) {
+            $sub->select('id')
+                ->from($templatesTable)
+                ->where('type', $templateType)
+                ->where('is_active', true);
+        });
     }
 
     /**

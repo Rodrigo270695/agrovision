@@ -14,6 +14,7 @@ import { UnitsHeader } from '@/components/units/units-header';
 import type { UnitsStatsData } from '@/components/units/units-stats';
 import { UnitsTable } from '@/components/units/units-table';
 import type {
+    ChecklistTemplateFilterOption,
     ImportFileItem,
     MovementsPagination,
     UnitItem,
@@ -35,6 +36,7 @@ type UnitsPageProps = {
     filters: UnitsFilters;
     periodOptions: PeriodOption[];
     coordinatorOptions: CoordinatorOption[];
+    checklistTemplateOptions?: ChecklistTemplateFilterOption[];
     vehicleTypeOptions: string[];
     licenseCategoryOptions: LicenseCategoryOption[];
     serviceTypeOptions: string[];
@@ -61,6 +63,7 @@ export function UnitsPage() {
         filters,
         periodOptions,
         coordinatorOptions,
+        checklistTemplateOptions,
         vehicleTypeOptions,
         licenseCategoryOptions,
         serviceTypeOptions,
@@ -216,6 +219,7 @@ export function UnitsPage() {
                     filters={filters}
                     periodOptions={periodOptions ?? []}
                     coordinatorOptions={coordinatorOptions ?? []}
+                    checklistTemplateOptions={checklistTemplateOptions ?? []}
                     onEdit={openEdit}
                     onDelete={openDelete}
                     onDocuments={openDocuments}

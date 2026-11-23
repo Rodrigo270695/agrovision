@@ -144,6 +144,7 @@ export type UnitsFilters = {
     status?: 'active' | 'inactive' | null;
     coordinator_id?: number | null;
     inspection?: 'yes' | 'no' | null;
+    template_type?: string | null;
     view?: 'units' | 'movements' | 'files';
     sort:
         | 'correlative'
@@ -155,6 +156,11 @@ export type UnitsFilters = {
         | 'created_at';
     direction: 'asc' | 'desc';
     per_page: number;
+};
+
+export type ChecklistTemplateFilterOption = {
+    value: string;
+    label: string;
 };
 
 export type ImportFileItem = {
@@ -175,6 +181,7 @@ type Props = {
     filters: UnitsFilters;
     periodOptions: PeriodFilterOption[];
     coordinatorOptions?: { id: number; name: string }[];
+    checklistTemplateOptions?: ChecklistTemplateFilterOption[];
     onEdit: (unit: UnitItem) => void;
     onDelete: (unit: UnitItem) => void;
     onDocuments: (unit: UnitItem) => void;
@@ -327,6 +334,7 @@ export function UnitsTable({
     filters,
     periodOptions,
     coordinatorOptions = [],
+    checklistTemplateOptions = [],
     onEdit,
     onDelete,
     onDocuments,
@@ -385,6 +393,12 @@ export function UnitsTable({
             )
                 ? params.inspection
                 : filters.inspection;
+            const nextTemplateType = Object.prototype.hasOwnProperty.call(
+                params,
+                'template_type',
+            )
+                ? params.template_type
+                : filters.template_type;
 
             router.get(
                 '/unidades',
@@ -396,6 +410,9 @@ export function UnitsTable({
                         ? { coordinator_id: nextCoordinatorId }
                         : {}),
                     ...(nextInspection ? { inspection: nextInspection } : {}),
+                    ...(nextTemplateType
+                        ? { template_type: nextTemplateType }
+                        : {}),
                     ...(nextAllDates ? { all_dates: 1 } : {}),
                     ...(nextDateFrom ? { date_from: nextDateFrom } : {}),
                     ...(nextDateTo ? { date_to: nextDateTo } : {}),
@@ -723,8 +740,42 @@ export function UnitsTable({
             filters.status ||
             filters.coordinator_id ||
             filters.inspection ||
+            filters.template_type ||
             filters.date_from ||
             filters.date_to,
+    );
+
+    const checklistTemplateFilter = (
+        <FilterChips
+            ariaLabel="Filtrar por tipo de checklist"
+            value={filters.template_type ?? 'all'}
+            onChange={(next) =>
+                visit({
+                    template_type: next === 'all' ? null : next,
+                    page: 1,
+                })
+            }
+            options={[
+                {
+                    value: 'all',
+                    label: 'Todos los tipos',
+                    icon: <Layers className="size-3.5" />,
+                    tone: 'default',
+                },
+                ...(checklistTemplateOptions.length > 0
+                    ? checklistTemplateOptions
+                    : [
+                          { value: 'tdp', label: 'TDP' },
+                          { value: 'tdc', label: 'TDC' },
+                      ]
+                ).map((template) => ({
+                    value: template.value,
+                    label: template.label,
+                    icon: <Bus className="size-3.5" />,
+                    tone: 'default' as const,
+                })),
+            ]}
+        />
     );
 
     const statusFilter = (
@@ -1040,6 +1091,7 @@ export function UnitsTable({
                             status: filters.status || undefined,
                             coordinator_id: filters.coordinator_id ?? undefined,
                             inspection: filters.inspection || undefined,
+                            template_type: filters.template_type || undefined,
                             date_from: filters.date_from || undefined,
                             date_to: filters.date_to || undefined,
                             all_dates: filters.all_dates ? 1 : undefined,
@@ -1096,6 +1148,7 @@ export function UnitsTable({
                         }
                     />
                     {statusFilter}
+                    {checklistTemplateFilter}
                     {inspectionFilter}
                     {coordinatorFilter}
                     <DateRangeFilter
@@ -1128,6 +1181,7 @@ export function UnitsTable({
                         status: filters.status || undefined,
                         coordinator_id: filters.coordinator_id ?? undefined,
                         inspection: filters.inspection || undefined,
+                        template_type: filters.template_type || undefined,
                         date_from: filters.date_from || undefined,
                         date_to: filters.date_to || undefined,
                         all_dates: filters.all_dates ? 1 : undefined,

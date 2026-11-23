@@ -38,6 +38,10 @@ function buildExportUrl(filters: UnitsFilters): string {
         params.set('inspection', filters.inspection);
     }
 
+    if (filters.template_type) {
+        params.set('template_type', filters.template_type);
+    }
+
     if (filters.all_dates) {
         params.set('all_dates', '1');
     }
