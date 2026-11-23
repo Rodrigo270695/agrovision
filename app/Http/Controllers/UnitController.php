@@ -781,7 +781,7 @@ class UnitController extends Controller
     }
 
     /**
-     * La inspección puede estar ligada por unit_id o por placa + periodo (como en Inspecciones).
+     * Misma regla que al crear/buscar inspecciones: unit_id o placa (sin exigir el mismo periodo).
      */
     private function constrainChecklistBelongsToUnit(QueryBuilderContract $query): void
     {
@@ -790,9 +790,10 @@ class UnitController extends Controller
         $query->where(function (QueryBuilderContract $match) use ($table): void {
             $match->whereColumn("{$table}.unit_id", 'units.id')
                 ->orWhere(function (QueryBuilderContract $plate) use ($table): void {
-                    $plate->whereColumn("{$table}.period_id", 'units.period_id')
-                        ->whereNotNull('units.plate_number')
+                    $plate->whereNotNull('units.plate_number')
                         ->where('units.plate_number', '!=', '')
+                        ->whereNotNull("{$table}.plate_number")
+                        ->where("{$table}.plate_number", '!=', '')
                         ->whereRaw(
                             "upper(trim({$table}.plate_number)) = upper(trim(units.plate_number))",
                         );
@@ -813,25 +814,13 @@ class UnitController extends Controller
             return;
         }
 
-        $query->where(function (QueryBuilderContract $dates) use ($from, $to, $table): void {
-            $dates->where(function (QueryBuilderContract $first) use ($from, $to, $table): void {
-                $first->whereNotNull("{$table}.first_inspected_on");
-                if ($from) {
-                    $first->whereDate("{$table}.first_inspected_on", '>=', $from);
-                }
-                if ($to) {
-                    $first->whereDate("{$table}.first_inspected_on", '<=', $to);
-                }
-            })->orWhere(function (QueryBuilderContract $second) use ($from, $to, $table): void {
-                $second->whereNotNull("{$table}.second_inspected_on");
-                if ($from) {
-                    $second->whereDate("{$table}.second_inspected_on", '>=', $from);
-                }
-                if ($to) {
-                    $second->whereDate("{$table}.second_inspected_on", '<=', $to);
-                }
-            });
-        });
+        if ($from) {
+            $query->whereDate("{$table}.first_inspected_on", '>=', $from);
+        }
+
+        if ($to) {
+            $query->whereDate("{$table}.first_inspected_on", '<=', $to);
+        }
     }
 
     private function applyInspectionExists(QueryBuilder $query, ?string $from, ?string $to): void
