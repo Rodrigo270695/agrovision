@@ -146,43 +146,28 @@ final class UnitOperationalScope
         QueryBuilderContract $query,
         ?string $from,
         ?string $to,
-        string $table,
+        bool $qualify = false,
     ): void {
+        $table = (new UnitChecklist)->getTable();
+        $column = $qualify ? "{$table}.first_inspected_on" : 'first_inspected_on';
+        $second = $qualify ? "{$table}.second_inspected_on" : 'second_inspected_on';
+
         if ($from === null && $to === null) {
-            $query->where(function (QueryBuilderContract $dates) use ($table): void {
-                $dates->whereNotNull("{$table}.first_inspected_on")
-                    ->orWhereNotNull("{$table}.second_inspected_on");
+            $query->where(function (QueryBuilderContract $dates) use ($column, $second): void {
+                $dates->whereNotNull($column)
+                    ->orWhereNotNull($second);
             });
 
             return;
         }
 
         if ($from) {
-            $query->whereDate("{$table}.first_inspected_on", '>=', $from);
+            $query->whereDate($column, '>=', $from);
         }
 
         if ($to) {
-            $query->whereDate("{$table}.first_inspected_on", '<=', $to);
+            $query->whereDate($column, '<=', $to);
         }
-    }
-
-    public static function constrainChecklistTemplateType(
-        QueryBuilderContract $query,
-        ?string $templateType,
-        string $checklistTable,
-    ): void {
-        if ($templateType === null || $templateType === '') {
-            return;
-        }
-
-        $templatesTable = (new ChecklistTemplate)->getTable();
-
-        $query->whereIn("{$checklistTable}.template_id", function (QueryBuilder $sub) use ($templateType, $templatesTable) {
-            $sub->select('id')
-                ->from($templatesTable)
-                ->where('type', $templateType)
-                ->where('is_active', true);
-        });
     }
 
     public static function inspectionExistsSubquery(
@@ -197,10 +182,18 @@ final class UnitOperationalScope
             ->where(function (QueryBuilderContract $checklist) use ($table): void {
                 self::constrainChecklistBelongsToUnit($checklist, $table);
             })
-            ->where(function (QueryBuilderContract $checklist) use ($from, $to, $templateType, $table): void {
-                self::constrainInspectionDates($checklist, $from, $to, $table);
-                self::constrainChecklistTemplateType($checklist, $templateType, $table);
+            ->where(function (QueryBuilderContract $checklist) use ($from, $to): void {
+                self::constrainInspectionDates($checklist, $from, $to, qualify: true);
             })
+            ->when(
+                $templateType,
+                fn (Builder $query) => $query->whereHas(
+                    'template',
+                    fn (Builder $template) => $template
+                        ->where('type', $templateType)
+                        ->where('is_active', true),
+                ),
+            )
             ->limit(1)
             ->getQuery();
     }
@@ -212,16 +205,27 @@ final class UnitOperationalScope
         ?string $templateType = null,
     ): void {
         $table = (new UnitChecklist)->getTable();
+        $templatesTable = (new ChecklistTemplate)->getTable();
 
         $query->selectRaw('1')
             ->from($table)
             ->where(function (QueryBuilderContract $checklist) use ($table): void {
                 self::constrainChecklistBelongsToUnit($checklist, $table);
             })
-            ->where(function (QueryBuilderContract $checklist) use ($from, $to, $templateType, $table): void {
-                self::constrainInspectionDates($checklist, $from, $to, $table);
-                self::constrainChecklistTemplateType($checklist, $templateType, $table);
-            });
+            ->where(function (QueryBuilderContract $checklist) use ($from, $to): void {
+                self::constrainInspectionDates($checklist, $from, $to, qualify: true);
+            })
+            ->when(
+                $templateType !== null && $templateType !== '',
+                function (QueryBuilder $checklist) use ($templateType, $templatesTable, $table): void {
+                    $checklist->whereIn("{$table}.template_id", function (QueryBuilder $sub) use ($templateType, $templatesTable) {
+                        $sub->select('id')
+                            ->from($templatesTable)
+                            ->where('type', $templateType)
+                            ->where('is_active', true);
+                    });
+                },
+            );
     }
 
     /**
@@ -248,8 +252,8 @@ final class UnitOperationalScope
                 fn (Builder $builder) => $builder->where('type', $templateType)->where('is_active', true),
             )
             ->when($inspectorId, fn (Builder $query) => $query->where('created_by', $inspectorId))
-            ->where(function (Builder $query) use ($from, $to, $table): void {
-                self::constrainInspectionDates($query, $from, $to, $table);
+            ->where(function (Builder $query) use ($from, $to): void {
+                self::constrainInspectionDates($query, $from, $to);
             })
             ->orderByDesc('first_inspected_on')
             ->orderByDesc('id')

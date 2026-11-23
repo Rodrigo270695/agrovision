@@ -536,7 +536,9 @@ class UnitController extends Controller
             'status' => ['nullable', Rule::in(['active', 'inactive'])],
             'coordinator_id' => ['nullable', 'integer', 'exists:users,id'],
             'inspection' => ['nullable', Rule::in(['yes', 'no'])],
-            'template_type' => ['nullable', Rule::in($templateTypes)],
+            'template_type' => $templateTypes === []
+                ? ['nullable', 'string', 'max:50']
+                : ['nullable', Rule::in($templateTypes)],
             'view' => ['nullable', Rule::in(['units', 'movements', 'files'])],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],

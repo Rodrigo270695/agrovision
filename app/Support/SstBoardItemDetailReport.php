@@ -8,7 +8,6 @@ use App\Models\Period;
 use App\Models\Unit;
 use App\Models\UnitChecklist;
 use App\Models\UnitChecklistAnswer;
-use App\Support\UnitOperationalScope;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -422,11 +421,14 @@ final class SstBoardItemDetailReport
             $rows = [];
 
             foreach ($chunk['units'] as $unit) {
+                $resolvedChecklist = $chunk['checklists']->get($unit->id);
+                $checklist = $resolvedChecklist instanceof UnitChecklist ? $resolvedChecklist : null;
+
                 $rows[] = [
                     'unit' => $unit,
                     'status' => $this->classify(
                         $unit,
-                        $chunk['checklists']->get($unit->id),
+                        $checklist,
                         $itemNumber,
                         $inspection,
                         $activeParentIds,
