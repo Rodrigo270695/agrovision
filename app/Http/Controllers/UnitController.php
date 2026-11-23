@@ -20,7 +20,9 @@ use App\Support\UnitCatalog;
 use App\Support\UnitStatusHistory;
 use App\Support\UnitDocumentTypes;
 use App\Support\UnitExcelImporter;
+use Illuminate\Contracts\Database\Query\Builder as QueryBuilderContract;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -641,7 +643,11 @@ class UnitController extends Controller
 
         $inspection = $filters['inspection'] ?? null;
         if ($inspection === 'yes' || $inspection === 'no') {
-            $exists = fn (Builder $outer) => $this->applyInspectionExists($outer, $dateFrom, $dateTo);
+            $exists = fn (QueryBuilder $outer) => $this->applyInspectionExists(
+                $outer,
+                $dateFrom,
+                $dateTo,
+            );
 
             if ($inspection === 'yes') {
                 $query->whereExists($exists);
@@ -777,13 +783,13 @@ class UnitController extends Controller
     /**
      * La inspección puede estar ligada por unit_id o por placa + periodo (como en Inspecciones).
      */
-    private function constrainChecklistBelongsToUnit(Builder $query): void
+    private function constrainChecklistBelongsToUnit(QueryBuilderContract $query): void
     {
         $table = (new UnitChecklist)->getTable();
 
-        $query->where(function (Builder $match) use ($table): void {
+        $query->where(function (QueryBuilderContract $match) use ($table): void {
             $match->whereColumn("{$table}.unit_id", 'units.id')
-                ->orWhere(function (Builder $plate) use ($table): void {
+                ->orWhere(function (QueryBuilderContract $plate) use ($table): void {
                     $plate->whereColumn("{$table}.period_id", 'units.period_id')
                         ->whereNotNull('units.plate_number')
                         ->where('units.plate_number', '!=', '')
@@ -794,12 +800,12 @@ class UnitController extends Controller
         });
     }
 
-    private function constrainInspectionDates(Builder $query, ?string $from, ?string $to): void
+    private function constrainInspectionDates(QueryBuilderContract $query, ?string $from, ?string $to): void
     {
         $table = (new UnitChecklist)->getTable();
 
         if ($from === null && $to === null) {
-            $query->where(function (Builder $dates) use ($table): void {
+            $query->where(function (QueryBuilderContract $dates) use ($table): void {
                 $dates->whereNotNull("{$table}.first_inspected_on")
                     ->orWhereNotNull("{$table}.second_inspected_on");
             });
@@ -807,8 +813,8 @@ class UnitController extends Controller
             return;
         }
 
-        $query->where(function (Builder $dates) use ($from, $to, $table): void {
-            $dates->where(function (Builder $first) use ($from, $to, $table): void {
+        $query->where(function (QueryBuilderContract $dates) use ($from, $to, $table): void {
+            $dates->where(function (QueryBuilderContract $first) use ($from, $to, $table): void {
                 $first->whereNotNull("{$table}.first_inspected_on");
                 if ($from) {
                     $first->whereDate("{$table}.first_inspected_on", '>=', $from);
@@ -816,7 +822,7 @@ class UnitController extends Controller
                 if ($to) {
                     $first->whereDate("{$table}.first_inspected_on", '<=', $to);
                 }
-            })->orWhere(function (Builder $second) use ($from, $to, $table): void {
+            })->orWhere(function (QueryBuilderContract $second) use ($from, $to, $table): void {
                 $second->whereNotNull("{$table}.second_inspected_on");
                 if ($from) {
                     $second->whereDate("{$table}.second_inspected_on", '>=', $from);
@@ -828,29 +834,28 @@ class UnitController extends Controller
         });
     }
 
-    private function applyInspectionExists(Builder $query, ?string $from, ?string $to): void
+    private function applyInspectionExists(QueryBuilder $query, ?string $from, ?string $to): void
     {
         $table = (new UnitChecklist)->getTable();
 
         $query->selectRaw('1')
             ->from($table)
-            ->where(function (Builder $checklist): void {
+            ->where(function (QueryBuilderContract $checklist): void {
                 $this->constrainChecklistBelongsToUnit($checklist);
             })
-            ->where(function (Builder $checklist) use ($from, $to): void {
+            ->where(function (QueryBuilderContract $checklist) use ($from, $to): void {
                 $this->constrainInspectionDates($checklist, $from, $to);
-            })
-            ->limit(1);
+            });
     }
 
-    private function inspectionExistsSubquery(?string $from, ?string $to): \Illuminate\Database\Query\Builder
+    private function inspectionExistsSubquery(?string $from, ?string $to): QueryBuilder
     {
         return UnitChecklist::query()
             ->selectRaw('1')
-            ->where(function (Builder $checklist): void {
+            ->where(function (QueryBuilderContract $checklist): void {
                 $this->constrainChecklistBelongsToUnit($checklist);
             })
-            ->where(function (Builder $checklist) use ($from, $to): void {
+            ->where(function (QueryBuilderContract $checklist) use ($from, $to): void {
                 $this->constrainInspectionDates($checklist, $from, $to);
             })
             ->limit(1)
