@@ -9,6 +9,7 @@ use App\Models\VehicleType;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Database\Query\Builder as QueryBuilderContract;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Collection;
 
@@ -381,7 +382,7 @@ final class UnitOperationalScope
             ->with([
                 'coordinatorUser:id,name',
                 'period:id,name,date',
-                'movements' => function (Builder $movement) use ($from, $to): void {
+                'movements' => function (Relation $movement) use ($from, $to): void {
                     if ($from) {
                         $movement->whereDate('service_date', '>=', $from);
                     }
