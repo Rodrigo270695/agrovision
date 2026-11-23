@@ -108,10 +108,10 @@ export default function SstBoardItemDetailPage() {
                             {item.label}
                         </h1>
                         <p className="mt-2 text-sm text-muted-foreground">
-                            A continuación se detallan los porcentajes de las
-                            unidades móviles que cumplen este requisito. Cada
-                            semana agrupa la planilla cargada en esa fecha
-                            (placas únicas, sin repetir).
+                            Unidades activas con servicio en el rango (igual que
+                            en Plataforma → Unidades con el mismo tipo de
+                            checklist y fechas). Placas únicas; las semanas
+                            usan la fecha de servicio del mes.
                         </p>
                         <p className="mt-2 text-sm font-semibold text-brand-700">
                             Unidades en el rango ({summary_meta.week_label}):{' '}

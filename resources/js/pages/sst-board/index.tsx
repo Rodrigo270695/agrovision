@@ -136,7 +136,7 @@ export default function SstBoardPage() {
                 <PlatformHero
                     eyebrow="Reportes · SST"
                     title={`Tablero de mando SST ${summary.template_label}`}
-                    description={`${summary.units} unidades, cada placa una sola vez. ${summary.week_label}. Pendiente es planilla sin inspección cerrada.`}
+                    description={`${summary.units} unidades activas con servicio en el rango (${summary.week_label}). Misma base que Unidades (tipos Pareto de ${summary.template_label}). Pendiente = sin inspección cerrada o sin ficha en el mes.`}
                     stats={[
                         {
                             label: 'Unidades',

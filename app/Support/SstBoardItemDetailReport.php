@@ -8,6 +8,7 @@ use App\Models\Period;
 use App\Models\Unit;
 use App\Models\UnitChecklist;
 use App\Models\UnitChecklistAnswer;
+use App\Support\UnitOperationalScope;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -62,16 +63,8 @@ final class SstBoardItemDetailReport
         }
 
         $activeParentIds = $parents->pluck('id')->flip();
-        $periods = $this->periodsInRange(
+        $periodData = $this->operationalPeriodData(
             $range,
-            $templateType,
-            $coordinatorId,
-            $vehicleTypes,
-            $inspectorId,
-        );
-
-        $periodData = $this->loadPeriodData(
-            $periods,
             $templateType,
             $itemNumber,
             $coordinatorId,
@@ -83,7 +76,7 @@ final class SstBoardItemDetailReport
 
         $grouped = $this->unitsGroupedForRange($range, $periodData);
         $summary = $this->summaryFromGrouped($grouped);
-        $bars = $this->weeklyBars($range, $periods, $periodData);
+        $bars = $this->weeklyBars($range, $periodData);
 
         $templateLabel = ChecklistTemplate::query()->where('type', $templateType)->first()?->displayLabel()
             ?? mb_strtoupper($templateType);
@@ -134,8 +127,8 @@ final class SstBoardItemDetailReport
             ->filter(fn (ChecklistItem $item) => filled($item->item_number))
             ->values();
         $activeParentIds = $parents->pluck('id')->flip();
-        $fleet = $this->loadFleet(
-            $this->periodsInRange($range, $templateType, $coordinatorId, $vehicleTypes, $inspectorId),
+        $fleet = $this->operationalFleetChunks(
+            $range,
             $templateType,
             $coordinatorId,
             $vehicleTypes,
@@ -340,17 +333,18 @@ final class SstBoardItemDetailReport
     }
 
     /**
-     * @param  Collection<int, Period>  $periods
+     * @param  array{from: string|null, to: string|null, label: string}  $range
+     * @param  Collection<int, string>  $vehicleTypes
      * @param  Collection<int, int>  $activeParentIds
      * @return list<array{
-     *     period: Period,
+     *     period: Period|null,
      *     units: Collection<int, Unit>,
-     *     checklists: Collection<int|string, UnitChecklist>,
+     *     checklists: Collection<int, UnitChecklist|null>,
      *     rows: list<array{unit: Unit, status: string}>
      * }>
      */
-    private function loadPeriodData(
-        Collection $periods,
+    private function operationalPeriodData(
+        array $range,
         string $templateType,
         string $itemNumber,
         ?int $coordinatorId,
@@ -360,7 +354,13 @@ final class SstBoardItemDetailReport
         Collection $activeParentIds,
     ): array {
         return $this->rowsForItem(
-            $this->loadFleet($periods, $templateType, $coordinatorId, $vehicleTypes, $inspectorId),
+            $this->operationalFleetChunks(
+                $range,
+                $templateType,
+                $coordinatorId,
+                $vehicleTypes,
+                $inspectorId,
+            ),
             $itemNumber,
             $inspection,
             $activeParentIds,
@@ -368,67 +368,41 @@ final class SstBoardItemDetailReport
     }
 
     /**
-     * @param  Collection<int, Period>  $periods
+     * Misma flota que Unidades: activas, servicio en el rango, tipos Pareto de la plantilla.
+     *
+     * @param  array{from: string|null, to: string|null, label: string}  $range
      * @param  Collection<int, string>  $vehicleTypes
-     * @return list<array{period: Period, units: Collection<int, Unit>, checklists: Collection<int|string, UnitChecklist>}>
+     * @return list<array{
+     *     period: Period|null,
+     *     units: Collection<int, Unit>,
+     *     checklists: Collection<int, UnitChecklist|null>
+     * }>
      */
-    private function loadFleet(
-        Collection $periods,
+    private function operationalFleetChunks(
+        array $range,
         string $templateType,
         ?int $coordinatorId,
         Collection $vehicleTypes,
         ?int $inspectorId,
     ): array {
-        $loaded = [];
+        $fleet = UnitOperationalScope::operationalFleet(
+            $range['from'] ?? null,
+            $range['to'] ?? null,
+            $templateType,
+            $coordinatorId,
+            $vehicleTypes,
+            $inspectorId,
+        );
 
-        foreach ($periods as $period) {
-            $units = Unit::query()
-                ->where('period_id', $period->id)
-                ->where(function ($query) {
-                    $query->where('status', 'active')->orWhereNull('status');
-                })
-                ->when($coordinatorId, fn ($query) => $query->where('coordinator_id', $coordinatorId))
-                ->when(
-                    $vehicleTypes->isNotEmpty(),
-                    fn ($query) => $query->whereIn('vehicle_type', $vehicleTypes->all()),
-                )
-                ->with(['coordinatorUser:id,name', 'period:id,name,date'])
-                ->orderBy('id')
-                ->get([
-                    'id',
-                    'period_id',
-                    'correlative',
-                    'plate_number',
-                    'driver_name',
-                    'driver_dni',
-                    'provider',
-                    'vehicle_type',
-                    'sede',
-                    'garita',
-                    'status',
-                    'coordinator_id',
-                ]);
-
-            $units = $this->uniqueUnits($units);
-
-            $checklists = UnitChecklist::query()
-                ->with(['answers.item:id,item_number,parent_id,pareto_id'])
-                ->where('period_id', $period->id)
-                ->whereHas('template', fn ($builder) => $builder->where('type', $templateType))
-                ->when($inspectorId, fn ($query) => $query->where('created_by', $inspectorId))
-                ->whereIn('unit_id', $units->pluck('id')->all())
-                ->get()
-                ->groupBy('unit_id')
-                ->map(fn (Collection $rows) => $rows->sortByDesc('id')->first());
-
-            $loaded[] = [
-                'period' => $period,
-                'units' => $units,
-                'checklists' => $checklists,
-            ];
+        if ($fleet['units']->isEmpty()) {
+            return [];
         }
 
-        return $loaded;
+        return [[
+            'period' => $fleet['units']->first()?->period,
+            'units' => $fleet['units'],
+            'checklists' => $fleet['checklists'],
+        ]];
     }
 
     /**
@@ -495,26 +469,15 @@ final class SstBoardItemDetailReport
         $byPlate = [];
 
         foreach ($periodData as $chunk) {
-            $period = $chunk['period'];
-
             foreach ($chunk['rows'] as $row) {
-                $checklist = $chunk['checklists']->get($row['unit']->id);
-                $dates = $this->activityDates($period, $checklist);
+                $latest = UnitOperationalScope::latestOperationDate(
+                    $row['unit'],
+                    $range['from'] ?? null,
+                    $range['to'] ?? null,
+                );
 
-                if ($from !== null && $to !== null) {
-                    $dates = array_values(array_filter(
-                        $dates,
-                        fn (CarbonImmutable $date) => $date->betweenIncluded($from, $to),
-                    ));
-
-                    if ($dates === []) {
-                        continue;
-                    }
-                }
-
-                $latest = collect($dates)->max();
                 $stamp = $latest instanceof CarbonImmutable ? $latest->getTimestamp() : 0;
-                $key = $this->plateKey($row['unit']);
+                $key = UnitOperationalScope::plateKey($row['unit']);
                 $current = $byPlate[$key] ?? null;
 
                 if ($current === null || $stamp >= $current['stamp']) {
@@ -601,17 +564,17 @@ final class SstBoardItemDetailReport
 
     /**
      * @param  array{from: string|null, to: string|null, label: string}  $range
-     * @param  Collection<int, Period>  $periods
-     * @param  list<array{period: Period, units: Collection<int, Unit>, checklists: Collection<int|string, UnitChecklist>, rows: list<array{unit: Unit, status: string}>}>  $periodData
+     * @param  list<array{period: Period|null, units: Collection<int, Unit>, checklists: Collection<int, UnitChecklist|null>, rows: list<array{unit: Unit, status: string}>}>  $periodData
      * @return list<array{label: string, week: int, year: int, ok: int, falta: int, baja: int, pendiente: int, total: int, percent_ok: int}>
      */
-    private function weeklyBars(array $range, Collection $periods, array $periodData): array
+    private function weeklyBars(array $range, array $periodData): array
     {
-        [$from, $to] = $this->barChartBounds($range, $periodData);
-
-        if ($from === null || $to === null) {
+        if ($range['from'] === null || $range['to'] === null) {
             return [];
         }
+
+        $from = CarbonImmutable::parse($range['from']);
+        $to = CarbonImmutable::parse($range['to']);
 
         $bars = [];
         $cursor = $from->copy()->startOfWeek();
@@ -623,14 +586,14 @@ final class SstBoardItemDetailReport
             $byPlate = [];
 
             foreach ($periodData as $chunk) {
-                $period = $chunk['period'];
-
                 foreach ($chunk['rows'] as $row) {
-                    $checklist = $chunk['checklists']->get($row['unit']->id);
-
-                    foreach ($this->activityDates($period, $checklist) as $date) {
+                    foreach (UnitOperationalScope::operationDatesInRange(
+                        $row['unit'],
+                        $range['from'],
+                        $range['to'],
+                    ) as $date) {
                         if ($date->betweenIncluded($weekStart, $weekEnd)) {
-                            $byPlate[$this->plateKey($row['unit'])] = $row['status'];
+                            $byPlate[UnitOperationalScope::plateKey($row['unit'])] = $row['status'];
                         }
                     }
                 }
@@ -667,140 +630,6 @@ final class SstBoardItemDetailReport
         }
 
         return $bars;
-    }
-
-    /**
-     * @return list<CarbonImmutable>
-     */
-    private function activityDates(Period $period, ?UnitChecklist $checklist): array
-    {
-        $dates = [];
-
-        if ($period->date !== null) {
-            $dates[] = CarbonImmutable::parse($period->date)->startOfDay();
-        }
-
-        if ($checklist?->first_inspected_on !== null) {
-            $dates[] = CarbonImmutable::parse($checklist->first_inspected_on)->startOfDay();
-        }
-
-        return $dates;
-    }
-
-    /**
-     * @param  list<array{period: Period, units: Collection<int, Unit>, checklists: Collection<int|string, UnitChecklist>, rows: list<array{unit: Unit, status: string}>}>  $periodData
-     * @return array{0: CarbonImmutable|null, 1: CarbonImmutable|null}
-     */
-    private function barChartBounds(array $range, array $periodData): array
-    {
-        if ($range['from'] !== null && $range['to'] !== null) {
-            return [
-                CarbonImmutable::parse($range['from']),
-                CarbonImmutable::parse($range['to']),
-            ];
-        }
-
-        $dates = [];
-
-        foreach ($periodData as $chunk) {
-            if ($chunk['period']->date !== null) {
-                $dates[] = CarbonImmutable::parse($chunk['period']->date);
-            }
-
-            foreach ($chunk['checklists'] as $checklist) {
-                if ($checklist->first_inspected_on !== null) {
-                    $dates[] = CarbonImmutable::parse($checklist->first_inspected_on);
-                }
-            }
-        }
-
-        if ($dates === []) {
-            return [null, null];
-        }
-
-        return [
-            collect($dates)->min(),
-            collect($dates)->max(),
-        ];
-    }
-
-    /**
-     * @param  array{from: string|null, to: string|null, label: string}  $range
-     * @param  list<string>  $vehicleTypes
-     * @return Collection<int, Period>
-     */
-    private function periodsInRange(
-        array $range,
-        string $templateType,
-        ?int $coordinatorId,
-        Collection $vehicleTypes,
-        ?int $inspectorId,
-    ): Collection {
-        $query = Period::query()->orderBy('date');
-
-        if ($range['from'] === null || $range['to'] === null) {
-            return $query->whereHas('units')->get();
-        }
-
-        $from = $range['from'];
-        $to = $range['to'];
-
-        $periodIdsFromInspections = UnitChecklist::query()
-            ->whereHas('template', fn ($builder) => $builder->where('type', $templateType))
-            ->whereBetween('first_inspected_on', [$from, $to])
-            ->when($inspectorId, fn ($builder) => $builder->where('created_by', $inspectorId))
-            ->when($coordinatorId, fn ($builder) => $builder->whereHas(
-                'unit',
-                fn ($unit) => $unit->where('coordinator_id', $coordinatorId),
-            ))
-            ->when(
-                $vehicleTypes->isNotEmpty(),
-                fn ($builder) => $builder->whereHas(
-                    'unit',
-                    fn ($unit) => $unit->whereIn('vehicle_type', $vehicleTypes->all()),
-                ),
-            )
-            ->distinct()
-            ->pluck('period_id');
-
-        return $query
-            ->where(function ($builder) use ($from, $to, $periodIdsFromInspections) {
-                $builder->whereBetween('date', [$from, $to]);
-
-                if ($periodIdsFromInspections->isNotEmpty()) {
-                    $builder->orWhereIn('id', $periodIdsFromInspections);
-                }
-            })
-            ->whereHas('units')
-            ->get();
-    }
-
-    /**
-     * @param  Collection<int, Unit>  $units
-     * @return Collection<int, Unit>
-     */
-    private function uniqueUnits(Collection $units): Collection
-    {
-        $seen = [];
-
-        return $units->filter(function (Unit $unit) use (&$seen) {
-            $key = $this->plateKey($unit);
-
-            if (isset($seen[$key])) {
-                return false;
-            }
-
-            $seen[$key] = true;
-
-            return true;
-        })->values();
-    }
-
-    private function plateKey(Unit $unit): string
-    {
-        $plate = mb_strtoupper(trim((string) $unit->plate_number));
-
-        return $plate !== '' ? $plate : 'unit-'.$unit->id;
     }
 
     /**

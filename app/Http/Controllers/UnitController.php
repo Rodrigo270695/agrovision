@@ -9,7 +9,6 @@ use App\Models\Period;
 use App\Models\ResponsiblePerson;
 use App\Models\ServiceType;
 use App\Models\Unit;
-use App\Models\UnitChecklist;
 use App\Models\UnitImport;
 use App\Models\UnitMovement;
 use App\Models\UnitStatusEvent;
@@ -18,10 +17,10 @@ use App\Support\IndexedRedirect;
 use App\Support\PermissionCatalog;
 use App\Support\SystemRoles;
 use App\Support\UnitCatalog;
-use App\Support\UnitStatusHistory;
 use App\Support\UnitDocumentTypes;
 use App\Support\UnitExcelImporter;
-use Illuminate\Contracts\Database\Query\Builder as QueryBuilderContract;
+use App\Support\UnitOperationalScope;
+use App\Support\UnitStatusHistory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\JsonResponse;
@@ -61,7 +60,7 @@ class UnitController extends Controller
                 ])
                 ->withCount('documents')
                 ->addSelect([
-                    'has_inspection' => $this->inspectionExistsSubquery(
+                    'has_inspection' => UnitOperationalScope::inspectionExistsSubquery(
                         $filters['date_from'],
                         $filters['date_to'],
                         $filters['template_type'],
@@ -362,7 +361,7 @@ class UnitController extends Controller
         $units = $this->filteredUnitsQuery($filters, $this->scopedUnitsQuery())
             ->with(['period:id,name,date', 'coordinatorUser:id,name'])
             ->addSelect([
-                'has_inspection' => $this->inspectionExistsSubquery(
+                'has_inspection' => UnitOperationalScope::inspectionExistsSubquery(
                     $filters['date_from'],
                     $filters['date_to'],
                     $filters['template_type'],
@@ -629,38 +628,19 @@ class UnitController extends Controller
             $query->where('coordinator_id', (int) $filters['coordinator_id']);
         }
 
-        $this->applyChecklistTemplateFilter($query, $filters['template_type'] ?? null);
+        UnitOperationalScope::applyTemplateVehicleFilter(
+            $query,
+            $filters['template_type'] ?? null,
+        );
 
         $dateFrom = $filters['date_from'];
         $dateTo = $filters['date_to'];
 
-        if ($dateFrom || $dateTo) {
-            $query->where(function ($builder) use ($dateFrom, $dateTo) {
-                $builder->whereHas('movements', function ($movement) use ($dateFrom, $dateTo) {
-                    if ($dateFrom) {
-                        $movement->whereDate('service_date', '>=', $dateFrom);
-                    }
-
-                    if ($dateTo) {
-                        $movement->whereDate('service_date', '<=', $dateTo);
-                    }
-                })->orWhere(function ($unit) use ($dateFrom, $dateTo) {
-                    $unit->whereDoesntHave('movements');
-
-                    if ($dateFrom) {
-                        $unit->whereDate('service_date', '>=', $dateFrom);
-                    }
-
-                    if ($dateTo) {
-                        $unit->whereDate('service_date', '<=', $dateTo);
-                    }
-                });
-            });
-        }
+        UnitOperationalScope::applyServiceDateRange($query, $dateFrom, $dateTo);
 
         $inspection = $filters['inspection'] ?? null;
         if ($inspection === 'yes' || $inspection === 'no') {
-            $exists = fn (QueryBuilder $outer) => $this->applyInspectionExists(
+            $exists = fn (QueryBuilder $outer) => UnitOperationalScope::applyInspectionExists(
                 $outer,
                 $dateFrom,
                 $dateTo,
@@ -796,148 +776,6 @@ class UnitController extends Controller
         ) {
             abort(403, 'No tienes acceso a esta unidad.');
         }
-    }
-
-    /**
-     * Misma regla que al crear/buscar inspecciones: unit_id o placa (sin exigir el mismo periodo).
-     */
-    private function constrainChecklistBelongsToUnit(QueryBuilderContract $query): void
-    {
-        $table = (new UnitChecklist)->getTable();
-
-        $query->where(function (QueryBuilderContract $match) use ($table): void {
-            $match->whereColumn("{$table}.unit_id", 'units.id')
-                ->orWhere(function (QueryBuilderContract $plate) use ($table): void {
-                    $plate->whereNotNull('units.plate_number')
-                        ->where('units.plate_number', '!=', '')
-                        ->whereNotNull("{$table}.plate_number")
-                        ->where("{$table}.plate_number", '!=', '')
-                        ->whereRaw(
-                            "upper(trim({$table}.plate_number)) = upper(trim(units.plate_number))",
-                        );
-                });
-        });
-    }
-
-    private function constrainInspectionDates(QueryBuilderContract $query, ?string $from, ?string $to): void
-    {
-        $table = (new UnitChecklist)->getTable();
-
-        if ($from === null && $to === null) {
-            $query->where(function (QueryBuilderContract $dates) use ($table): void {
-                $dates->whereNotNull("{$table}.first_inspected_on")
-                    ->orWhereNotNull("{$table}.second_inspected_on");
-            });
-
-            return;
-        }
-
-        if ($from) {
-            $query->whereDate("{$table}.first_inspected_on", '>=', $from);
-        }
-
-        if ($to) {
-            $query->whereDate("{$table}.first_inspected_on", '<=', $to);
-        }
-    }
-
-    private function applyInspectionExists(
-        QueryBuilder $query,
-        ?string $from,
-        ?string $to,
-        ?string $templateType = null,
-    ): void {
-        $table = (new UnitChecklist)->getTable();
-
-        $query->selectRaw('1')
-            ->from($table)
-            ->where(function (QueryBuilderContract $checklist): void {
-                $this->constrainChecklistBelongsToUnit($checklist);
-            })
-            ->where(function (QueryBuilderContract $checklist) use ($from, $to, $templateType, $table): void {
-                $this->constrainInspectionDates($checklist, $from, $to);
-                $this->constrainChecklistTemplateType($checklist, $templateType, $table);
-            });
-    }
-
-    private function inspectionExistsSubquery(
-        ?string $from,
-        ?string $to,
-        ?string $templateType = null,
-    ): QueryBuilder {
-        $table = (new UnitChecklist)->getTable();
-
-        return UnitChecklist::query()
-            ->selectRaw('1')
-            ->where(function (QueryBuilderContract $checklist): void {
-                $this->constrainChecklistBelongsToUnit($checklist);
-            })
-            ->where(function (QueryBuilderContract $checklist) use ($from, $to, $templateType, $table): void {
-                $this->constrainInspectionDates($checklist, $from, $to);
-                $this->constrainChecklistTemplateType($checklist, $templateType, $table);
-            })
-            ->limit(1)
-            ->getQuery();
-    }
-
-    /**
-     * Tipos de vehículo asignados en Pareto a la plantilla (BUS → TDP, etc.).
-     *
-     * @return list<string>
-     */
-    private function vehicleTypeNamesForChecklistTemplate(string $templateType): array
-    {
-        return VehicleType::query()
-            ->whereHas(
-                'checklistTemplate',
-                fn ($builder) => $builder->where('type', $templateType)->where('is_active', true),
-            )
-            ->pluck('name')
-            ->map(fn ($name) => mb_strtoupper(trim((string) $name)))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @param  Builder<Unit>  $query
-     */
-    private function applyChecklistTemplateFilter(Builder $query, ?string $templateType): void
-    {
-        if ($templateType === null || $templateType === '') {
-            return;
-        }
-
-        $names = $this->vehicleTypeNamesForChecklistTemplate($templateType);
-
-        if ($names === []) {
-            $query->whereRaw('1 = 0');
-
-            return;
-        }
-
-        $placeholders = implode(',', array_fill(0, count($names), '?'));
-        $query->whereRaw("upper(trim(vehicle_type)) in ({$placeholders})", $names);
-    }
-
-    private function constrainChecklistTemplateType(
-        QueryBuilderContract $query,
-        ?string $templateType,
-        string $checklistTable,
-    ): void {
-        if ($templateType === null || $templateType === '') {
-            return;
-        }
-
-        $templatesTable = (new ChecklistTemplate)->getTable();
-
-        $query->whereIn("{$checklistTable}.template_id", function (QueryBuilder $sub) use ($templateType, $templatesTable) {
-            $sub->select('id')
-                ->from($templatesTable)
-                ->where('type', $templateType)
-                ->where('is_active', true);
-        });
     }
 
     /**
