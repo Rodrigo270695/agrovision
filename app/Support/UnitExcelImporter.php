@@ -401,24 +401,68 @@ final class UnitExcelImporter
     }
 
     /**
-     * @return array{imported: int, created: int, updated: int, units_created: int, deactivated: int, errors: list<array{row: int, messages: list<string>}>}
+     * Lee el Excel guardado de una importación y devuelve placas únicas (sin escribir en BD).
+     *
+     * @return array{
+     *     rows_with_data: int,
+     *     plates: list<string>,
+     *     errors: list<array{row: int, messages: list<string>}>,
+     *     file_missing: bool
+     * }
      */
-    public function import(UploadedFile $file, Period $period): array
+    public function readPlatesFromStoredImport(UnitImport $import): array
     {
-        set_time_limit(300);
+        $import->loadMissing('period');
+        $period = $import->period;
 
-        $spreadsheet = IOFactory::load($file->getRealPath());
+        if ($period === null) {
+            return [
+                'rows_with_data' => 0,
+                'plates' => [],
+                'errors' => [['row' => 0, 'messages' => ['Periodo de la importación no encontrado.']]],
+                'file_missing' => true,
+            ];
+        }
+
+        $disk = $import->file_disk ?: 'local';
+        $relativePath = $import->file_path;
+
+        if (! is_string($relativePath) || $relativePath === '' || ! Storage::disk($disk)->exists($relativePath)) {
+            return [
+                'rows_with_data' => 0,
+                'plates' => [],
+                'errors' => [['row' => 0, 'messages' => ['No se encontró el archivo Excel guardado.']]],
+                'file_missing' => true,
+            ];
+        }
+
+        $parsed = $this->parseSpreadsheetPath(Storage::disk($disk)->path($relativePath), $period);
+        $plates = array_values(array_unique(array_map(
+            fn ($plate) => mb_strtoupper(trim((string) $plate)),
+            array_column($parsed['pending'], 'plate_number'),
+        )));
+
+        return [
+            'rows_with_data' => count($parsed['pending']),
+            'plates' => $plates,
+            'errors' => $parsed['errors'],
+            'file_missing' => false,
+        ];
+    }
+
+    /**
+     * @return array{pending: array<int, array<string, mixed>>, errors: list<array{row: int, messages: list<string>}>}
+     */
+    public function parseSpreadsheetPath(string $absolutePath, Period $period): array
+    {
+        $spreadsheet = IOFactory::load($absolutePath);
         $sheet = $spreadsheet->getSheetByName('Unidades')
             ?? $spreadsheet->getActiveSheet();
         $rows = $sheet->toArray(null, true, false, false);
 
         if ($rows === []) {
             return [
-                'imported' => 0,
-                'created' => 0,
-                'updated' => 0,
-                'units_created' => 0,
-                'deactivated' => 0,
+                'pending' => [],
                 'errors' => [[
                     'row' => 1,
                     'messages' => ['El archivo está vacío.'],
@@ -431,11 +475,7 @@ final class UnitExcelImporter
 
         if ($headerErrors !== []) {
             return [
-                'imported' => 0,
-                'created' => 0,
-                'updated' => 0,
-                'units_created' => 0,
-                'deactivated' => 0,
+                'pending' => [],
                 'errors' => [[
                     'row' => 1,
                     'messages' => $headerErrors,
@@ -469,14 +509,43 @@ final class UnitExcelImporter
             $pending[$excelRow] = $mapped['data'];
         }
 
-        if ($pending === []) {
-            if ($errors === []) {
-                $errors[] = [
-                    'row' => 2,
-                    'messages' => ['No se encontraron filas con datos para importar.'],
-                ];
-            }
+        if ($pending === [] && $errors === []) {
+            $errors[] = [
+                'row' => 2,
+                'messages' => ['No se encontraron filas con datos para importar.'],
+            ];
+        }
 
+        return [
+            'pending' => $pending,
+            'errors' => $errors,
+        ];
+    }
+
+    /**
+     * @return array{imported: int, created: int, updated: int, units_created: int, deactivated: int, errors: list<array{row: int, messages: list<string>}>}
+     */
+    public function import(UploadedFile $file, Period $period): array
+    {
+        set_time_limit(300);
+
+        $parsed = $this->parseSpreadsheetPath($file->getRealPath(), $period);
+
+        if ($parsed['errors'] !== [] && $parsed['pending'] === []) {
+            return [
+                'imported' => 0,
+                'created' => 0,
+                'updated' => 0,
+                'units_created' => 0,
+                'deactivated' => 0,
+                'errors' => $parsed['errors'],
+            ];
+        }
+
+        $errors = $parsed['errors'];
+        $pending = $parsed['pending'];
+
+        if ($pending === []) {
             return [
                 'imported' => 0,
                 'created' => 0,
@@ -872,15 +941,14 @@ final class UnitExcelImporter
 
         $presentIds = array_map('intval', array_keys($latestByUnit));
 
-        if ($presentIds === []) {
-            return 0;
-        }
-
         $missing = Unit::query()
             ->where('period_id', $period->id)
             ->whereNotNull('plate_number')
-            ->where('plate_number', '!=', '')
-            ->whereNotIn('id', $presentIds);
+            ->where('plate_number', '!=', '');
+
+        if ($presentIds !== []) {
+            $missing->whereNotIn('id', $presentIds);
+        }
 
         if (SystemRoles::currentIsScopedCoordinator()) {
             $missing->where('coordinator_id', Auth::id());

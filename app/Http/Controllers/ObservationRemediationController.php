@@ -207,6 +207,7 @@ class ObservationRemediationController extends Controller
             'photos.*' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:10240'],
         ]);
 
+        $this->ensureCanSubmit();
         $this->ensureCanAccessChecklist($checklist);
         $pass = $validated['pass'];
 
@@ -609,6 +610,7 @@ class ObservationRemediationController extends Controller
             abort(404);
         }
 
+        $this->ensureCanSubmit();
         $this->ensureCanAccessChecklist($remediation->checklist);
 
         if (! $remediation->canSubmit()) {
@@ -685,6 +687,22 @@ class ObservationRemediationController extends Controller
             && (int) $checklist->unit?->coordinator_id !== (int) Auth::id()
         ) {
             abort(403, 'No tienes acceso a esta inspección.');
+        }
+    }
+
+    private function ensureCanSubmit(): void
+    {
+        $user = Auth::user();
+        if ($user === null) {
+            abort(403);
+        }
+
+        if ($user->hasRole(SystemRoles::SUPERADMIN)) {
+            return;
+        }
+
+        if (! $user->can('observation_remediations.submit')) {
+            abort(403, 'No tienes permiso para enviar levantamientos.');
         }
     }
 

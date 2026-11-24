@@ -432,7 +432,8 @@ final class ObservationCalendar
                     ObservationRemediation::OPEN,
                     ObservationRemediation::REJECTED,
                     ObservationRemediation::SUBMITTED,
-                ], true),
+                ], true)
+                && $this->canSubmit(),
             'can_verify' => ObservationRemediationSupport::isRemediableGrade($passInfo['grade'])
                 && $status === ObservationRemediation::SUBMITTED
                 && $this->canVerify($checklist),
@@ -677,5 +678,15 @@ final class ObservationCalendar
         }
 
         return $user->can('observation_remediations.verify');
+    }
+
+    private function canSubmit(): bool
+    {
+        $user = Auth::user();
+        if ($user === null) {
+            return false;
+        }
+
+        return $user->can('observation_remediations.submit');
     }
 }

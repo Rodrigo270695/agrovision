@@ -145,7 +145,9 @@ export type UnitsFilters = {
     coordinator_id?: number | null;
     inspection?: 'yes' | 'no' | null;
     template_type?: string | null;
-    view?: 'units' | 'movements' | 'files';
+    view?: 'units' | 'movements' | 'files' | 'reconcile';
+    import_id?: number | null;
+    reconcile_filter?: 'all' | 'mismatch' | 'ok';
     sort:
         | 'correlative'
         | 'provider'
@@ -174,10 +176,61 @@ export type ImportFileItem = {
     download_url?: string | null;
 };
 
+export type UnitReconcileRow = {
+    kind: 'unit' | 'missing_unit';
+    unit_id: number | null;
+    correlative?: string | null;
+    plate_number?: string | null;
+    driver_name?: string | null;
+    provider?: string | null;
+    coordinator?: string | null;
+    in_excel: boolean;
+    in_scope?: boolean;
+    expected_status: 'active' | 'inactive' | null;
+    actual_status: 'active' | 'inactive' | null;
+    match: boolean | null;
+    service_date?: string | null;
+    note?: string | null;
+};
+
+export type UnitReconcilePayload = {
+    missing_import?: boolean;
+    message?: string;
+    report?: {
+        import: {
+            id: number;
+            imported_on?: string | null;
+            original_name?: string | null;
+            scope_label?: string;
+            period?: { id: number; name: string };
+            user?: { id: number; name: string } | null;
+            download_url?: string | null;
+            movements_count?: number;
+        };
+        file: {
+            rows_with_data: number;
+            unique_plates: number;
+            file_missing: boolean;
+            file_movement_mismatch: boolean;
+            read_errors: Array<{ row: number; messages: string[] }>;
+        };
+        summary: {
+            units_checked: number;
+            matches: number;
+            mismatches: number;
+            skipped_scope: number;
+            all_ok: boolean;
+        };
+        rows: UnitReconcileRow[];
+    };
+    import_options?: ImportFileItem[];
+};
+
 type Props = {
     units: UnitsPagination;
     movements?: MovementsPagination | null;
     imports?: ImportFileItem[];
+    reconcile?: UnitReconcilePayload | null;
     filters: UnitsFilters;
     periodOptions: PeriodFilterOption[];
     coordinatorOptions?: { id: number; name: string }[];
@@ -331,6 +384,7 @@ export function UnitsTable({
     units,
     movements = null,
     imports = [],
+    reconcile = null,
     filters,
     periodOptions,
     coordinatorOptions = [],
@@ -341,6 +395,7 @@ export function UnitsTable({
 }: Props) {
     const showingHistory = filters.view === 'movements';
     const showingFiles = filters.view === 'files';
+    const showingReconcile = filters.view === 'reconcile';
     const visit = useCallback(
         (params: Partial<UnitsFilters> & { page?: number }) => {
             if (!isBrowserOnline()) {
@@ -421,6 +476,18 @@ export function UnitsTable({
                     direction: params.direction ?? filters.direction,
                     per_page: params.per_page ?? filters.per_page,
                     page: params.page ?? 1,
+                    ...(params.import_id !== undefined
+                        ? { import_id: params.import_id ?? undefined }
+                        : filters.import_id
+                          ? { import_id: filters.import_id }
+                          : {}),
+                    ...(params.reconcile_filter ?? filters.reconcile_filter
+                        ? {
+                              reconcile_filter:
+                                  params.reconcile_filter ??
+                                  filters.reconcile_filter,
+                          }
+                        : {}),
                 },
                 {
                     preserveState: true,
@@ -890,7 +957,9 @@ export function UnitsTable({
                         page: 1,
                     })
                 }
-                className={tabClass(!showingHistory && !showingFiles)}
+                className={tabClass(
+                    !showingHistory && !showingFiles && !showingReconcile,
+                )}
             >
                 Unidades
             </button>
@@ -919,6 +988,20 @@ export function UnitsTable({
                 className={tabClass(showingFiles)}
             >
                 Archivos
+            </button>
+            <button
+                type="button"
+                onClick={() =>
+                    visit({
+                        view: 'reconcile',
+                        page: 1,
+                        reconcile_filter:
+                            filters.reconcile_filter ?? 'mismatch',
+                    })
+                }
+                className={tabClass(showingReconcile)}
+            >
+                Cruce Excel
             </button>
         </div>
     );
@@ -958,20 +1041,310 @@ export function UnitsTable({
             key: 'download',
             header: '',
             align: 'right',
-            cell: (file) =>
-                file.download_url ? (
-                    <a
-                        href={file.download_url}
-                        className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline"
+            cell: (file) => (
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                    <button
+                        type="button"
+                        className="cursor-pointer text-xs font-semibold text-brand-700 hover:underline"
+                        onClick={() =>
+                            visit({
+                                view: 'reconcile',
+                                import_id: file.id,
+                                reconcile_filter: 'mismatch',
+                                page: 1,
+                            })
+                        }
                     >
-                        <Download className="size-3.5" />
-                        Descargar
-                    </a>
-                ) : (
-                    '—'
-                ),
+                        Cruce
+                    </button>
+                    {file.download_url ? (
+                        <a
+                            href={file.download_url}
+                            className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline"
+                        >
+                            <Download className="size-3.5" />
+                            Descargar
+                        </a>
+                    ) : (
+                        '—'
+                    )}
+                </div>
+            ),
         },
     ];
+
+    if (showingReconcile) {
+        const report = reconcile?.report;
+        const importOptions = reconcile?.import_options ?? imports;
+        const rows = report?.rows ?? [];
+        const summary = report?.summary;
+        const missing = reconcile?.missing_import;
+
+        return (
+            <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_14px_40px_-28px_rgba(15,31,58,0.4)]">
+                <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-100 bg-[linear-gradient(135deg,#f8fbff,#ffffff_55%)] px-4 py-3 sm:px-5">
+                    <div className="flex min-w-0 flex-col gap-2">
+                        <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                            Verificación
+                        </p>
+                        <h2 className="font-display text-lg font-bold text-brand-800">
+                            Cruce Excel ↔ unidades
+                        </h2>
+                        <p className="max-w-2xl text-xs text-slate-500">
+                            Compara el último archivo subido con el estado
+                            activo/inactivo en el periodo. Una placa en el Excel
+                            debe quedar activa; las que no vienen deben quedar
+                            inactivas (según alcance de la importación).
+                        </p>
+                    </div>
+                    <details className="text-xs text-slate-500">
+                        <summary className="cursor-pointer font-medium text-brand-700">
+                            ¿Por qué veo diferencias en Unidades?
+                        </summary>
+                        <p className="mt-2 max-w-md">
+                            La pestaña Unidades puede filtrar por{' '}
+                            <strong>fecha de servicio</strong> (ej. Este mes).
+                            Una unidad inactiva con fecha antigua puede no
+                            aparecer en la tabla pero sí contarse en estadísticas
+                            o en otro filtro. El cruce revisa{' '}
+                            <strong>todo el periodo</strong>, sin ese filtro de
+                            fechas.
+                        </p>
+                    </details>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3 sm:px-5">
+                    {viewToggle}
+                    <PeriodFilterSelect
+                        value={filters.period_id}
+                        options={periodOptions}
+                        onChange={(periodId) =>
+                            visit({
+                                period_id: periodId,
+                                page: 1,
+                                view: 'reconcile',
+                            })
+                        }
+                    />
+                    {importOptions.length > 0 ? (
+                        <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                            Archivo
+                            <select
+                                className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs"
+                                value={
+                                    filters.import_id ??
+                                    report?.import.id ??
+                                    importOptions[0]?.id
+                                }
+                                onChange={(e) =>
+                                    visit({
+                                        import_id: Number(e.target.value),
+                                        view: 'reconcile',
+                                        page: 1,
+                                    })
+                                }
+                            >
+                                {importOptions.map((file) => (
+                                    <option key={file.id} value={file.id}>
+                                        {formatDay(file.imported_on)} ·{' '}
+                                        {file.original_name || `Import #${file.id}`}{' '}
+                                        ({file.rows} filas)
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    ) : null}
+                    <div className="flex rounded-lg border border-slate-200 p-0.5">
+                        {(
+                            [
+                                ['mismatch', 'Solo diferencias'],
+                                ['all', 'Todo'],
+                                ['ok', 'Correctos'],
+                            ] as const
+                        ).map(([value, label]) => (
+                            <button
+                                key={value}
+                                type="button"
+                                className={tabClass(
+                                    (filters.reconcile_filter ?? 'mismatch') ===
+                                        value,
+                                )}
+                                onClick={() =>
+                                    visit({
+                                        reconcile_filter: value,
+                                        view: 'reconcile',
+                                        page: 1,
+                                    })
+                                }
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {missing ? (
+                    <div className="px-4 py-12 text-center text-sm text-slate-500">
+                        {reconcile?.message}
+                    </div>
+                ) : report ? (
+                    <>
+                        <div className="grid gap-3 border-b border-slate-100 px-4 py-4 sm:grid-cols-2 lg:grid-cols-4 sm:px-5">
+                            <StatBadge
+                                label="Archivo"
+                                value={
+                                    report.import.original_name ??
+                                    `Importación #${report.import.id}`
+                                }
+                                variant="default"
+                            />
+                            <StatBadge
+                                label="Placas en Excel"
+                                value={String(report.file.unique_plates)}
+                                variant="default"
+                            />
+                            <StatBadge
+                                label="Coinciden"
+                                value={String(summary?.matches ?? 0)}
+                                variant="success"
+                            />
+                            <StatBadge
+                                label="Diferencias"
+                                value={String(summary?.mismatches ?? 0)}
+                                variant={
+                                    (summary?.mismatches ?? 0) > 0
+                                        ? 'warning'
+                                        : 'success'
+                                }
+                            />
+                        </div>
+
+                        {summary?.all_ok ? (
+                            <div className="mx-4 mt-4 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900 sm:mx-5">
+                                <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+                                <p>
+                                    El estado activo/inactivo coincide con el
+                                    Excel y los movimientos del lote.
+                                </p>
+                            </div>
+                        ) : null}
+
+                        {report.file.file_movement_mismatch ? (
+                            <div className="mx-4 mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-950 sm:mx-5">
+                                <PauseCircle className="mt-0.5 size-4 shrink-0" />
+                                <p>
+                                    Las placas del archivo guardado no coinciden
+                                    con los movimientos registrados en ese lote.
+                                    Puede haber una carga distinta el mismo día.
+                                </p>
+                            </div>
+                        ) : null}
+
+                        <div className="overflow-x-auto px-2 pb-4 pt-2 sm:px-4">
+                            <table className="w-full min-w-[48rem] border-collapse text-left text-sm">
+                                <thead className="bg-slate-50 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
+                                    <tr>
+                                        <th className="px-3 py-2">Placa</th>
+                                        <th className="px-3 py-2">Correlativo</th>
+                                        <th className="px-3 py-2">En Excel</th>
+                                        <th className="px-3 py-2">Esperado</th>
+                                        <th className="px-3 py-2">En sistema</th>
+                                        <th className="px-3 py-2">Resultado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {rows.length === 0 ? (
+                                        <tr>
+                                            <td
+                                                colSpan={6}
+                                                className="px-3 py-10 text-center text-slate-500"
+                                            >
+                                                No hay filas con este filtro.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        rows.map((row, index) => (
+                                            <tr
+                                                key={`${row.plate_number}-${row.unit_id ?? 'new'}-${index}`}
+                                                className="border-t border-slate-100"
+                                            >
+                                                <td className="px-3 py-2 font-semibold text-brand-800">
+                                                    {row.plate_number || '—'}
+                                                </td>
+                                                <td className="px-3 py-2 text-xs text-slate-600">
+                                                    {row.correlative || '—'}
+                                                </td>
+                                                <td className="px-3 py-2">
+                                                    {row.in_excel ? 'Sí' : 'No'}
+                                                </td>
+                                                <td className="px-3 py-2">
+                                                    {row.expected_status
+                                                        ? row.expected_status ===
+                                                          'active'
+                                                            ? 'Activo'
+                                                            : 'Inactivo'
+                                                        : '—'}
+                                                </td>
+                                                <td className="px-3 py-2">
+                                                    {row.actual_status
+                                                        ? row.actual_status ===
+                                                          'active'
+                                                            ? 'Activo'
+                                                            : 'Inactivo'
+                                                        : '—'}
+                                                </td>
+                                                <td className="px-3 py-2">
+                                                    {row.match === null ? (
+                                                        <span className="text-xs text-slate-400">
+                                                            Fuera de alcance
+                                                        </span>
+                                                    ) : row.match ? (
+                                                        <StatBadge
+                                                            label="OK"
+                                                            value=""
+                                                            variant="success"
+                                                        />
+                                                    ) : (
+                                                        <StatBadge
+                                                            label="Revisar"
+                                                            value=""
+                                                            variant="warning"
+                                                        />
+                                                    )}
+                                                    {row.note ? (
+                                                        <p className="mt-1 text-[11px] text-slate-500">
+                                                            {row.note}
+                                                        </p>
+                                                    ) : null}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <p className="border-t border-slate-100 px-4 py-3 text-[11px] text-slate-500 sm:px-5">
+                            {report.import.scope_label} ·{' '}
+                            {report.file.rows_with_data} filas con datos ·{' '}
+                            {summary?.units_checked ?? 0} unidades evaluadas
+                            {report.import.download_url ? (
+                                <>
+                                    {' · '}
+                                    <a
+                                        href={report.import.download_url}
+                                        className="font-medium text-brand-700 hover:underline"
+                                    >
+                                        Descargar Excel del lote
+                                    </a>
+                                </>
+                            ) : null}
+                        </p>
+                    </>
+                ) : null}
+            </section>
+        );
+    }
 
     if (showingFiles) {
         return (

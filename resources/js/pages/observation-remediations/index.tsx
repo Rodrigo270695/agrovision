@@ -272,14 +272,14 @@ function formatDateTime(iso: string | null | undefined) {
     });
 }
 
-function actionLabel(unit: DayUnit) {
+function actionLabel(unit: DayUnit, allowSubmit: boolean) {
     if (unit.tone === 'green') {
         return 'Ver';
     }
     if (unit.can_verify) {
         return 'Verificar';
     }
-    if (unit.can_submit) {
+    if (allowSubmit && unit.can_submit) {
         return unit.remediation.status === 'submitted'
             ? 'Añadir observaciones'
             : 'Levantar';
@@ -506,7 +506,7 @@ export default function ObservationRemediationsPage() {
     const unitActions = (unit: DayUnit): RowActionItem[] => {
         const actions: RowActionItem[] = [];
 
-        if (unit.can_submit) {
+        if (can_submit && unit.can_submit) {
             actions.push({
                 key: 'lift',
                 label:
@@ -531,7 +531,7 @@ export default function ObservationRemediationsPage() {
 
         actions.push({
             key: 'view',
-            label: actionLabel(unit),
+            label: actionLabel(unit, can_submit),
             icon: Eye,
             onSelect: () => setDetail(unit),
             separatorBefore: actions.length > 0,
@@ -1191,7 +1191,8 @@ export default function ObservationRemediationsPage() {
                                                         'cursor-pointer shrink-0 rounded-xl',
                                                         unit.can_verify
                                                             ? 'bg-brand-500 text-white hover:bg-brand-600'
-                                                            : unit.can_submit
+                                                            : can_submit &&
+                                                                unit.can_submit
                                                               ? 'bg-amber-500 text-white hover:bg-amber-600'
                                                               : unit.tone ===
                                                                   'red'
@@ -1202,7 +1203,10 @@ export default function ObservationRemediationsPage() {
                                                                   : 'bg-amber-500 text-white hover:bg-amber-600',
                                                     )}
                                                     variant={
-                                                        !unit.can_submit &&
+                                                        !(
+                                                            can_submit &&
+                                                            unit.can_submit
+                                                        ) &&
                                                         !unit.can_verify &&
                                                         (unit.tone === 'red' ||
                                                             unit.tone ===
@@ -1214,7 +1218,8 @@ export default function ObservationRemediationsPage() {
                                                         setDetail(unit)
                                                     }
                                                 >
-                                                    {unit.can_submit ? (
+                                                    {can_submit &&
+                                                    unit.can_submit ? (
                                                         <ClipboardCheck className="mr-1.5 size-4" />
                                                     ) : null}
                                                     {unit.can_verify ? (
@@ -1223,7 +1228,7 @@ export default function ObservationRemediationsPage() {
                                                     {unit.tone === 'green' ? (
                                                         <CheckCircle2 className="mr-1.5 size-4" />
                                                     ) : null}
-                                                    {actionLabel(unit)}
+                                                    {actionLabel(unit, can_submit)}
                                                 </Button>
                                             </div>
                                         </li>

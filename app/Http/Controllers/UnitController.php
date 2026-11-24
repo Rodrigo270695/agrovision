@@ -19,6 +19,7 @@ use App\Support\SystemRoles;
 use App\Support\UnitCatalog;
 use App\Support\UnitDocumentTypes;
 use App\Support\UnitExcelImporter;
+use App\Support\UnitImportReconciliation;
 use App\Support\UnitOperationalScope;
 use App\Support\UnitStatusHistory;
 use Illuminate\Database\Eloquent\Builder;
@@ -46,9 +47,10 @@ class UnitController extends Controller
         $baseQuery = $this->scopedUnitsQuery();
         $showingMovements = $filters['view'] === 'movements';
         $showingFiles = $filters['view'] === 'files';
+        $showingReconcile = $filters['view'] === 'reconcile';
         UnitStatusHistory::ensure();
 
-        $units = $showingMovements || $showingFiles
+        $units = $showingMovements || $showingFiles || $showingReconcile
             ? null
             : ($this->filteredUnitsQuery($filters, clone $baseQuery)
                 ->with([
@@ -104,7 +106,10 @@ class UnitController extends Controller
             : null;
 
         $activePage = $movements ?? $units;
-        $imports = $showingFiles ? $this->importFiles($filters) : [];
+        $imports = $showingFiles || $showingReconcile ? $this->importFiles($filters) : [];
+        $reconcile = $showingReconcile
+            ? $this->reconcileImport($request, $filters)
+            : null;
 
         return Inertia::render('units/index', [
             'units' => $units ?? [
@@ -118,6 +123,7 @@ class UnitController extends Controller
             ],
             'movements' => $movements,
             'imports' => $imports,
+            'reconcile' => $reconcile,
             'filters' => [
                 'search' => $filters['search'],
                 'period_id' => $filters['period_id'],
@@ -132,6 +138,8 @@ class UnitController extends Controller
                 'sort' => $filters['sort'],
                 'direction' => $filters['direction'],
                 'per_page' => $filters['per_page'],
+                'import_id' => $filters['import_id'],
+                'reconcile_filter' => $filters['reconcile_filter'],
             ],
             'checklistTemplateOptions' => collect(ChecklistTemplate::options())
                 ->map(fn (array $row) => [
@@ -539,7 +547,9 @@ class UnitController extends Controller
             'template_type' => $templateTypes === []
                 ? ['nullable', 'string', 'max:50']
                 : ['nullable', Rule::in($templateTypes)],
-            'view' => ['nullable', Rule::in(['units', 'movements', 'files'])],
+            'view' => ['nullable', Rule::in(['units', 'movements', 'files', 'reconcile'])],
+            'import_id' => ['nullable', 'integer'],
+            'reconcile_filter' => ['nullable', Rule::in(['all', 'mismatch', 'ok'])],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
             'all_dates' => ['nullable', 'boolean'],
@@ -588,6 +598,55 @@ class UnitController extends Controller
             'sort' => $validated['sort'] ?? 'correlative',
             'direction' => $validated['direction'] ?? 'desc',
             'per_page' => (int) ($validated['per_page'] ?? 10),
+            'import_id' => isset($validated['import_id']) ? (int) $validated['import_id'] : null,
+            'reconcile_filter' => $validated['reconcile_filter'] ?? 'mismatch',
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>|null
+     */
+    private function reconcileImport(Request $request, array $filters): ?array
+    {
+        if (! Schema::hasTable('unit_imports')) {
+            return null;
+        }
+
+        $importId = $filters['import_id'] ?? null;
+        $query = UnitImport::query()
+            ->with(['period:id,name', 'user:id,name'])
+            ->orderByDesc('imported_on')
+            ->orderByDesc('id');
+
+        if ($filters['period_id']) {
+            $query->where('period_id', (int) $filters['period_id']);
+        }
+
+        if ($importId) {
+            $query->whereKey((int) $importId);
+        }
+
+        $import = $query->first();
+
+        if ($import === null) {
+            return [
+                'missing_import' => true,
+                'message' => $filters['period_id']
+                    ? 'No hay importaciones guardadas para este periodo. Sube un Excel en Archivos.'
+                    : 'Selecciona un periodo o sube un Excel para poder cruzar.',
+            ];
+        }
+
+        $report = app(UnitImportReconciliation::class)->report(
+            $import,
+            (string) ($filters['reconcile_filter'] ?? 'mismatch'),
+        );
+
+        return [
+            'missing_import' => false,
+            'report' => $report,
+            'import_options' => $this->importFiles($filters),
         ];
     }
 

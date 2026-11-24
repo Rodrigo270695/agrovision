@@ -16,6 +16,7 @@ import { UnitsTable } from '@/components/units/units-table';
 import type {
     ChecklistTemplateFilterOption,
     ImportFileItem,
+    UnitReconcilePayload,
     MovementsPagination,
     UnitItem,
     UnitsFilters,
@@ -32,6 +33,7 @@ type UnitsPageProps = {
     units: UnitsPagination;
     movements?: MovementsPagination | null;
     imports?: ImportFileItem[];
+    reconcile?: UnitReconcilePayload | null;
     stats: UnitsStatsData;
     filters: UnitsFilters;
     periodOptions: PeriodOption[];
@@ -59,6 +61,7 @@ export function UnitsPage() {
         units,
         movements,
         imports,
+        reconcile,
         stats,
         filters,
         periodOptions,
@@ -216,6 +219,7 @@ export function UnitsPage() {
                     units={mergedUnits}
                     movements={movements}
                     imports={imports ?? []}
+                    reconcile={reconcile ?? null}
                     filters={filters}
                     periodOptions={periodOptions ?? []}
                     coordinatorOptions={coordinatorOptions ?? []}
