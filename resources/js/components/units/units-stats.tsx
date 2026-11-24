@@ -3,11 +3,18 @@ import { cn } from '@/lib/utils';
 
 export type UnitsStatsData = {
     units: number;
-    movements?: number;
+    active: number;
+    inactive: number;
+    with_inspection: number;
+    without_inspection: number;
     providers: number;
+    coordinators: number;
+    movements?: number;
+    without_plate: number;
+    imports?: number;
     page: string;
     on_screen: number;
-    without_plate: number;
+    filter_note?: string | null;
 };
 
 const items = [

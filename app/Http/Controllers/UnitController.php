@@ -186,22 +186,150 @@ class UnitController extends Controller
                 ])
                 ->values()
                 ->all(),
-            'stats' => [
-                'units' => (clone $baseQuery)->count(),
-                'movements' => $this->filteredMovementsQuery($filters)->count(),
-                'providers' => (clone $baseQuery)->distinct()->count('provider'),
-                'page' => $activePage
-                    ? $activePage->currentPage().'/'.max($activePage->lastPage(), 1)
-                    : '1/1',
-                'on_screen' => $activePage ? $activePage->count() : count($imports),
-                'without_plate' => (clone $baseQuery)
-                    ->where(function ($query) {
-                        $query->whereNull('plate_number')
-                            ->orWhere('plate_number', '');
-                    })
-                    ->count(),
-            ],
+            'stats' => $this->unitsStats($filters, $activePage, count($imports)),
         ]);
+    }
+
+    /**
+     * Totales que respetan los mismos filtros que la tabla (periodo, fechas, estado, etc.).
+     *
+     * @param  \Illuminate\Contracts\Pagination\LengthAwarePaginator|null  $activePage
+     * @return array{
+     *     units: int,
+     *     active: int,
+     *     inactive: int,
+     *     with_inspection: int,
+     *     without_inspection: int,
+     *     providers: int,
+     *     coordinators: int,
+     *     movements: int,
+     *     without_plate: int,
+     *     imports: int,
+     *     on_screen: int,
+     *     page: string,
+     *     filter_note: string|null
+     * }
+     */
+    private function unitsStats(array $filters, $activePage, int $importsOnScreen): array
+    {
+        $filteredUnits = $this->filteredUnitsQuery($filters, $this->scopedUnitsQuery());
+
+        $units = (clone $filteredUnits)->count();
+
+        $active = (clone $filteredUnits)->where(function ($query) {
+            $query->where('status', 'active')->orWhereNull('status');
+        })->count();
+
+        $inactive = (clone $filteredUnits)->where('status', 'inactive')->count();
+
+        $withoutPlate = (clone $filteredUnits)
+            ->where(function ($query) {
+                $query->whereNull('plate_number')
+                    ->orWhere('plate_number', '');
+            })
+            ->count();
+
+        $providers = (clone $filteredUnits)->distinct()->count('provider');
+
+        $coordinators = (clone $filteredUnits)
+            ->whereNotNull('coordinator_id')
+            ->distinct()
+            ->count('coordinator_id');
+
+        $inspectionExists = fn (QueryBuilder $outer) => UnitOperationalScope::applyInspectionExists(
+            $outer,
+            $filters['date_from'],
+            $filters['date_to'],
+            $filters['template_type'] ?? null,
+        );
+
+        $withInspection = (clone $filteredUnits)->whereExists($inspectionExists)->count();
+        $withoutInspection = (clone $filteredUnits)->whereNotExists($inspectionExists)->count();
+
+        $movements = $this->filteredMovementsQuery($filters)->count();
+
+        $imports = 0;
+        if (Schema::hasTable('unit_imports')) {
+            try {
+                $imports = count($this->importFiles($filters));
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        }
+
+        return [
+            'units' => $units,
+            'active' => $active,
+            'inactive' => $inactive,
+            'with_inspection' => $withInspection,
+            'without_inspection' => $withoutInspection,
+            'providers' => $providers,
+            'coordinators' => $coordinators,
+            'movements' => $movements,
+            'without_plate' => $withoutPlate,
+            'imports' => $imports,
+            'on_screen' => $activePage ? $activePage->count() : $importsOnScreen,
+            'page' => $activePage
+                ? $activePage->currentPage().'/'.max($activePage->lastPage(), 1)
+                : '1/1',
+            'filter_note' => $this->unitsStatsFilterNote($filters),
+        ];
+    }
+
+    private function unitsStatsFilterNote(array $filters): ?string
+    {
+        $parts = [];
+
+        if (($filters['search'] ?? '') !== '') {
+            $parts[] = 'búsqueda';
+        }
+
+        if (! empty($filters['period_id'])) {
+            $parts[] = 'periodo';
+        }
+
+        if (($filters['status'] ?? null) === 'active') {
+            $parts[] = 'solo activas';
+        } elseif (($filters['status'] ?? null) === 'inactive') {
+            $parts[] = 'solo inactivas';
+        }
+
+        if (! empty($filters['coordinator_id'])) {
+            $parts[] = 'coordinador';
+        }
+
+        if (($filters['inspection'] ?? null) === 'yes') {
+            $parts[] = 'con inspección';
+        } elseif (($filters['inspection'] ?? null) === 'no') {
+            $parts[] = 'sin inspección';
+        }
+
+        if (! empty($filters['template_type'])) {
+            $parts[] = 'tipo checklist';
+        }
+
+        if (! ($filters['all_dates'] ?? false)) {
+            if (! empty($filters['date_from']) || ! empty($filters['date_to'])) {
+                $parts[] = 'rango de fechas';
+            }
+        } else {
+            $parts[] = 'todas las fechas';
+        }
+
+        $view = $filters['view'] ?? 'units';
+        if ($view === 'movements') {
+            $parts[] = 'vista historial';
+        } elseif ($view === 'files') {
+            $parts[] = 'vista archivos';
+        } elseif ($view === 'reconcile') {
+            $parts[] = 'cruce Excel';
+        }
+
+        if ($parts === []) {
+            return null;
+        }
+
+        return 'Totalizados con: '.implode(' · ', $parts);
     }
 
     public function store(UnitRequest $request): RedirectResponse

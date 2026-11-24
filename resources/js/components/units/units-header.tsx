@@ -71,29 +71,49 @@ export function UnitsHeader({ stats, filters, onCreate, onImport }: Props) {
     const { can } = useCan();
     const exportUrl = buildExportUrl(filters);
 
+    const heroStats = [
+        { label: 'Unidades', value: stats.units, tone: 'navy' as const },
+        { label: 'Activas', value: stats.active, tone: 'emerald' as const },
+        { label: 'Inactivas', value: stats.inactive, tone: 'amber' as const },
+        {
+            label: 'Con inspección',
+            value: stats.with_inspection,
+            tone: 'sky' as const,
+        },
+        {
+            label: 'Sin inspección',
+            value: stats.without_inspection,
+            tone: 'rose' as const,
+        },
+        { label: 'Proveedores', value: stats.providers, tone: 'navy' as const },
+        {
+            label: 'Movimientos',
+            value: stats.movements ?? 0,
+            tone: 'emerald' as const,
+        },
+        {
+            label: 'Coordinadores',
+            value: stats.coordinators,
+            tone: 'sky' as const,
+        },
+    ];
+
     return (
         <div className="flex flex-col gap-3">
             <PlatformHero
                 title="Unidades"
-                description="Cada placa es una unidad. Si al importar ya no viene, queda inactiva. Historial guarda cada fecha."
-                stats={[
-                    { label: 'Unidades', value: stats.units, tone: 'navy' },
-                    {
-                        label: 'Proveedores',
-                        value: stats.providers,
-                        tone: 'sky',
-                    },
-                    {
-                        label: 'Sin placa',
-                        value: stats.without_plate,
-                        tone: 'amber',
-                    },
-                    {
-                        label: 'Movimientos',
-                        value: stats.movements ?? 0,
-                        tone: 'emerald',
-                    },
-                ]}
+                description={
+                    <>
+                        Cada placa es una unidad. Si al importar ya no viene,
+                        queda inactiva. Historial guarda cada fecha.
+                        {stats.filter_note ? (
+                            <span className="mt-1 block text-[11px] font-medium text-amber-100/95">
+                                {stats.filter_note}
+                            </span>
+                        ) : null}
+                    </>
+                }
+                stats={heroStats}
             />
 
             <PlatformToolbar>

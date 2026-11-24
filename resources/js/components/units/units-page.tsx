@@ -125,6 +125,7 @@ export function UnitsPage() {
         () => ({
             ...stats,
             units: stats.units + localUnits.length,
+            active: stats.active + localUnits.length,
             on_screen: stats.on_screen + localUnits.length,
             without_plate:
                 stats.without_plate +
