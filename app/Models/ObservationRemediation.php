@@ -92,6 +92,6 @@ class ObservationRemediation extends Model
 
     public function canSubmit(): bool
     {
-        return in_array($this->status, [self::OPEN, self::REJECTED], true);
+        return in_array($this->status, [self::OPEN, self::REJECTED, self::SUBMITTED], true);
     }
 }

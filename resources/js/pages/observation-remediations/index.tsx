@@ -88,6 +88,8 @@ type DayUnit = {
         status_label: string;
         submit_note?: string | null;
         rejection_note?: string | null;
+        submitted_at?: string | null;
+        verified_at?: string | null;
     };
     history: {
         id: number;
@@ -256,6 +258,20 @@ function formatDateLabel(iso: string) {
     });
 }
 
+function formatDateTime(iso: string | null | undefined) {
+    if (!iso) {
+        return null;
+    }
+
+    return new Date(iso).toLocaleString('es-PE', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}
+
 function actionLabel(unit: DayUnit) {
     if (unit.tone === 'green') {
         return 'Ver';
@@ -264,7 +280,9 @@ function actionLabel(unit: DayUnit) {
         return 'Verificar';
     }
     if (unit.can_submit) {
-        return 'Levantar';
+        return unit.remediation.status === 'submitted'
+            ? 'Añadir observaciones'
+            : 'Levantar';
     }
     if (unit.tone === 'red') {
         return 'Ver detalle';
@@ -335,6 +353,23 @@ export default function ObservationRemediationsPage() {
 
     const [detail, setDetail] = useState<DayUnit | null>(null);
     const [searchDraft, setSearchDraft] = useState(activeSearch);
+
+    useEffect(() => {
+        if (!detail) {
+            return;
+        }
+
+        const pool = [...day_units, ...list_units, ...search_units];
+        const fresh = pool.find(
+            (unit) =>
+                unit.checklist_id === detail.checklist_id &&
+                unit.pass === detail.pass,
+        );
+
+        if (fresh) {
+            setDetail(fresh);
+        }
+    }, [day_units, list_units, search_units, detail?.checklist_id, detail?.pass]);
 
     useEffect(() => {
         setSearchDraft(activeSearch);
@@ -474,7 +509,10 @@ export default function ObservationRemediationsPage() {
         if (unit.can_submit) {
             actions.push({
                 key: 'lift',
-                label: 'Levantar observación',
+                label:
+                    unit.remediation.status === 'submitted'
+                        ? 'Añadir observaciones'
+                        : 'Levantar observación',
                 icon: ClipboardCheck,
                 tone: 'warning',
                 onSelect: () => setDetail(unit),
@@ -1758,6 +1796,7 @@ function RemediationDetailModal({
 
     const showSubmit = canSubmit && unit.can_submit;
     const showVerify = canVerify && unit.can_verify;
+    const pendingInspector = unit.remediation.status === 'submitted';
     const isRed = unit.tone === 'red';
     const noItems = unit.observations;
     const checkedCount = noItems.filter((item) => checkedIds[item.id] === true).length;
@@ -1787,17 +1826,33 @@ function RemediationDetailModal({
                 preserveScroll: true,
                 onStart: () => setSending(true),
                 onFinish: () => setSending(false),
-                onSuccess: () => onClose(),
+                onSuccess: () => {
+                    setItemPhotos({});
+                },
             },
         );
     };
+
+    useEffect(() => {
+        setSubmitNote(unit.remediation.submit_note?.trim() ?? '');
+    }, [unit.remediation.submit_note, unit.checklist_id, unit.pass]);
 
     return (
         <AppModal
             open
             onClose={onClose}
             title={`${unit.plate_number} · ${unit.pass_label}`}
-            description={`${unit.grade_label} · ${unit.remediation.status_label}`}
+            description={[
+                `${unit.grade_label} · ${unit.remediation.status_label}`,
+                unit.remediation.submitted_at
+                    ? `Último envío: ${formatDateTime(unit.remediation.submitted_at)}`
+                    : null,
+                unit.remediation.verified_at
+                    ? `Última verificación: ${formatDateTime(unit.remediation.verified_at)}`
+                    : null,
+            ]
+                .filter(Boolean)
+                .join(' · ')}
             className="max-w-2xl"
             footer={
                 <div className="flex flex-wrap justify-end gap-2">
@@ -1816,7 +1871,11 @@ function RemediationDetailModal({
                             disabled={sending}
                             onClick={sendToInspector}
                         >
-                            {sending ? 'Enviando…' : 'Enviar al inspector'}
+                            {sending
+                                ? 'Enviando…'
+                                : pendingInspector
+                                  ? 'Añadir observaciones'
+                                  : 'Enviar al inspector'}
                         </Button>
                     ) : null}
                     {showVerify ? (
@@ -2212,10 +2271,9 @@ function RemediationDetailModal({
                     )}
                     {showSubmit ? (
                         <p className="mt-2 text-xs text-slate-500">
-                            Por cada ítem en NO puedes tomar foto con la cámara
-                            o subirla desde la galería (opcional). El inspector
-                            confirma solo los ítems que marques en la siguiente
-                            ronda.
+                            {pendingInspector
+                                ? 'Puedes seguir subiendo fotos y notas hasta que el inspector verifique. Cada envío queda con fecha y hora en el historial.'
+                                : 'Por cada ítem en NO puedes tomar foto con la cámara o subirla desde la galería (opcional). El inspector confirma solo los ítems que marques en la siguiente ronda.'}
                         </p>
                     ) : null}
                     {showVerify ? (

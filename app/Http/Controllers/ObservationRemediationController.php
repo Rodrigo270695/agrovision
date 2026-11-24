@@ -239,11 +239,13 @@ class ObservationRemediationController extends Controller
         if (! $remediation->canSubmit()) {
             return back()->with('toast', [
                 'type' => 'error',
-                'message' => 'Este levantamiento ya fue enviado o verificado.',
+                'message' => 'Este levantamiento ya fue cerrado por el inspector.',
             ]);
         }
 
-        DB::transaction(function () use ($request, $validated, $remediation, $checklist, $pass, $noItems, $allowedAnswerIds) {
+        $isResubmit = $remediation->status === ObservationRemediation::SUBMITTED;
+
+        DB::transaction(function () use ($request, $validated, $remediation, $checklist, $pass, $noItems, $allowedAnswerIds, $isResubmit) {
             $uploadedFor = [];
             $photoFiles = $request->file('photos', []);
 
@@ -283,24 +285,29 @@ class ObservationRemediationController extends Controller
                 }
             }
 
+            $sentAt = now();
+            $note = trim((string) ($validated['note'] ?? '')) ?: null;
+
             $remediation->update([
                 'status' => ObservationRemediation::SUBMITTED,
                 'submitted_by' => Auth::id(),
-                'submitted_at' => now(),
-                'submit_note' => trim((string) ($validated['note'] ?? '')) ?: null,
+                'submitted_at' => $sentAt,
+                'submit_note' => $note ?? $remediation->submit_note,
                 'rejection_note' => null,
                 'inspector_id' => $remediation->inspector_id ?: $checklist->created_by,
             ]);
 
             ObservationRemediationSupport::recordEvent(
                 $remediation,
-                'submitted',
+                $isResubmit ? 'resubmitted' : 'submitted',
                 Auth::id(),
                 [
                     'pass' => $pass,
                     'plate' => $checklist->plate_number,
                     'photo_answer_ids' => $uploadedFor,
                     'observations_count' => count($noItems),
+                    'submit_note' => $note,
+                    'recorded_at' => $sentAt->toIso8601String(),
                 ],
             );
         });
@@ -309,7 +316,9 @@ class ObservationRemediationController extends Controller
 
         return back()->with('toast', [
             'type' => 'success',
-            'message' => 'Levantamiento enviado al inspector.',
+            'message' => $isResubmit
+                ? 'Observaciones actualizadas. Fecha y hora registradas en el historial.'
+                : 'Levantamiento enviado al inspector.',
         ]);
     }
 
@@ -360,18 +369,24 @@ class ObservationRemediationController extends Controller
                 ]);
             }
 
+            $rejectedAt = now();
+
             $remediation->update([
                 'status' => ObservationRemediation::REJECTED,
                 'rejection_note' => $note,
                 'verified_by' => Auth::id(),
-                'verified_at' => now(),
+                'verified_at' => $rejectedAt,
             ]);
 
             ObservationRemediationSupport::recordEvent(
                 $remediation,
                 'rejected',
                 Auth::id(),
-                ['note' => $note, 'pass' => $pass],
+                [
+                    'note' => $note,
+                    'pass' => $pass,
+                    'recorded_at' => $rejectedAt->toIso8601String(),
+                ],
             );
 
             return back()->with('toast', [
@@ -521,10 +536,12 @@ class ObservationRemediationController extends Controller
             }
             $checklist->update($updates);
 
+            $verifiedAt = now();
+
             $remediation->update([
                 'status' => ObservationRemediation::VERIFIED,
                 'verified_by' => Auth::id(),
-                'verified_at' => now(),
+                'verified_at' => $verifiedAt,
                 'rejection_note' => null,
             ]);
 
@@ -536,6 +553,7 @@ class ObservationRemediationController extends Controller
                     'pass' => $pass,
                     'round' => $nextRound,
                     'grade' => $grade,
+                    'recorded_at' => $verifiedAt->toIso8601String(),
                     'previous_result' => $previousResult,
                     'new_result' => $stored,
                     'previous_percent' => $snap['percent'],
@@ -596,7 +614,7 @@ class ObservationRemediationController extends Controller
         if (! $remediation->canSubmit()) {
             return back()->with('toast', [
                 'type' => 'error',
-                'message' => 'No se puede quitar la foto de un levantamiento ya enviado.',
+                'message' => 'No se puede quitar la foto de un levantamiento ya cerrado.',
             ]);
         }
 

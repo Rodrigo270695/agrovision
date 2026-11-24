@@ -428,7 +428,11 @@ final class ObservationCalendar
                 $remediation,
             ),
             'can_submit' => ObservationRemediationSupport::isRemediableGrade($passInfo['grade'])
-                && in_array($status, [ObservationRemediation::OPEN, ObservationRemediation::REJECTED], true),
+                && in_array($status, [
+                    ObservationRemediation::OPEN,
+                    ObservationRemediation::REJECTED,
+                    ObservationRemediation::SUBMITTED,
+                ], true),
             'can_verify' => ObservationRemediationSupport::isRemediableGrade($passInfo['grade'])
                 && $status === ObservationRemediation::SUBMITTED
                 && $this->canVerify($checklist),
@@ -456,6 +460,7 @@ final class ObservationCalendar
             $round = isset($payload['round']) ? 'Ronda '.$payload['round'].': ' : '';
             $label = match ($event->event) {
                 'submitted' => $round.'Coordinador envió el levantamiento',
+                'resubmitted' => $round.'Coordinador añadió observaciones',
                 'rejected' => $round.'Inspector rechazó el levantamiento',
                 'verified' => $round.match ($payload['grade'] ?? null) {
                     'approved' => 'Inspector registró la ronda: quedó Aprobado',
@@ -467,7 +472,7 @@ final class ObservationCalendar
             };
 
             $detail = match ($event->event) {
-                'submitted' => $this->historySubmittedDetail($payload),
+                'submitted', 'resubmitted' => $this->historySubmittedDetail($payload),
                 'rejected' => filled($payload['note'] ?? null)
                     ? 'Motivo: '.(string) $payload['note']
                     : null,
