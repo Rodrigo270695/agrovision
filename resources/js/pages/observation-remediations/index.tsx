@@ -1828,6 +1828,7 @@ function RemediationDetailModal({
                 onFinish: () => setSending(false),
                 onSuccess: () => {
                     setItemPhotos({});
+                    onClose();
                 },
             },
         );
