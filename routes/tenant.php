@@ -225,6 +225,10 @@ Route::middleware(['web', EnsureTenantContext::class])->group(function () {
             ->middleware('permission:units.view')
             ->name('units.import-file');
 
+        Route::delete('unidades/importaciones/{unitImport}', [UnitController::class, 'destroyImport'])
+            ->middleware('permission:units.create')
+            ->name('units.import-destroy');
+
         Route::post('unidades/tipos-vehiculo', [UnitController::class, 'storeVehicleType'])
             ->middleware('permission:units.create|units.update')
             ->name('units.vehicle-types.store');

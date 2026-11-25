@@ -583,6 +583,33 @@ class UnitController extends Controller
         ]);
     }
 
+    public function destroyImport(
+        Request $request,
+        UnitImport $unitImport,
+        UnitExcelImporter $importer,
+    ): RedirectResponse {
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $expected = 'user:'.Auth::id();
+            if ((string) $unitImport->scope_key !== $expected) {
+                abort(403, 'No puedes eliminar importaciones de otro alcance.');
+            }
+        }
+
+        if (! $importer->canRevertImport($unitImport)) {
+            return IndexedRedirect::toIndex($request, 'units.index', [
+                'type' => 'error',
+                'message' => 'Primero elimina la importación más reciente de ese periodo.',
+            ]);
+        }
+
+        $result = $importer->revertImport($unitImport);
+
+        return IndexedRedirect::toIndex($request, 'units.index', [
+            'type' => $result['ok'] ? 'success' : 'error',
+            'message' => $result['message'],
+        ]);
+    }
+
     public function downloadImport(UnitImport $unitImport): StreamedResponse
     {
         $disk = $unitImport->file_disk ?: 'local';
@@ -650,6 +677,7 @@ class UnitController extends Controller
                     'download_url' => is_string($import->file_path) && $import->file_path !== ''
                         ? url('/unidades/importaciones/'.$import->id.'/archivo')
                         : null,
+                    'can_revert' => app(UnitExcelImporter::class)->canRevertImport($import),
                 ])
                 ->all();
         } catch (\Throwable $exception) {

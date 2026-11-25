@@ -1075,50 +1075,137 @@ final class UnitExcelImporter
             return false;
         }
 
-        $rollbacks = $import->rollbacks()->get();
-        $import->movements()->delete();
+        return $this->revertImport($import)['ok'];
+    }
 
-        foreach ($rollbacks as $row) {
-            $eventIds = array_values(array_filter($row->status_event_ids ?? []));
-
-            if ($eventIds !== []) {
-                UnitStatusEvent::query()->whereIn('id', $eventIds)->delete();
-            }
-
-            if ($row->unit_id === null) {
-                continue;
-            }
-
-            if ($row->created_unit) {
-                $unit = Unit::query()
-                    ->withCount(['checklists', 'documents', 'movements'])
-                    ->find($row->unit_id);
-
-                if (
-                    $unit instanceof Unit
-                    && $unit->checklists_count === 0
-                    && $unit->documents_count === 0
-                    && $unit->movements_count === 0
-                ) {
-                    $unit->delete();
-                }
-
-                continue;
-            }
-
-            Unit::query()->whereKey($row->unit_id)->update([
-                'status' => $row->previous_status ?: 'active',
-                'provider' => $row->previous_provider ?? '',
-                'driver_name' => $row->previous_driver_name,
-                'driver_dni' => $row->previous_driver_dni,
-                'coordinator_id' => $row->previous_coordinator_id,
-                'responsible_person' => $row->previous_responsible_person,
-            ]);
+    /**
+     * Deshace una importación: borra movimientos del lote, restaura unidades y quita el archivo.
+     *
+     * @return array{ok: bool, message: string, movements_removed?: int, units_deleted?: int, units_restored?: int}
+     */
+    public function revertImport(UnitImport $import): array
+    {
+        if (! $this->importIsLatest($import)) {
+            return [
+                'ok' => false,
+                'message' => 'Primero elimina la importación más reciente de este periodo y alcance.',
+            ];
         }
 
-        $import->delete();
+        $rollbacks = $import->rollbacks()->get();
+        $movementCount = $import->movements()->count();
 
-        return true;
+        if ($rollbacks->isEmpty() && $movementCount === 0) {
+            return [
+                'ok' => false,
+                'message' => 'Esta importación no tiene movimientos ni respaldo para revertir.',
+            ];
+        }
+        $unitsDeleted = 0;
+        $unitsRestored = 0;
+
+        $filePath = $import->file_path;
+        $fileDisk = $import->file_disk ?: 'local';
+
+        try {
+            DB::transaction(function () use ($import, $rollbacks, &$unitsDeleted, &$unitsRestored): void {
+                $import->movements()->delete();
+
+                if ($rollbacks->isEmpty()) {
+                    $import->delete();
+
+                    return;
+                }
+
+                foreach ($rollbacks as $row) {
+                    $eventIds = array_values(array_filter($row->status_event_ids ?? []));
+
+                    if ($eventIds !== []) {
+                        UnitStatusEvent::query()->whereIn('id', $eventIds)->delete();
+                    }
+
+                    if ($row->unit_id === null) {
+                        continue;
+                    }
+
+                    if ($row->created_unit) {
+                        $unit = Unit::query()
+                            ->withCount(['checklists', 'documents', 'movements'])
+                            ->find($row->unit_id);
+
+                        if (
+                            $unit instanceof Unit
+                            && $unit->checklists_count === 0
+                            && $unit->documents_count === 0
+                            && $unit->movements_count === 0
+                        ) {
+                            $unit->delete();
+                            $unitsDeleted++;
+                        }
+
+                        continue;
+                    }
+
+                    Unit::query()->whereKey($row->unit_id)->update([
+                        'status' => $row->previous_status ?: 'active',
+                        'provider' => $row->previous_provider ?? '',
+                        'driver_name' => $row->previous_driver_name,
+                        'driver_dni' => $row->previous_driver_dni,
+                        'coordinator_id' => $row->previous_coordinator_id,
+                        'responsible_person' => $row->previous_responsible_person,
+                    ]);
+                    $unitsRestored++;
+                }
+
+                $import->delete();
+            });
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return [
+                'ok' => false,
+                'message' => 'No se pudo revertir la importación. Intenta de nuevo.',
+            ];
+        }
+
+        if (is_string($filePath) && $filePath !== '') {
+            Storage::disk($fileDisk)->delete($filePath);
+        }
+
+        return [
+            'ok' => true,
+            'message' => 'Importación eliminada. Unidades y historial de ese archivo fueron revertidos.',
+            'movements_removed' => $movementCount,
+            'units_deleted' => $unitsDeleted,
+            'units_restored' => $unitsRestored,
+        ];
+    }
+
+    public function importIsLatest(UnitImport $import): bool
+    {
+        return ! UnitImport::query()
+            ->where('period_id', $import->period_id)
+            ->where('scope_key', $import->scope_key)
+            ->where(function ($query) use ($import): void {
+                $query->whereDate('imported_on', '>', $import->imported_on)
+                    ->orWhere(function ($nested) use ($import): void {
+                        $nested->whereDate('imported_on', $import->imported_on)
+                            ->where('id', '>', $import->id);
+                    });
+            })
+            ->exists();
+    }
+
+    public function canRevertImport(UnitImport $import): bool
+    {
+        if (SystemRoles::currentIsScopedCoordinator()) {
+            $expected = 'user:'.Auth::id();
+            if ((string) $import->scope_key !== $expected) {
+                return false;
+            }
+        }
+
+        return $this->importIsLatest($import);
     }
 
     private function ensureUnitImportTables(): void

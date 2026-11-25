@@ -12,7 +12,7 @@ import {
     XCircle,
 } from 'lucide-react';
 import { router } from '@inertiajs/react';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
     DataPagination,
     DataTable,
@@ -174,6 +174,7 @@ export type ImportFileItem = {
     period?: { id: number; name: string } | null;
     user?: { id: number; name: string } | null;
     download_url?: string | null;
+    can_revert?: boolean;
 };
 
 export type UnitReconcileRow = {
@@ -396,6 +397,8 @@ export function UnitsTable({
     const showingHistory = filters.view === 'movements';
     const showingFiles = filters.view === 'files';
     const showingReconcile = filters.view === 'reconcile';
+    const { can } = useCan();
+    const [revertingId, setRevertingId] = useState<number | null>(null);
     const visit = useCallback(
         (params: Partial<UnitsFilters> & { page?: number }) => {
             if (!isBrowserOnline()) {
@@ -1065,9 +1068,39 @@ export function UnitsTable({
                             <Download className="size-3.5" />
                             Descargar
                         </a>
-                    ) : (
-                        '—'
-                    )}
+                    ) : null}
+                    {can('units.create') && file.can_revert ? (
+                        <button
+                            type="button"
+                            className="cursor-pointer text-xs font-semibold text-rose-700 hover:underline disabled:opacity-50"
+                            disabled={revertingId === file.id}
+                            onClick={() => {
+                                const label =
+                                    file.original_name ??
+                                    `importación del ${formatDay(file.imported_on)}`;
+                                if (
+                                    !window.confirm(
+                                        `¿Eliminar "${label}"?\n\nSe quitarán los ${file.rows} movimientos de este lote y se revertirán activo/inactivo y datos que esa carga cambió. Los archivos más viejos del mismo periodo deben eliminarse después, empezando por el más reciente.`,
+                                    )
+                                ) {
+                                    return;
+                                }
+
+                                setRevertingId(file.id);
+                                router.delete(
+                                    `/unidades/importaciones/${file.id}`,
+                                    {
+                                        preserveScroll: true,
+                                        onFinish: () => setRevertingId(null),
+                                    },
+                                );
+                            }}
+                        >
+                            {revertingId === file.id
+                                ? 'Eliminando…'
+                                : 'Eliminar carga'}
+                        </button>
+                    ) : null}
                 </div>
             ),
         },
