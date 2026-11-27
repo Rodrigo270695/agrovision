@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesReportPdfExport;
 use App\Mail\OwnerReportMail;
 use App\Support\OwnerReports;
 use Illuminate\Http\RedirectResponse;
@@ -13,6 +14,7 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class OwnerReportController extends Controller
 {
+    use HandlesReportPdfExport;
     public function show(Request $request, OwnerReports $reports): Response
     {
         return Inertia::render('company-reports/index', [
@@ -44,17 +46,19 @@ class OwnerReportController extends Controller
         ]);
     }
 
-    public function pdf(Request $request, OwnerReports $reports): HttpResponse
+    public function pdf(Request $request, OwnerReports $reports): HttpResponse|RedirectResponse
     {
-        $request->merge(['export' => true]);
-        $company = (string) tenant('name');
-        $binary = $reports->pdfBinary($reports->build($request), $company);
-        $name = 'reportes-'.tenant('id').'.pdf';
+        return $this->runReportPdfExport($request, function () use ($request, $reports) {
+            $request->merge(['export' => true]);
+            $company = (string) tenant('name');
+            $binary = $reports->pdfBinary($reports->build($request), $company);
+            $name = 'reportes-'.tenant('id').'.pdf';
 
-        return response($binary, 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="'.$name.'"',
-        ]);
+            return response($binary, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="'.$name.'"',
+            ]);
+        });
     }
 
     public function mail(Request $request, OwnerReports $reports): RedirectResponse
@@ -66,18 +70,22 @@ class OwnerReportController extends Controller
             'email.email' => 'El correo no es válido.',
         ])['email'];
 
-        $request->merge(['export' => true]);
-        $company = (string) tenant('name');
-        $binary = $reports->pdfBinary($reports->build($request), $company);
-
         try {
+            $request->merge(['export' => true]);
+            $company = (string) tenant('name');
+            $binary = $reports->pdfBinary($reports->build($request), $company);
             Mail::to($email)->send(new OwnerReportMail($company, $binary));
+        } catch (\App\Exceptions\ReportExportTooLargeException $exception) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => $exception->getMessage(),
+            ]);
         } catch (\Throwable $exception) {
             report($exception);
 
             return back()->with('toast', [
                 'type' => 'error',
-                'message' => 'No se pudo enviar el correo. Revisa la configuración de correo.',
+                'message' => 'No se pudo enviar el correo. Si el periodo es muy grande, acota las fechas.',
             ]);
         }
 

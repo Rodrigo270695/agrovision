@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\ReportExportTooLargeException;
+use App\Http\Controllers\Concerns\HandlesReportPdfExport;
 use App\Models\Period;
 use App\Models\Unit;
 use App\Models\UnitChecklist;
@@ -22,47 +24,60 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Illuminate\Http\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SecurityReportController extends Controller
 {
+    use HandlesReportPdfExport;
+
+    private const PDF_MAX_ROWS = 1500;
     public function __invoke(Request $request): Response
     {
         return Inertia::render('security-report/index', $this->report($request));
     }
 
-    public function pdf(Request $request): HttpResponse
+    public function pdf(Request $request): HttpResponse|RedirectResponse
     {
-        $report = $this->report($request);
-        $group = $request->string('group')->toString();
+        return $this->runReportPdfExport($request, function () use ($request) {
+            $report = $this->report($request);
+            $group = $request->string('group')->toString();
 
-        if (! in_array($group, ['ok', 'nok', 'pendiente'], true)) {
-            $group = 'all';
-        }
+            if (! in_array($group, ['ok', 'nok', 'pendiente'], true)) {
+                $group = 'all';
+            }
 
-        $rows = collect($report['exceptions']);
+            $rows = collect($report['exceptions']);
 
-        if ($group !== 'all') {
-            $rows = $rows->where('group', $group)->values();
-        }
+            if ($group !== 'all') {
+                $rows = $rows->where('group', $group)->values();
+            }
 
-        $coordinatorId = $report['filters']['coordinator_id'];
-        $inspectorId = $report['filters']['inspector_id'];
+            if ($rows->count() > self::PDF_MAX_ROWS) {
+                throw ReportExportTooLargeException::forInspections(
+                    $rows->count(),
+                    self::PDF_MAX_ROWS,
+                );
+            }
 
-        $pdf = Pdf::loadView('pdfs.security-report', [
-            'logoSrc' => PdfLogo::dataUri(),
-            'company' => PdfLogo::companyName(),
-            'summary' => $report['summary'],
-            'fleet' => $report['fleet'],
-            'fullCoverage' => $report['full_coverage'],
-            'rows' => $rows,
-            'group' => $group,
-            'coordinatorName' => $this->personName($report['coordinators'], $coordinatorId),
-            'inspectorName' => $this->personName($report['inspectors'], $inspectorId),
-        ])->setPaper('a4', 'landscape');
+            $coordinatorId = $report['filters']['coordinator_id'];
+            $inspectorId = $report['filters']['inspector_id'];
 
-        return $pdf->stream('inspecciones-de-seguridad.pdf');
+            $pdf = Pdf::loadView('pdfs.security-report', [
+                'logoSrc' => PdfLogo::dataUri(),
+                'company' => PdfLogo::companyName(),
+                'summary' => $report['summary'],
+                'fleet' => $report['fleet'],
+                'fullCoverage' => $report['full_coverage'],
+                'rows' => $rows,
+                'group' => $group,
+                'coordinatorName' => $this->personName($report['coordinators'], $coordinatorId),
+                'inspectorName' => $this->personName($report['inspectors'], $inspectorId),
+            ])->setPaper('a4', 'landscape');
+
+            return $pdf->stream('inspecciones-de-seguridad.pdf');
+        });
     }
 
     public function excel(Request $request): StreamedResponse

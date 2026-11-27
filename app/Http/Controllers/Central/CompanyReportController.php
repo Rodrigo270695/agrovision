@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Central;
 
+use App\Http\Controllers\Concerns\HandlesReportPdfExport;
 use App\Http\Controllers\Controller;
 use App\Mail\OwnerReportMail;
 use App\Models\Tenant;
@@ -15,6 +16,7 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class CompanyReportController extends Controller
 {
+    use HandlesReportPdfExport;
     public function show(Request $request, Tenant $tenant, OwnerReports $reports): Response
     {
         $payload = $tenant->run(fn () => $reports->build($request));
@@ -41,21 +43,23 @@ class CompanyReportController extends Controller
         ]);
     }
 
-    public function pdf(Request $request, Tenant $tenant, OwnerReports $reports): HttpResponse
+    public function pdf(Request $request, Tenant $tenant, OwnerReports $reports): HttpResponse|RedirectResponse
     {
-        $binary = $tenant->run(function () use ($request, $reports, $tenant) {
-            $request->merge(['export' => true]);
-            $data = $reports->build($request);
+        return $this->runReportPdfExport($request, function () use ($request, $tenant, $reports) {
+            $binary = $tenant->run(function () use ($request, $reports, $tenant) {
+                $request->merge(['export' => true]);
+                $data = $reports->build($request);
 
-            return $reports->pdfBinary($data, $tenant->name);
+                return $reports->pdfBinary($data, $tenant->name);
+            });
+
+            $name = 'reportes-'.$tenant->id.'.pdf';
+
+            return response($binary, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="'.$name.'"',
+            ]);
         });
-
-        $name = 'reportes-'.$tenant->id.'.pdf';
-
-        return response($binary, 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="'.$name.'"',
-        ]);
     }
 
     public function mail(Request $request, Tenant $tenant, OwnerReports $reports): RedirectResponse
@@ -67,21 +71,26 @@ class CompanyReportController extends Controller
             'email.email' => 'El correo no es válido.',
         ])['email'];
 
-        $binary = $tenant->run(function () use ($request, $reports, $tenant) {
-            $request->merge(['export' => true]);
-            $data = $reports->build($request);
-
-            return $reports->pdfBinary($data, $tenant->name);
-        });
-
         try {
+            $binary = $tenant->run(function () use ($request, $reports, $tenant) {
+                $request->merge(['export' => true]);
+                $data = $reports->build($request);
+
+                return $reports->pdfBinary($data, $tenant->name);
+            });
+
             Mail::to($email)->send(new OwnerReportMail($tenant->name, $binary));
+        } catch (\App\Exceptions\ReportExportTooLargeException $exception) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => $exception->getMessage(),
+            ]);
         } catch (\Throwable $exception) {
             report($exception);
 
             return back()->with('toast', [
                 'type' => 'error',
-                'message' => 'No se pudo enviar el correo. Revisa la configuración de correo.',
+                'message' => 'No se pudo enviar el correo. Si el periodo es muy grande, acota las fechas.',
             ]);
         }
 

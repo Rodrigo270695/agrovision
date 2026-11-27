@@ -112,14 +112,22 @@ export function ConsolidatedTab({
                         <p className="text-xs text-red-600">{form.errors.email}</p>
                     ) : null}
                 </form>
-                <Button
-                    type="button"
-                    variant="outline"
-                    asChild
-                    className="cursor-pointer border-brand-300"
-                >
-                    <a href={pdfHref}>Descargar PDF</a>
-                </Button>
+                <div className="flex flex-col gap-1">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        asChild
+                        className="cursor-pointer border-brand-300"
+                    >
+                        <a href={pdfHref}>Descargar PDF</a>
+                    </Button>
+                    <p className="max-w-xs text-[11px] leading-snug text-muted-foreground">
+                        Incluye resúmenes y hasta 80 filas de detalle por
+                        inspección. Si el periodo es muy grande, acota fechas arriba
+                        o usa correo; si no cabe, verás un aviso claro (no error
+                        técnico).
+                    </p>
+                </div>
             </div>
         </div>
     );

@@ -2,16 +2,21 @@
 
 namespace App\Support;
 
+use App\Exceptions\ReportExportTooLargeException;
 use App\Models\Induction;
 use App\Models\InspectorQuota;
 use App\Models\UnitChecklist;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 
 final class OwnerReports
 {
+    private const EXPORT_MAX_INSPECTIONS = 1200;
+
+    private const EXPORT_MAX_INDUCTIONS = 400;
     /**
      * @param  list<array{user_id: int, daily_quota: int|null}>  $rows
      */
@@ -51,6 +56,11 @@ final class OwnerReports
             $request->input('date_to'),
             $request->boolean('all_dates'),
         );
+
+        if ($request->boolean('export')) {
+            $this->assertExportWithinLimits($range['from'], $range['to']);
+        }
+
         $inspectors = SystemRoles::inspectors();
         $quotaMap = InspectorQuota::query()
             ->pluck('daily_quota', 'user_id')
@@ -147,11 +157,41 @@ final class OwnerReports
      */
     public function pdfBinary(array $data, string $company): string
     {
-        return \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.owner-report', [
-            'company' => $company,
-            'generatedAt' => CarbonImmutable::now('America/Lima')->format('d/m/Y H:i'),
-            ...$data,
-        ])->setPaper('a4', 'landscape')->output();
+        try {
+            return \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.owner-report', [
+                'company' => $company,
+                'generatedAt' => CarbonImmutable::now('America/Lima')->format('d/m/Y H:i'),
+                ...$data,
+            ])->setPaper('a4', 'landscape')->output();
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            throw ReportExportTooLargeException::forInspections(
+                (int) ($data['summary']['inspections'] ?? 0),
+                self::EXPORT_MAX_INSPECTIONS,
+            );
+        }
+    }
+
+    private function assertExportWithinLimits(?string $from, ?string $to): void
+    {
+        $inspections = $this->checklistsQuery($from, $to)->count();
+
+        if ($inspections > self::EXPORT_MAX_INSPECTIONS) {
+            throw ReportExportTooLargeException::forInspections(
+                $inspections,
+                self::EXPORT_MAX_INSPECTIONS,
+            );
+        }
+
+        $sessions = $this->sessionsQuery($from, $to)->count();
+
+        if ($sessions > self::EXPORT_MAX_INDUCTIONS) {
+            throw ReportExportTooLargeException::forInductions(
+                $sessions,
+                self::EXPORT_MAX_INDUCTIONS,
+            );
+        }
     }
 
     /**
@@ -159,10 +199,20 @@ final class OwnerReports
      */
     private function checklists(?string $from, ?string $to): Collection
     {
-        $query = UnitChecklist::query()->with([
-            ...InspectionPlace::withCreator(),
-            'unit:id,coordinator_id,sede,garita',
-        ]);
+        return $this->checklistsQuery($from, $to)
+            ->with([
+                ...InspectionPlace::withCreator(),
+                'unit:id,coordinator_id,sede,garita',
+            ])
+            ->get();
+    }
+
+    /**
+     * @return Builder<UnitChecklist>
+     */
+    private function checklistsQuery(?string $from, ?string $to): Builder
+    {
+        $query = UnitChecklist::query();
 
         if ($from !== null && $to !== null) {
             $query->where(function ($builder) use ($from, $to) {
@@ -173,7 +223,25 @@ final class OwnerReports
             });
         }
 
-        return $query->get();
+        return $query;
+    }
+
+    /**
+     * @return Builder<Induction>
+     */
+    private function sessionsQuery(?string $from, ?string $to): Builder
+    {
+        $query = Induction::query();
+
+        if ($from !== null && $to !== null) {
+            $query->where(function ($builder) use ($from, $to) {
+                $builder
+                    ->whereBetween('session_date', [$from, $to])
+                    ->orWhereBetween('scheduled_at', [$from.' 00:00:00', $to.' 23:59:59']);
+            });
+        }
+
+        return $query;
     }
 
     /**
