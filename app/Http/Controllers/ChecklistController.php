@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\InspectionExportTooLargeException;
+use App\Http\Controllers\Concerns\HandlesSpreadsheetExport;
 use App\Http\Requests\StoreUnitChecklistRequest;
 use App\Http\Requests\UpdateUnitChecklistRequest;
 use App\Models\ChecklistItem;
@@ -25,6 +27,7 @@ use App\Support\DriverBiometrics;
 use App\Support\ImageShrinker;
 use App\Support\IndexedRedirect;
 use App\Support\InspectionDatabaseExporter;
+use App\Support\InspectionExportLimits;
 use App\Support\InspectionPlace;
 use App\Support\ObservationRemediationSupport;
 use App\Support\ParetoCheckTypes;
@@ -51,9 +54,12 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class ChecklistController extends Controller
 {
+    use HandlesSpreadsheetExport;
+
     public function index(Request $request): InertiaResponse
     {
         $validated = $request->validate([
@@ -291,79 +297,98 @@ class ChecklistController extends Controller
                     'name' => $user->name,
                 ])
                 ->values(),
+            'export_max_inspections' => InspectionExportLimits::MAX_ROWS,
         ]);
     }
 
-    public function export(Request $request, InspectionDatabaseExporter $exporter): StreamedResponse|RedirectResponse
+    public function export(Request $request, InspectionDatabaseExporter $exporter): StreamedResponse|RedirectResponse|Response
     {
-        $validated = $request->validate([
-            'search' => ['nullable', 'string', 'max:255'],
-            'template_type' => ['required', 'string', 'max:50', Rule::exists('checklist_templates', 'type')],
-            'status' => ['nullable', Rule::in(['draft', 'completed'])],
-            'date_from' => ['nullable', 'date'],
-            'date_to' => ['nullable', 'date'],
-            'inspector_id' => ['nullable', 'integer'],
-        ]);
+        return $this->runSpreadsheetExport($request, function () use ($request, $exporter) {
+            $validated = $request->validate([
+                'search' => ['nullable', 'string', 'max:255'],
+                'template_type' => ['required', 'string', 'max:50', Rule::exists('checklist_templates', 'type')],
+                'status' => ['nullable', Rule::in(['draft', 'completed'])],
+                'date_from' => ['nullable', 'date'],
+                'date_to' => ['nullable', 'date'],
+                'inspector_id' => ['nullable', 'integer'],
+            ]);
 
-        $search = trim((string) ($validated['search'] ?? ''));
-        $templateType = $validated['template_type'];
-        $status = $validated['status'] ?? null;
-        $inspectorId = isset($validated['inspector_id']) ? (int) $validated['inspector_id'] : null;
-        [$dateFrom, $dateTo] = $this->inspectionDateRange($validated);
+            $search = trim((string) ($validated['search'] ?? ''));
+            $templateType = $validated['template_type'];
+            $status = $validated['status'] ?? null;
+            $inspectorId = isset($validated['inspector_id']) ? (int) $validated['inspector_id'] : null;
+            [$dateFrom, $dateTo] = $this->inspectionDateRange($validated);
 
-        $query = UnitChecklist::query()
-            ->with([
-                'template:id,type',
-                'period:id,name,status',
-                'creator:id,name',
-                'unit.coordinatorUser.place.site',
-                'unit.coordinatorUser.places.site',
-                'unit.documents',
-                'answers.item',
-            ])
-            ->whereHas('period', fn ($q) => $q->where('status', 'active'));
+            $query = UnitChecklist::query()
+                ->with([
+                    'template:id,type',
+                    'period:id,name,status',
+                    'creator:id,name',
+                    'unit.coordinatorUser.place.site',
+                    'unit.coordinatorUser.places.site',
+                    'unit.documents',
+                    'answers.item',
+                ])
+                ->whereHas('period', fn ($q) => $q->where('status', 'active'));
 
-        if (SystemRoles::currentIsScopedCoordinator()) {
-            $query->whereHas('unit', fn ($q) => $q->where('coordinator_id', Auth::id()));
-        }
+            if (SystemRoles::currentIsScopedCoordinator()) {
+                $query->whereHas('unit', fn ($q) => $q->where('coordinator_id', Auth::id()));
+            }
 
-        if ($search !== '') {
-            $query->where(function ($builder) use ($search) {
-                $builder
-                    ->where('plate_number', 'ilike', "%{$search}%")
-                    ->orWhere('driver_name', 'ilike', "%{$search}%")
-                    ->orWhere('provider', 'ilike', "%{$search}%");
-            });
-        }
+            if ($search !== '') {
+                $query->where(function ($builder) use ($search) {
+                    $builder
+                        ->where('plate_number', 'ilike', "%{$search}%")
+                        ->orWhere('driver_name', 'ilike', "%{$search}%")
+                        ->orWhere('provider', 'ilike', "%{$search}%");
+                });
+            }
 
-        if ($templateType) {
-            $query->whereHas('template', fn ($q) => $q->where('type', $templateType));
-        }
+            if ($templateType) {
+                $query->whereHas('template', fn ($q) => $q->where('type', $templateType));
+            }
 
-        if ($status) {
-            $query->where('status', $status);
-        }
+            if ($status) {
+                $query->where('status', $status);
+            }
 
-        if ($inspectorId) {
-            $query->where('created_by', $inspectorId);
-        }
+            if ($inspectorId) {
+                $query->where('created_by', $inspectorId);
+            }
 
-        $this->applyInspectionDateRange($query, $dateFrom, $dateTo);
+            $this->applyInspectionDateRange($query, $dateFrom, $dateTo);
 
-        $checklists = $query
-            ->orderBy('first_inspected_on')
-            ->orderBy('id')
-            ->get();
+            $count = (clone $query)->count();
 
-        $filename = 'inspecciones-'.$templateType;
+            if ($count === 0) {
+                throw new HttpException(
+                    422,
+                    'No hay inspecciones con esos filtros. Revisa plantilla, fechas o estado en el listado.',
+                );
+            }
 
-        if ($dateFrom || $dateTo) {
-            $filename .= '-'.($dateFrom ?: 'inicio').'_a_'.($dateTo ?: now()->toDateString());
-        } else {
-            $filename .= '-'.now()->format('Y-m-d_His');
-        }
+            if ($count > InspectionExportLimits::MAX_ROWS) {
+                throw InspectionExportTooLargeException::forInspections(
+                    $count,
+                    InspectionExportLimits::MAX_ROWS,
+                );
+            }
 
-        return $exporter->download($checklists, $filename.'.xlsx');
+            $checklists = $query
+                ->orderBy('first_inspected_on')
+                ->orderBy('id')
+                ->get();
+
+            $filename = 'inspecciones-'.$templateType;
+
+            if ($dateFrom || $dateTo) {
+                $filename .= '-'.($dateFrom ?: 'inicio').'_a_'.($dateTo ?: now()->toDateString());
+            } else {
+                $filename .= '-'.now()->format('Y-m-d_His');
+            }
+
+            return $exporter->download($checklists, $filename.'.xlsx');
+        });
     }
 
     public function day(Request $request): JsonResponse

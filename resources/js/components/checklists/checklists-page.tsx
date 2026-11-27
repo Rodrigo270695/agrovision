@@ -45,6 +45,7 @@ type PageProps = {
     vehicleTypes?: VehicleTypeOption[];
     offlineCatalog?: OfflineCatalogTemplate[];
     inspectors?: { id: number; name: string }[];
+    export_max_inspections?: number;
 };
 
 function prefetchInspectionEdits(
@@ -107,6 +108,7 @@ export function ChecklistsPage() {
         vehicleTypes,
         offlineCatalog,
         inspectors,
+        export_max_inspections = 700,
     } = page.props as unknown as PageProps;
     const { can } = useCan();
 
@@ -316,6 +318,8 @@ export function ChecklistsPage() {
                     open={exportOpen}
                     templates={templates ?? []}
                     filters={filters}
+                    matchingTotal={stats?.total ?? 0}
+                    exportMax={export_max_inspections}
                     onClose={() => setExportOpen(false)}
                 />
             ) : null}

@@ -9,6 +9,8 @@ type Props = {
     open: boolean;
     templates: ChecklistTemplateOption[];
     filters: ChecklistsFilters;
+    matchingTotal: number;
+    exportMax: number;
     onClose: () => void;
 };
 
@@ -43,6 +45,8 @@ export function ChecklistExportModal({
     open,
     templates,
     filters,
+    matchingTotal,
+    exportMax,
     onClose,
 }: Props) {
     const [templateType, setTemplateType] = useState('');
@@ -59,6 +63,7 @@ export function ChecklistExportModal({
     }, [open, filters.template_type, templates]);
 
     const selected = templates.find((item) => item.type === templateType);
+    const overLimit = matchingTotal > exportMax;
 
     return (
         <AppModal
@@ -79,9 +84,9 @@ export function ChecklistExportModal({
                     </Button>
                     <Button
                         type="button"
-                        disabled={!selected}
+                        disabled={!selected || overLimit}
                         onClick={() => {
-                            if (!selected) {
+                            if (!selected || overLimit) {
                                 return;
                             }
 
@@ -133,6 +138,32 @@ export function ChecklistExportModal({
                         Respeta la búsqueda, el estado, el inspector y las
                         fechas que ya tienes en el listado.
                     </p>
+                    {overLimit ? (
+                        <div
+                            role="alert"
+                            className="rounded-xl border border-amber-300/80 bg-amber-50 px-3 py-3 text-left text-sm leading-relaxed text-amber-950"
+                        >
+                            <p className="font-semibold">
+                                Demasiados registros para una sola descarga
+                            </p>
+                            <p className="mt-1">
+                                Con los filtros actuales hay{' '}
+                                <strong>{matchingTotal.toLocaleString('es-PE')}</strong>{' '}
+                                inspecciones; el servidor admite hasta{' '}
+                                <strong>{exportMax.toLocaleString('es-PE')}</strong> por
+                                archivo. Acota las fechas (por ejemplo un mes o un
+                                trimestre) y exporta por partes.
+                            </p>
+                        </div>
+                    ) : matchingTotal > 0 ? (
+                        <p className="text-xs text-muted-foreground">
+                            Se exportarán{' '}
+                            <strong className="text-brand-800">
+                                {matchingTotal.toLocaleString('es-PE')}
+                            </strong>{' '}
+                            inspecciones (máximo {exportMax.toLocaleString('es-PE')}).
+                        </p>
+                    ) : null}
                 </div>
             )}
         </AppModal>
