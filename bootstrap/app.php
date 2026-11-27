@@ -75,23 +75,20 @@ return Application::configure(basePath: dirname(__DIR__))
                 return $response;
             }
 
-            $message = HttpErrorMessages::message($status);
+            $exceptionMessage = $exception instanceof HttpExceptionInterface
+                ? $exception->getMessage()
+                : $exception->getMessage();
 
-            if ($exception instanceof HttpExceptionInterface) {
-                $custom = trim($exception->getMessage());
-
-                if ($custom !== '' && ! str_contains(strtolower($custom), 'symfony')) {
-                    $message = $custom;
-                }
-            }
-
-            $title = HttpErrorMessages::title($status);
+            $title = HttpErrorMessages::resolveUserTitle($status, $exceptionMessage);
+            $message = HttpErrorMessages::resolveUserMessage($status, $exceptionMessage);
+            $hint = HttpErrorMessages::hint($status);
 
             if ($request->header('X-Inertia')) {
                 return Inertia::render('Error', [
                     'status' => $status,
                     'title' => $title,
                     'message' => $message,
+                    'hint' => $hint,
                 ])
                     ->toResponse($request)
                     ->setStatusCode($status);
@@ -100,9 +97,10 @@ return Application::configure(basePath: dirname(__DIR__))
             return response()->view('errors.friendly', [
                 'title' => $title,
                 'message' => $message,
+                'hint' => $hint,
                 'status' => $status,
-                'back_url' => url('/'),
-                'back_label' => 'Ir al inicio',
+                'back_url' => url('/dashboard'),
+                'back_label' => 'Ir al panel',
             ], $status);
         });
     })->create();

@@ -51,6 +51,9 @@ trait HandlesReportPdfExport
         return response()->view('errors.friendly', [
             'title' => 'No se pudo completar la descarga',
             'message' => $message,
+            'hint' => $status >= 500
+                ? 'Tip: en consolidados, elige un rango de fechas más corto antes de descargar.'
+                : null,
             'status' => $status,
             'back_url' => $backUrl,
             'back_label' => 'Volver',
